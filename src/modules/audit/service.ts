@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { assertPermission } from "@/modules/access/authorize";
 import type { TenantContext } from "@/modules/tenancy/context";
-import { withTenantTx, type Tx } from "@/server/db/transactions";
+import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
 import { redact } from "@/server/logger";
 
 export interface AuditActor {
@@ -67,7 +67,7 @@ export async function listAuditEvents(
     ...(options.entityType ? { entityType: options.entityType } : {}),
   };
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [total, events] = await Promise.all([
+    const [total, events] = await inSequence([
       tx.auditEvent.count({ where }),
       tx.auditEvent.findMany({
         where,

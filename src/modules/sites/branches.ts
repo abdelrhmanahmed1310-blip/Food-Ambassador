@@ -5,7 +5,7 @@ import { actorOf, diff, recordAudit } from "@/modules/audit/service";
 import { runIdempotent } from "@/modules/shared/idempotency";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
-import { withTenantTx, type Tx } from "@/server/db/transactions";
+import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
 import { branchSchema, createBranchSchema, type ListStatus } from "./schemas";
 
@@ -61,7 +61,7 @@ export async function listBranches(
       : {}),
   };
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [total, items] = await Promise.all([
+    const [total, items] = await inSequence([
       tx.branch.count({ where }),
       tx.branch.findMany({
         where,

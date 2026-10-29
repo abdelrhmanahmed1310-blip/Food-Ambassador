@@ -3,7 +3,7 @@ import type { MovementType, Prisma, StockStatus } from "@/generated/prisma/clien
 import { Decimal } from "@/lib/decimal";
 import { accessibleScope, hasPermission } from "@/modules/access/authorize";
 import type { TenantContext } from "@/modules/tenancy/context";
-import { withTenantTx, type Tx } from "@/server/db/transactions";
+import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
 import { notFound } from "@/server/errors";
 import { loadWarehouse } from "./context";
 import { addDays, businessDate, expiryState, fefoSort, isExpired, type ExpiryState } from "./rules";
@@ -85,7 +85,7 @@ export async function listBalances(ctx: TenantContext, filters: BalanceFilters =
         : {}),
   };
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [total, rows] = await Promise.all([
+    const [total, rows] = await inSequence([
       tx.stockBalance.count({ where }),
       tx.stockBalance.findMany({
         where,
@@ -223,7 +223,7 @@ export async function listMovements(ctx: TenantContext, filters: MovementFilters
     ...(filters.movementType ? { movementType: filters.movementType } : {}),
   };
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [total, items] = await Promise.all([
+    const [total, items] = await inSequence([
       tx.inventoryLedgerEntry.count({ where }),
       tx.inventoryLedgerEntry.findMany({
         where,
@@ -321,7 +321,7 @@ export async function listDocuments(ctx: TenantContext, options: { page?: number
     warehouse: warehouseScope(ctx),
   };
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [total, items] = await Promise.all([
+    const [total, items] = await inSequence([
       tx.inventoryDocument.count({ where }),
       tx.inventoryDocument.findMany({
         where,
@@ -423,7 +423,7 @@ export async function inventoryDashboard(
   const soonDate = new Date(`${addDays(today, EXPIRY_WARNING_DAYS)}T00:00:00Z`);
   return withTenantTx(ctx.organizationId, async (tx) => {
     const [productsInStock, quarantined, onHold, rejected, expired, expiring, openCounts, recent] =
-      await Promise.all([
+      await inSequence([
         tx.stockBalance.findMany({
           where: { ...base, stockStatus: "AVAILABLE" },
           distinct: ["productId"],

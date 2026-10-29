@@ -6,7 +6,7 @@ import { OWNER_ROLE_KEY, isOrganizationScopeOnlyRole } from "@/modules/access/pe
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
-import { withSystemTx, withTenantTx, type Tx } from "@/server/db/transactions";
+import { inSequence, withSystemTx, withTenantTx, type Tx } from "@/server/db/transactions";
 import {
   businessRuleViolation,
   conflict,
@@ -27,7 +27,7 @@ export function hashInvitationToken(token: string): string {
 export async function listMembers(ctx: TenantContext) {
   assertPermission(ctx.grants, "members.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [members, invitations] = await Promise.all([
+    const [members, invitations] = await inSequence([
       tx.organizationMembership.findMany({
         where: { organizationId: ctx.organizationId, status: "ACTIVE" },
         select: {

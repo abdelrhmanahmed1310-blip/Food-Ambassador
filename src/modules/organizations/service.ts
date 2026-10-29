@@ -4,7 +4,7 @@ import { OWNER_ROLE_KEY, SYSTEM_ROLE_TEMPLATES } from "@/modules/access/permissi
 import { actorOf, diff, recordAudit } from "@/modules/audit/service";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
-import { withSystemTx, withTenantTx, type Tx } from "@/server/db/transactions";
+import { inSequence, withSystemTx, withTenantTx, type Tx } from "@/server/db/transactions";
 import { validationFailed } from "@/server/errors";
 import {
   createOrganizationSchema,
@@ -162,7 +162,7 @@ export async function getOverview(ctx: TenantContext) {
     ? {}
     : { OR: [{ branchId: { in: whScope.branchIds } }, { id: { in: whScope.warehouseIds } }] };
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [branches, warehouses, locations, members] = await Promise.all([
+    const [branches, warehouses, locations, members] = await inSequence([
       tx.branch.count({
         where: {
           organizationId: ctx.organizationId,

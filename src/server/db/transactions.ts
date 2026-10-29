@@ -36,3 +36,18 @@ export async function withTenantTx<T>(
 export async function withSystemTx<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
   return getDb().$transaction(fn, TX_OPTIONS);
 }
+
+/**
+ * Like Promise.all, but awaits one item at a time. Use it for several queries
+ * inside one transaction: a transaction holds a single connection, and
+ * node-postgres does not support overlapping queries on one client
+ * (deprecated now, removed in pg 9). Prisma queries are lazy — they run only
+ * when awaited — so passing them here executes them strictly in order.
+ */
+export async function inSequence<T extends readonly unknown[] | []>(
+  items: T,
+): Promise<{ -readonly [K in keyof T]: Awaited<T[K]> }> {
+  const results: unknown[] = [];
+  for (const item of items) results.push(await item);
+  return results as { -readonly [K in keyof T]: Awaited<T[K]> };
+}

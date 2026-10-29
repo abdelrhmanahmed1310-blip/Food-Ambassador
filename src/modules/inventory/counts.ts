@@ -6,7 +6,7 @@ import { actorOf, recordAudit } from "@/modules/audit/service";
 import { runIdempotent } from "@/modules/shared/idempotency";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
-import { withTenantTx, type Tx } from "@/server/db/transactions";
+import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
 import {
   assertActive,
@@ -385,7 +385,7 @@ export async function listCounts(ctx: TenantContext, options: { page?: number } 
         }),
   };
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const [total, items] = await Promise.all([
+    const [total, items] = await inSequence([
       tx.stockCount.count({ where }),
       tx.stockCount.findMany({
         where,
