@@ -101,6 +101,7 @@ export function allocateProportionally(
 export function decimalString(options: {
   maxScale: number;
   min?: DecimalInput;
+  max?: DecimalInput;
   allowNegative?: boolean;
 }) {
   return z
@@ -122,11 +123,19 @@ export function decimalString(options: {
         value.lessThan(toDecimal(options.min)) &&
         !(value.isNegative() && !options.allowNegative)
       ) {
-        // Minimums in this codebase are 0 (non-negative) or the smallest positive step.
+        // Minimums are 0 (non-negative), the smallest positive step, or a negative bound.
+        const min = toDecimal(options.min);
         ctx.addIssue({
           code: "custom",
-          message: toDecimal(options.min).isZero() ? "mustNotBeNegative" : "mustBePositive",
+          message: min.isZero()
+            ? "mustNotBeNegative"
+            : min.isNegative()
+              ? "belowMinimum"
+              : "mustBePositive",
         });
+      }
+      if (options.max !== undefined && value.greaterThan(toDecimal(options.max))) {
+        ctx.addIssue({ code: "custom", message: "aboveMaximum" });
       }
     })
     .transform((raw) => new Decimal(raw).toFixed());

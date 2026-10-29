@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
   costInbound,
+  costInboundReversal,
   costOutbound,
   emptyValuation,
   negate,
@@ -165,6 +166,42 @@ describe("moving weighted average", () => {
     });
     expect(back.valueDelta.toFixed()).toBe("0");
     expect(back.state.costMissing).toBe(true);
+  });
+
+  it("reversing an inbound entry takes out exactly the value it added", () => {
+    // 10 @ 10 on hand, then 10 received at a wrong price of 100.
+    let s = costInbound(emptyValuation(), d("10"), { kind: "entered", unitCost: d("10") }).state;
+    const wrong = costInbound(s, d("10"), { kind: "entered", unitCost: d("100") });
+    s = wrong.state;
+    expect(s.totalValue.toFixed()).toBe("1100");
+    const reversal = costInboundReversal(s, d("10"), wrong.valueDelta);
+    expect(reversal.valueDelta.toFixed()).toBe("-1000");
+    expect(reversal.costSource).toBe("RESTORED");
+    expect(show(reversal.state)).toEqual({
+      quantity: "10",
+      totalValue: "100",
+      averageUnitCost: "10",
+      costMissing: false,
+    });
+  });
+
+  it("caps an inbound reversal at the value on hand and flags what is left", () => {
+    let s = costInbound(emptyValuation(), d("10"), { kind: "entered", unitCost: d("10") }).state;
+    const wrong = costInbound(s, d("10"), { kind: "entered", unitCost: d("100") });
+    // 15 issued at the average (55): 825 out, 275 left on 5 units.
+    s = costOutbound(wrong.state, d("15")).state;
+    s = costInbound(s, d("10"), { kind: "entered", unitCost: d("10") }).state; // 15 units, 375
+    const reversal = costInboundReversal(s, d("10"), wrong.valueDelta);
+    expect(reversal.valueDelta.toFixed()).toBe("-375");
+    expect(show(reversal.state)).toMatchObject({
+      quantity: "5",
+      totalValue: "0",
+      costMissing: true,
+    });
+    // Taking out the last units always takes the exact remaining value.
+    const all = costInboundReversal(s, d("15"), d("9999"));
+    expect(all.valueDelta.toFixed()).toBe("-375");
+    expect(all.state.costMissing).toBe(false);
   });
 
   it("revaluation sets the average, changes value and clears the flag", () => {

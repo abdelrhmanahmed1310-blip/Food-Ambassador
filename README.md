@@ -9,9 +9,10 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
 > release, reversals, stock counts, FEFO, dashboard, CSV import/export.
-> Milestone 3 has started with **stock valuation** (moving weighted average,
-> revaluation, stock value report); suppliers, purchasing and receiving come
-> next. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Milestone 3 adds **stock valuation** (moving weighted average) and
+> **purchasing**: suppliers, purchase orders with an optional approval limit,
+> and receiving with rejections, quarantine, lots and temperatures. Requisitions,
+> landed cost and in-transit transfers come next. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

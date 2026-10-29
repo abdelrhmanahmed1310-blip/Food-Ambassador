@@ -41,6 +41,15 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   }
   if (canViewValuation(ctx))
     inventory.items.push({ href: `${base}/inventory/valuation`, label: t("valuation") });
+  const purchasing: NavSection = { title: t("purchasingSection"), items: [] };
+  if (hasPermission(ctx.grants, "suppliers.view"))
+    purchasing.items.push({ href: `${base}/suppliers`, label: t("suppliers") });
+  if (holdsAnyGrant(ctx.grants, "purchasing.view")) {
+    purchasing.items.push(
+      { href: `${base}/purchasing/orders`, label: t("purchaseOrders") },
+      { href: `${base}/purchasing/receipts`, label: t("receipts") },
+    );
+  }
   const catalog: NavSection = { title: t("catalogSection"), items: [] };
   if (hasPermission(ctx.grants, "catalog.view")) {
     catalog.items.push(
@@ -57,13 +66,15 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   const settings: NavSection = { title: t("settings"), items: [] };
   if (hasPermission(ctx.grants, "org.settings.manage"))
     settings.items.push({ href: `${base}/settings/organization`, label: t("organization") });
+  if (hasPermission(ctx.grants, "org.settings.manage"))
+    settings.items.push({ href: `${base}/settings/purchasing`, label: t("purchasingSettings") });
   if (hasPermission(ctx.grants, "members.view"))
     settings.items.push({ href: `${base}/settings/members`, label: t("members") });
   if (hasPermission(ctx.grants, "roles.manage"))
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
-  const sections = [main, inventory, catalog, settings].filter(
+  const sections = [main, inventory, purchasing, catalog, settings].filter(
     (section) => section.items.length > 0,
   );
 

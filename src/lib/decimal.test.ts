@@ -101,6 +101,14 @@ describe("decimalString schema", () => {
     ).toBe("mustBePositive");
   });
 
+  it("enforces negative minimums and maximums", () => {
+    const temperature = decimalString({ maxScale: 1, min: "-80", max: "80", allowNegative: true });
+    expect(temperature.parse("-18.5")).toBe("-18.5");
+    expect(temperature.safeParse("-81").error?.issues[0].message).toBe("belowMinimum");
+    expect(temperature.safeParse("80.1").error?.issues[0].message).toBe("aboveMaximum");
+    expect(decimalString({ maxScale: 2, min: "0", max: "100" }).parse("100")).toBe("100");
+  });
+
   it("rejects negatives unless allowed", () => {
     expect(quantity.safeParse("-1").success).toBe(false);
     expect(decimalString({ maxScale: 2, allowNegative: true }).parse("-1.25")).toBe("-1.25");

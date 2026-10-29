@@ -222,6 +222,38 @@ describe("moving weighted average through the ledger", () => {
     expect((await valuation(oil, mainWh))?.totalValue).toBe("140");
   });
 
+  it("reversing an inbound entry at a wrong price takes out exactly what it added", async () => {
+    const butter = (
+      await createProduct(ctx, {
+        sku: "BUTTER",
+        nameEn: "Butter",
+        type: "RAW_MATERIAL",
+        baseUomId: units.kg,
+      })
+    ).id;
+    const open = (unitCost: string) =>
+      postOpeningBalance(ctx, {
+        warehouseId: mainWh,
+        productId: butter,
+        quantity: "10",
+        uomId: units.kg,
+        unitCost,
+      });
+    await open("10");
+    const wrong = await open("100");
+    expect((await valuation(butter, mainWh))?.totalValue).toBe("1100");
+    const reversal = await reverseDocument(ctx, wrong.documentId, { reasonCode: "WRONG_QUANTITY" });
+    const [entry] = await entriesOf(reversal.documentId);
+    expect(entry.costSource).toBe("RESTORED");
+    expect(entry.valueDelta.toFixed()).toBe("-1000");
+    expect(await valuation(butter, mainWh)).toEqual({
+      quantity: "10",
+      totalValue: "100",
+      averageUnitCost: "10",
+      costMissing: false,
+    });
+  });
+
   it("reversing a transfer moves stock back without creating value", async () => {
     const before = await orgValue(oil);
     const transfer = await postTransfer(ctx, {

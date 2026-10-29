@@ -22,7 +22,8 @@ import {
   productSchema,
   unitSchema,
 } from "./schemas";
-import { conversionFactor, type UnitDef } from "./units";
+import { conversionFactor, toBaseQuantity, type UnitDef } from "./units";
+import type { Decimal } from "@/lib/decimal";
 import type { ListStatus } from "@/modules/sites/schemas";
 
 export const PRODUCT_PAGE_SIZE = 25;
@@ -186,6 +187,31 @@ export async function findProduct(tx: Tx, ctx: TenantContext, productId: string)
   });
   if (!product) throw notFound("Product");
   return product;
+}
+
+/**
+ * Convert a quantity entered in `uomId` to the product's base unit, using
+ * system factors or the product's own conversions. Rejects incompatible
+ * units and quantities that round to zero.
+ */
+export async function quantityInBaseUnit(
+  tx: Tx,
+  ctx: TenantContext,
+  product: Awaited<ReturnType<typeof findProduct>>,
+  uomId: string,
+  quantity: string,
+): Promise<Decimal> {
+  const units = await loadUnits(tx, ctx, true);
+  const from = units.find((u) => u.id === uomId);
+  if (!from) throw notFound("Unit");
+  const conversions = product.conversions.map((c) => ({
+    uomId: c.uomId,
+    factorToBase: c.factorToBase.toString(),
+  }));
+  const base = toBaseQuantity(quantity, toUnitDef(from), toUnitDef(product.baseUom), conversions);
+  if (base.isZero())
+    throw businessRuleViolation("ZERO_QUANTITY", "Quantity rounds to zero in the base unit");
+  return base;
 }
 
 export async function getProduct(ctx: TenantContext, productId: string) {

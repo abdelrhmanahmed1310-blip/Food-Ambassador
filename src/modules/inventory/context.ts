@@ -1,8 +1,7 @@
 import "server-only";
 import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import type { Permission } from "@/modules/access/permissions";
-import { findProduct, loadUnits, toUnitDef } from "@/modules/catalog/service";
-import { toBaseQuantity } from "@/modules/catalog/units";
+import { findProduct, quantityInBaseUnit } from "@/modules/catalog/service";
 import type { TenantContext } from "@/modules/tenancy/context";
 import type { Tx } from "@/server/db/transactions";
 import { AppError, businessRuleViolation, notFound } from "@/server/errors";
@@ -93,25 +92,7 @@ export async function loadProductForPosting(tx: Tx, ctx: TenantContext, productI
 }
 
 /** Convert an entered quantity to the product's base unit (rejects incompatible units). */
-export async function toBase(
-  tx: Tx,
-  ctx: TenantContext,
-  product: PostingProduct,
-  uomId: string,
-  quantity: string,
-): Promise<Decimal> {
-  const units = await loadUnits(tx, ctx, true);
-  const from = units.find((u) => u.id === uomId);
-  if (!from) throw notFound("Unit");
-  const conversions = product.conversions.map((c) => ({
-    uomId: c.uomId,
-    factorToBase: c.factorToBase.toString(),
-  }));
-  const base = toBaseQuantity(quantity, toUnitDef(from), toUnitDef(product.baseUom), conversions);
-  if (base.isZero())
-    throw businessRuleViolation("ZERO_QUANTITY", "Quantity rounds to zero in the base unit");
-  return base;
-}
+export const toBase = quantityInBaseUnit;
 
 const toDateOnly = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 

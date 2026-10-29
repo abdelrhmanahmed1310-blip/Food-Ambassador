@@ -182,7 +182,8 @@ that produced it.
   ever been known it adds quantity at zero value, and the product is flagged
   _cost missing_ until it is revalued. Costs are never guessed.
 - **Outbound** movements (consumption, write-off, transfer out, negative
-  adjustments, reversals of inbound movements) leave at the current average.
+  adjustments) leave at the current average. Reversals of inbound movements
+  remove the value they added (ADR-024).
   The last unit out takes the exact remaining value, so value never goes
   negative and is zero whenever quantity is zero.
 - **Reversals of outbound movements** put stock back at the cost it left with.
@@ -218,6 +219,52 @@ Constraints that follow from this decision:
 - POS connectors for other systems (e.g. Foodics) remain possible later
   (M10) but are no longer the main way sales arrive.
 
+### ADR-023 Purchasing and receiving rules — Accepted (M3b; defaults for Q-04, Q-05, Q-09)
+
+- **Approval (Q-04 default):** one optional approval limit per organization.
+  No limit (the default) means submitting approves the order. With a limit,
+  orders above it wait for approval by someone with `purchasing.approve` who
+  neither created nor submitted the order. Multi-level approval is not
+  built; it can be added when a customer needs it.
+- **Over-receipt (Q-09 default):** 0 %. Each organization can set a
+  tolerance; accepted quantity per line may never exceed ordered ×
+  (1 + tolerance).
+- **Currency (Q-05 default):** orders are in the base currency only.
+- **Rejected goods never enter stock.** A receipt line records received =
+  accepted + rejected, with a reason for any rejection. Only accepted
+  quantity is posted (AVAILABLE, or QUARANTINE when flagged for
+  inspection). Goods rejected later go through quarantine → reject as before.
+- **Receipts post when created** (no draft) at the price charged, which may
+  differ from the order price; the difference is kept for supplier
+  performance. Expired or recall-held lots cannot be accepted.
+- **Temperature is required** when accepting chilled or frozen products
+  (standard receiving check); the value is recorded, but no limits are
+  enforced because acceptable ranges depend on the product and market (Q-02).
+- **Receipt reversal** happens only from purchasing (`purchasing.manage`):
+  it reverses the stock document and reduces the order's received
+  quantities in one transaction. It is refused once the stock has been
+  used, or when the order is closed or cancelled.
+- **Concurrency:** every order change and every receipt locks the order
+  row, so parallel receipts cannot over-receive.
+- **Supplier performance** is computed only from posted receipts; a rate is
+  shown as "not enough data" rather than 0 % or 100 % when nothing can be
+  measured.
+- Lots stay unique per (organization, product, lot code); the supplier is
+  known from the receipt line. Adding the supplier to the lot key is
+  deferred until a customer receives the same lot code from two suppliers.
+
+### ADR-024 Reversing an inbound entry removes the value it added — Accepted (M3b, amends ADR-021)
+
+ADR-021 took reversed inbound stock out at the current average. That leaves
+the value of a wrong-price receipt behind: reversing 10 units received at
+100 into stock of 10 units at 10 removed 550 instead of 1,000. From M3b a
+reversal of an inbound entry removes exactly the value that entry added,
+capped at the value on hand; if the cap is reached while units remain, they
+are left at zero value and flagged cost missing. Outbound reversals and
+paired documents (transfers, status changes) are unchanged. History
+replayed by the M3a migration keeps the earlier rule (it only affected
+development and test data).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -242,12 +289,12 @@ Constraints that follow from this decision:
 | Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                    |
 | Q-02 | Target launch markets (e.g. Egypt, KSA, UAE)? Determines allergen lists, label rules, tax (VAT) handling, data residency, and default currency/time zone.               | M5 (labels), M7 (tax) |
 | Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)            |
-| Q-04 | Purchase approval policy: single approver above an amount threshold, or multi-level?                                                                                    | M3                    |
-| Q-05 | Are foreign-currency supplier invoices needed for the pilot?                                                                                                            | M3                    |
+| Q-04 | Purchase approval policy — **default in place** (ADR-023): one optional approval limit; author cannot approve. Confirm, or ask for multi-level approval.                | M3                    |
+| Q-05 | Foreign-currency supplier invoices — **default in place** (ADR-023): base currency only. Confirm for the pilot.                                                         | M7                    |
 | Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                    |
 | Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)     |
 | Q-08 | Attachment retention period and maximum file size.                                                                                                                      | M6                    |
-| Q-09 | Over-receipt tolerance default (e.g. 0% or 5%)?                                                                                                                         | M3                    |
+| Q-09 | Over-receipt tolerance — **default in place** (ADR-023): 0 %, configurable per organization.                                                                            | M3                    |
 | Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)     |
 | Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                     | M2                    |
 | Q-12 | Should counting and approving a stock count require two different people (segregation of duties)? Currently allowed to be the same user.                                | M8 (pilot)            |

@@ -93,6 +93,35 @@ export function costOutbound(state: ValuationState, quantity: Decimal): CostedMo
   };
 }
 
+/**
+ * Reversal of an inbound entry: take out the value that entry brought in, so
+ * correcting a wrong price leaves the rest of the stock at its true value.
+ * Capped at the value on hand; if the cap is hit while units remain, those
+ * units are left at zero value and flagged cost missing (never negative).
+ * `originalValue` is the positive value the inbound entry added.
+ */
+export function costInboundReversal(
+  state: ValuationState,
+  quantity: Decimal,
+  originalValue: Decimal,
+): CostedMovement {
+  if (!quantity.gt(0)) throw new RangeError("Outbound quantity must be positive");
+  if (quantity.greaterThan(state.quantity)) throw new RangeError("Outbound exceeds valued stock");
+  if (originalValue.lt(0)) throw new RangeError("Original value must not be negative");
+  const remaining = state.quantity.minus(quantity);
+  const value = remaining.isZero()
+    ? state.totalValue
+    : Decimal.min(originalValue, state.totalValue);
+  const exhausted =
+    !remaining.isZero() && value.equals(state.totalValue) && originalValue.gt(value);
+  return {
+    unitCost: roundUnitCost(value.dividedBy(quantity)),
+    valueDelta: negate(value),
+    costSource: "RESTORED",
+    state: settle(state, remaining, state.totalValue.minus(value), state.costMissing || exhausted),
+  };
+}
+
 /** Stock arriving. `quantity` is positive. */
 export function costInbound(
   state: ValuationState,

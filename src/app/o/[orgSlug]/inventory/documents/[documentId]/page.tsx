@@ -104,6 +104,21 @@ export default async function DocumentPage({
                     },
                   ]
                 : []),
+              ...(doc.receipt
+                ? [
+                    {
+                      label: t("purchasing.receiptTitle"),
+                      value: (
+                        <Link
+                          className="ltr-value text-primary font-mono hover:underline"
+                          href={`/o/${orgSlug}/purchasing/receipts/${doc.receipt.id}`}
+                        >
+                          {doc.receipt.number}
+                        </Link>
+                      ),
+                    },
+                  ]
+                : []),
               ...(doc.stockCount
                 ? [
                     {

@@ -20,7 +20,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
                         PostgreSQL 16 (Prisma 7 + node-postgres adapter; RLS for tenant tables)
 ```
 
-## 2. Directory structure (as of Milestone 3a — stock valuation)
+## 2. Directory structure (as of Milestone 3b — purchasing and receiving)
 
 ```
 .
@@ -45,6 +45,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ catalog/              # units & conversions, products, barcodes (pure rules: units.ts, barcodes.ts)
 │  │  ├─ inventory/            # posting engine (only ledger + valuation writer), operations, counts, queries, CSV,
 │  │  │                        #   valuation.ts (pure moving-average rules), valuation-queries.ts (stock value reports)
+│  │  ├─ procurement/          # suppliers, purchase orders + approval, receiving, supplier performance (rules.ts pure)
 │  │  ├─ members/              # memberships, invitations, role grants, last-owner rule
 │  │  ├─ organizations/        # organization onboarding, settings, overview counts
 │  │  ├─ sites/                # branches, warehouses, storage locations
@@ -76,8 +77,10 @@ under `src/modules/`. CSV downloads are route handlers under the tenant path
 4. **Only `src/modules/inventory/posting.ts` writes ledger entries and
    balances.** Every stock-changing workflow (today: opening balances,
    adjustments, write-offs, transfers, status changes, counts, reversals,
-   CSV imports; later: receipts, consumption) builds `PostingLine`s and calls
-   `postDocument()` inside its tenant transaction.
+   CSV imports, goods receipts; later: consumption) builds `PostingLine`s and
+   calls `postDocument()` inside its tenant transaction. Other modules change
+   stock only through inventory entry points that take the caller's
+   transaction (e.g. `postReceiptInTx`, `reverseDocumentInTx`).
 5. Pure rules (`authorize.ts`, `src/lib/*`) are unit-tested; services are
    integration-tested against PostgreSQL.
 

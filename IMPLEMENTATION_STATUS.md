@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-29 (Milestone 3a — stock valuation)
+Last updated: 2026-10-29 (Milestone 3b — suppliers, purchase orders, receiving)
 
 ## Summary
 
@@ -9,8 +9,58 @@ Last updated: 2026-10-29 (Milestone 3a — stock valuation)
 | M0 Repository & architecture | ✅ Complete                                                                    |
 | M1 Application foundation    | ✅ Complete                                                                    |
 | M2 Inventory MVP             | ✅ Complete                                                                    |
-| M3 Procurement & receiving   | 🔄 In progress — **M3a stock valuation ✅**; suppliers, POs and receiving next |
+| M3 Procurement & receiving   | 🔄 In progress — M3a valuation ✅, **M3b purchasing & receiving ✅**, M3c next |
 | M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                       |
+
+## M3b — Suppliers, purchase orders, receiving (delivered)
+
+Rules: DECISIONS.md ADR-023 (with defaults for Q-04, Q-05, Q-09) and ADR-024.
+
+| Area                      | What works                                                                                                                                                                                                                                                                                                                                   | Where                                                |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Suppliers                 | Create, edit, archive (refused with open orders), EN/AR names, contacts, payment terms, lead time                                                                                                                                                                                                                                            | `src/modules/procurement/suppliers.ts`, `/suppliers` |
+| Supplier products         | Purchase unit (must convert to the base unit), supplier SKU, last price (updated by receipts), lead time, minimum order, preferred                                                                                                                                                                                                           | supplier page                                        |
+| Purchase orders           | Numbered drafts, lines in any convertible unit, exact totals, one line per product, edit only in draft, submit, short close, cancel (only without receipts)                                                                                                                                                                                  | `orders.ts`, `/purchasing/orders`                    |
+| Approval                  | Optional approval limit per organization; above it another user with `purchasing.approve` must approve; send back to draft with a reason                                                                                                                                                                                                     | `orders.ts`, `/settings/purchasing`                  |
+| Receiving                 | Partial deliveries; received = accepted + rejected with reason; rejected goods never enter stock; quarantine on receipt; lot and expiry per product rules; expired and recall-held lots refused; temperature required for chilled/frozen goods; price charged may differ from the order; over-receipt tolerance; location; delivery note no. | `receipts.ts`, `/purchasing/orders/[id]/receive`     |
+| Stock and value           | Accepted quantities posted through the inventory module (`RCV-` document, `RECEIPT` entries) at the charged price per base unit; FEFO, balances and valuation updated in the same transaction                                                                                                                                                | `postReceiptInTx` in `inventory/operations.ts`       |
+| Reversal                  | From the receipt page only: stock out (exact value, ADR-024), order quantities and status restored; refused if the stock was used or the order closed                                                                                                                                                                                        | `reverseReceipt`                                     |
+| Concurrency & idempotency | Order row locked for every change and receipt (parallel receipts cannot over-receive); idempotency keys on order creation and receipts                                                                                                                                                                                                       | tests                                                |
+| Supplier performance      | Receipts, on-time rate, fill rate, rejection rate, price variance — from posted receipts only; "not enough data" instead of invented 0 %/100 %                                                                                                                                                                                               | `rules.ts` `supplierPerformance`                     |
+| Access                    | 6 new permissions (`suppliers.*`, `purchasing.*`, purchasing warehouse-scoped); system roles updated for existing organizations by data migration                                                                                                                                                                                            | `permissions.ts`, migration                          |
+| Localization              | All screens, statuses, reasons and errors in English and Arabic; names and dates isolated for RTL                                                                                                                                                                                                                                            | `src/i18n/messages/`                                 |
+| Seed                      | `[DEMO] Delta Foods` with a product link and one approved order per demo organization (idempotent)                                                                                                                                                                                                                                           | `prisma/seed.ts`                                     |
+
+### Check results (M3b)
+
+| Command                                             | Result                                                                                                                                                                                                                                                |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check` (format, lint, typecheck, unit, build) | pass — unit: 19 files, 122 tests                                                                                                                                                                                                                      |
+| `pnpm test:integration`                             | 10 files, 118 tests pass (18 new purchasing tests: approval, partial/rejected/quarantined receipts, tolerance, units, lots, temperature, reversal, concurrency, idempotency, scorecard, roles, warehouse scope, other tenant, RLS, append-only lines) |
+| `pnpm test:e2e`                                     | 19 tests pass (new: supplier → order → receive with rejection → over-receipt refused → close)                                                                                                                                                         |
+| Fresh database                                      | all migrations apply; seed run twice creates the demo purchasing data once                                                                                                                                                                            |
+| Mutation check                                      | disabling the over-receipt limit makes the tolerance test fail, as it should                                                                                                                                                                          |
+| Screens                                             | orders, order, receive, supplier checked in English and Arabic; phone width has no horizontal scroll                                                                                                                                                  |
+
+### Defects found and fixed during M3b
+
+- **Wrong-price receipts could not be corrected cleanly**: reversing an
+  inbound entry removed stock at the average and left the wrong value
+  behind. Reversals now remove the value the entry added (ADR-024).
+- **Arabic layout** mixed names and dates on the order page; each part is
+  now its own bidi run.
+- A long constraint name was truncated by PostgreSQL (63 characters); the
+  duplicate-line check now uses the real name.
+
+### Known limitations (M3b)
+
+- No purchase requisitions, landed cost, in-transit transfers or par levels
+  yet (M3c).
+- No PO printout or email to suppliers (email needs Q-10).
+- One approval level; base currency only.
+- Temperatures are recorded but no acceptable range is enforced (Q-02).
+- Receipts against several orders at once, and receipts without an order,
+  are not supported.
 
 ## M3a — Stock valuation (delivered)
 
@@ -149,7 +199,7 @@ run on the development branch.
 
 ## Not started
 
-Rest of M3 (suppliers, purchase orders, receiving), M4–M8, proposed M9
+M3c (requisitions, in-transit transfers, landed cost, par levels), M4–M8, proposed M9
 (central kitchen & B2B) and M10 (integrations), and the point of sale
 POS1–POS5 (ADR-022). See PROJECT_PLAN.md and the capability reviews in
 `docs/`.

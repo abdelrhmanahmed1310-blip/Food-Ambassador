@@ -10,6 +10,8 @@ import "dotenv/config";
 import type { ProductInput } from "@/modules/catalog/schemas";
 import { addConversion, createProduct, createUnit, listUnits } from "@/modules/catalog/service";
 import { postOpeningBalance } from "@/modules/inventory/operations";
+import { addOrderLine, createOrder, submitOrder } from "@/modules/procurement/orders";
+import { createSupplier, saveSupplierProduct } from "@/modules/procurement/suppliers";
 import { addDays, businessDate } from "@/modules/inventory/rules";
 import { createOrganization } from "@/modules/organizations/service";
 import { createBranch } from "@/modules/sites/branches";
@@ -203,6 +205,46 @@ async function seedStock(ctx: TenantContext, timeZone: string) {
     note: "Demo data (expired lot)",
   });
   await opening(eggs, { lotCode: "DEMO-E-1", quantity: "12", uomId: tray, note: "Demo data" });
+
+  // A demo supplier with an approved, not yet received order (idempotent by supplier code).
+  if (
+    !(await db.supplier.findFirst({
+      where: { organizationId: ctx.organizationId, code: "DEMO-DELTA" },
+    }))
+  ) {
+    const { id: supplierId } = await createSupplier(ctx, {
+      code: "DEMO-DELTA",
+      name: "[DEMO] Delta Foods",
+      nameAr: "[تجريبي] دلتا للأغذية",
+      leadTimeDays: "2",
+      paymentTermsDays: "30",
+    });
+    await saveSupplierProduct(ctx, supplierId, {
+      productId: rice,
+      purchaseUomId: units.kg,
+      lastUnitPrice: "48",
+      preferred: "on",
+    });
+    const { id: orderId } = await createOrder(ctx, {
+      supplierId,
+      warehouseId: warehouse.id,
+      expectedOn: addDays(today, 2),
+      note: "Demo data",
+    });
+    await addOrderLine(ctx, orderId, {
+      productId: rice,
+      uomId: units.kg,
+      quantity: "100",
+      unitPrice: "47.5",
+    });
+    await addOrderLine(ctx, orderId, {
+      productId: milk,
+      uomId: units.l,
+      quantity: "30",
+      unitPrice: "32",
+    });
+    await submitOrder(ctx, orderId);
+  }
 }
 
 async function main() {

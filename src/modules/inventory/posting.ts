@@ -9,6 +9,7 @@ import type { Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict } from "@/server/errors";
 import {
   costInbound,
+  costInboundReversal,
   costOutbound,
   revalue,
   type CostedMovement,
@@ -57,7 +58,11 @@ export interface PostingLine {
   unitCost?: Decimal | null;
   /** Inbound lines only: take the value of this outbound line (index) of the same document. */
   costFromLine?: number;
-  /** Inbound lines only: put back what an outbound entry took (reversals). */
+  /**
+   * Reversals: the reversed entry's value change. Inbound lines put back what
+   * an outbound entry took; outbound lines take out what an inbound entry
+   * added (capped at the value on hand).
+   */
   restore?: { valueDelta: Decimal; unitCost: Decimal | null };
   sourceLineId?: string;
   /** Deterministic and unique per organization, e.g. "transfer:<doc>:1:out". */
@@ -88,6 +93,7 @@ const NUMBER_PREFIX: Record<InventoryDocumentType, string> = {
   STOCK_COUNT: "CNT",
   REVERSAL: "REV",
   REVALUATION: "RVL",
+  RECEIPT: "RCV",
 };
 
 /** Atomically allocate the next number for (organization, series, year). */
@@ -368,8 +374,8 @@ async function costLines(tx: Tx, organizationId: string, lines: PostingLine[]) {
     const l = lines[i];
     const v = valuations.get(valuationKey(l.warehouseId, l.productId))!;
     if (l.quantityDelta.isNegative()) {
-      if (l.unitCost != null || l.costFromLine !== undefined || l.restore)
-        throw new Error("Outbound lines are always costed at the average");
+      if (l.unitCost != null || l.costFromLine !== undefined)
+        throw new Error("Outbound lines are costed at the average or restore an entry");
       const quantity = l.quantityDelta.negated();
       if (quantity.greaterThan(v.state.quantity)) {
         throw businessRuleViolation("INSUFFICIENT_STOCK", "Not enough available stock", {
@@ -380,7 +386,9 @@ async function costLines(tx: Tx, organizationId: string, lines: PostingLine[]) {
         });
       }
       outboundMissing[i] = v.state.costMissing;
-      results[i] = costOutbound(v.state, quantity);
+      results[i] = l.restore
+        ? costInboundReversal(v.state, quantity, l.restore.valueDelta.abs())
+        : costOutbound(v.state, quantity);
     } else {
       results[i] = costInbound(
         v.state,

@@ -6,7 +6,13 @@ import { runIdempotent } from "@/modules/shared/idempotency";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
-import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
+import {
+  AppError,
+  businessRuleViolation,
+  conflict,
+  notFound,
+  validationFailed,
+} from "@/server/errors";
 import {
   assertActive,
   assertWarehousePermission,
@@ -22,6 +28,7 @@ import {
   type LotInfo,
   type PostingProduct,
 } from "./context";
+import type { Permission } from "@/modules/access/permissions";
 import { postDocument, postRevaluation, type PostingLine } from "./posting";
 import { isExpired, transitionPermission } from "./rules";
 import {
@@ -468,6 +475,117 @@ export async function postStatusChange(
   );
 }
 
+// ─── Goods receipt (called by purchasing) ───
+
+export interface ReceiptPostingLine {
+  /** Index of the line in the submitted form, for field errors ("lines.<i>.<field>"). */
+  formIndex: number;
+  sourceLineId: string;
+  productId: string;
+  uomId: string;
+  /** Accepted quantity in uomId (decimal string, > 0). */
+  quantity: string;
+  /** Price per uomId (decimal string), base currency. */
+  unitPrice: string;
+  lotCode?: string;
+  expiresOn?: string;
+  bestBeforeOn?: string;
+  quarantine: boolean;
+}
+
+/** Point a field error raised for one line at that line's inputs. */
+function atLine<T>(formIndex: number, fn: () => Promise<T>): Promise<T> {
+  return fn().catch((error: unknown) => {
+    if (error instanceof AppError && error.details) {
+      const issues = error.details.issues as Array<{ path: string }> | undefined;
+      issues?.forEach((i) => (i.path = `lines.${formIndex}.${i.path}`));
+      if (typeof error.details.field === "string")
+        error.details.field = `lines.${formIndex}.${error.details.field}`;
+    }
+    throw error;
+  });
+}
+
+/**
+ * Post the accepted quantities of a goods receipt into stock, inside the
+ * purchasing transaction: lots are created or matched, quantities converted
+ * to the base unit, and each line valued at its receipt price (ADR-021).
+ * Accepted stock goes to AVAILABLE, or to QUARANTINE when flagged for
+ * inspection. Expired or recall-held lots cannot be accepted.
+ */
+export async function postReceiptInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  input: {
+    warehouseId: string;
+    locationId: string | null;
+    receiptNumber: string;
+    note?: string;
+    lines: ReceiptPostingLine[];
+  },
+): Promise<{
+  documentId: string;
+  number: string;
+  lines: Array<{ lotId: string | null; quantityBase: string }>;
+}> {
+  const wh = await loadWarehouse(tx, ctx, input.warehouseId);
+  assertWarehousePermission(ctx, "purchasing.receive", wh);
+  assertActive(wh);
+  const locationId = await loadLocation(tx, ctx, wh.id, input.locationId ?? undefined, true);
+  const today = todayFor(wh);
+  const documentId = uuidv7();
+  const posted: Array<{ lotId: string | null; quantityBase: string }> = [];
+  const postingLines: PostingLine[] = [];
+  for (const l of input.lines) {
+    await atLine(l.formIndex, async () => {
+      const product = await loadProductForPosting(tx, ctx, l.productId);
+      assertProductActive(product);
+      const lot = await resolveInboundLot(tx, ctx, product, l);
+      if (lot?.recallHold)
+        throw businessRuleViolation("LOT_ON_RECALL_HOLD", "This lot is on recall hold");
+      if (lot && isExpired(lot.expiresOn, today))
+        throw businessRuleViolation("LOT_EXPIRED_ON_RECEIPT", "Expired goods cannot be accepted", {
+          expiresOn: lot.expiresOn,
+        });
+      const quantity = await toBase(tx, ctx, product, l.uomId, l.quantity);
+      posted.push({ lotId: lot?.id ?? null, quantityBase: quantity.toFixed() });
+      postingLines.push(
+        line(
+          {
+            movementType: "RECEIPT",
+            warehouseId: wh.id,
+            locationId,
+            productId: product.id,
+            lotId: lot?.id ?? null,
+            stockStatus: l.quarantine ? "QUARANTINE" : "AVAILABLE",
+            quantity,
+            entered: toDecimal(l.quantity),
+            sign: 1,
+            enteredUomId: l.uomId,
+            unitCost: unitCostPerBase(l.unitPrice, l.quantity, quantity),
+            sourceLineId: l.sourceLineId,
+            note: input.note,
+          },
+          `receipt:${l.sourceLineId}`,
+        ),
+      );
+    });
+  }
+  const result = await postDocument(
+    tx,
+    ctx,
+    {
+      id: documentId,
+      type: "RECEIPT",
+      warehouseId: wh.id,
+      note: input.note,
+    },
+    postingLines,
+    { year: yearOf(today), auditChanges: { receipt: input.receiptNumber } },
+  );
+  return { documentId: result.documentId, number: result.number, lines: posted };
+}
+
 // ─── Revaluation ───
 
 /**
@@ -521,79 +639,97 @@ export async function reverseDocument(
 ): Promise<PostedDocument> {
   const parsed = reversalSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
-  return withTenantTx(ctx.organizationId, async (tx) => {
-    const doc = await tx.inventoryDocument.findFirst({
-      where: { organizationId: ctx.organizationId, id: documentId },
-      select: {
-        id: true,
-        number: true,
-        type: true,
-        warehouseId: true,
-        destinationWarehouseId: true,
-        reversedBy: { select: { id: true } },
-        entries: { orderBy: { id: "asc" } },
-      },
-    });
-    if (!doc) throw notFound("Document");
-    const wh = await loadWarehouse(tx, ctx, doc.warehouseId);
-    assertWarehousePermission(ctx, "inventory.reverse", wh);
-    if (doc.destinationWarehouseId && doc.destinationWarehouseId !== doc.warehouseId) {
-      assertWarehousePermission(
-        ctx,
-        "inventory.reverse",
-        await loadWarehouse(tx, ctx, doc.destinationWarehouseId),
-      );
-    }
-    if (doc.type === "REVERSAL")
-      throw businessRuleViolation("CANNOT_REVERSE_REVERSAL", "A reversal cannot be reversed");
-    if (doc.type === "REVALUATION")
-      throw businessRuleViolation(
-        "CANNOT_REVERSE_REVALUATION",
-        "A revaluation cannot be reversed; post a new revaluation",
-      );
-    if (doc.reversedBy)
-      throw conflict("This document was already reversed", { reason: "alreadyReversed" });
-    const reversalId = uuidv7();
-    const result = await postDocument(
-      tx,
-      ctx,
-      {
-        id: reversalId,
-        type: "REVERSAL",
-        warehouseId: doc.warehouseId,
-        destinationWarehouseId: doc.destinationWarehouseId ?? undefined,
-        reasonCode: parsed.data.reasonCode,
-        note: parsed.data.note,
-        reversesDocumentId: doc.id,
-      },
-      doc.entries.map((e, i) => ({
-        ...reversalCost(doc.entries, i),
-        movementType: "REVERSAL",
-        warehouseId: e.warehouseId,
-        locationId: e.locationId,
-        productId: e.productId,
-        lotId: e.lotId,
-        stockStatus: e.stockStatus,
-        quantityDelta: new Decimal(e.quantityDelta.toString()).negated(),
-        enteredQuantity: new Decimal(e.enteredQuantity.toString()).negated(),
-        enteredUomId: e.enteredUomId,
-        postingKey: `reversal:${e.id}`,
-        reversesEntryId: e.id,
-        reasonCode: parsed.data.reasonCode,
-        note: parsed.data.note,
-      })),
-      { year: yearOf(todayFor(wh)), auditChanges: { reverses: doc.number } },
-    ).catch((error) => {
-      // A concurrent reversal of the same document committed first.
-      if (
-        isUniqueViolation(error, "inventory_documents_organization_id_reverses_document_id_key")
-      ) {
-        throw conflict("This document was already reversed", { reason: "alreadyReversed" });
-      }
-      throw error;
-    });
-    return { documentId: result.documentId, number: result.number };
+  return withTenantTx(ctx.organizationId, (tx) =>
+    reverseDocumentInTx(tx, ctx, documentId, parsed.data, { allowReceipt: false }),
+  );
+}
+
+/**
+ * Reverse a document inside the caller's transaction. Goods receipts are
+ * reversed only through purchasing (which also corrects the order), so the
+ * generic path refuses them.
+ */
+export async function reverseDocumentInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  documentId: string,
+  input: { reasonCode: string; note?: string },
+  options: { allowReceipt: boolean; permission?: Permission },
+): Promise<PostedDocument> {
+  const doc = await tx.inventoryDocument.findFirst({
+    where: { organizationId: ctx.organizationId, id: documentId },
+    select: {
+      id: true,
+      number: true,
+      type: true,
+      warehouseId: true,
+      destinationWarehouseId: true,
+      reversedBy: { select: { id: true } },
+      entries: { orderBy: { id: "asc" } },
+    },
   });
+  if (!doc) throw notFound("Document");
+  const wh = await loadWarehouse(tx, ctx, doc.warehouseId);
+  assertWarehousePermission(ctx, options.permission ?? "inventory.reverse", wh);
+  if (doc.destinationWarehouseId && doc.destinationWarehouseId !== doc.warehouseId) {
+    assertWarehousePermission(
+      ctx,
+      options.permission ?? "inventory.reverse",
+      await loadWarehouse(tx, ctx, doc.destinationWarehouseId),
+    );
+  }
+  if (doc.type === "REVERSAL")
+    throw businessRuleViolation("CANNOT_REVERSE_REVERSAL", "A reversal cannot be reversed");
+  if (doc.type === "RECEIPT" && !options.allowReceipt)
+    throw businessRuleViolation(
+      "RECEIPT_REVERSE_IN_PURCHASING",
+      "Reverse goods receipts from the receipt page",
+    );
+  if (doc.type === "REVALUATION")
+    throw businessRuleViolation(
+      "CANNOT_REVERSE_REVALUATION",
+      "A revaluation cannot be reversed; post a new revaluation",
+    );
+  if (doc.reversedBy)
+    throw conflict("This document was already reversed", { reason: "alreadyReversed" });
+  const reversalId = uuidv7();
+  const result = await postDocument(
+    tx,
+    ctx,
+    {
+      id: reversalId,
+      type: "REVERSAL",
+      warehouseId: doc.warehouseId,
+      destinationWarehouseId: doc.destinationWarehouseId ?? undefined,
+      reasonCode: input.reasonCode,
+      note: input.note,
+      reversesDocumentId: doc.id,
+    },
+    doc.entries.map((e, i) => ({
+      ...reversalCost(doc.entries, i),
+      movementType: "REVERSAL",
+      warehouseId: e.warehouseId,
+      locationId: e.locationId,
+      productId: e.productId,
+      lotId: e.lotId,
+      stockStatus: e.stockStatus,
+      quantityDelta: new Decimal(e.quantityDelta.toString()).negated(),
+      enteredQuantity: new Decimal(e.enteredQuantity.toString()).negated(),
+      enteredUomId: e.enteredUomId,
+      postingKey: `reversal:${e.id}`,
+      reversesEntryId: e.id,
+      reasonCode: input.reasonCode,
+      note: input.note,
+    })),
+    { year: yearOf(todayFor(wh)), auditChanges: { reverses: doc.number } },
+  ).catch((error) => {
+    // A concurrent reversal of the same document committed first.
+    if (isUniqueViolation(error, "inventory_documents_organization_id_reverses_document_id_key")) {
+      throw conflict("This document was already reversed", { reason: "alreadyReversed" });
+    }
+    throw error;
+  });
+  return { documentId: result.documentId, number: result.number };
 }
 
 interface ReversedEntry {
@@ -604,27 +740,28 @@ interface ReversedEntry {
 }
 
 /**
- * Valuation of a reversal line (ADR-021). Reversing an inbound entry takes
- * stock out at the current average. Reversing an outbound entry puts back
- * what it took, except for paired documents (transfer, status change): there
- * the reversal is itself a move back, so the inbound leg carries the cost of
- * the outbound leg and no value is created or lost.
+ * Valuation of a reversal line (ADR-021). A reversal undoes exactly what the
+ * entry did to value: reversing an inbound entry takes out the value it
+ * added (capped at the value on hand), reversing an outbound entry puts back
+ * what it took. Paired documents (transfer, status change) are instead
+ * reversed as a move back: the outbound leg leaves at the average and the
+ * inbound leg carries that value, so no value is created or lost.
  */
 function reversalCost(
   entries: ReversedEntry[],
   i: number,
 ): Pick<PostingLine, "costFromLine" | "restore"> {
   const e = entries[i];
-  if (new Decimal(e.quantityDelta.toString()).gt(0)) return {};
+  const inbound = new Decimal(e.quantityDelta.toString()).gt(0);
   // Legs of one transfer or status change share a posting-key prefix ("transfer:<doc>:1").
   const prefix = e.postingKey.slice(0, e.postingKey.lastIndexOf(":"));
   const pair = entries.findIndex(
     (o, j) =>
       j !== i &&
       o.postingKey.slice(0, o.postingKey.lastIndexOf(":")) === prefix &&
-      new Decimal(o.quantityDelta.toString()).gt(0),
+      new Decimal(o.quantityDelta.toString()).gt(0) !== inbound,
   );
-  if (pair !== -1) return { costFromLine: pair };
+  if (pair !== -1) return inbound ? {} : { costFromLine: pair };
   return {
     restore: {
       valueDelta: new Decimal(e.valueDelta.toString()),

@@ -513,6 +513,7 @@ previous/new unit cost, previous/new value, value delta (CK
 | Any outbound                                    | current average; the last unit out takes the exact remaining value                                               |
 | Transfer / status change inbound leg            | the outbound leg's value → `TRANSFER` (total value unchanged)                                                    |
 | Reversal of an outbound entry                   | exactly what that entry took → `RESTORED`                                                                        |
+| Reversal of an inbound entry                    | exactly the value it added, capped at the value on hand (ADR-024) → `RESTORED`                                   |
 | Reversal of a transfer / status change          | treated as a move back: outbound at average, inbound carries it                                                  |
 | Revaluation (no quantity)                       | value := quantity × new cost; clears the flag                                                                    |
 
@@ -535,30 +536,62 @@ the TypeScript rules reproduce all 116 entries and 16 valuations exactly.
 **Visibility**: costs and values are returned only where the user holds
 `inventory.valuation.view` (warehouse-scopable); others see quantities only.
 
-## 5. Procurement and receiving (Milestone 3)
+## 5. Procurement and receiving (Milestone 3b — implemented, ADR-023)
 
-- **suppliers**: `code` (UQ per org), names (en/ar), tax id, contacts, payment
-  terms, `status`, `archived_at`. **supplier_products**: supplier SKU, pack
-  unit, last price, lead time.
-- **purchase_requisitions / lines**: `DRAFT → SUBMITTED → APPROVED | REJECTED → CONVERTED`.
-  Approval rules configurable per org (threshold by amount).
-- **purchase_orders / lines**: supplier, delivery warehouse, currency, status
-  `DRAFT → APPROVED → SENT → PARTIALLY_RECEIVED → RECEIVED → CLOSED | CANCELLED`.
-  Line: product, ordered qty + uom, unit price, `received_quantity_base`
-  (maintained under row lock), tolerance %.
-- **goods_receipts / lines**: PO (optional for direct receipts), warehouse,
-  status `DRAFT → POSTED`. Line: PO line, product, lot code, expiry, received
-  qty, accepted qty, rejected qty, rejection reason, quarantine flag,
-  temperature at receipt. CK `accepted + rejected = received`.
-  Posting creates `RECEIPT` (AVAILABLE or QUARANTINE) and `RECEIPT_REJECTED`
-  (REJECTED) entries, with posting keys per receipt line.
-- **receipt discrepancies**: over-receipt beyond tolerance blocked unless
-  permitted; short/over/price/expiry discrepancies recorded per line.
-- **landed_cost_allocations**: charges (freight, insurance, duty, other) linked
-  to receipts, allocated by value/quantity/weight with `allocateProportionally`;
-  posted as an immutable allocation record that revalues remaining stock
-  through the moving average (ADR-021): charges on stock already consumed go
-  to a variance account rather than to the remaining units.
+Migration `20261029200000_m3_procurement`; services in `src/modules/procurement/`
+(pure rules in `rules.ts`). All tables carry `organization_id`, composite
+tenant foreign keys and the `tenant_isolation` RLS policy.
+
+- **suppliers**: `code` (UQ per org), `name`, `name_ar`, tax id, contact,
+  email, phone, address, `payment_terms_days`, `lead_time_days`, note,
+  `archived_at`. Archiving is refused while the supplier has open orders.
+- **supplier_products**: UQ (org, supplier, product); `purchase_uom_id`
+  (must convert to the product's base unit), supplier SKU, `last_unit_price`
+  (per purchase unit, updated by receipts in that unit), lead time, minimum
+  order, `preferred`, `archived_at` (removal archives, history kept).
+- **procurement_settings** (one row per org, optional): `approval_threshold`
+  (`NUMERIC(19,4)`, null = no approval step), `over_receipt_tolerance`
+  (fraction 0–1, default 0).
+- **purchase_orders**: `number` (`PO-YYYY-NNNNNN`), supplier, delivery
+  warehouse, `status` `DRAFT → PENDING_APPROVAL → APPROVED →
+PARTIALLY_RECEIVED → RECEIVED`, plus `CLOSED` (short close) and `CANCELLED`
+  (only without posted receipts). Currency = base currency, `expected_on`,
+  `total_amount`, who/when for creation, submission, approval
+  (`auto_approved` flag) and closing; `rejection_note` when sent back to draft.
+  CK: approved states carry an approver.
+- **purchase_order_lines**: UQ (org, order, product) and (org, order,
+  line_no); quantity in the entered unit and in base units, `unit_price` per
+  entered unit, `line_total` (money scale), `received_quantity_base`
+  (accepted so far, maintained under the order's row lock). Editable only in
+  DRAFT.
+- **goods_receipts**: `number` (`GRN-YYYY-NNNNNN`), order, supplier,
+  warehouse, optional location, `status` `POSTED | REVERSED`,
+  `inventory_document_id` (the `RCV-` stock document; null when every line
+  was rejected), `reversal_document_id`, delivery note reference, who/when
+  for posting and reversal. CK: REVERSED ⇔ `reversed_at` set.
+- **goods_receipt_lines** (append-only): order line, product, unit,
+  `received = accepted + rejected` (CK), base quantities, `rejection_reason`
+  (CK: required when anything is rejected), `quarantine`, `lot_id`,
+  `unit_price` charged and `ordered_unit_price`, `temperature_celsius`.
+
+Posting a receipt (one transaction): lock the order → validate each line
+(tolerance, lot/expiry rules, temperature for chilled/frozen goods, expired
+or recall-held lots refused) → post accepted quantities through
+`postReceiptInTx` in the inventory module (`RECEIPT` entries, posting key
+`receipt:<receiptLineId>`, valued at the charged price) → insert receipt
+lines → update received quantities and order status → update supplier last
+price. Reversal reverses the stock document (value removed per ADR-024) and
+the received quantities, also under the order lock.
+
+**Supplier performance** (`supplierPerformance` in `rules.ts`): receipts
+count, on-time rate (received on or before the expected date, per receipt
+with an expected date), fill rate (accepted ÷ ordered over received or
+closed orders, capped at 100 % per order), rejection rate (rejected ÷
+received), price variance (Σ (charged − ordered) × accepted). Rates are
+null when there is nothing to measure.
+
+**Not yet built (M3c):** purchase requisitions, landed cost allocation,
+in-transit transfers (ADR-016), par levels, categories, PO print/email.
 
 ## 6. Recipes and food cost (Milestone 4)
 
