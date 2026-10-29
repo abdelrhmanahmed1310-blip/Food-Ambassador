@@ -1,0 +1,34 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+/playwright-report/
+/test-results/
+/blob-report/
+
+# next.js
+/.next/
+/out/
+/build
+
+# generated code (recreated by `pnpm db:generate`)
+/src/generated/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+.pnpm-debug.log*
+
+# env files: never commit real values; only the placeholder template
+.env*
+!.env.example
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

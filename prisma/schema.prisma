@@ -1,0 +1,12 @@
+// Food Ambassador database schema.
+// Entity design and invariants are documented in DATA_MODEL.md; models are
+// added milestone by milestone (Milestone 1 introduces tenancy and identity).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
