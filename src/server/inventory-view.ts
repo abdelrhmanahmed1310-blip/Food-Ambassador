@@ -61,3 +61,29 @@ export async function quantityFormatter() {
   return (value: Decimal | { toString(): string }) =>
     nf.format(value.toString() as unknown as number);
 }
+
+/**
+ * Format money (4 dp) or a unit cost (6 dp) in the organization's base
+ * currency, exactly, from its decimal string (same approach as quantities).
+ */
+export async function moneyFormatter(currency: string) {
+  const locale = await getLocale();
+  const money = new Intl.NumberFormat(`${locale}-u-nu-latn`, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+  const unit = new Intl.NumberFormat(`${locale}-u-nu-latn`, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  });
+  return {
+    money: (value: Decimal | { toString(): string }) =>
+      money.format(value.toString() as unknown as number),
+    unitCost: (value: Decimal | { toString(): string }) =>
+      unit.format(value.toString() as unknown as number),
+  };
+}

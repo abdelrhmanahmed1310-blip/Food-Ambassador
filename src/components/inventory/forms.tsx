@@ -40,6 +40,12 @@ const STATUS_REASONS = [
   "RELEASED_AFTER_INSPECTION",
   "OTHER",
 ] as const;
+const REVALUATION_REASONS = [
+  "MISSING_COST",
+  "COST_CORRECTION",
+  "SUPPLIER_PRICE_CHANGE",
+  "OTHER",
+] as const;
 const REVERSAL_REASONS = [
   "ENTERED_IN_ERROR",
   "WRONG_QUANTITY",
@@ -618,6 +624,46 @@ export function ReverseForm({ action }: { action: Action }) {
           name="reasonCode"
           label={t("common.reason")}
           options={reasons(REVERSAL_REASONS)}
+          placeholder={t("common.select")}
+          required
+        />
+        <TextField name="note" label={t("common.note")} optionalLabel={t("common.optional")} />
+      </div>
+    </ActionForm>
+  );
+}
+
+export function RevalueForm({
+  action,
+  unitHint,
+  defaultUnitCost,
+}: {
+  action: Action;
+  unitHint: string;
+  defaultUnitCost?: string;
+}) {
+  const { t, reasons } = useOptions();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("inventory.revalue")}
+      pendingLabel={t("common.saving")}
+      idempotent
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          name="unitCost"
+          label={t("inventory.newUnitCost")}
+          hint={unitHint}
+          defaultValue={defaultUnitCost}
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+        <SelectField
+          name="reasonCode"
+          label={t("common.reason")}
+          options={reasons(REVALUATION_REASONS)}
           placeholder={t("common.select")}
           required
         />

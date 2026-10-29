@@ -30,19 +30,32 @@ M0 Foundation repo ─► M1 Identity, tenancy, RBAC, i18n shell
                     M8 Analytics & pilot readiness
 ```
 
-| #   | Milestone                   | Depends on                       | Status       |
-| --- | --------------------------- | -------------------------------- | ------------ |
-| M0  | Repository & architecture   | —                                | **Complete** |
-| M1  | Application foundation      | M0                               | **Complete** |
-| M2  | Inventory MVP               | M1                               | **Complete** |
-| M3  | Procurement & receiving     | M2                               | Next         |
-| M4  | Recipes & food cost         | M2 (M3 for purchase-based costs) | Not started  |
-| M5  | Nutrition & allergens       | M4                               | Not started  |
-| M6  | Food safety & traceability  | M2, M3, M4                       | Not started  |
-| M7  | Sales & financial workflows | M3, M4                           | Not started  |
-| M8  | Analytics & pilot readiness | M2–M7                            | Not started  |
-| M9  | Central kitchen & B2B       | M4, M6                           | Proposed     |
-| M10 | Integrations                | M7                               | Proposed     |
+Point of sale (ADR-022), after M4:
+
+```
+M4 Recipes ─► POS1 Core ─► POS2 Floor & kitchen ─► POS4 Tax e-invoicing ─► POS3 Payments ─► POS5 Customer channels
+```
+
+A market goes live on the POS only after its e-invoicing work (POS4) passes.
+
+| #    | Milestone                   | Depends on                       | Status                           |
+| ---- | --------------------------- | -------------------------------- | -------------------------------- |
+| M0   | Repository & architecture   | —                                | **Complete**                     |
+| M1   | Application foundation      | M0                               | **Complete**                     |
+| M2   | Inventory MVP               | M1                               | **Complete**                     |
+| M3   | Procurement & receiving     | M2                               | In progress (M3a valuation done) |
+| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | Not started                      |
+| M5   | Nutrition & allergens       | M4                               | Not started                      |
+| M6   | Food safety & traceability  | M2, M3, M4                       | Not started                      |
+| M7   | Sales & financial workflows | M3, M4                           | Not started                      |
+| M8   | Analytics & pilot readiness | M2–M7                            | Not started                      |
+| M9   | Central kitchen & B2B       | M4, M6                           | Proposed                         |
+| M10  | Integrations                | M7                               | Proposed                         |
+| POS1 | Core                        | M4                               | Planned                          |
+| POS2 | Floor & kitchen             | POS1                             | Planned                          |
+| POS3 | Payments                    | POS1, Q-15                       | Planned                          |
+| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                          |
+| POS5 | Customer channels           | POS1–POS4                        | Planned                          |
 
 ---
 
@@ -174,8 +187,14 @@ Suppliers, requisitions + approvals, POs, partial/complete receiving, lot and
 expiry capture, rejected/quarantined receipts, discrepancies, supplier
 performance, landed cost allocation. Key AC: receiving creates correct ledger
 entries exactly once, including partial receipts and rejected quantities.
-Blocked on Q-01 (valuation), Q-04 (approvals), Q-09 (tolerance) — defaults
-proposed in DECISIONS.md.
+Q-04 (approvals) and Q-09 (tolerance) are still open — defaults proposed in
+DECISIONS.md.
+
+**M3a — Stock valuation ✅ (delivered first, ADR-021):** moving weighted
+average per product × warehouse on every ledger entry, cost-missing flag
+(costs never guessed), revaluation documents, stock value report + CSV,
+value on the dashboard, costs in movements and documents for users with
+`inventory.valuation.view`, backfill of existing history.
 
 ## M4 — Recipes and food cost
 
@@ -228,28 +247,65 @@ testing against the provider's real sandbox.
 
 ---
 
+## POS1 — POS core
+
+Sellable menu (categories, items, modifiers, combos) linked to recipes;
+prices per branch and channel; order engine (dine-in, takeaway, delivery);
+cashier app as an installable web app with an offline order queue and
+idempotent sync; shifts, cash drawer open/close and cash counts; receipts;
+voids and refunds with permissions and reasons; each paid order consumes
+stock through its recipes via the ledger. Payments recorded as cash or
+"external card terminal" until POS3.
+
+## POS2 — Floor and kitchen
+
+Floor plans and tables, waiter app, course and seat handling, split and
+merge bills, kitchen display with station routing and bump times, order
+status to the cashier.
+
+## POS3 — Payments
+
+Payment provider integration (Q-15): card terminals, wallets, refunds,
+tips, settlement reports and reconciliation against orders. No card data
+stored by Food Ambassador.
+
+## POS4 — Tax and e-invoicing
+
+VAT rules per item and branch, tax-inclusive/exclusive prices, simplified
+and standard tax invoices, credit notes, and the e-invoicing integration of
+the first market (Q-17): for Saudi Arabia, ZATCA Phase 2 (device onboarding,
+signed invoices, QR codes, reporting/clearance). Tested against the
+authority's sandbox before any live use.
+
+## POS5 — Customer channels
+
+Customers and consent, loyalty points, coupons, discounts and timed
+promotions, gift cards (as a stored-value liability), online ordering
+website, self-order kiosk, and delivery-platform order intake (Q-18).
+
+---
+
 Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`.
-Foodics-derived items enter the plan once Q-14 (POS scope) is decided.
 
 ## Prioritized backlog (next items)
 
-| Pri | Item                                                                    | Milestone | Depends on |
-| --- | ----------------------------------------------------------------------- | --------- | ---------- |
-| P0  | Decide Q-01 valuation method (needed for receipt costs and landed cost) | M3        | decision   |
-| P0  | Suppliers and supplier products                                         | M3        | —          |
-| P0  | Purchase orders (+ optional requisitions/approvals, Q-04)               | M3        | suppliers  |
-| P0  | Goods receipts: partial, rejected, quarantined; posting via ledger      | M3        | POs        |
-| P1  | In-transit transfers (ADR-016) and lot supplier key                     | M3        | receipts   |
-| P1  | Discrepancies, supplier performance, landed cost allocation             | M3        | receipts   |
-| P1  | Email provider for invitations and password reset (Q-10)                | M3        | decision   |
-| P2  | Searchable product picker for large catalogs                            | M3        | —          |
-| P1  | Product categories (Q-13)                                               | M3        | —          |
-| P1  | Par levels + suggested order quantities                                 | M3        | POs        |
-| P2  | Supplier item price history                                             | M3        | suppliers  |
-| P2  | Stock count templates                                                   | M3        | —          |
-| P2  | Margin alerts, price simulator, bulk ingredient replace                 | M4        | recipes    |
-| P2  | Credit notes for short/rejected deliveries                              | M7        | invoices   |
-| P3  | Installable PWA with offline counting; native apps                      | backlog   | —          |
+| Pri | Item                                                               | Milestone | Depends on |
+| --- | ------------------------------------------------------------------ | --------- | ---------- |
+| ✅  | Stock valuation — moving weighted average (ADR-021)                | M3a       | done       |
+| P0  | Suppliers and supplier products                                    | M3        | —          |
+| P0  | Purchase orders (+ optional requisitions/approvals, Q-04)          | M3        | suppliers  |
+| P0  | Goods receipts: partial, rejected, quarantined; posting via ledger | M3        | POs        |
+| P1  | In-transit transfers (ADR-016) and lot supplier key                | M3        | receipts   |
+| P1  | Discrepancies, supplier performance, landed cost allocation        | M3        | receipts   |
+| P1  | Email provider for invitations and password reset (Q-10)           | M3        | decision   |
+| P2  | Searchable product picker for large catalogs                       | M3        | —          |
+| P1  | Product categories (Q-13)                                          | M3        | —          |
+| P1  | Par levels + suggested order quantities                            | M3        | POs        |
+| P2  | Supplier item price history                                        | M3        | suppliers  |
+| P2  | Stock count templates                                              | M3        | —          |
+| P2  | Margin alerts, price simulator, bulk ingredient replace            | M4        | recipes    |
+| P2  | Credit notes for short/rejected deliveries                         | M7        | invoices   |
+| P3  | Installable PWA with offline counting; native apps                 | backlog   | —          |
 
 ## Top risks
 
@@ -257,7 +313,7 @@ Foodics-derived items enter the plan once Q-14 (POS scope) is decided.
 | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
 | Cross-tenant data leak                                       | 3 isolation layers (ADR-006), cross-tenant tests per entity, no shared caching (ADR-004)     |
 | Inventory drift / double posting under concurrency           | Ledger + locked projection + posting-key UQ + CK constraints + reconciliation test (ADR-005) |
-| Wrong valuation method chosen late                           | Decide Q-01 before M3; ledger stores unit cost per entry so revaluation is possible          |
+| Wrong valuation method chosen late                           | Decided (ADR-021); every ledger entry stores unit cost and value change                      |
 | Floating-point errors in cost/money                          | Decimal-only policy enforced in helpers and schema types (ADR-003)                           |
 | Regulatory liability for nutrition/allergen labels           | Explicit unknown status, human approval gate, market rules per Q-02                          |
 | Framework churn (Next 16 conventions differ from older docs) | Pin versions; consult bundled docs in `node_modules/next/dist/docs`                          |

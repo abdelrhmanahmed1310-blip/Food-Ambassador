@@ -20,7 +20,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
                         PostgreSQL 16 (Prisma 7 + node-postgres adapter; RLS for tenant tables)
 ```
 
-## 2. Directory structure (as of Milestone 2)
+## 2. Directory structure (as of Milestone 3a — stock valuation)
 
 ```
 .
@@ -43,7 +43,8 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ access/               # permission catalogue, role templates, authorize(), roles service
 │  │  ├─ audit/                # recordAudit(), audit log queries
 │  │  ├─ catalog/              # units & conversions, products, barcodes (pure rules: units.ts, barcodes.ts)
-│  │  ├─ inventory/            # posting engine (only ledger writer), operations, counts, queries, CSV
+│  │  ├─ inventory/            # posting engine (only ledger + valuation writer), operations, counts, queries, CSV,
+│  │  │                        #   valuation.ts (pure moving-average rules), valuation-queries.ts (stock value reports)
 │  │  ├─ members/              # memberships, invitations, role grants, last-owner rule
 │  │  ├─ organizations/        # organization onboarding, settings, overview counts
 │  │  ├─ sites/                # branches, warehouses, storage locations

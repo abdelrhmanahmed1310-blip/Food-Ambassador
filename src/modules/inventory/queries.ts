@@ -234,7 +234,7 @@ export async function listMovements(ctx: TenantContext, filters: MovementFilters
       }),
     ]);
     return {
-      items: await withActorNames(tx, items),
+      items: await withActorNames(tx, redactCosts(ctx, items)),
       total,
       page,
       pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
@@ -249,13 +249,15 @@ const movementSelect = {
   quantityDelta: true,
   enteredQuantity: true,
   unitCost: true,
+  valueDelta: true,
+  costSource: true,
   reasonCode: true,
   note: true,
   postedAt: true,
   postedByUserId: true,
   reversesEntryId: true,
   document: { select: { id: true, number: true, type: true } },
-  warehouse: { select: { id: true, code: true } },
+  warehouse: { select: { id: true, code: true, branchId: true } },
   location: { select: { code: true } },
   product: {
     select: {
@@ -269,6 +271,21 @@ const movementSelect = {
   lot: { select: { id: true, lotCode: true, expiresOn: true } },
   enteredUom: { select: { code: true } },
 } satisfies Prisma.InventoryLedgerEntrySelect;
+
+type MovementRecord = Prisma.InventoryLedgerEntryGetPayload<{ select: typeof movementSelect }>;
+
+/** Costs and values are shown only where the user holds `inventory.valuation.view`. */
+function redactCosts(ctx: TenantContext, rows: MovementRecord[]) {
+  return rows.map((r) => {
+    const visible = hasPermission(ctx.grants, "inventory.valuation.view", {
+      branchId: r.warehouse.branchId,
+      warehouseId: r.warehouse.id,
+    });
+    return visible
+      ? { ...r, costVisible: true as const }
+      : { ...r, unitCost: null, valueDelta: null, costSource: null, costVisible: false as const };
+  });
+}
 
 async function withActorNames<T extends { postedByUserId: string }>(tx: Tx, rows: T[]) {
   const users = await tx.user.findMany({
@@ -299,6 +316,25 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
         reverses: { select: { id: true, number: true } },
         reversedBy: { select: { id: true, number: true } },
         stockCount: { select: { id: true, number: true } },
+        revaluation: {
+          select: {
+            quantity: true,
+            previousUnitCost: true,
+            newUnitCost: true,
+            previousValue: true,
+            newValue: true,
+            valueDelta: true,
+            product: {
+              select: {
+                id: true,
+                sku: true,
+                nameEn: true,
+                nameAr: true,
+                baseUom: { select: { code: true } },
+              },
+            },
+          },
+        },
         entries: { select: movementSelect, orderBy: { id: "asc" } },
       },
     });
@@ -308,9 +344,20 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
     const [withNames] = await withActorNames(tx, [doc]);
     const canReverse =
       doc.type !== "REVERSAL" &&
+      doc.type !== "REVALUATION" &&
       !doc.reversedBy &&
       hasPermission(ctx.grants, "inventory.reverse", { branchId: wh.branchId, warehouseId: wh.id });
-    return { ...withNames, entries: doc.entries, canReverse };
+    const costVisible = hasPermission(ctx.grants, "inventory.valuation.view", {
+      branchId: wh.branchId,
+      warehouseId: wh.id,
+    });
+    return {
+      ...withNames,
+      entries: redactCosts(ctx, doc.entries),
+      revaluation: costVisible ? doc.revaluation : null,
+      costVisible,
+      canReverse,
+    };
   });
 }
 
@@ -522,7 +569,8 @@ export async function warehouseOptions(
     | "inventory.view"
     | "inventory.adjust"
     | "inventory.transfer"
-    | "inventory.count" = "inventory.view",
+    | "inventory.count"
+    | "inventory.valuation.view" = "inventory.view",
 ) {
   const scope = accessibleScope(ctx.grants, permission);
   return withTenantTx(ctx.organizationId, (tx) =>

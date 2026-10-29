@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-links";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
+import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { listUserOrganizations } from "@/modules/organizations/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { getCurrentUser } from "@/server/auth/session";
@@ -38,6 +39,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/inventory/counts`, label: t("counts") },
     );
   }
+  if (canViewValuation(ctx))
+    inventory.items.push({ href: `${base}/inventory/valuation`, label: t("valuation") });
   const catalog: NavSection = { title: t("catalogSection"), items: [] };
   if (hasPermission(ctx.grants, "catalog.view")) {
     catalog.items.push(

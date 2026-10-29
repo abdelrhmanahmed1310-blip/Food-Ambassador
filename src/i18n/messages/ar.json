@@ -81,7 +81,8 @@
     "catalogSection": "الكتالوج",
     "products": "المنتجات",
     "units": "وحدات القياس",
-    "import": "الاستيراد"
+    "import": "الاستيراد",
+    "valuation": "قيمة المخزون"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -205,7 +206,8 @@
     "COUNT_INCOMPLETE": "يجب جرد جميع البنود أولًا (أدخل 0 عند عدم الوجود).",
     "CONVERSION_TO_SELF": "الوحدة الأساسية لا تحتاج إلى تحويل.",
     "ZERO_QUANTITY": "يجب ألا تكون الكمية صفرًا.",
-    "EMPTY_DOCUMENT": "لا يوجد ما يُرحَّل."
+    "EMPTY_DOCUMENT": "لا يوجد ما يُرحَّل.",
+    "CANNOT_REVERSE_REVALUATION": "لا يمكن عكس إعادة التقييم. سجّل إعادة تقييم جديدة بدلًا من ذلك."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -381,7 +383,9 @@
       "inventory.count.approve": "اعتماد الجرد وترحيله",
       "inventory.quarantine": "عزل المخزون أو إيقافه أو رفضه",
       "inventory.quarantine.release": "الإفراج عن المخزون من العزل أو الإيقاف",
-      "inventory.reverse": "عكس المستندات المرحّلة"
+      "inventory.reverse": "عكس المستندات المرحّلة",
+      "inventory.valuation.view": "عرض قيمة المخزون والتكاليف",
+      "inventory.valuation.revalue": "إعادة تقييم المخزون (تغيير متوسط التكلفة)"
     }
   },
   "audit": {
@@ -565,7 +569,7 @@
     "reverseHint": "يُرحّل العكس الدقيق لهذا المستند. لا تُعدَّل المستندات المرحّلة ولا تُحذف أبدًا.",
     "enteredAs": "المُدخل",
     "unitCost": "تكلفة الوحدة",
-    "unitCostHint": "لكل وحدة مُدخلة، بعملة {currency}. اختياري.",
+    "unitCostHint": "لكل وحدة مُدخلة، بعملة {currency}. بدون تكلفة يُعلَّم المخزون بأنه «بلا تكلفة» حتى تتم إعادة تقييمه.",
     "newOpeningTitle": "رصيد افتتاحي",
     "newOpeningHint": "المخزون الأولي قبل أي حركات أخرى للمنتج في المستودع.",
     "newAdjustmentTitle": "تسوية مخزون",
@@ -646,7 +650,8 @@
       "TRANSFER": "تحويل",
       "STATUS_CHANGE": "تغيير حالة",
       "STOCK_COUNT": "جرد",
-      "REVERSAL": "عكس"
+      "REVERSAL": "عكس",
+      "REVALUATION": "إعادة تقييم"
     },
     "reasons": {
       "DATA_CORRECTION": "تصحيح بيانات",
@@ -667,7 +672,41 @@
       "ENTERED_IN_ERROR": "أُدخل خطأً",
       "WRONG_QUANTITY": "كمية خاطئة",
       "WRONG_ITEM_OR_LOT": "صنف أو دفعة خاطئة",
-      "STOCK_COUNT": "جرد"
-    }
+      "STOCK_COUNT": "جرد",
+      "MISSING_COST": "كانت التكلفة مفقودة",
+      "COST_CORRECTION": "تصحيح التكلفة",
+      "SUPPLIER_PRICE_CHANGE": "تغيّر سعر المورّد"
+    },
+    "valuationTitle": "قيمة المخزون",
+    "valuationHint": "متوسط التكلفة المرجّح المتحرك لكل منتج ومستودع، بعملة {currency}.",
+    "totalValue": "إجمالي القيمة",
+    "averageCost": "متوسط التكلفة",
+    "value": "القيمة",
+    "quantity": "الكمية",
+    "costMissing": "بلا تكلفة",
+    "costMissingOnly": "بلا تكلفة فقط",
+    "costMissingCount": "{count, plural, zero {لا توجد أصناف} one {صنف واحد لديه} two {صنفان لديهما} few {# أصناف لديها} many {# صنفًا لديها} other {# صنف لديها}} مخزون بلا تكلفة معروفة",
+    "costMissingHint": "أُضيف جزء من هذا المخزون بدون تكلفة، لذا قيمته أقل من الحقيقية حتى تتم إعادة تقييمه.",
+    "noAverage": "غير معروف",
+    "emptyValuation": "لا يوجد مخزون مُقيَّم بعد.",
+    "revalue": "إعادة تقييم",
+    "revalueTitle": "إعادة تقييم المخزون",
+    "revalueHint": "يحدد متوسط تكلفة جديدًا لكامل {product} في {warehouse}. تصبح قيمة المخزون المتوفر = الكمية × التكلفة الجديدة.",
+    "newUnitCost": "متوسط التكلفة الجديد",
+    "newUnitCostHint": "لكل {unit}، بعملة {currency}.",
+    "currentValue": "القيمة الحالية",
+    "previousCost": "متوسط التكلفة السابق",
+    "previousValue": "القيمة السابقة",
+    "newValue": "القيمة الجديدة",
+    "valueChange": "التغير في القيمة",
+    "costSources": {
+      "ENTERED": "تكلفة مُدخلة",
+      "AVERAGE": "متوسط التكلفة",
+      "TRANSFER": "منقولة من المصدر",
+      "RESTORED": "مُستعادة",
+      "NONE": "لا توجد تكلفة معروفة"
+    },
+    "stockValueCard": "قيمة المخزون",
+    "viewValuation": "عرض قيمة المخزون"
   }
 }

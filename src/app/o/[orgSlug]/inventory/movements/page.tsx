@@ -92,7 +92,12 @@ export default async function MovementsPage({
       {result.items.length === 0 ? (
         <EmptyState title={t("inventory.emptyMovements")} />
       ) : (
-        <MovementsTable rows={result.items} orgSlug={orgSlug} timeZone={ctx.timeZone} />
+        <MovementsTable
+          rows={result.items}
+          orgSlug={orgSlug}
+          timeZone={ctx.timeZone}
+          currency={ctx.baseCurrency}
+        />
       )}
       <Pagination
         basePath={`/o/${orgSlug}/inventory/movements`}

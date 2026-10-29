@@ -479,10 +479,61 @@ Implemented in migration `20261029120000_m2_inventory`; posting logic in
   counted − system quantity at count time. The UI hides the system quantity
   until a line is counted (blind count). Lifecycle OPEN → SUBMITTED →
   POSTED/CANCELLED; posting needs `inventory.count.approve`.
-- **Unit cost** is recorded per base unit on inbound entries when entered
-  (opening balances); no valuation is computed until Q-01 is decided.
+- **Unit cost** is recorded per base unit; since M3a every entry also
+  carries its value change and cost source (see "Stock valuation" below).
 - **Integrity check**: `reconcileBalances()` recomputes every balance from
   the ledger; the integration suites assert it returns no differences.
+
+### Stock valuation (Milestone 3a — implemented, ADR-021)
+
+Moving weighted average per product × warehouse, in base currency. Migration
+`20261029180000_m3_valuation`; rules in `src/modules/inventory/valuation.ts`
+(pure), applied by the posting engine under row locks.
+
+**Ledger columns added**: `value_delta NUMERIC(19,4)` (signed),
+`cost_source` (`ENTERED | AVERAGE | TRANSFER | RESTORED | NONE`), and
+`unit_cost` now holds the cost used for every entry. CK: `NONE` ⇔ no unit
+cost, `NONE` ⇒ zero value, and value moves in the same direction as
+quantity.
+
+**stock_valuations** — UQ (organization_id, warehouse_id, product_id):
+`quantity NUMERIC(20,6)`, `total_value NUMERIC(19,4)`,
+`average_unit_cost NUMERIC(20,6)?`, `cost_missing boolean`. CK quantity ≥ 0,
+value ≥ 0, value = 0 when quantity = 0. Quantity always equals the sum of the
+product's stock balances in the warehouse (all locations, lots, statuses).
+
+**stock_revaluations** (append-only, one per REVALUATION document): quantity,
+previous/new unit cost, previous/new value, value delta (CK
+`value_delta = new_value − previous_value`), previous cost-missing flag.
+
+| Movement                                        | Cost used                                                                                                        |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Inbound with its own cost (opening, receipt)    | entered cost per base unit → `ENTERED`                                                                           |
+| Inbound without a cost (count gain, adjustment) | current average, else last average → `AVERAGE`; none known, or uncosted units on hand → zero value, `NONE`, flag |
+| Any outbound                                    | current average; the last unit out takes the exact remaining value                                               |
+| Transfer / status change inbound leg            | the outbound leg's value → `TRANSFER` (total value unchanged)                                                    |
+| Reversal of an outbound entry                   | exactly what that entry took → `RESTORED`                                                                        |
+| Reversal of a transfer / status change          | treated as a move back: outbound at average, inbound carries it                                                  |
+| Revaluation (no quantity)                       | value := quantity × new cost; clears the flag                                                                    |
+
+`average_unit_cost` is kept after stock reaches zero (used by the next
+movement without its own cost). While `cost_missing` is set the average is
+not updated from value ÷ quantity, because that would understate the cost.
+Posting order inside a document: outbound lines first, then inbound, so
+inbound legs can carry outbound values. Valuation rows are locked after all
+balance rows, in sorted order.
+
+**Integrity check**: `reconcileValuations()` compares every valuation with
+Σ balances (quantity) and Σ ledger `value_delta` + Σ revaluations (value);
+the integration suites assert it returns no differences.
+
+**Backfill**: the migration replays existing ledger entries in document
+order with the same rules in SQL and aborts if quantities disagree with
+`stock_balances`. Verified against a database built by the M2 test suite:
+the TypeScript rules reproduce all 116 entries and 16 valuations exactly.
+
+**Visibility**: costs and values are returned only where the user holds
+`inventory.valuation.view` (warehouse-scopable); others see quantities only.
 
 ## 5. Procurement and receiving (Milestone 3)
 
@@ -506,7 +557,8 @@ Implemented in migration `20261029120000_m2_inventory`; posting logic in
 - **landed_cost_allocations**: charges (freight, insurance, duty, other) linked
   to receipts, allocated by value/quantity/weight with `allocateProportionally`;
   posted as an immutable allocation record that revalues remaining stock
-  (method depends on Q-01).
+  through the moving average (ADR-021): charges on stock already consumed go
+  to a variance account rather than to the remaining units.
 
 ## 6. Recipes and food cost (Milestone 4)
 

@@ -7,6 +7,7 @@ import { getDb } from "@/server/db/client";
 import { addMember, createTenant, expectAppError } from "../../../test/support/factories";
 import { exportBalancesCsv, importOpeningBalances, importProducts } from "./csv";
 import { reconcileBalances } from "./queries";
+import { reconcileValuations } from "./valuation-queries";
 
 let ctx: TenantContext;
 
@@ -18,6 +19,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   expect(await reconcileBalances(ctx)).toEqual([]);
+  expect(await reconcileValuations(ctx)).toEqual([]);
   await getDb().$disconnect();
 });
 

@@ -40,6 +40,7 @@ import {
   reconcileBalances,
 } from "./queries";
 import { addDays, businessDate } from "./rules";
+import { reconcileValuations } from "./valuation-queries";
 import { Decimal } from "@/lib/decimal";
 
 let ctx: TenantContext;
@@ -132,6 +133,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // The ledger must always equal the balances.
   expect(await reconcileBalances(ctx)).toEqual([]);
+  expect(await reconcileValuations(ctx)).toEqual([]);
   await getDb().$disconnect();
 });
 

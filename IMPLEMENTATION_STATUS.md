@@ -1,16 +1,64 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-29 (end of Milestone 2; Supy and Foodics capability reviews added)
+Last updated: 2026-10-29 (Milestone 3a — stock valuation)
 
 ## Summary
 
-| Milestone                    | Status                                    |
-| ---------------------------- | ----------------------------------------- |
-| M0 Repository & architecture | ✅ Complete                               |
-| M1 Application foundation    | ✅ Complete                               |
-| M2 Inventory MVP             | ✅ Complete (all acceptance criteria met) |
-| M3 Procurement & receiving   | ⏭ Next — needs a decision on Q-01         |
-| M4 – M8                      | Not started                               |
+| Milestone                    | Status                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| M0 Repository & architecture | ✅ Complete                                                                    |
+| M1 Application foundation    | ✅ Complete                                                                    |
+| M2 Inventory MVP             | ✅ Complete                                                                    |
+| M3 Procurement & receiving   | 🔄 In progress — **M3a stock valuation ✅**; suppliers, POs and receiving next |
+| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                       |
+
+## M3a — Stock valuation (delivered)
+
+Decision: moving weighted average per product × warehouse (Q-01 → ADR-021).
+
+| Area          | What works                                                                                                                                                                                                                              | Where                                                                            |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Costing rules | Inbound at entered cost, otherwise current/last average; outbound at average with the last unit taking the exact remaining value; transfers and status changes move value without changing it; reversals restore exactly what was taken | `src/modules/inventory/valuation.ts` (pure, unit-tested)                         |
+| Posting       | Every ledger entry stores unit cost, value change and cost source; valuations locked after balances in a stable order; DB checks keep value ≥ 0 and zero at zero quantity                                                               | `src/modules/inventory/posting.ts`, migration `…_m3_valuation`                   |
+| Unknown costs | Stock added without any known cost is valued at zero and flagged **cost missing**; the flag blocks the average from being reused until the stock is revalued or used up. No cost is ever guessed                                        | `valuation.ts`, stock value page                                                 |
+| Revaluation   | New average cost for a product in a warehouse via a numbered `RVL-` document with an append-only record (previous/new cost and value); cannot be reversed; idempotent; own permission                                                   | `operations.ts` `revalueStock`, `/inventory/valuation/[warehouseId]/[productId]` |
+| Reports       | Stock value page (filters, total, cost-missing count, per-row revalue), CSV export, dashboard value card, value + unit cost + source in movements and documents                                                                         | `src/app/o/[orgSlug]/inventory/valuation/`, `valuation-queries.ts`               |
+| Access        | `inventory.valuation.view` and `inventory.valuation.revalue` (warehouse-scopable); granted to existing organizations' system roles by data migration; users without view permission see no costs anywhere (also in movements/documents) | `permissions.ts`, migration                                                      |
+| History       | Existing ledger replayed with the same rules during migration; aborts if quantities disagree with balances                                                                                                                              | migration backfill                                                               |
+| Integrity     | `reconcileValuations()` (quantity vs balances, value vs ledger + revaluations) asserted after every inventory integration suite                                                                                                         | `valuation-queries.ts`                                                           |
+| Localization  | All new screens, reasons and messages in English and Arabic                                                                                                                                                                             | `src/i18n/messages/`                                                             |
+
+### Check results (M3a)
+
+| Command                                             | Result                                                                                                                                                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check` (format, lint, typecheck, unit, build) | pass — unit: 18 files, 112 tests                                                                                                                                                            |
+| `pnpm test:integration`                             | 9 files, 99 tests pass (16 new valuation tests incl. concurrency, scope, RLS, idempotency)                                                                                                  |
+| `pnpm test:e2e`                                     | 18 tests pass (new: stock value journey with revaluation and CSV)                                                                                                                           |
+| Migration on real M2 history                        | database built by running the M2 code's integration suite twice (116 entries); migration applied; a TypeScript replay with `valuation.ts` matches all 116 entries and 16 valuations exactly |
+| `pnpm db:seed` twice on a fresh database            | demo stock created once, valued (rice 250 kg × 48 = EGP 12,000 per demo org; milk and eggs flagged cost missing)                                                                            |
+| Screens                                             | stock value, revaluation, movements, dashboard checked in English, Arabic and at phone width (no horizontal scroll)                                                                         |
+
+### Defects found and fixed during M3a
+
+- **Zero-value reversals failed**: reversing a write-off of uncosted stock
+  produced a negative zero that the costing rules rejected. Found by the
+  replay cross-check; fixed and covered by unit and integration tests.
+- **Made-up average for uncosted stock**: stock with no known cost showed an
+  average of 0, which would then have been used for later stock. The average
+  is now left unknown while uncosted units are on hand. Found by an
+  integration test before release.
+- **Movements table too wide** once costs were added: "entered as", "by" and
+  status now sit under the related column, so the table fits at 1280 px.
+
+### Known limitations (M3a)
+
+- No supplier receipts yet, so costs come from opening balances, entered
+  costs and revaluations until purchasing lands in M3.
+- One base currency; no landed cost allocation yet (M3).
+- Revaluation applies to a whole product × warehouse, not to one lot.
+- No COGS report yet (consumption by recipes arrives with M4/POS1); the
+  ledger already records the value of every issue.
 
 ## M2 — Delivered
 
@@ -71,10 +119,9 @@ All are now applied, verified in the files and in screenshots:
   wrapped on narrow screens.
 - Codes (SKU, lot, warehouse) could break mid-code in narrow table cells.
 
-## Known limitations
+## Known limitations (carried over from M2)
 
-- **Valuation (Q-01)**: unit costs are captured on opening balances; no stock
-  value, average cost or COGS is computed yet.
+- ~~Valuation (Q-01)~~ — delivered in M3a (see above).
 - **Transfers are immediate** (no in-transit stage; ADR-016).
 - **Reservations** are modelled (`reserved_quantity`) but not yet used.
 - **Counts** cover AVAILABLE stock only; counter and approver may be the same
@@ -102,5 +149,7 @@ run on the development branch.
 
 ## Not started
 
-M3–M8, plus proposed M9 (central kitchen & B2B) and M10 (integrations) from the
-Supy capability review in `docs/SUPY_FEATURE_MAP.md` (see PROJECT_PLAN.md).
+Rest of M3 (suppliers, purchase orders, receiving), M4–M8, proposed M9
+(central kitchen & B2B) and M10 (integrations), and the point of sale
+POS1–POS5 (ADR-022). See PROJECT_PLAN.md and the capability reviews in
+`docs/`.

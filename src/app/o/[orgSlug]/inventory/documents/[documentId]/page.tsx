@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ReverseForm } from "@/components/inventory/forms";
 import { MovementsTable } from "@/components/inventory/movements-table";
 import { Badge, Card, DescriptionList, PageHeader } from "@/components/ui/primitives";
@@ -8,6 +8,7 @@ import { isUuid } from "@/lib/uuid";
 import { getDocument } from "@/modules/inventory/queries";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
+import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
 import { reverseDocumentAction } from "../../actions";
 
 export default async function DocumentPage({
@@ -17,7 +18,13 @@ export default async function DocumentPage({
   if (!isUuid(documentId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const doc = await notFoundOnAppError(getDocument(ctx, documentId));
-  const [t, format] = await Promise.all([getTranslations(), getFormatter()]);
+  const [t, format, locale, fmt, money] = await Promise.all([
+    getTranslations(),
+    getFormatter(),
+    getLocale(),
+    quantityFormatter(),
+    moneyFormatter(ctx.baseCurrency),
+  ]);
   const base = `/o/${orgSlug}/inventory/documents`;
   const rows = doc.entries.map((e) => ({ ...e, postedByName: doc.postedByName }));
   return (
@@ -115,12 +122,54 @@ export default async function DocumentPage({
             ]}
           />
         </Card>
-        <MovementsTable
-          rows={rows}
-          orgSlug={orgSlug}
-          timeZone={ctx.timeZone}
-          showDocument={false}
-        />
+        {doc.revaluation ? (
+          <Card title={t("inventory.revalue")}>
+            <DescriptionList
+              items={[
+                {
+                  label: t("inventory.product"),
+                  value: `${doc.revaluation.product.sku} — ${productName(doc.revaluation.product, locale)}`,
+                },
+                {
+                  label: t("inventory.quantity"),
+                  value: (
+                    <span className="ltr-value tabular-nums">
+                      {fmt(doc.revaluation.quantity)} {doc.revaluation.product.baseUom.code}
+                    </span>
+                  ),
+                },
+                {
+                  label: t("inventory.previousCost"),
+                  value: doc.revaluation.previousUnitCost
+                    ? money.unitCost(doc.revaluation.previousUnitCost)
+                    : t("inventory.noAverage"),
+                },
+                {
+                  label: t("inventory.newUnitCost"),
+                  value: money.unitCost(doc.revaluation.newUnitCost),
+                },
+                {
+                  label: t("inventory.previousValue"),
+                  value: money.money(doc.revaluation.previousValue),
+                },
+                { label: t("inventory.newValue"), value: money.money(doc.revaluation.newValue) },
+                {
+                  label: t("inventory.valueChange"),
+                  value: money.money(doc.revaluation.valueDelta),
+                },
+              ]}
+            />
+          </Card>
+        ) : null}
+        {rows.length > 0 ? (
+          <MovementsTable
+            rows={rows}
+            orgSlug={orgSlug}
+            timeZone={ctx.timeZone}
+            currency={ctx.baseCurrency}
+            showDocument={false}
+          />
+        ) : null}
         {doc.canReverse ? (
           <Card title={t("inventory.reverse")}>
             <p className="text-muted mb-3 text-sm">{t("inventory.reverseHint")}</p>

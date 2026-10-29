@@ -81,7 +81,8 @@
     "catalogSection": "Catalog",
     "products": "Products",
     "units": "Units",
-    "import": "Import"
+    "import": "Import",
+    "valuation": "Stock value"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -205,7 +206,8 @@
     "COUNT_INCOMPLETE": "Every line must be counted first (enter 0 when there is none).",
     "CONVERSION_TO_SELF": "The base unit needs no conversion.",
     "ZERO_QUANTITY": "The quantity must not be zero.",
-    "EMPTY_DOCUMENT": "Nothing to post."
+    "EMPTY_DOCUMENT": "Nothing to post.",
+    "CANNOT_REVERSE_REVALUATION": "A revaluation cannot be reversed. Post a new revaluation instead."
   },
   "notFound": {
     "title": "Page not found",
@@ -381,7 +383,9 @@
       "inventory.count.approve": "Approve and post stock counts",
       "inventory.quarantine": "Quarantine, hold or reject stock",
       "inventory.quarantine.release": "Release stock from quarantine or hold",
-      "inventory.reverse": "Reverse posted documents"
+      "inventory.reverse": "Reverse posted documents",
+      "inventory.valuation.view": "View stock value and costs",
+      "inventory.valuation.revalue": "Revalue stock (change average cost)"
     }
   },
   "audit": {
@@ -565,7 +569,7 @@
     "reverseHint": "Posts the exact opposite of this document. Posted documents are never edited or deleted.",
     "enteredAs": "Entered as",
     "unitCost": "Unit cost",
-    "unitCostHint": "Per entered unit, in {currency}. Optional.",
+    "unitCostHint": "Per entered unit, in {currency}. Without a cost the stock is marked “cost missing” until it is revalued.",
     "newOpeningTitle": "Opening balance",
     "newOpeningHint": "Initial stock before other movements of a product in a warehouse.",
     "newAdjustmentTitle": "Stock adjustment",
@@ -646,7 +650,8 @@
       "TRANSFER": "Transfer",
       "STATUS_CHANGE": "Status change",
       "STOCK_COUNT": "Stock count",
-      "REVERSAL": "Reversal"
+      "REVERSAL": "Reversal",
+      "REVALUATION": "Revaluation"
     },
     "reasons": {
       "DATA_CORRECTION": "Data correction",
@@ -667,7 +672,41 @@
       "ENTERED_IN_ERROR": "Entered in error",
       "WRONG_QUANTITY": "Wrong quantity",
       "WRONG_ITEM_OR_LOT": "Wrong item or lot",
-      "STOCK_COUNT": "Stock count"
-    }
+      "STOCK_COUNT": "Stock count",
+      "MISSING_COST": "Cost was missing",
+      "COST_CORRECTION": "Cost correction",
+      "SUPPLIER_PRICE_CHANGE": "Supplier price change"
+    },
+    "valuationTitle": "Stock value",
+    "valuationHint": "Moving weighted average cost per product and warehouse, in {currency}.",
+    "totalValue": "Total value",
+    "averageCost": "Average cost",
+    "value": "Value",
+    "quantity": "Quantity",
+    "costMissing": "Cost missing",
+    "costMissingOnly": "Cost missing only",
+    "costMissingCount": "{count, plural, one {# item has} other {# items have}} stock without a known cost",
+    "costMissingHint": "Some of this stock was added without a cost. Its value is understated until it is revalued.",
+    "noAverage": "Unknown",
+    "emptyValuation": "No valued stock yet.",
+    "revalue": "Revalue",
+    "revalueTitle": "Revalue stock",
+    "revalueHint": "Sets a new average cost for all {product} in {warehouse}. The value of the stock on hand becomes quantity × new cost.",
+    "newUnitCost": "New average cost",
+    "newUnitCostHint": "Per {unit}, in {currency}.",
+    "currentValue": "Current value",
+    "previousCost": "Previous average cost",
+    "previousValue": "Previous value",
+    "newValue": "New value",
+    "valueChange": "Value change",
+    "costSources": {
+      "ENTERED": "Entered cost",
+      "AVERAGE": "Average cost",
+      "TRANSFER": "Carried from source",
+      "RESTORED": "Restored",
+      "NONE": "No cost known"
+    },
+    "stockValueCard": "Stock value",
+    "viewValuation": "View stock value"
   }
 }

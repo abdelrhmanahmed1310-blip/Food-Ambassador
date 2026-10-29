@@ -22,12 +22,13 @@ import {
   type LotInfo,
   type PostingProduct,
 } from "./context";
-import { postDocument, type PostingLine } from "./posting";
+import { postDocument, postRevaluation, type PostingLine } from "./posting";
 import { isExpired, transitionPermission } from "./rules";
 import {
   adjustmentSchema,
   openingBalanceSchema,
   reversalSchema,
+  revaluationSchema,
   statusChangeSchema,
   transferSchema,
   writeOffSchema,
@@ -383,6 +384,8 @@ export async function postTransfer(ctx: TenantContext, rawInput: unknown): Promi
               warehouseId: to.id,
               locationId: toLocation,
               sign: 1,
+              // The destination receives the stock at the cost it left with.
+              costFromLine: 0,
             },
             `transfer:${documentId}:1:in`,
           ),
@@ -450,7 +453,10 @@ export async function postStatusChange(
             { ...common, stockStatus: input.fromStatus, sign: -1 },
             `status:${documentId}:1:from`,
           ),
-          line({ ...common, stockStatus: input.toStatus, sign: 1 }, `status:${documentId}:1:to`),
+          line(
+            { ...common, stockStatus: input.toStatus, sign: 1, costFromLine: 0 },
+            `status:${documentId}:1:to`,
+          ),
         ],
         {
           year: yearOf(todayFor(wh)),
@@ -458,6 +464,45 @@ export async function postStatusChange(
         },
       );
       return { documentId: result.documentId, number: result.number };
+    },
+  );
+}
+
+// ─── Revaluation ───
+
+/**
+ * Set a new average cost for a product in a warehouse (ADR-021): the value of
+ * the stock on hand becomes quantity × new cost. Used to price stock that was
+ * added without a cost, or to correct a wrong cost.
+ */
+export async function revalueStock(ctx: TenantContext, rawInput: unknown): Promise<PostedDocument> {
+  const parsed = revaluationSchema.safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const { idempotencyKey, ...input } = parsed.data;
+  return runIdempotent(
+    ctx,
+    { key: idempotencyKey, operation: "inventory.revaluation", input },
+    async (tx) => {
+      const wh = await loadWarehouse(tx, ctx, input.warehouseId);
+      assertWarehousePermission(ctx, "inventory.valuation.revalue", wh);
+      const product = await loadProductForPosting(tx, ctx, input.productId);
+      const result = await postRevaluation(
+        tx,
+        ctx,
+        {
+          warehouseId: wh.id,
+          productId: product.id,
+          newUnitCost: toDecimal(input.unitCost),
+          reasonCode: input.reasonCode,
+          note: input.note,
+        },
+        { year: yearOf(todayFor(wh)) },
+      );
+      return {
+        documentId: result.documentId,
+        number: result.number,
+        valueDelta: result.valueDelta,
+      };
     },
   );
 }
@@ -501,6 +546,11 @@ export async function reverseDocument(
     }
     if (doc.type === "REVERSAL")
       throw businessRuleViolation("CANNOT_REVERSE_REVERSAL", "A reversal cannot be reversed");
+    if (doc.type === "REVALUATION")
+      throw businessRuleViolation(
+        "CANNOT_REVERSE_REVALUATION",
+        "A revaluation cannot be reversed; post a new revaluation",
+      );
     if (doc.reversedBy)
       throw conflict("This document was already reversed", { reason: "alreadyReversed" });
     const reversalId = uuidv7();
@@ -516,7 +566,8 @@ export async function reverseDocument(
         note: parsed.data.note,
         reversesDocumentId: doc.id,
       },
-      doc.entries.map((e) => ({
+      doc.entries.map((e, i) => ({
+        ...reversalCost(doc.entries, i),
         movementType: "REVERSAL",
         warehouseId: e.warehouseId,
         locationId: e.locationId,
@@ -526,7 +577,6 @@ export async function reverseDocument(
         quantityDelta: new Decimal(e.quantityDelta.toString()).negated(),
         enteredQuantity: new Decimal(e.enteredQuantity.toString()).negated(),
         enteredUomId: e.enteredUomId,
-        unitCost: e.unitCost === null ? null : new Decimal(e.unitCost.toString()),
         postingKey: `reversal:${e.id}`,
         reversesEntryId: e.id,
         reasonCode: parsed.data.reasonCode,
@@ -544,4 +594,41 @@ export async function reverseDocument(
     });
     return { documentId: result.documentId, number: result.number };
   });
+}
+
+interface ReversedEntry {
+  postingKey: string;
+  quantityDelta: { toString(): string };
+  valueDelta: { toString(): string };
+  unitCost: { toString(): string } | null;
+}
+
+/**
+ * Valuation of a reversal line (ADR-021). Reversing an inbound entry takes
+ * stock out at the current average. Reversing an outbound entry puts back
+ * what it took, except for paired documents (transfer, status change): there
+ * the reversal is itself a move back, so the inbound leg carries the cost of
+ * the outbound leg and no value is created or lost.
+ */
+function reversalCost(
+  entries: ReversedEntry[],
+  i: number,
+): Pick<PostingLine, "costFromLine" | "restore"> {
+  const e = entries[i];
+  if (new Decimal(e.quantityDelta.toString()).gt(0)) return {};
+  // Legs of one transfer or status change share a posting-key prefix ("transfer:<doc>:1").
+  const prefix = e.postingKey.slice(0, e.postingKey.lastIndexOf(":"));
+  const pair = entries.findIndex(
+    (o, j) =>
+      j !== i &&
+      o.postingKey.slice(0, o.postingKey.lastIndexOf(":")) === prefix &&
+      new Decimal(o.quantityDelta.toString()).gt(0),
+  );
+  if (pair !== -1) return { costFromLine: pair };
+  return {
+    restore: {
+      valueDelta: new Decimal(e.valueDelta.toString()),
+      unitCost: e.unitCost === null ? null : new Decimal(e.unitCost.toString()),
+    },
+  };
 }

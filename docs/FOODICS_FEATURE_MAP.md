@@ -88,6 +88,11 @@ None of these exist, and none are in the plan. All are ⛔ pending Q-14.
 
 ## Options for Q-14
 
+> **Decided 2026-10-29: option C — full point of sale in scope** (DECISIONS.md
+> ADR-022). The POS is planned as milestones POS1–POS5 after M4 (recipes),
+> because every sale consumes stock through its recipe. The comparison below
+> is kept for the record.
+
 | Option                                               | What it means                                                                                                                                                                                                                                    | Effect on plan                                                                                  |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
 | **A. Back office that works with POS** (recommended) | Build every back-office feature above, plus a sellable menu (modifiers, combos, price per branch/channel) that maps to recipes. Take sales from Foodics and other POS systems through tested connectors (M10), and from file imports until then. | Adds menu + price tags to M4/M7; Foodics connector first in M10                                 |

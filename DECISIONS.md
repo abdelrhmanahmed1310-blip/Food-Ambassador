@@ -169,6 +169,55 @@ row errors) carry translation keys, never English sentences, so every message
 is localized. Messages may use values from the error details (e.g.
 `{available}` for INSUFFICIENT_STOCK).
 
+### ADR-021 Moving weighted average valuation — Accepted (M3, decides Q-01)
+
+Stock is valued at a moving weighted average cost per product × warehouse,
+in the organization's base currency. Every ledger entry stores its unit cost
+and signed value change, so any stock value can be traced to the movements
+that produced it.
+
+- **Inbound** movements add value at their own unit cost (receipt price,
+  opening balance cost). A movement with no cost of its own (count gain,
+  adjustment without a cost) uses the current average. If no average has
+  ever been known it adds quantity at zero value, and the product is flagged
+  _cost missing_ until it is revalued. Costs are never guessed.
+- **Outbound** movements (consumption, write-off, transfer out, negative
+  adjustments, reversals of inbound movements) leave at the current average.
+  The last unit out takes the exact remaining value, so value never goes
+  negative and is zero whenever quantity is zero.
+- **Reversals of outbound movements** put stock back at the cost it left with.
+- **Transfers** carry the source average to the destination warehouse.
+  Location and status changes inside one warehouse do not change value.
+- **Revaluation** sets a new average for the stock on hand through its own
+  document (permission `inventory.valuation.revalue`), so value changes are
+  never direct edits.
+- The average is kept after stock reaches zero and is used for the next
+  movement that has no cost of its own.
+- Each lot's receipt cost stays on its ledger entries for reference;
+  FIFO / specific-lot costing is not offered.
+
+### ADR-022 Full point of sale in scope — Accepted (decides Q-14)
+
+Food Ambassador will include its own point of sale and customer channels
+(cashier, tables, waiter app, kitchen display, payments, tax e-invoicing,
+online ordering, loyalty, promotions, gift cards), not only a back office
+fed by another POS. The work is planned as milestones POS1–POS5 after M4
+(PROJECT_PLAN.md) because sales consume stock through recipes.
+
+Constraints that follow from this decision:
+
+- Selling in Saudi Arabia requires ZATCA Phase 2 e-invoicing, and Egypt
+  has its own e-receipt system. The POS must not be used for live sales in a
+  market until that market's e-invoicing work (POS4) is done and tested.
+- Card payments run through a certified payment provider and terminals
+  (Q-15). Food Ambassador never stores card numbers, so its own PCI scope
+  stays minimal.
+- The cashier must keep taking orders through short network outages
+  (offline queue with idempotent sync), which is why it is a separate
+  client on the same order engine.
+- POS connectors for other systems (e.g. Foodics) remain possible later
+  (M10) but are no longer the main way sales arrive.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -188,19 +237,23 @@ is localized. Messages may use values from the error details (e.g.
 
 ## Open questions
 
-| ID   | Question                                                                                                                                                                                                                                                                                                                           | Needed by             |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| Q-01 | **Inventory valuation method** (still open after M2 — unit costs are recorded, no valuation is computed): moving weighted average per product × warehouse, or FIFO/specific lot cost? (Affects landed cost, COGS, recipe costing.) Proposed default: moving weighted average, with each lot's receipt cost retained for reference. | M3                    |
-| Q-02 | Target launch markets (e.g. Egypt, KSA, UAE)? Determines allergen lists, label rules, tax (VAT) handling, data residency, and default currency/time zone.                                                                                                                                                                          | M5 (labels), M7 (tax) |
-| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                                                                                                                                                                                         | M8 (pilot)            |
-| Q-04 | Purchase approval policy: single approver above an amount threshold, or multi-level?                                                                                                                                                                                                                                               | M3                    |
-| Q-05 | Are foreign-currency supplier invoices needed for the pilot?                                                                                                                                                                                                                                                                       | M3                    |
-| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                                                                                                                                                                            | M7                    |
-| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                                                                                                                                                                           | M1 (nice to know)     |
-| Q-08 | Attachment retention period and maximum file size.                                                                                                                                                                                                                                                                                 | M6                    |
-| Q-09 | Over-receipt tolerance default (e.g. 0% or 5%)?                                                                                                                                                                                                                                                                                    | M3                    |
-| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                                                                                                                                                                           | M2 (before pilot)     |
-| Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                                                                                                                                                                                | M2                    |
-| Q-12 | Should counting and approving a stock count require two different people (segregation of duties)? Currently allowed to be the same user.                                                                                                                                                                                           | M8 (pilot)            |
-| Q-13 | Product categories: flat list or hierarchy, and are they needed for reporting in the pilot?                                                                                                                                                                                                                                        | M4                    |
-| Q-14 | Scope versus Foodics: (A) back office that takes sales from existing POS systems — recommended; (B) A now, POS later; (C) build a full POS (cashier, payments, kitchen screen, online ordering, loyalty, ZATCA e-invoicing) now. See `docs/FOODICS_FEATURE_MAP.md`.                                                                | M4 (before menu work) |
+| ID   | Question                                                                                                                                                                | Needed by             |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                    |
+| Q-02 | Target launch markets (e.g. Egypt, KSA, UAE)? Determines allergen lists, label rules, tax (VAT) handling, data residency, and default currency/time zone.               | M5 (labels), M7 (tax) |
+| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)            |
+| Q-04 | Purchase approval policy: single approver above an amount threshold, or multi-level?                                                                                    | M3                    |
+| Q-05 | Are foreign-currency supplier invoices needed for the pilot?                                                                                                            | M3                    |
+| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                    |
+| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)     |
+| Q-08 | Attachment retention period and maximum file size.                                                                                                                      | M6                    |
+| Q-09 | Over-receipt tolerance default (e.g. 0% or 5%)?                                                                                                                         | M3                    |
+| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)     |
+| Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                     | M2                    |
+| Q-12 | Should counting and approving a stock count require two different people (segregation of duties)? Currently allowed to be the same user.                                | M8 (pilot)            |
+| Q-13 | Product categories: flat list or hierarchy, and are they needed for reporting in the pilot?                                                                             | M4                    |
+| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                          | —                     |
+| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                          | POS3                  |
+| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline? | POS1                  |
+| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                           | POS4                  |
+| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                    | POS5                  |

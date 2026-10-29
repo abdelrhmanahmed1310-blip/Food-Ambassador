@@ -21,6 +21,7 @@ import {
 import { postDocument, type PostingLine } from "./posting";
 import { listBalances, type BalanceFilters } from "./queries";
 import { openingBalanceSchema } from "./schemas";
+import { listValuations, type ValuationFilters } from "./valuation-queries";
 
 export const MAX_IMPORT_ROWS = 2000;
 
@@ -412,6 +413,47 @@ export async function exportBalancesCsv(
       "available",
       "unit",
       "expiry_state",
+    ],
+    rows,
+  );
+}
+
+/** Stock value per product × warehouse (only rows the user may see costs for). */
+export async function exportValuationsCsv(
+  ctx: TenantContext,
+  filters: Omit<ValuationFilters, "page">,
+): Promise<string> {
+  const rows: string[][] = [];
+  for (let page = 1; ; page++) {
+    const result = await listValuations(ctx, { ...filters, page });
+    for (const r of result.items) {
+      rows.push([
+        r.warehouse.code,
+        r.product.sku,
+        r.product.nameEn,
+        r.product.nameAr ?? "",
+        r.quantity.toFixed(),
+        r.product.baseUom,
+        r.costMissing ? "" : (r.averageUnitCost?.toFixed() ?? ""),
+        r.totalValue.toFixed(),
+        ctx.baseCurrency,
+        r.costMissing ? "yes" : "no",
+      ]);
+    }
+    if (page >= result.pageCount) break;
+  }
+  return toCsv(
+    [
+      "warehouse_code",
+      "sku",
+      "name_en",
+      "name_ar",
+      "quantity",
+      "unit",
+      "average_unit_cost",
+      "total_value",
+      "currency",
+      "cost_missing",
     ],
     rows,
   );

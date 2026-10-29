@@ -31,6 +31,12 @@ export const STATUS_REASONS = [
   "RELEASED_AFTER_INSPECTION",
   "OTHER",
 ] as const;
+export const REVALUATION_REASONS = [
+  "MISSING_COST",
+  "COST_CORRECTION",
+  "SUPPLIER_PRICE_CHANGE",
+  "OTHER",
+] as const;
 export const REVERSAL_REASONS = [
   "ENTERED_IN_ERROR",
   "WRONG_QUANTITY",
@@ -149,6 +155,18 @@ export const statusChangeSchema = z
     quantity: quantitySchema,
     uomId: uuidSchema,
     reasonCode: z.enum(STATUS_REASONS, { error: "invalidOption" }),
+    note: optionalText(500),
+    idempotencyKey: idempotencyKeySchema,
+  })
+  .superRefine(requireNoteForOther);
+
+/** New average cost per base unit for a product in a warehouse (ADR-021). */
+export const revaluationSchema = z
+  .object({
+    warehouseId: uuidSchema,
+    productId: uuidSchema,
+    unitCost: decimalString({ maxScale: 6, min: "0" }),
+    reasonCode: z.enum(REVALUATION_REASONS, { error: "invalidOption" }),
     note: optionalText(500),
     idempotencyKey: idempotencyKeySchema,
   })

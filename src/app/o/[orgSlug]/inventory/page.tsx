@@ -11,8 +11,9 @@ import {
   inventoryDashboard,
   warehouseOptions,
 } from "@/modules/inventory/queries";
+import { canViewValuation, valuationByWarehouse } from "@/modules/inventory/valuation-queries";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { productName, quantityFormatter } from "@/server/inventory-view";
+import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
 
 export default async function InventoryOverviewPage({
   params,
@@ -24,14 +25,25 @@ export default async function InventoryOverviewPage({
   if (!holdsAnyGrant(ctx.grants, "inventory.view")) notFound();
   const warehouseId =
     typeof sp.warehouseId === "string" && isUuid(sp.warehouseId) ? sp.warehouseId : undefined;
-  const [t, locale, format, fmt, data, warehouses] = await Promise.all([
+  const showValue = canViewValuation(ctx);
+  const [t, locale, format, fmt, money, data, warehouses, value] = await Promise.all([
     getTranslations(),
     getLocale(),
     getFormatter(),
     quantityFormatter(),
+    moneyFormatter(ctx.baseCurrency),
     inventoryDashboard(ctx, { warehouseId }),
     warehouseOptions(ctx),
+    showValue ? valuationByWarehouse(ctx) : null,
   ]);
+  // Value of the selected warehouse (if its costs are visible) or of all visible warehouses.
+  const valueRow = warehouseId ? value?.rows.find((r) => r.warehouse.id === warehouseId) : null;
+  const stockValue = value
+    ? {
+        total: warehouseId ? valueRow?.totalValue : value.totalValue,
+        missing: warehouseId ? (valueRow?.costMissingCount ?? 0) : value.costMissingCount,
+      }
+    : null;
   const base = `/o/${orgSlug}/inventory`;
   const q = warehouseId ? `&warehouseId=${warehouseId}` : "";
   const stats = [
@@ -139,6 +151,22 @@ export default async function InventoryOverviewPage({
           {t("common.apply")}
         </button>
       </form>
+      {stockValue && stockValue.total !== undefined ? (
+        <Link
+          href={`${base}/valuation${warehouseId ? `?warehouseId=${warehouseId}` : ""}`}
+          className="border-border bg-surface hover:bg-surface-muted mb-3 block rounded-lg border p-4"
+        >
+          <p className="text-muted text-xs">{t("inventory.stockValueCard")}</p>
+          <p className="ltr-value mt-1 text-2xl font-semibold tabular-nums">
+            {money.money(stockValue.total)}
+          </p>
+          {stockValue.missing > 0 ? (
+            <p className="text-muted mt-1 text-xs">
+              {t("inventory.costMissingCount", { count: stockValue.missing })}
+            </p>
+          ) : null}
+        </Link>
+      ) : null}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {stats.map((s) => (
           <Link

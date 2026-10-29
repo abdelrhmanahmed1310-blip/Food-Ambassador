@@ -24,6 +24,8 @@ export const PERMISSIONS = [
   "inventory.quarantine",
   "inventory.quarantine.release",
   "inventory.reverse",
+  "inventory.valuation.view",
+  "inventory.valuation.revalue",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -42,6 +44,8 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "inventory.quarantine",
   "inventory.quarantine.release",
   "inventory.reverse",
+  "inventory.valuation.view",
+  "inventory.valuation.revalue",
 ]);
 
 export function isPermission(value: string): value is Permission {
@@ -104,6 +108,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "members.view",
       "audit.view",
       ...ALL_INVENTORY,
+      "inventory.valuation.view",
+      "inventory.valuation.revalue",
     ],
     organizationScopeOnly: false,
   },
@@ -111,7 +117,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     key: "procurement",
     name: "Procurement",
     description: "Purchasing and supplier management.",
-    permissions: [...VIEW_SITES, ...VIEW_STOCK, "catalog.manage"],
+    permissions: [...VIEW_SITES, ...VIEW_STOCK, "catalog.manage", "inventory.valuation.view"],
     organizationScopeOnly: false,
   },
   {
@@ -143,7 +149,13 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     key: "finance",
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
-    permissions: [...VIEW_SITES, "audit.view", ...VIEW_STOCK],
+    permissions: [
+      ...VIEW_SITES,
+      "audit.view",
+      ...VIEW_STOCK,
+      "inventory.valuation.view",
+      "inventory.valuation.revalue",
+    ],
     organizationScopeOnly: false,
   },
   {
@@ -162,6 +174,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "inventory.count.approve",
       "inventory.quarantine",
       "inventory.reverse",
+      "inventory.valuation.view",
     ],
     organizationScopeOnly: false,
   },
@@ -169,7 +182,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     key: "analyst",
     name: "Read-only Analyst",
     description: "Read-only access to operational data.",
-    permissions: [...VIEW_SITES, ...VIEW_STOCK],
+    permissions: [...VIEW_SITES, ...VIEW_STOCK, "inventory.valuation.view"],
     organizationScopeOnly: false,
   },
 ];

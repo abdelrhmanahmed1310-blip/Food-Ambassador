@@ -2,23 +2,26 @@
 
 Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
-traceability, sales/invoice workflows and analytics.
+traceability, point of sale, sales/invoice workflows and analytics.
 
 > **Status:** Milestone 2 (inventory MVP) complete — on top of the M1
 > foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
 > release, reversals, stock counts, FEFO, dashboard, CSV import/export.
-> Procurement and receiving start in Milestone 3. See
-> [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Milestone 3 has started with **stock valuation** (moving weighted average,
+> revaluation, stock value report); suppliers, purchasing and receiving come
+> next. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
-| Document                                             | Contents                                                      |
-| ---------------------------------------------------- | ------------------------------------------------------------- |
-| [PROJECT_PLAN.md](PROJECT_PLAN.md)                   | Milestones, dependencies, acceptance criteria, backlog, risks |
-| [ARCHITECTURE.md](ARCHITECTURE.md)                   | Module boundaries, security model, structure                  |
-| [DATA_MODEL.md](DATA_MODEL.md)                       | Entities, constraints, inventory invariants, formulas         |
-| [DECISIONS.md](DECISIONS.md)                         | ADRs, assumptions, open questions                             |
-| [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | What is done, in progress and not started                     |
+| Document                                                   | Contents                                                      |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| [PROJECT_PLAN.md](PROJECT_PLAN.md)                         | Milestones, dependencies, acceptance criteria, backlog, risks |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                         | Module boundaries, security model, structure                  |
+| [DATA_MODEL.md](DATA_MODEL.md)                             | Entities, constraints, inventory invariants, formulas         |
+| [DECISIONS.md](DECISIONS.md)                               | ADRs, assumptions, open questions                             |
+| [docs/SUPY_FEATURE_MAP.md](docs/SUPY_FEATURE_MAP.md)       | Supy capability review and gap analysis                       |
+| [docs/FOODICS_FEATURE_MAP.md](docs/FOODICS_FEATURE_MAP.md) | Foodics capability review and POS scope                       |
+| [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)       | What is done, in progress and not started                     |
 
 ## Requirements
 

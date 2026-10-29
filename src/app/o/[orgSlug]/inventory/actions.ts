@@ -18,6 +18,7 @@ import {
   postTransfer,
   postWriteOff,
   reverseDocument,
+  revalueStock,
 } from "@/modules/inventory/operations";
 import { formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
@@ -176,4 +177,17 @@ export async function cancelCountAction(
   formData: FormData,
 ) {
   return tenantMutation(orgSlug, previous, formData, (ctx) => cancelCount(ctx, countId));
+}
+
+export async function revalueAction(
+  orgSlug: string,
+  warehouseId: string,
+  productId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return postAndShow(orgSlug, previous, formData, (ctx, input) =>
+    // The product and warehouse come from the page URL (validated again in the service).
+    revalueStock(ctx, { ...input, warehouseId, productId }),
+  );
 }

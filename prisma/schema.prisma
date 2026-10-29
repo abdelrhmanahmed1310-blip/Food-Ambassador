@@ -143,6 +143,8 @@ model Organization {
   stockCounts     StockCount[]
   stockCountLines StockCountLine[]
   sequences       DocumentSequence[]
+  valuations      StockValuation[]
+  revaluations    StockRevaluation[]
 
   @@map("organizations")
 }
@@ -332,8 +334,8 @@ model Warehouse {
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branch          Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch          Branch                 @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
   locations       StorageLocation[]
   membershipRoles MembershipRole[]
   invitations     Invitation[]
@@ -342,6 +344,8 @@ model Warehouse {
   documents       InventoryDocument[]    @relation("DocumentWarehouse")
   inboundDocs     InventoryDocument[]    @relation("DocumentDestination")
   stockCounts     StockCount[]
+  valuations      StockValuation[]
+  revaluations    StockRevaluation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -493,6 +497,8 @@ model Product {
   ledgerEntries InventoryLedgerEntry[]
   balances      StockBalance[]
   countLines    StockCountLine[]
+  valuations    StockValuation[]
+  revaluations  StockRevaluation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -530,11 +536,11 @@ model ProductBarcode {
 
 /// Product-specific unit conversion: 1 uom = factor_to_base product base units.
 model ProductUomConversion {
-  id             String  @id @default(uuid(7)) @db.Uuid
-  organizationId String  @map("organization_id") @db.Uuid
-  productId      String  @map("product_id") @db.Uuid
-  uomId          String  @map("uom_id") @db.Uuid
-  factorToBase   Decimal @map("factor_to_base") @db.Decimal(30, 12)
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  uomId          String   @map("uom_id") @db.Uuid
+  factorToBase   Decimal  @map("factor_to_base") @db.Decimal(30, 12)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -607,6 +613,21 @@ enum InventoryDocumentType {
   STATUS_CHANGE
   STOCK_COUNT
   REVERSAL
+  REVALUATION
+}
+
+/// How the unit cost of a ledger entry was determined (ADR-021).
+enum CostSource {
+  /// Cost entered with the movement (receipt price, opening balance cost).
+  ENTERED
+  /// Current (or last known) moving average of the product in the warehouse.
+  AVERAGE
+  /// Carried from the outbound leg of the same document (transfers, status changes).
+  TRANSFER
+  /// Put back at the cost it left with (reversal of an outbound movement).
+  RESTORED
+  /// No cost known: quantity added at zero value, product flagged cost missing.
+  NONE
 }
 
 /// Header of one atomic posting. Immutable; corrected only by a REVERSAL document.
@@ -624,13 +645,14 @@ model InventoryDocument {
   postedAt               DateTime              @default(now()) @map("posted_at") @db.Timestamptz(3)
   postedByUserId         String                @map("posted_by_user_id") @db.Uuid
 
-  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  warehouse     Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
-  destination   Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
-  reverses      InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
-  reversedBy    InventoryDocument?     @relation("DocumentReversal")
-  entries       InventoryLedgerEntry[]
-  stockCount    StockCount?
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  destination  Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  reverses     InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
+  reversedBy   InventoryDocument?     @relation("DocumentReversal")
+  entries      InventoryLedgerEntry[]
+  stockCount   StockCount?
+  revaluation  StockRevaluation?
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -655,8 +677,11 @@ model InventoryLedgerEntry {
   quantityDelta   Decimal      @map("quantity_delta") @db.Decimal(20, 6)
   enteredQuantity Decimal      @map("entered_quantity") @db.Decimal(20, 6)
   enteredUomId    String       @map("entered_uom_id") @db.Uuid
-  /// Base currency per base unit, when known (valuation method: Q-01).
+  /// Base currency per base unit used to value this entry (null only when cost_source = NONE).
   unitCost        Decimal?     @map("unit_cost") @db.Decimal(20, 6)
+  /// Signed change in stock value, base currency (ADR-021).
+  valueDelta      Decimal      @map("value_delta") @db.Decimal(19, 4)
+  costSource      CostSource   @map("cost_source")
   sourceType      String       @map("source_type")
   sourceId        String       @map("source_id") @db.Uuid
   sourceLineId    String?      @map("source_line_id") @db.Uuid
@@ -717,6 +742,59 @@ model StockBalance {
   @@index([organizationId, productId])
   @@index([organizationId, warehouseId])
   @@map("stock_balances")
+}
+
+/// Moving weighted average valuation per product × warehouse (ADR-021).
+/// Written only by the posting engine; quantity equals the sum of on-hand
+/// balances of the product in the warehouse across locations, lots and statuses.
+model StockValuation {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  warehouseId     String   @map("warehouse_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  quantity        Decimal  @default(0) @db.Decimal(20, 6)
+  totalValue      Decimal  @default(0) @map("total_value") @db.Decimal(19, 4)
+  /// Current average, or the last known one when quantity is zero.
+  averageUnitCost Decimal? @map("average_unit_cost") @db.Decimal(20, 6)
+  /// Some quantity was added with no known cost; cleared by revaluation or when stock reaches zero.
+  costMissing     Boolean  @default(false) @map("cost_missing")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, warehouseId, productId])
+  @@index([organizationId, productId])
+  @@map("stock_valuations")
+}
+
+/// A change of average cost without a quantity movement. Append-only.
+model StockRevaluation {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  documentId          String   @map("document_id") @db.Uuid
+  warehouseId         String   @map("warehouse_id") @db.Uuid
+  productId           String   @map("product_id") @db.Uuid
+  quantity            Decimal  @db.Decimal(20, 6)
+  previousUnitCost    Decimal? @map("previous_unit_cost") @db.Decimal(20, 6)
+  newUnitCost         Decimal  @map("new_unit_cost") @db.Decimal(20, 6)
+  previousValue       Decimal  @map("previous_value") @db.Decimal(19, 4)
+  newValue            Decimal  @map("new_value") @db.Decimal(19, 4)
+  valueDelta          Decimal  @map("value_delta") @db.Decimal(19, 4)
+  previousCostMissing Boolean  @map("previous_cost_missing")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     InventoryDocument @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse         @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  product      Product           @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, documentId])
+  @@index([organizationId, productId, warehouseId])
+  @@map("stock_revaluations")
 }
 
 /// Per-organization, per-type, per-year counters for human-readable document numbers.
