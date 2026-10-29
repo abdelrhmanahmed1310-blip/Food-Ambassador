@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-29 (end of Milestone 2)
+Last updated: 2026-10-29 (end of Milestone 2; Supy capability review added)
 
 ## Summary
 
@@ -102,4 +102,5 @@ run on the development branch.
 
 ## Not started
 
-M3–M8 (see PROJECT_PLAN.md).
+M3–M8, plus proposed M9 (central kitchen & B2B) and M10 (integrations) from the
+Supy capability review in `docs/SUPY_FEATURE_MAP.md` (see PROJECT_PLAN.md).

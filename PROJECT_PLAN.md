@@ -33,7 +33,7 @@ M0 Foundation repo ─► M1 Identity, tenancy, RBAC, i18n shell
 | #   | Milestone                   | Depends on                       | Status       |
 | --- | --------------------------- | -------------------------------- | ------------ |
 | M0  | Repository & architecture   | —                                | **Complete** |
-| M1  | Application foundation      | M0                               | Next         |
+| M1  | Application foundation      | M0                               | **Complete** |
 | M2  | Inventory MVP               | M1                               | **Complete** |
 | M3  | Procurement & receiving     | M2                               | Next         |
 | M4  | Recipes & food cost         | M2 (M3 for purchase-based costs) | Not started  |
@@ -41,6 +41,8 @@ M0 Foundation repo ─► M1 Identity, tenancy, RBAC, i18n shell
 | M6  | Food safety & traceability  | M2, M3, M4                       | Not started  |
 | M7  | Sales & financial workflows | M3, M4                           | Not started  |
 | M8  | Analytics & pilot readiness | M2–M7                            | Not started  |
+| M9  | Central kitchen & B2B       | M4, M6                           | Proposed     |
+| M10 | Integrations                | M7                               | Proposed     |
 
 ---
 
@@ -209,6 +211,23 @@ security review, pilot onboarding.
 
 ---
 
+## M9 — Central kitchen and B2B (proposed)
+
+Production planning from branch demand, production orders that consume
+ingredients and produce lot-tracked batches, internal branch orders, and
+external B2B customers with orders, delivery notes and sales invoices. Added
+after the Supy capability review (`docs/SUPY_FEATURE_MAP.md`).
+
+## M10 — Integrations (proposed)
+
+Connector framework (encrypted credentials, webhook verification, idempotent
+sync, retries, audit), then one connector at a time: POS sales, accounting
+bills (e.g. Xero), PO delivery by WhatsApp Business, invoice OCR with
+mandatory human confirmation. A connector is listed as available only after
+testing against the provider's real sandbox.
+
+---
+
 ## Prioritized backlog (next items)
 
 | Pri | Item                                                                    | Milestone | Depends on |
@@ -221,6 +240,13 @@ security review, pilot onboarding.
 | P1  | Discrepancies, supplier performance, landed cost allocation             | M3        | receipts   |
 | P1  | Email provider for invitations and password reset (Q-10)                | M3        | decision   |
 | P2  | Searchable product picker for large catalogs                            | M3        | —          |
+| P1  | Product categories (Q-13)                                               | M3        | —          |
+| P1  | Par levels + suggested order quantities                                 | M3        | POs        |
+| P2  | Supplier item price history                                             | M3        | suppliers  |
+| P2  | Stock count templates                                                   | M3        | —          |
+| P2  | Margin alerts, price simulator, bulk ingredient replace                 | M4        | recipes    |
+| P2  | Credit notes for short/rejected deliveries                              | M7        | invoices   |
+| P3  | Installable PWA with offline counting; native apps                      | backlog   | —          |
 
 ## Top risks
 
