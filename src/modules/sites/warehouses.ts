@@ -210,7 +210,16 @@ export async function setWarehouseArchived(
     const warehouse = await findVisibleWarehouse(tx, ctx, warehouseId);
     assertPermission(ctx.grants, "warehouses.manage", target(warehouse));
     if (archived === (warehouse.archivedAt !== null)) return;
-    // Milestone 2 adds: a warehouse holding stock cannot be archived.
+    if (archived) {
+      const stocked = await tx.stockBalance.count({
+        where: { organizationId: ctx.organizationId, warehouseId, onHandQuantity: { gt: 0 } },
+      });
+      if (stocked > 0)
+        throw businessRuleViolation(
+          "WAREHOUSE_HAS_STOCK",
+          "A warehouse holding stock cannot be archived",
+        );
+    }
     if (!archived && warehouse.branch.archivedAt) {
       throw businessRuleViolation(
         "BRANCH_ARCHIVED",
@@ -338,6 +347,16 @@ export async function setLocationArchived(
   await withTenantTx(ctx.organizationId, async (tx) => {
     const { location, warehouse } = await findLocation(tx, ctx, locationId);
     if (archived === (location.archivedAt !== null)) return;
+    if (archived) {
+      const stocked = await tx.stockBalance.count({
+        where: { organizationId: ctx.organizationId, locationId, onHandQuantity: { gt: 0 } },
+      });
+      if (stocked > 0)
+        throw businessRuleViolation(
+          "LOCATION_HAS_STOCK",
+          "A location holding stock cannot be archived",
+        );
+    }
     if (!archived && warehouse.archivedAt) {
       throw businessRuleViolation(
         "WAREHOUSE_ARCHIVED",

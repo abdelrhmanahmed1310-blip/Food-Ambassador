@@ -132,6 +132,17 @@ model Organization {
   locations       StorageLocation[]
   auditEvents     AuditEvent[]
   idempotencyKeys IdempotencyKey[]
+  units           UnitOfMeasure[]
+  products        Product[]
+  barcodes        ProductBarcode[]
+  conversions     ProductUomConversion[]
+  lots            InventoryLot[]
+  documents       InventoryDocument[]
+  ledgerEntries   InventoryLedgerEntry[]
+  balances        StockBalance[]
+  stockCounts     StockCount[]
+  stockCountLines StockCountLine[]
+  sequences       DocumentSequence[]
 
   @@map("organizations")
 }
@@ -224,6 +235,8 @@ model MembershipRole {
   warehouse    Warehouse?             @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
+  /// Recreated in SQL as NULLS NOT DISTINCT.
+  @@unique([membershipId, roleId, scopeType, branchId, warehouseId], map: "membership_roles_grant_key")
   @@index([organizationId, membershipId])
   @@map("membership_roles")
 }
@@ -324,6 +337,11 @@ model Warehouse {
   locations       StorageLocation[]
   membershipRoles MembershipRole[]
   invitations     Invitation[]
+  ledgerEntries   InventoryLedgerEntry[]
+  balances        StockBalance[]
+  documents       InventoryDocument[]    @relation("DocumentWarehouse")
+  inboundDocs     InventoryDocument[]    @relation("DocumentDestination")
+  stockCounts     StockCount[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -350,10 +368,16 @@ model StorageLocation {
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse              @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  ledgerEntries InventoryLedgerEntry[]
+  balances      StockBalance[]
+  stockCounts   StockCount[]
+  countLines    StockCountLine[]
 
   @@unique([organizationId, id])
+  /// Lets ledger rows prove their location belongs to their warehouse.
+  @@unique([organizationId, warehouseId, id])
   @@unique([organizationId, warehouseId, code])
   @@map("storage_locations")
 }
@@ -395,4 +419,381 @@ model IdempotencyKey {
 
   @@unique([organizationId, userId, key])
   @@map("idempotency_keys")
+}
+
+// ───────────────────────────── Catalog (Milestone 2) ─────────────────────────────
+
+enum UnitDimension {
+  MASS
+  VOLUME
+  COUNT
+}
+
+/// System units have organization_id NULL and are visible to every tenant.
+model UnitOfMeasure {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  code           String
+  nameEn         String        @map("name_en")
+  nameAr         String        @map("name_ar")
+  dimension      UnitDimension
+  /// Size in the dimension base unit (g, ml, each); NULL = packaging unit
+  /// that converts only through a product-specific factor.
+  factorToBase   Decimal?      @map("factor_to_base") @db.Decimal(30, 12)
+  archivedAt     DateTime?     @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization  Organization?          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  baseOf        Product[]
+  conversions   ProductUomConversion[]
+  barcodes      ProductBarcode[]
+  ledgerEntries InventoryLedgerEntry[]
+
+  /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
+  @@unique([organizationId, code], map: "units_of_measure_code_key")
+  @@map("units_of_measure")
+}
+
+enum ProductType {
+  RAW_MATERIAL
+  SEMI_FINISHED
+  FINISHED_GOOD
+  PACKAGING
+  CONSUMABLE
+}
+
+enum LotTracking {
+  NONE
+  LOT
+  LOT_AND_EXPIRY
+}
+
+model Product {
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  organizationId     String          @map("organization_id") @db.Uuid
+  sku                String
+  nameEn             String          @map("name_en")
+  nameAr             String?         @map("name_ar")
+  type               ProductType
+  baseUomId          String          @map("base_uom_id") @db.Uuid
+  lotTracking        LotTracking     @default(NONE) @map("lot_tracking")
+  shelfLifeDays      Int?            @map("shelf_life_days")
+  storageRequirement TemperatureZone @default(AMBIENT) @map("storage_requirement")
+  archivedAt         DateTime?       @map("archived_at") @db.Timestamptz(3)
+  createdByUserId    String          @map("created_by_user_id") @db.Uuid
+  updatedByUserId    String          @map("updated_by_user_id") @db.Uuid
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  baseUom       UnitOfMeasure          @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
+  barcodes      ProductBarcode[]
+  conversions   ProductUomConversion[]
+  lots          InventoryLot[]
+  ledgerEntries InventoryLedgerEntry[]
+  balances      StockBalance[]
+  countLines    StockCountLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, sku])
+  @@map("products")
+}
+
+enum BarcodeSymbology {
+  EAN13
+  EAN8
+  UPC_A
+  CODE128
+  QR
+  INTERNAL
+}
+
+model ProductBarcode {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  productId       String           @map("product_id") @db.Uuid
+  barcode         String
+  symbology       BarcodeSymbology
+  /// Pack unit the barcode identifies (e.g. a case); NULL = the base unit.
+  uomId           String?          @map("uom_id") @db.Uuid
+  createdByUserId String           @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product        @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom          UnitOfMeasure? @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, barcode])
+  @@map("product_barcodes")
+}
+
+/// Product-specific unit conversion: 1 uom = factor_to_base product base units.
+model ProductUomConversion {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  uomId          String  @map("uom_id") @db.Uuid
+  factorToBase   Decimal @map("factor_to_base") @db.Decimal(30, 12)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product       @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom          UnitOfMeasure @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, productId, uomId])
+  @@map("product_uom_conversions")
+}
+
+// ───────────────────────────── Inventory (Milestone 2) ─────────────────────────────
+
+/// Lots are immutable once created (identity and dates are evidence for traceability).
+model InventoryLot {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  productId       String    @map("product_id") @db.Uuid
+  lotCode         String    @map("lot_code")
+  expiresOn       DateTime? @map("expires_on") @db.Date
+  bestBeforeOn    DateTime? @map("best_before_on") @db.Date
+  manufacturedOn  DateTime? @map("manufactured_on") @db.Date
+  firstReceivedAt DateTime  @default(now()) @map("first_received_at") @db.Timestamptz(3)
+  recallHold      Boolean   @default(false) @map("recall_hold")
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product       Product                @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  ledgerEntries InventoryLedgerEntry[]
+  balances      StockBalance[]
+  countLines    StockCountLine[]
+
+  @@unique([organizationId, id])
+  /// Lets ledger rows prove their lot belongs to their product.
+  @@unique([organizationId, productId, id])
+  @@unique([organizationId, productId, lotCode])
+  @@map("inventory_lots")
+}
+
+enum StockStatus {
+  AVAILABLE
+  QUARANTINE
+  REJECTED
+  ON_HOLD
+}
+
+enum MovementType {
+  OPENING_BALANCE
+  RECEIPT
+  RECEIPT_REJECTED
+  TRANSFER_OUT
+  TRANSFER_IN
+  CONSUMPTION
+  PRODUCTION_OUTPUT
+  RETURN_TO_SUPPLIER
+  CUSTOMER_RETURN
+  WRITE_OFF
+  ADJUSTMENT
+  COUNT_ADJUSTMENT
+  STATUS_CHANGE
+  REVERSAL
+}
+
+enum InventoryDocumentType {
+  OPENING_BALANCE
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+  STATUS_CHANGE
+  STOCK_COUNT
+  REVERSAL
+}
+
+/// Header of one atomic posting. Immutable; corrected only by a REVERSAL document.
+model InventoryDocument {
+  id                     String                @id @default(uuid(7)) @db.Uuid
+  organizationId         String                @map("organization_id") @db.Uuid
+  number                 String
+  type                   InventoryDocumentType
+  warehouseId            String                @map("warehouse_id") @db.Uuid
+  destinationWarehouseId String?               @map("destination_warehouse_id") @db.Uuid
+  reasonCode             String?               @map("reason_code")
+  note                   String?
+  reversesDocumentId     String?               @map("reverses_document_id") @db.Uuid
+  occurredAt             DateTime              @map("occurred_at") @db.Timestamptz(3)
+  postedAt               DateTime              @default(now()) @map("posted_at") @db.Timestamptz(3)
+  postedByUserId         String                @map("posted_by_user_id") @db.Uuid
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  destination   Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  reverses      InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
+  reversedBy    InventoryDocument?     @relation("DocumentReversal")
+  entries       InventoryLedgerEntry[]
+  stockCount    StockCount?
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  /// A document can be reversed at most once.
+  @@unique([organizationId, reversesDocumentId])
+  @@index([organizationId, postedAt(sort: Desc)])
+  @@map("inventory_documents")
+}
+
+/// Append-only stock ledger (UPDATE/DELETE/TRUNCATE rejected by trigger).
+/// Quantities are in the product's base unit; entered_* keep what the user typed.
+model InventoryLedgerEntry {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  documentId      String       @map("document_id") @db.Uuid
+  movementType    MovementType @map("movement_type")
+  warehouseId     String       @map("warehouse_id") @db.Uuid
+  locationId      String?      @map("location_id") @db.Uuid
+  productId       String       @map("product_id") @db.Uuid
+  lotId           String?      @map("lot_id") @db.Uuid
+  stockStatus     StockStatus  @map("stock_status")
+  quantityDelta   Decimal      @map("quantity_delta") @db.Decimal(20, 6)
+  enteredQuantity Decimal      @map("entered_quantity") @db.Decimal(20, 6)
+  enteredUomId    String       @map("entered_uom_id") @db.Uuid
+  /// Base currency per base unit, when known (valuation method: Q-01).
+  unitCost        Decimal?     @map("unit_cost") @db.Decimal(20, 6)
+  sourceType      String       @map("source_type")
+  sourceId        String       @map("source_id") @db.Uuid
+  sourceLineId    String?      @map("source_line_id") @db.Uuid
+  /// Deterministic idempotency key, e.g. "transfer:<docId>:1:out".
+  postingKey      String       @map("posting_key")
+  reversesEntryId String?      @map("reverses_entry_id") @db.Uuid
+  reasonCode      String?      @map("reason_code")
+  note            String?
+  occurredAt      DateTime     @map("occurred_at") @db.Timestamptz(3)
+  postedAt        DateTime     @default(now()) @map("posted_at") @db.Timestamptz(3)
+  postedByUserId  String       @map("posted_by_user_id") @db.Uuid
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     InventoryDocument     @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse             @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  location     StorageLocation?      @relation(fields: [organizationId, warehouseId, locationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+  product      Product               @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  lot          InventoryLot?         @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  enteredUom   UnitOfMeasure         @relation(fields: [enteredUomId], references: [id], onDelete: Restrict)
+  reverses     InventoryLedgerEntry? @relation("EntryReversal", fields: [organizationId, reversesEntryId], references: [organizationId, id], onDelete: Restrict)
+  reversedBy   InventoryLedgerEntry? @relation("EntryReversal")
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, postingKey])
+  @@unique([organizationId, reversesEntryId])
+  @@index([organizationId, productId, warehouseId, postedAt])
+  @@index([organizationId, lotId])
+  @@index([organizationId, documentId])
+  @@index([organizationId, postedAt(sort: Desc)])
+  @@map("inventory_ledger_entries")
+}
+
+/// Projection of the ledger, updated in the same transaction under row locks.
+/// CHECK constraints (no negative stock) are in SQL.
+model StockBalance {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  organizationId   String      @map("organization_id") @db.Uuid
+  warehouseId      String      @map("warehouse_id") @db.Uuid
+  locationId       String?     @map("location_id") @db.Uuid
+  productId        String      @map("product_id") @db.Uuid
+  lotId            String?     @map("lot_id") @db.Uuid
+  stockStatus      StockStatus @map("stock_status")
+  onHandQuantity   Decimal     @default(0) @map("on_hand_quantity") @db.Decimal(20, 6)
+  reservedQuantity Decimal     @default(0) @map("reserved_quantity") @db.Decimal(20, 6)
+  lastEntryId      String?     @map("last_entry_id") @db.Uuid
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse        @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  location     StorageLocation? @relation(fields: [organizationId, warehouseId, locationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+  product      Product          @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  lot          InventoryLot?    @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  /// The bucket key. Recreated in SQL as NULLS NOT DISTINCT.
+  @@unique([organizationId, warehouseId, locationId, productId, lotId, stockStatus], map: "stock_balances_bucket_key")
+  @@index([organizationId, productId])
+  @@index([organizationId, warehouseId])
+  @@map("stock_balances")
+}
+
+/// Per-organization, per-type, per-year counters for human-readable document numbers.
+model DocumentSequence {
+  organizationId String @map("organization_id") @db.Uuid
+  documentType   String @map("document_type")
+  year           Int
+  nextValue      Int    @map("next_value")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@id([organizationId, documentType, year])
+  @@map("document_sequences")
+}
+
+enum StockCountStatus {
+  OPEN
+  SUBMITTED
+  POSTED
+  CANCELLED
+}
+
+model StockCount {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  number            String
+  warehouseId       String           @map("warehouse_id") @db.Uuid
+  /// Optional: count only one location of the warehouse.
+  locationId        String?          @map("location_id") @db.Uuid
+  status            StockCountStatus @default(OPEN)
+  snapshotAt        DateTime         @default(now()) @map("snapshot_at") @db.Timestamptz(3)
+  note              String?
+  documentId        String?          @map("document_id") @db.Uuid
+  createdByUserId   String           @map("created_by_user_id") @db.Uuid
+  submittedByUserId String?          @map("submitted_by_user_id") @db.Uuid
+  submittedAt       DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  postedByUserId    String?          @map("posted_by_user_id") @db.Uuid
+  postedAt          DateTime?        @map("posted_at") @db.Timestamptz(3)
+  cancelledAt       DateTime?        @map("cancelled_at") @db.Timestamptz(3)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse          @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  location     StorageLocation?   @relation(fields: [organizationId, warehouseId, locationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+  document     InventoryDocument? @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  lines        StockCountLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@unique([organizationId, documentId])
+  @@index([organizationId, status])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  countId          String    @map("count_id") @db.Uuid
+  productId        String    @map("product_id") @db.Uuid
+  lotId            String?   @map("lot_id") @db.Uuid
+  locationId       String?   @map("location_id") @db.Uuid
+  expectedQuantity Decimal   @map("expected_quantity") @db.Decimal(20, 6)
+  countedQuantity  Decimal?  @map("counted_quantity") @db.Decimal(20, 6)
+  countedByUserId  String?   @map("counted_by_user_id") @db.Uuid
+  countedAt        DateTime? @map("counted_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  count        StockCount       @relation(fields: [organizationId, countId], references: [organizationId, id], onDelete: Restrict)
+  product      Product          @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  lot          InventoryLot?    @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  location     StorageLocation? @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  /// Recreated in SQL as NULLS NOT DISTINCT.
+  @@unique([countId, productId, lotId, locationId], map: "stock_count_lines_item_key")
+  @@index([organizationId, countId])
+  @@map("stock_count_lines")
 }

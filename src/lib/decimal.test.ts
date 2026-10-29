@@ -86,7 +86,19 @@ describe("decimalString schema", () => {
   });
 
   it("rejects too many decimal places", () => {
-    expect(quantity.safeParse("1.1234567").success).toBe(false);
+    const r = quantity.safeParse("1.1234567");
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0].message).toBe("tooManyDecimals");
+  });
+
+  it("uses translation keys as messages", () => {
+    expect(quantity.safeParse("abc").error?.issues[0].message).toBe("invalidDecimal");
+    expect(quantity.safeParse("-1").error?.issues.map((i) => i.message)).toContain(
+      "mustNotBeNegative",
+    );
+    expect(
+      decimalString({ maxScale: 6, min: "0.000001" }).safeParse("0").error?.issues[0].message,
+    ).toBe("mustBePositive");
   });
 
   it("rejects negatives unless allowed", () => {

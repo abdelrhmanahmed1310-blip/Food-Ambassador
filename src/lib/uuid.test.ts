@@ -10,12 +10,26 @@ describe("uuidv7", () => {
   });
 
   it("encodes the timestamp so IDs sort by creation time", () => {
-    const earlier = uuidv7(1_700_000_000_000);
-    const later = uuidv7(1_700_000_000_001);
+    // Far-future timestamps, so the never-backwards rule does not clamp them.
+    const t = 4_000_000_000_000;
+    const earlier = uuidv7(t);
+    const later = uuidv7(t + 1);
     expect(earlier < later).toBe(true);
-    expect(earlier.slice(0, 13).replace("-", "")).toBe(
-      (1_700_000_000_000).toString(16).padStart(12, "0"),
-    );
+    expect(earlier.slice(0, 13).replace("-", "")).toBe(t.toString(16).padStart(12, "0"));
+  });
+
+  it("is strictly increasing within the same millisecond", () => {
+    const fixed = 4_100_000_000_000;
+    const ids = Array.from({ length: 5000 }, () => uuidv7(fixed));
+    for (let i = 1; i < ids.length; i++)
+      expect(ids[i - 1] < ids[i], `${ids[i - 1]} < ${ids[i]}`).toBe(true);
+    expect(ids.every(isUuid)).toBe(true);
+  });
+
+  it("never goes backwards when the clock does", () => {
+    const a = uuidv7(4_200_000_000_000);
+    const b = uuidv7(4_199_999_999_000);
+    expect(a < b).toBe(true);
   });
 
   it("is unique across many calls", () => {

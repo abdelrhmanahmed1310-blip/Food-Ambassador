@@ -4,10 +4,12 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, sales/invoice workflows and analytics.
 
-> **Status:** Milestone 1 (application foundation) complete — sign-up/sign-in,
-> organizations, members and invitations, roles and scoped permissions,
-> branches/warehouses/storage locations, audit log, Arabic/English (RTL/LTR).
-> Business modules (inventory onward) start in Milestone 2. See
+> **Status:** Milestone 2 (inventory MVP) complete — on top of the M1
+> foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
+> products, units and conversions, lots and expiry, an append-only stock
+> ledger, opening balances, adjustments, write-offs, transfers, quarantine and
+> release, reversals, stock counts, FEFO, dashboard, CSV import/export.
+> Procurement and receiving start in Milestone 3. See
 > [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                             | Contents                                                      |
@@ -47,7 +49,9 @@ with `SEED_PASSWORD` when seeding):
 | `owner@gulf.demo.test`   | [DEMO] Gulf Catering | Owner                                |
 | `admin@gulf.demo.test`   | [DEMO] Gulf Catering | Administrator                        |
 
-The seed refuses to run with `NODE_ENV=production`.
+Each demo organization also gets three `[DEMO]` products and opening stock,
+including an expired and a soon-expiring milk lot. The seed is idempotent and
+refuses to run with `NODE_ENV=production`.
 
 **Invitations** produce a one-time link that the inviter copies and shares; no
 email is sent yet (DECISIONS.md ADR-012).

@@ -1,74 +1,76 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-29 (end of Milestone 1)
+Last updated: 2026-10-29 (end of Milestone 2)
 
 ## Summary
 
 | Milestone                    | Status                                    |
 | ---------------------------- | ----------------------------------------- |
 | M0 Repository & architecture | ✅ Complete                               |
-| M1 Application foundation    | ✅ Complete (all acceptance criteria met) |
-| M2 Inventory MVP             | ⏭ Next                                    |
-| M3 – M8                      | Not started                               |
+| M1 Application foundation    | ✅ Complete                               |
+| M2 Inventory MVP             | ✅ Complete (all acceptance criteria met) |
+| M3 Procurement & receiving   | ⏭ Next — needs a decision on Q-01         |
+| M4 – M8                      | Not started                               |
 
-## M1 — Delivered
+## M2 — Delivered
 
-| Area                | What works                                                                                                                                                                                                                        | Where                                                             |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Database            | Identity, tenancy, RBAC, sites, invitations, audit, idempotency, rate-limit tables; composite tenant FKs; CHECK constraints; append-only audit trigger; row-level security on all tenant tables                                   | `prisma/schema.prisma`, `prisma/migrations/`                      |
-| Authentication      | Email/password sign-up and sign-in (Better Auth, scrypt hashes), DB sessions (7 days), sign-out, disabled users blocked, safe `next` redirects, rate limits (sign-in 5/min per IP+email, sign-up 10/h per IP, all auth endpoints) | `src/server/auth/`, `src/app/(auth)/`                             |
-| Organizations       | Sign-up creates org + 9 system roles + Owner membership; additional orgs; org switcher; settings (name, time zone, default language; base currency fixed)                                                                         | `src/modules/organizations/`                                      |
-| Members             | Invitations by single-use link (hashed token, 7-day expiry, email must match); grant/revoke roles at org/branch/warehouse scope; remove members; last-owner protection under concurrency; only owners manage ownership            | `src/modules/members/`                                            |
-| Roles & permissions | Permission catalogue in code; system role templates; custom roles; Owner immutable; scope-aware `hasPermission` / list filtering                                                                                                  | `src/modules/access/`                                             |
-| Tenant isolation    | `requireTenant` (404 for non-members), tenant-filtered services, RLS via `withTenantTx`, composite FKs                                                                                                                            | `src/modules/tenancy/`, `src/server/db/transactions.ts`           |
-| Sites               | Branches, warehouses, storage locations: create/edit/archive/restore, search, status filter, pagination, scope-aware visibility, archive rules, idempotent creation                                                               | `src/modules/sites/`, `src/app/o/[orgSlug]/{branches,warehouses}` |
-| Audit               | Events written in the same transaction for org, branch, warehouse, location, role, membership and invitation changes; filterable audit log page                                                                                   | `src/modules/audit/`                                              |
-| Localization        | Arabic/English, RTL/LTR, persisted per user, localized validation and errors, catalog parity test                                                                                                                                 | `src/i18n/`                                                       |
-| UI shell            | Responsive layout (sidebar / mobile menu), permission-aware navigation, empty/error/404 states, accessible forms (labels, `aria-invalid`, focus styles), pending-disabled submit buttons, confirmations for destructive actions   | `src/components/`, `src/app/o/[orgSlug]/layout.tsx`               |
-| Operations          | Request IDs (proxy) in logs; trusted client-IP derivation; health checks; Docker image; dev seed with `[DEMO]` data                                                                                                               | `src/proxy.ts`, `prisma/seed.ts`                                  |
+| Area              | What works                                                                                                                                                                                                                                                                      | Where                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Units             | 9 system units (mass, volume, count) + custom pack units; same-dimension conversion; product-specific conversions; incompatible units rejected                                                                                                                                  | `src/modules/catalog/units.ts`, `service.ts`                   |
+| Products          | SKU, EN/AR names, type, base unit, lot tracking (none / lot / lot + expiry), shelf life, storage zone; barcodes with GS1 check digits; base unit and lot mode frozen after movements; archive blocked while stocked                                                             | `src/modules/catalog/`                                         |
+| Ledger & balances | Append-only ledger (DB triggers), balance projection updated under ordered row locks, posting-key idempotency, no negative stock (service check + CHECK constraint), reconciliation query                                                                                       | `src/modules/inventory/posting.ts`, migration `…_m2_inventory` |
+| Operations        | Opening balances (only before other movements), adjustments (± with reason), write-offs (any status, incl. expired), transfers (warehouse ↔ warehouse / location), quarantine · hold · reject · release with separate release permission, reversals (once, never of a reversal) | `src/modules/inventory/operations.ts`                          |
+| Lots & expiry     | Lot creation on inbound, expiry consistency, expiry by branch/org business date, expired and recall-held stock unusable, FEFO suggestions and FEFO warning in the UI                                                                                                            | `rules.ts`, `context.ts`, `queries.ts`                         |
+| Stock counts      | Count sheet from balances, items found during counting, system quantity captured per line, blind count UI, submit → approve & post with its own permission                                                                                                                      | `src/modules/inventory/counts.ts`                              |
+| Views             | Inventory dashboard (real figures, expired/expiring lists, recent documents), stock list with filters, stock line page with actions, movements, documents with reversal, counts                                                                                                 | `src/app/o/[orgSlug]/inventory/`                               |
+| CSV               | Import products and opening balances (validate everything, all-or-nothing, row/column errors, same file refused twice); export products and stock (UTF-8 BOM, formula-injection safe)                                                                                           | `src/modules/inventory/csv.ts`, `src/lib/csv.ts`               |
+| Access            | 10 new permissions with warehouse scope for `inventory.*`; system roles updated for new and existing organizations (data migration + sync test)                                                                                                                                 | `src/modules/access/permissions.ts`                            |
+| Localization      | All new screens, enums, reasons and errors in English and Arabic                                                                                                                                                                                                                | `src/i18n/messages/`                                           |
+| Seed              | `[DEMO]` products and opening stock (incl. expired and expiring lots); idempotent                                                                                                                                                                                               | `prisma/seed.ts`                                               |
 
-## Check results at end of M1 (clean install)
+## Check results at end of M2 (clean install)
 
-| Command                 | Result                                                         |
-| ----------------------- | -------------------------------------------------------------- |
-| `pnpm format:check`     | pass                                                           |
-| `pnpm lint`             | pass (0 warnings)                                              |
-| `pnpm typecheck`        | pass                                                           |
-| `pnpm test`             | 11 files, 67 tests pass                                        |
-| `pnpm test:integration` | 6 files, 49 tests pass (PostgreSQL 16)                         |
-| `pnpm build`            | pass (23 routes, all dynamic)                                  |
-| `pnpm test:e2e`         | 14 tests pass (13 desktop Chromium + 1 mobile viewport)        |
-| `docker build` + run    | image serves health (200), sign-in (200), Arabic RTL rendering |
-| `pnpm db:seed`          | creates two `[DEMO]` orgs; re-running skips them               |
+| Command                 | Result                                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `pnpm format:check`     | pass                                                                                                  |
+| `pnpm lint`             | pass (0 warnings)                                                                                     |
+| `pnpm typecheck`        | pass                                                                                                  |
+| `pnpm test`             | 16 files, 97 tests pass                                                                               |
+| `pnpm test:integration` | 8 files, 83 tests pass (PostgreSQL 16; full suite run 3× in a row green after the ordering fix below) |
+| `pnpm build`            | pass (41 routes, all dynamic)                                                                         |
+| `pnpm test:e2e`         | 17 tests pass (16 desktop Chromium + 1 mobile)                                                        |
+| `docker build` + run    | image serves health/readiness; unauthenticated export redirects to sign-in                            |
+| `pnpm db:seed` (twice)  | demo stock created once; second run changes nothing                                                   |
 
-Screens were also checked visually in English and Arabic (desktop and
-mobile). That review found and fixed:
+### Defects found and fixed during M2
 
-- table row borders missing in the last column;
-- Latin codes aligned to the wrong side in RTL;
-- the invite form preselecting the Owner role (now requires an explicit choice);
-- a wrapping mobile menu label.
+- **Line ordering** of documents depended on random sub-millisecond UUID bits
+  (intermittent test failure) → monotonic UUIDv7 (ADR-019).
+- **Untranslated decimal validation messages** → translation keys (ADR-020).
+- **Duplicate CSV import** showed a generic "already posted" message → now
+  "This file was already imported".
+- **Floating-point display math** in the count sheet → differences are
+  computed with exact decimals on the server.
+- **Correction to the M1 report:** M1 stated that table row borders in the
+  last column were fixed. That edit had silently not applied (class order
+  changed by Prettier). It is fixed now, and screenshots of the new screens
+  were checked in English and Arabic.
 
 ## Known limitations
 
-- **No email delivery** (Q-10): invitations are shared as links; there is no
-  self-service password reset yet. An owner cannot reset another user's
-  password either.
-- **No email verification** at sign-up (depends on Q-10).
-- The CI workflow has not yet run on GitHub (it runs on pushes/PRs to `main`).
-- `docker compose` itself was not exercised in the build sandbox (PostgreSQL
-  ran natively); the Docker image was verified with a sandbox-only CA
-  certificate added to a scratch copy of the Dockerfile.
-- `idempotency_keys` and `rate_limit_buckets` are not yet cleaned up
-  automatically (planned with background jobs, ADR-008).
-- Editing has no optimistic-concurrency check yet: of two simultaneous edits
-  to the same branch, the last one wins (each is audited). An `updatedAt`
-  version check should be added before M2 documents with posting workflows.
-- Prisma blocks `migrate reset` when run by an AI agent without the user's
-  consent, so the test suites are written to need no resets. Local
-  `prisma migrate dev` may wait on an interactive prompt in non-interactive
-  shells; use `migrate dev --create-only` + `migrate deploy` there.
+- **Valuation (Q-01)**: unit costs are captured on opening balances; no stock
+  value, average cost or COGS is computed yet.
+- **Transfers are immediate** (no in-transit stage; ADR-016).
+- **Reservations** are modelled (`reserved_quantity`) but not yet used.
+- **Counts** cover AVAILABLE stock only; counter and approver may be the same
+  person (Q-12).
+- **Pickers** use plain selects (up to 2,000 products); a searchable picker
+  is planned for large catalogs.
+- **No product categories** yet (Q-13).
+- **CSV uploads** are limited to ~900 KB / 2,000 rows per file.
+- From M1, still open: no email delivery or password reset (Q-10); CI not yet
+  run on GitHub; no optimistic-concurrency check on master-data edits.
 
 ## Not started
 
-M2–M8 (see PROJECT_PLAN.md).
+M3–M8 (see PROJECT_PLAN.md).

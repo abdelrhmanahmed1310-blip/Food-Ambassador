@@ -1,6 +1,6 @@
 # Food Ambassador — Data Model
 
-Status: **§2 implemented (Milestone 1)**; later sections are the design baseline.
+Status: **§2–§4 implemented (Milestones 1–2)**; later sections are the design baseline.
 Models are added to `prisma/schema.prisma` milestone by milestone. This document is the
 contract those migrations implement. Changes to invariants here require a
 DECISIONS.md entry.
@@ -225,7 +225,7 @@ column has RLS and a policy, so new tables cannot silently skip it.
 
 ---
 
-## 3. Catalog and units (Milestone 2)
+## 3. Catalog and units (Milestone 2 — implemented)
 
 ### units_of_measure
 
@@ -266,7 +266,7 @@ barcode identifies). UQ (organization_id, barcode).
 
 ---
 
-## 4. Inventory (Milestone 2) — core invariants
+## 4. Inventory (Milestone 2 — implemented) — core invariants
 
 ```
 Product ─< InventoryLot
@@ -430,6 +430,59 @@ Moving stock between status buckets posts a `STATUS_CHANGE` pair.
 logged. `REJECTED` stock can only leave via `RETURN_TO_SUPPLIER` or `WRITE_OFF`.
 
 ---
+
+### Milestone 2 implementation notes (where the build refines the design)
+
+Implemented in migration `20261029120000_m2_inventory`; posting logic in
+`src/modules/inventory/posting.ts` (the only writer of ledger and balances).
+
+- **Units**: system units (`mg, g, kg, oz, lb, ml, l, each, dozen`) are seeded
+  with `organization_id NULL`; tenants add their own, typically pack units
+  with no fixed size (`factor_to_base NULL`, e.g. "case"), which convert only
+  through a product-specific conversion. Because units can be global, unit
+  references use plain FKs plus the `assert_unit_visible` trigger (a row may
+  only reference a system unit or a unit of its own tenant). `LENGTH` was
+  dropped from the dimensions (no food use case yet).
+- **Products** have no category yet (deferred). SKU and barcodes are unique
+  per organization; EAN-13/EAN-8/UPC-A check digits are validated. Base unit
+  and lot-tracking mode are frozen once the product has ledger entries; a
+  product with stock cannot be archived.
+- **Lots** are unique per (organization, product, lot code) — the supplier
+  column joins the key in M3. Lots are immutable (no UPDATE grant); entering
+  an existing lot code with a different expiry is rejected
+  (`LOT_EXPIRY_MISMATCH`).
+- **Documents**: every posting has an `inventory_documents` header (types
+  OPENING_BALANCE, ADJUSTMENT, WRITE_OFF, TRANSFER, STATUS_CHANGE,
+  STOCK_COUNT, REVERSAL) numbered per organization/type/year
+  (`ADJ-2026-000001`) from `document_sequences`. Ledger entries are the
+  document lines. Documents and entries are append-only (triggers).
+- **Reversal** posts the negated entries of a document (movement type
+  REVERSAL, `reverses_entry_id` set). UNIQUE `reverses_document_id` and
+  `reverses_entry_id` make reversal single-use even under concurrency;
+  reversals cannot be reversed; a reversal fails with INSUFFICIENT_STOCK if
+  the stock it would remove has been used.
+- **Opening balances** are accepted for a product/warehouse only while it
+  has no movements other than opening balances and reversals.
+- **Transfers** post TRANSFER_OUT and TRANSFER_IN atomically in one document
+  (no in-transit stage yet — ADR-016). Only usable stock (AVAILABLE, not
+  expired, not on recall hold) can be transferred; lot and status are kept.
+- **Status changes** follow `STATUS_TRANSITIONS` in
+  `src/modules/inventory/rules.ts`; releases to AVAILABLE need
+  `inventory.quarantine.release` and are refused for expired or recalled lots.
+  REJECTED stock can only leave by write-off (return to supplier: M3).
+- **Write-offs** may remove stock from any status, including expired stock.
+- **Reservations** are not implemented yet: `reserved_quantity` exists, is
+  always 0, and already participates in the availability formula and checks.
+- **Stock counts** (ADR-017) count AVAILABLE stock only. The count sheet is
+  created from current balances; the system quantity of a line is captured
+  when that line is counted, and the adjustment posted on approval is
+  counted − system quantity at count time. The UI hides the system quantity
+  until a line is counted (blind count). Lifecycle OPEN → SUBMITTED →
+  POSTED/CANCELLED; posting needs `inventory.count.approve`.
+- **Unit cost** is recorded per base unit on inbound entries when entered
+  (opening balances); no valuation is computed until Q-01 is decided.
+- **Integrity check**: `reconcileBalances()` recomputes every balance from
+  the ledger; the integration suites assert it returns no differences.
 
 ## 5. Procurement and receiving (Milestone 3)
 

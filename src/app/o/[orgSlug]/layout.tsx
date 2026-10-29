@@ -28,6 +28,29 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     main.items.push({ href: `${base}/branches`, label: t("branches") });
   if (holdsAnyGrant(ctx.grants, "warehouses.view"))
     main.items.push({ href: `${base}/warehouses`, label: t("warehouses") });
+  const inventory: NavSection = { title: t("inventorySection"), items: [] };
+  if (holdsAnyGrant(ctx.grants, "inventory.view")) {
+    inventory.items.push(
+      { href: `${base}/inventory`, label: t("inventoryOverview"), exact: true },
+      { href: `${base}/inventory/stock`, label: t("stock") },
+      { href: `${base}/inventory/movements`, label: t("movements") },
+      { href: `${base}/inventory/documents`, label: t("documents") },
+      { href: `${base}/inventory/counts`, label: t("counts") },
+    );
+  }
+  const catalog: NavSection = { title: t("catalogSection"), items: [] };
+  if (hasPermission(ctx.grants, "catalog.view")) {
+    catalog.items.push(
+      { href: `${base}/catalog/products`, label: t("products") },
+      { href: `${base}/catalog/units`, label: t("units") },
+    );
+  }
+  if (
+    hasPermission(ctx.grants, "catalog.manage") ||
+    holdsAnyGrant(ctx.grants, "inventory.adjust")
+  ) {
+    catalog.items.push({ href: `${base}/catalog/import`, label: t("import") });
+  }
   const settings: NavSection = { title: t("settings"), items: [] };
   if (hasPermission(ctx.grants, "org.settings.manage"))
     settings.items.push({ href: `${base}/settings/organization`, label: t("organization") });
@@ -37,7 +60,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
-  const sections = settings.items.length > 0 ? [main, settings] : [main];
+  const sections = [main, inventory, catalog, settings].filter(
+    (section) => section.items.length > 0,
+  );
 
   return (
     <div className="flex min-h-full flex-1 flex-col">

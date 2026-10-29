@@ -20,7 +20,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
                         PostgreSQL 16 (Prisma 7 + node-postgres adapter; RLS for tenant tables)
 ```
 
-## 2. Directory structure (as of Milestone 1)
+## 2. Directory structure (as of Milestone 2)
 
 ```
 .
@@ -34,7 +34,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ (auth)/               # sign-in, sign-up + auth server actions
 │  │  ├─ invite/[token]/       # invitation acceptance
 │  │  ├─ organizations/new/    # create another organization
-│  │  ├─ o/[orgSlug]/          # tenant shell + pages (overview, branches, warehouses, settings/*)
+│  │  ├─ o/[orgSlug]/          # tenant shell + pages (overview, branches, warehouses, inventory/*, catalog/*, settings/*)
 │  │  │  └─ **/actions.ts      # server actions per area
 │  │  └─ api/
 │  │     ├─ auth/[...all]/     # Better Auth HTTP endpoints
@@ -42,6 +42,8 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  ├─ modules/
 │  │  ├─ access/               # permission catalogue, role templates, authorize(), roles service
 │  │  ├─ audit/                # recordAudit(), audit log queries
+│  │  ├─ catalog/              # units & conversions, products, barcodes (pure rules: units.ts, barcodes.ts)
+│  │  ├─ inventory/            # posting engine (only ledger writer), operations, counts, queries, CSV
 │  │  ├─ members/              # memberships, invitations, role grants, last-owner rule
 │  │  ├─ organizations/        # organization onboarding, settings, overview counts
 │  │  ├─ sites/                # branches, warehouses, storage locations
@@ -60,8 +62,9 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 └─ tests/e2e/                  # Playwright journeys
 ```
 
-Future domains (catalog, inventory, procurement, …) are added as new folders
-under `src/modules/`.
+Future domains (procurement, receiving, recipes, …) are added as new folders
+under `src/modules/`. CSV downloads are route handlers under the tenant path
+(`…/stock/export`) that resolve the tenant with `tenantForRoute()`.
 
 ### Module boundary rules
 
@@ -69,7 +72,11 @@ under `src/modules/`.
 2. Services take a `TenantContext` as their first argument and do their own
    authorization; a page hiding a button is never the control.
 3. Cross-module calls go through exported service functions; no cycles.
-4. **Only the `inventory` module (M2) will write ledger entries and balances.**
+4. **Only `src/modules/inventory/posting.ts` writes ledger entries and
+   balances.** Every stock-changing workflow (today: opening balances,
+   adjustments, write-offs, transfers, status changes, counts, reversals,
+   CSV imports; later: receipts, consumption) builds `PostingLine`s and calls
+   `postDocument()` inside its tenant transaction.
 5. Pure rules (`authorize.ts`, `src/lib/*`) are unit-tested; services are
    integration-tested against PostgreSQL.
 
@@ -134,12 +141,26 @@ Key properties (details in DECISIONS.md ADR-006, ADR-013 – ADR-015):
   (ADR-013).
 - CI: format, lint, typecheck, unit, integration (PostgreSQL), build, E2E.
 
-## 7. Background work
+## 7. Schema changes
+
+`prisma migrate dev` is interactive and Prisma refuses destructive commands
+when run by an AI agent, so migrations are produced with
+`prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`
+into a new `prisma/migrations/<timestamp>_<name>/migration.sql`, extended with
+hand-written SQL (CHECKs, triggers, RLS, grants, data), and applied with
+`pnpm db:deploy`. Constraints Prisma cannot express but must not drift (e.g.
+`NULLS NOT DISTINCT` unique keys) are declared in the schema with an explicit
+`map:` name and upgraded in SQL, so later diffs stay empty. Every new tenant
+table must enable RLS with a `tenant_isolation` policy and grant `fa_tenant`
+only the privileges it needs — a test enforces RLS on every table with an
+`organization_id` column.
+
+## 8. Background work
 
 None yet. First candidates: idempotency-key cleanup, email delivery (Q-10).
 Plan: PostgreSQL-backed job table + worker process (ADR-008, proposed).
 
-## 8. Testing strategy
+## 9. Testing strategy
 
 | Layer       | Tool       | Location               | Runs against                          |
 | ----------- | ---------- | ---------------------- | ------------------------------------- |

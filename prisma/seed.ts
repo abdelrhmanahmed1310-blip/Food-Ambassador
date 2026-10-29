@@ -7,6 +7,10 @@
  * Run: pnpm db:seed     Refuses to run when NODE_ENV=production.
  */
 import "dotenv/config";
+import type { ProductInput } from "@/modules/catalog/schemas";
+import { addConversion, createProduct, createUnit, listUnits } from "@/modules/catalog/service";
+import { postOpeningBalance } from "@/modules/inventory/operations";
+import { addDays, businessDate } from "@/modules/inventory/rules";
 import { createOrganization } from "@/modules/organizations/service";
 import { createBranch } from "@/modules/sites/branches";
 import { createLocation, createWarehouse } from "@/modules/sites/warehouses";
@@ -75,8 +79,12 @@ async function seedOrganization(spec: {
   members: Array<{ name: string; email: string; role: string; branchCode?: string }>;
 }) {
   const db = getDb();
-  if (await db.organization.findFirst({ where: { name: spec.name } })) {
-    console.log(`  ${spec.name}: already present, skipped`);
+  const existing = await db.organization.findFirst({ where: { name: spec.name } });
+  if (existing) {
+    // Organizations seeded before inventory existed get their demo stock now (idempotent).
+    const owner = await db.user.findUniqueOrThrow({ where: { email: spec.owner[1] } });
+    await seedStock(await ctxFor(owner.id, existing.slug), spec.timeZone);
+    console.log(`  ${spec.name}: present; demo stock ensured`);
     return;
   }
   const ownerId = await ensureUser(...spec.owner);
@@ -114,7 +122,87 @@ async function seedOrganization(spec: {
     const userId = await ensureUser(m.name, m.email);
     await grant(ctx, userId, m.role, m.branchCode ? { branchId: branchIds.get(m.branchCode) } : {});
   }
+  await seedStock(await ctxFor(ownerId, org.slug), spec.timeZone);
   console.log(`  ${spec.name}: /o/${org.slug}`);
+}
+
+/**
+ * Demo catalog and opening stock, including one expired and one soon-expiring
+ * lot. Every step is idempotent so a partially seeded database can be re-run.
+ */
+async function seedStock(ctx: TenantContext, timeZone: string) {
+  const db = getDb();
+  const units = Object.fromEntries((await listUnits(ctx)).map((u) => [u.code, u.id]));
+  const tray =
+    units.tray ??
+    (await createUnit(ctx, { code: "tray", nameEn: "Tray", nameAr: "صينية", dimension: "COUNT" }))
+      .id;
+  const product = async (input: ProductInput) =>
+    (await db.product.findFirst({ where: { organizationId: ctx.organizationId, sku: input.sku } }))
+      ?.id ?? (await createProduct(ctx, input)).id;
+  const rice = await product({
+    sku: "DEMO-RICE",
+    nameEn: "[DEMO] Basmati rice",
+    nameAr: "[تجريبي] أرز بسمتي",
+    type: "RAW_MATERIAL",
+    baseUomId: units.kg,
+  });
+  const milk = await product({
+    sku: "DEMO-MILK",
+    nameEn: "[DEMO] Fresh milk",
+    nameAr: "[تجريبي] حليب طازج",
+    type: "RAW_MATERIAL",
+    baseUomId: units.l,
+    lotTracking: "LOT_AND_EXPIRY",
+    shelfLifeDays: "7",
+    storageRequirement: "CHILLED",
+  });
+  const eggs = await product({
+    sku: "DEMO-EGGS",
+    nameEn: "[DEMO] Eggs",
+    nameAr: "[تجريبي] بيض",
+    type: "RAW_MATERIAL",
+    baseUomId: units.each,
+    lotTracking: "LOT",
+  });
+  if (!(await db.productUomConversion.findFirst({ where: { productId: eggs, uomId: tray } }))) {
+    await addConversion(ctx, eggs, { uomId: tray, factorToBase: "30" });
+  }
+  const warehouse = await db.warehouse.findFirstOrThrow({
+    where: { organizationId: ctx.organizationId },
+    orderBy: { code: "asc" },
+  });
+  const today = businessDate(timeZone);
+  const opening = async (productId: string, input: Record<string, string>) => {
+    if (
+      await db.inventoryLedgerEntry.findFirst({
+        where: {
+          organizationId: ctx.organizationId,
+          productId,
+          warehouseId: warehouse.id,
+          ...(input.lotCode ? { lot: { lotCode: input.lotCode } } : {}),
+        },
+      })
+    )
+      return;
+    await postOpeningBalance(ctx, { warehouseId: warehouse.id, productId, ...input });
+  };
+  await opening(rice, { quantity: "250", uomId: units.kg, unitCost: "48", note: "Demo data" });
+  await opening(milk, {
+    lotCode: "DEMO-M-1",
+    expiresOn: addDays(today, 3),
+    quantity: "40",
+    uomId: units.l,
+    note: "Demo data",
+  });
+  await opening(milk, {
+    lotCode: "DEMO-M-0",
+    expiresOn: addDays(today, -1),
+    quantity: "6",
+    uomId: units.l,
+    note: "Demo data (expired lot)",
+  });
+  await opening(eggs, { lotCode: "DEMO-E-1", quantity: "12", uomId: tray, note: "Demo data" });
 }
 
 async function main() {

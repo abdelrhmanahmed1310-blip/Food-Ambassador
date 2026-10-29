@@ -34,8 +34,8 @@ M0 Foundation repo ─► M1 Identity, tenancy, RBAC, i18n shell
 | --- | --------------------------- | -------------------------------- | ------------ |
 | M0  | Repository & architecture   | —                                | **Complete** |
 | M1  | Application foundation      | M0                               | Next         |
-| M2  | Inventory MVP               | M1                               | Not started  |
-| M3  | Procurement & receiving     | M2                               | Not started  |
+| M2  | Inventory MVP               | M1                               | **Complete** |
+| M3  | Procurement & receiving     | M2                               | Next         |
 | M4  | Recipes & food cost         | M2 (M3 for purchase-based costs) | Not started  |
 | M5  | Nutrition & allergens       | M4                               | Not started  |
 | M6  | Food safety & traceability  | M2, M3, M4                       | Not started  |
@@ -136,23 +136,35 @@ the service-level tests cover direct action calls.
 
 ---
 
-## M2 — Inventory MVP
+## M2 — Inventory MVP ✅
 
-Products/SKUs, barcodes, units and conversions, lots and expiry, ledger and
-balance projection, opening balances, transfers, stock counts, adjustments and
-write-offs, quarantine/release, FEFO suggestions, inventory dashboard and
-movement history, CSV import/export with row-level error reporting.
+Delivered: products/SKUs with barcodes (GS1 check digits), system and custom
+units with product-specific conversions, lots with expiry/best-before, the
+append-only ledger with a locked balance projection, opening balances,
+adjustments, write-offs, transfers, quarantine/hold/reject/release, reversals,
+stock counts, FEFO suggestions, inventory dashboard, stock and movement views,
+CSV import (products, opening balances) and export (products, stock).
+Scope refinements are recorded in DATA_MODEL.md §4 "Milestone 2
+implementation notes" and ADR-016/017.
 
-Acceptance criteria (summary): balances always equal the ledger sum
-(reconciliation test); posting is idempotent; no negative stock under
-concurrent postings; unavailable stock (quarantine/rejected/on-hold/expired)
-cannot be issued; release from quarantine requires permission; incompatible
-unit conversions are rejected; reversals restore balances exactly.
+### Acceptance results
 
-Required tests: duplicate postings, concurrent issues against the same lot,
-partial transfers, count with movements during counting, FEFO ordering, expiry
-boundary (today vs yesterday, time zones), quarantine release authorization,
-reversal of reversal blocked, CSV import validation.
+| Criterion                             | Status | Verified by (`src/modules/inventory/*.int.test.ts` unless noted)                                                                                         |
+| ------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Balances always equal the ledger      | ✅     | `reconcileBalances()` asserted empty after every inventory and CSV suite                                                                                 |
+| Posting is idempotent                 | ✅     | concurrent same-key submissions → one document; duplicate posting key → CONFLICT; same CSV file twice → refused                                          |
+| No negative stock under concurrency   | ✅     | 12 concurrent write-offs against 5 units → exactly 5 succeed; DB CHECK rejects a direct negative update                                                  |
+| No deadlocks                          | ✅     | concurrent transfers in opposite directions all succeed                                                                                                  |
+| Unavailable stock cannot be issued    | ✅     | quarantined stock cannot be transferred; expired lot transfer → LOT_EXPIRED; available excludes quarantine                                               |
+| Expiry boundary                       | ✅     | stock expiring today is usable, yesterday is expired (`rules.test.ts`, business date per time zone)                                                      |
+| Release needs permission              | ✅     | warehouse role → FORBIDDEN; food-safety role releases; expired stock cannot be released                                                                  |
+| Incompatible units rejected           | ✅     | `units.test.ts` + integration (litres for a kg product → INCOMPATIBLE_UNITS)                                                                             |
+| Reversals restore exactly, once       | ✅     | reverse → balance restored; second reversal → CONFLICT; reversal of reversal → refused; concurrent reversals → one wins; used stock → INSUFFICIENT_STOCK |
+| Counts with movements during counting | ✅     | movement between sheet creation and counting is not double-counted                                                                                       |
+| FEFO ordering                         | ✅     | `rules.test.ts` (expiry → best-before → receipt; expired skipped) + suggestions query                                                                    |
+| CSV import validation                 | ✅     | `csv.int.test.ts`: per-row errors, all-or-nothing (lots rolled back), duplicates, malformed/oversize files                                               |
+| Scope and tenant isolation            | ✅     | warehouse-scoped user sees/posts only its warehouse; analyst read-only; other tenant gets NOT_FOUND; RLS hides ledger rows                               |
+| End-to-end                            | ✅     | `tests/e2e/inventory.spec.ts`: full journey, CSV import/export, tenant-scoped export                                                                     |
 
 ## M3 — Procurement and receiving
 
@@ -199,16 +211,16 @@ security review, pilot onboarding.
 
 ## Prioritized backlog (next items)
 
-| Pri | Item                                                                  | Milestone | Depends on |
-| --- | --------------------------------------------------------------------- | --------- | ---------- |
-| P0  | Units of measure + conversion rules (pure, exhaustively tested)       | M2        | —          |
-| P0  | Product/SKU master data + barcodes                                    | M2        | units      |
-| P0  | Lots, ledger, balance projection, posting service + concurrency tests | M2        | products   |
-| P1  | Opening balances, adjustments/write-offs, reversals                   | M2        | ledger     |
-| P1  | Transfers, stock counts, quarantine/release, FEFO                     | M2        | ledger     |
-| P1  | Inventory dashboard, movement history, CSV import/export              | M2        | ledger     |
-| P1  | Email provider for invitations and password reset (Q-10)              | M2        | decision   |
-| P2  | Answer Q-01 valuation method                                          | before M3 | —          |
+| Pri | Item                                                                    | Milestone | Depends on |
+| --- | ----------------------------------------------------------------------- | --------- | ---------- |
+| P0  | Decide Q-01 valuation method (needed for receipt costs and landed cost) | M3        | decision   |
+| P0  | Suppliers and supplier products                                         | M3        | —          |
+| P0  | Purchase orders (+ optional requisitions/approvals, Q-04)               | M3        | suppliers  |
+| P0  | Goods receipts: partial, rejected, quarantined; posting via ledger      | M3        | POs        |
+| P1  | In-transit transfers (ADR-016) and lot supplier key                     | M3        | receipts   |
+| P1  | Discrepancies, supplier performance, landed cost allocation             | M3        | receipts   |
+| P1  | Email provider for invitations and password reset (Q-10)                | M3        | decision   |
+| P2  | Searchable product picker for large catalogs                            | M3        | —          |
 
 ## Top risks
 

@@ -142,21 +142,34 @@ interface BaseFieldProps {
   defaultValue?: string;
   required?: boolean;
   optionalLabel?: string;
+  /** Other server field names whose errors belong to this input (e.g. warehouseId for a combined picker). */
+  errorKeys?: string[];
+  disabled?: boolean;
+}
+
+function fieldError(
+  state: ActionState,
+  name: string,
+  errorKeys: string[] = [],
+): string | undefined {
+  return state.fieldErrors?.[name] ?? errorKeys.map((k) => state.fieldErrors?.[k]).find(Boolean);
 }
 
 export function TextField({
   type = "text",
   autoComplete,
   dir,
+  inputMode,
   ...props
 }: BaseFieldProps & {
-  type?: "text" | "email" | "password";
+  type?: "text" | "email" | "password" | "date";
   autoComplete?: string;
   dir?: "ltr" | "rtl" | "auto";
+  inputMode?: "decimal" | "numeric" | "text";
 }) {
   const state = useFormState();
   const id = useId();
-  const error = state.fieldErrors?.[props.name];
+  const error = fieldError(state, props.name, props.errorKeys);
   const value =
     type === "password" ? undefined : (state.values?.[props.name] ?? props.defaultValue ?? "");
   return (
@@ -176,6 +189,8 @@ export function TextField({
         required={props.required}
         autoComplete={autoComplete}
         dir={dir}
+        inputMode={inputMode}
+        disabled={props.disabled}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : props.hint ? `${id}-hint` : undefined}
         className={inputClass}
@@ -191,7 +206,7 @@ export function SelectField({
 }: BaseFieldProps & { options: Array<{ value: string; label: string }>; placeholder?: string }) {
   const state = useFormState();
   const id = useId();
-  const error = state.fieldErrors?.[props.name];
+  const error = fieldError(state, props.name, props.errorKeys);
   const value = state.values?.[props.name] ?? props.defaultValue ?? "";
   return (
     <FieldShell
@@ -207,6 +222,7 @@ export function SelectField({
         name={props.name}
         defaultValue={value}
         required={props.required}
+        disabled={props.disabled}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : props.hint ? `${id}-hint` : undefined}
         className={inputClass}

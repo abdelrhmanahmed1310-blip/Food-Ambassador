@@ -32,8 +32,26 @@ export function formList(formData: FormData, name: string): string[] {
 // Values available to every validation/error message placeholder.
 const MESSAGE_VALUES = { min: PASSWORD_MIN_LENGTH };
 
-function translateOr(t: Translator, key: string, fallback: string): string {
-  return t.has(key) ? t(key, MESSAGE_VALUES) : fallback;
+/**
+ * Translate `key` with placeholder values from the error details (e.g.
+ * {available} for INSUFFICIENT_STOCK). Falls back if the key is unknown or a
+ * placeholder is missing.
+ */
+function translateOr(
+  t: Translator,
+  key: string,
+  fallback: string,
+  details: Record<string, unknown> = {},
+): string {
+  if (!t.has(key)) return fallback;
+  const values: Record<string, string | number> = { ...MESSAGE_VALUES };
+  for (const [k, v] of Object.entries(details))
+    if (typeof v === "string" || typeof v === "number") values[k] = v;
+  try {
+    return t(key, values);
+  } catch {
+    return fallback;
+  }
 }
 
 /** Localize an error for display. Unknown errors are logged and shown generically. */
@@ -63,7 +81,7 @@ export async function errorToState(
   }
   let message = t(`errors.${error.code}`);
   if (error.code === "BUSINESS_RULE_VIOLATION" && typeof details.rule === "string") {
-    message = translateOr(t, `rules.${details.rule}`, message);
+    message = translateOr(t, `rules.${details.rule}`, message, details);
   } else if (typeof details.reason === "string") {
     message = translateOr(t, `errors.${details.reason}`, message);
   }

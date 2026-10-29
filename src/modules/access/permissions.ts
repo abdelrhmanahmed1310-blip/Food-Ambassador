@@ -14,6 +14,16 @@ export const PERMISSIONS = [
   "warehouses.view",
   "warehouses.manage",
   "audit.view",
+  "catalog.view",
+  "catalog.manage",
+  "inventory.view",
+  "inventory.adjust",
+  "inventory.transfer",
+  "inventory.count",
+  "inventory.count.approve",
+  "inventory.quarantine",
+  "inventory.quarantine.release",
+  "inventory.reverse",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -24,6 +34,14 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "branches.manage",
   "warehouses.view",
   "warehouses.manage",
+  "inventory.view",
+  "inventory.adjust",
+  "inventory.transfer",
+  "inventory.count",
+  "inventory.count.approve",
+  "inventory.quarantine",
+  "inventory.quarantine.release",
+  "inventory.reverse",
 ]);
 
 export function isPermission(value: string): value is Permission {
@@ -42,6 +60,19 @@ export interface RoleTemplate {
 }
 
 const VIEW_SITES: Permission[] = ["branches.view", "warehouses.view"];
+const VIEW_STOCK: Permission[] = ["catalog.view", "inventory.view"];
+const ALL_INVENTORY: Permission[] = [
+  "catalog.view",
+  "catalog.manage",
+  "inventory.view",
+  "inventory.adjust",
+  "inventory.transfer",
+  "inventory.count",
+  "inventory.count.approve",
+  "inventory.quarantine",
+  "inventory.quarantine.release",
+  "inventory.reverse",
+];
 
 /**
  * System roles created for every organization (DECISIONS.md A-10). Their
@@ -67,49 +98,78 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     key: "operations_manager",
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
-    permissions: [...VIEW_SITES, "warehouses.manage", "members.view", "audit.view"],
+    permissions: [
+      ...VIEW_SITES,
+      "warehouses.manage",
+      "members.view",
+      "audit.view",
+      ...ALL_INVENTORY,
+    ],
     organizationScopeOnly: false,
   },
   {
     key: "procurement",
     name: "Procurement",
     description: "Purchasing and supplier management.",
-    permissions: VIEW_SITES,
+    permissions: [...VIEW_SITES, ...VIEW_STOCK, "catalog.manage"],
     organizationScopeOnly: false,
   },
   {
     key: "warehouse",
     name: "Warehouse",
     description: "Receiving, storage and stock movements.",
-    permissions: VIEW_SITES,
+    permissions: [
+      ...VIEW_SITES,
+      ...VIEW_STOCK,
+      "inventory.transfer",
+      "inventory.count",
+      "inventory.quarantine",
+    ],
     organizationScopeOnly: false,
   },
   {
     key: "food_safety",
     name: "Food Safety / Quality",
     description: "Quality control, food safety records and traceability.",
-    permissions: VIEW_SITES,
+    permissions: [
+      ...VIEW_SITES,
+      ...VIEW_STOCK,
+      "inventory.quarantine",
+      "inventory.quarantine.release",
+    ],
     organizationScopeOnly: false,
   },
   {
     key: "finance",
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
-    permissions: [...VIEW_SITES, "audit.view"],
+    permissions: [...VIEW_SITES, "audit.view", ...VIEW_STOCK],
     organizationScopeOnly: false,
   },
   {
     key: "branch_manager",
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
-    permissions: [...VIEW_SITES, "branches.manage", "warehouses.manage", "members.view"],
+    permissions: [
+      ...VIEW_SITES,
+      "branches.manage",
+      "warehouses.manage",
+      "members.view",
+      ...VIEW_STOCK,
+      "inventory.adjust",
+      "inventory.transfer",
+      "inventory.count",
+      "inventory.count.approve",
+      "inventory.quarantine",
+      "inventory.reverse",
+    ],
     organizationScopeOnly: false,
   },
   {
     key: "analyst",
     name: "Read-only Analyst",
     description: "Read-only access to operational data.",
-    permissions: VIEW_SITES,
+    permissions: [...VIEW_SITES, ...VIEW_STOCK],
     organizationScopeOnly: false,
   },
 ];

@@ -96,6 +96,7 @@ export function allocateProportionally(
 /**
  * Zod schema for decimal values arriving as strings from forms, CSV and the API.
  * Output is a normalized string (safe to pass to Prisma's Decimal columns).
+ * Error messages are translation keys (validation.*).
  */
 export function decimalString(options: {
   maxScale: number;
@@ -105,24 +106,26 @@ export function decimalString(options: {
   return z
     .string()
     .trim()
-    .regex(DECIMAL_PATTERN, "Must be a decimal number")
+    .regex(DECIMAL_PATTERN, { error: "invalidDecimal" })
     .superRefine((raw, ctx) => {
       // Zod keeps running refinements after the regex fails; skip malformed input.
       if (!DECIMAL_PATTERN.test(raw)) return;
       const value = new Decimal(raw);
       if (value.decimalPlaces() > options.maxScale) {
-        ctx.addIssue({
-          code: "custom",
-          message: `At most ${options.maxScale} decimal places allowed`,
-        });
+        ctx.addIssue({ code: "custom", message: "tooManyDecimals" });
       }
       if (!options.allowNegative && value.isNegative() && !value.isZero()) {
-        ctx.addIssue({ code: "custom", message: "Must not be negative" });
+        ctx.addIssue({ code: "custom", message: "mustNotBeNegative" });
       }
-      if (options.min !== undefined && value.lessThan(toDecimal(options.min))) {
+      if (
+        options.min !== undefined &&
+        value.lessThan(toDecimal(options.min)) &&
+        !(value.isNegative() && !options.allowNegative)
+      ) {
+        // Minimums in this codebase are 0 (non-negative) or the smallest positive step.
         ctx.addIssue({
           code: "custom",
-          message: `Must be at least ${toDecimal(options.min).toString()}`,
+          message: toDecimal(options.min).isZero() ? "mustNotBeNegative" : "mustBePositive",
         });
       }
     })

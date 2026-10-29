@@ -134,18 +134,14 @@ export function Table({ children, label }: { children: ReactNode; label: string 
 
 export function Th({ children }: { children?: ReactNode }) {
   return (
-    <th className="border-border bg-surface-muted text-muted border-b px-4 py-2.5 text-start text-xs font-semibold">
+    <th className="bg-surface-muted text-muted px-4 py-2.5 text-start text-xs font-semibold">
       {children}
     </th>
   );
 }
 
 export function Td({ children, className = "" }: { children?: ReactNode; className?: string }) {
-  return (
-    <td className={`border-border border-b px-4 py-3 align-top last:border-b-0 ${className}`}>
-      {children}
-    </td>
-  );
+  return <td className={`border-border border-t px-4 py-3 align-top ${className}`}>{children}</td>;
 }
 
 export function DescriptionList({ items }: { items: Array<{ label: string; value: ReactNode }> }) {
