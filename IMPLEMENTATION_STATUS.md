@@ -68,8 +68,22 @@ Last updated: 2026-10-29 (end of Milestone 2)
   is planned for large catalogs.
 - **No product categories** yet (Q-13).
 - **CSV uploads** are limited to ~900 KB / 2,000 rows per file.
-- From M1, still open: no email delivery or password reset (Q-10); CI not yet
-  run on GitHub; no optimistic-concurrency check on master-data edits.
+- From M1, still open: no email delivery or password reset (Q-10); no
+  optimistic-concurrency check on master-data edits.
+- **Driver deprecation warning**: Prisma's query engine (7.10) overlaps
+  queries on one transaction connection for some multi-relation reads, which
+  `pg` 8 reports as deprecated (removed in `pg` 9). Our own code runs
+  transaction queries sequentially (`inSequence`); `pg` is pinned to 8.23.1
+  until Prisma fixes this upstream.
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push, on pull
+requests and on demand. First run: [run #1](https://github.com/abdelrhmanahmed1310-blip/Food-Ambassador/actions/runs/40839125108)
+on commit `a02c39e` — all steps green (format, lint, typecheck, unit,
+integration against `postgres:16-alpine`, build, Playwright E2E) in under
+2 minutes. Before this the workflow only triggered on `main`, so it had never
+run on the development branch.
 
 ## Not started
 

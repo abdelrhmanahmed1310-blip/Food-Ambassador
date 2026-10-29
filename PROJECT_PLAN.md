@@ -118,18 +118,18 @@ Acceptance criteria (all met — see IMPLEMENTATION_STATUS.md):
 
 ### Acceptance results
 
-| AC     | Status     | Verified by                                                                                                                      |
-| ------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| AC1.1  | ✅         | `organizations` via `createTenant` in every integration test; E2E `journey.spec.ts`                                              |
-| AC1.2  | ✅         | `auth.int.test.ts` (password, expired session); E2E sign-out → redirect → sign-in returns to `next`; forged cookie test          |
-| AC1.3  | ✅         | `tenancy/isolation.int.test.ts` (every M1 entity, RLS, composite FKs); E2E `tenancy.spec.ts` (404s, org switching)               |
-| AC1.4  | ✅         | `access/access.int.test.ts` (analyst, branch- and warehouse-scoped users); E2E invitation test (analyst gets 404 on admin pages) |
-| AC1.5  | ✅         | `access.int.test.ts` incl. concurrent mutual revocation (3 rounds)                                                               |
-| AC1.6  | ✅         | `sites.int.test.ts` (audit rows per change, none on failure; UPDATE/DELETE/TRUNCATE rejected)                                    |
-| AC1.7  | ✅         | E2E journey (dir/lang, Arabic nav, persists across reload); `i18n/messages.test.ts` (catalog parity)                             |
-| AC1.8  | ✅         | Service tests (`VALIDATION_FAILED` with field keys); E2E field errors with values preserved                                      |
-| AC1.9  | ✅         | `sites.int.test.ts` (sequential, 5 concurrent, key reuse rejected)                                                               |
-| AC1.10 | ✅ locally | All suites pass locally; CI workflow runs on the first push/PR to `main`                                                         |
+| AC     | Status | Verified by                                                                                                                      |
+| ------ | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| AC1.1  | ✅     | `organizations` via `createTenant` in every integration test; E2E `journey.spec.ts`                                              |
+| AC1.2  | ✅     | `auth.int.test.ts` (password, expired session); E2E sign-out → redirect → sign-in returns to `next`; forged cookie test          |
+| AC1.3  | ✅     | `tenancy/isolation.int.test.ts` (every M1 entity, RLS, composite FKs); E2E `tenancy.spec.ts` (404s, org switching)               |
+| AC1.4  | ✅     | `access/access.int.test.ts` (analyst, branch- and warehouse-scoped users); E2E invitation test (analyst gets 404 on admin pages) |
+| AC1.5  | ✅     | `access.int.test.ts` incl. concurrent mutual revocation (3 rounds)                                                               |
+| AC1.6  | ✅     | `sites.int.test.ts` (audit rows per change, none on failure; UPDATE/DELETE/TRUNCATE rejected)                                    |
+| AC1.7  | ✅     | E2E journey (dir/lang, Arabic nav, persists across reload); `i18n/messages.test.ts` (catalog parity)                             |
+| AC1.8  | ✅     | Service tests (`VALIDATION_FAILED` with field keys); E2E field errors with values preserved                                      |
+| AC1.9  | ✅     | `sites.int.test.ts` (sequential, 5 concurrent, key reuse rejected)                                                               |
+| AC1.10 | ✅     | GitHub Actions run #1 green on all steps (commit `a02c39e`)                                                                      |
 
 AC1.4 note: server actions only resolve the context and call the service, so
 the service-level tests cover direct action calls.
