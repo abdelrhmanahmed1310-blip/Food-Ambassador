@@ -1,6 +1,13 @@
 // Food Ambassador database schema.
-// Entity design and invariants are documented in DATA_MODEL.md; models are
-// added milestone by milestone (Milestone 1 introduces tenancy and identity).
+// Entity design and invariants are documented in DATA_MODEL.md. Constraints
+// Prisma cannot express (CHECK constraints, NULLS NOT DISTINCT indexes,
+// immutability triggers, row-level security) live in the SQL migrations.
+//
+// Tenant-owned tables:
+//   * carry organization_id and UNIQUE (organization_id, id);
+//   * reference other tenant tables through composite (organization_id, x_id)
+//     foreign keys, so a row can never point at another tenant's data;
+//   * are protected by row-level security policies (see migrations, ADR-006).
 
 generator client {
   provider = "prisma-client"
@@ -9,4 +16,383 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ───────────────────────────── Identity (global) ─────────────────────────────
+// Field names on User/Session/Account/Verification follow Better Auth's schema.
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id            String     @id @default(uuid(7)) @db.Uuid
+  name          String
+  email         String     @unique
+  emailVerified Boolean    @default(false) @map("email_verified")
+  image         String?
+  locale        String     @default("en")
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions    Session[]
+  accounts    Account[]
+  memberships OrganizationMembership[] @relation("MembershipUser")
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+/// Fixed-window counters for rate limiting (auth endpoints and auth forms).
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime @map("window_start") @db.Timestamptz(3)
+
+  @@map("rate_limit_buckets")
+}
+
+// ───────────────────────────── Tenancy ─────────────────────────────
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Organization {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  name            String
+  slug            String             @unique
+  baseCurrency    String             @map("base_currency") @db.Char(3)
+  timeZone        String             @map("time_zone")
+  defaultLocale   String             @default("en") @map("default_locale")
+  status          OrganizationStatus @default(ACTIVE)
+  createdByUserId String?            @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships     OrganizationMembership[]
+  roles           Role[]
+  rolePermissions RolePermission[]
+  membershipRoles MembershipRole[]
+  invitations     Invitation[]
+  branches        Branch[]
+  warehouses      Warehouse[]
+  locations       StorageLocation[]
+  auditEvents     AuditEvent[]
+  idempotencyKeys IdempotencyKey[]
+
+  @@map("organizations")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  REMOVED
+}
+
+model OrganizationMembership {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  status          MembershipStatus @default(ACTIVE)
+  invitedByUserId String?          @map("invited_by_user_id") @db.Uuid
+  joinedAt        DateTime         @default(now()) @map("joined_at") @db.Timestamptz(3)
+  removedAt       DateTime?        @map("removed_at") @db.Timestamptz(3)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User             @relation("MembershipUser", fields: [userId], references: [id], onDelete: Restrict)
+  roles        MembershipRole[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_memberships")
+}
+
+// ───────────────────────────── Access control ─────────────────────────────
+// Permission codes are defined in code (src/modules/access/permissions.ts) and
+// validated before being stored.
+
+model Role {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  key            String
+  name           String
+  description    String?
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  permissions     RolePermission[]
+  membershipRoles MembershipRole[]
+  invitations     Invitation[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, key])
+  @@map("roles")
+}
+
+model RolePermission {
+  organizationId String @map("organization_id") @db.Uuid
+  roleId         String @map("role_id") @db.Uuid
+  permission     String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  role         Role         @relation(fields: [organizationId, roleId], references: [organizationId, id], onDelete: Cascade)
+
+  @@id([roleId, permission])
+  @@index([organizationId])
+  @@map("role_permissions")
+}
+
+enum ScopeType {
+  ORGANIZATION
+  BRANCH
+  WAREHOUSE
+}
+
+/// A role granted to a member, optionally limited to one branch or warehouse.
+/// CHECK constraint (migration): exactly the column matching scope_type is set.
+model MembershipRole {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  membershipId   String    @map("membership_id") @db.Uuid
+  roleId         String    @map("role_id") @db.Uuid
+  scopeType      ScopeType @default(ORGANIZATION) @map("scope_type")
+  branchId       String?   @map("branch_id") @db.Uuid
+  warehouseId    String?   @map("warehouse_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  membership   OrganizationMembership @relation(fields: [organizationId, membershipId], references: [organizationId, id], onDelete: Cascade)
+  role         Role                   @relation(fields: [organizationId, roleId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch?                @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse?             @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, membershipId])
+  @@map("membership_roles")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model Invitation {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  email            String
+  roleId           String           @map("role_id") @db.Uuid
+  scopeType        ScopeType        @default(ORGANIZATION) @map("scope_type")
+  branchId         String?          @map("branch_id") @db.Uuid
+  warehouseId      String?          @map("warehouse_id") @db.Uuid
+  /// SHA-256 of the secret token; the token itself is shown once to the inviter.
+  tokenHash        String           @unique @map("token_hash")
+  status           InvitationStatus @default(PENDING)
+  expiresAt        DateTime         @map("expires_at") @db.Timestamptz(3)
+  invitedByUserId  String           @map("invited_by_user_id") @db.Uuid
+  acceptedByUserId String?          @map("accepted_by_user_id") @db.Uuid
+  acceptedAt       DateTime?        @map("accepted_at") @db.Timestamptz(3)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  role         Role         @relation(fields: [organizationId, roleId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch?      @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse?   @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+  @@map("invitations")
+}
+
+// ───────────────────────────── Sites ─────────────────────────────
+
+enum BranchType {
+  RESTAURANT
+  CENTRAL_KITCHEN
+  WAREHOUSE_SITE
+  OFFICE
+  OTHER
+}
+
+model Branch {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  organizationId  String     @map("organization_id") @db.Uuid
+  code            String
+  name            String
+  type            BranchType
+  timeZone        String?    @map("time_zone")
+  addressLine     String?    @map("address_line")
+  city            String?
+  country         String?    @db.Char(2)
+  archivedAt      DateTime?  @map("archived_at") @db.Timestamptz(3)
+  createdByUserId String     @map("created_by_user_id") @db.Uuid
+  updatedByUserId String     @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouses      Warehouse[]
+  membershipRoles MembershipRole[]
+  invitations     Invitation[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("branches")
+}
+
+enum WarehouseType {
+  MAIN
+  KITCHEN_STORE
+  BAR
+  TRANSIT
+  OTHER
+}
+
+model Warehouse {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  branchId        String        @map("branch_id") @db.Uuid
+  code            String
+  name            String
+  type            WarehouseType
+  archivedAt      DateTime?     @map("archived_at") @db.Timestamptz(3)
+  createdByUserId String        @map("created_by_user_id") @db.Uuid
+  updatedByUserId String        @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch          Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  locations       StorageLocation[]
+  membershipRoles MembershipRole[]
+  invitations     Invitation[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@index([organizationId, branchId])
+  @@map("warehouses")
+}
+
+enum TemperatureZone {
+  AMBIENT
+  CHILLED
+  FROZEN
+}
+
+model StorageLocation {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  warehouseId     String          @map("warehouse_id") @db.Uuid
+  code            String
+  name            String
+  temperatureZone TemperatureZone @map("temperature_zone")
+  archivedAt      DateTime?       @map("archived_at") @db.Timestamptz(3)
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  updatedByUserId String          @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, warehouseId, code])
+  @@map("storage_locations")
+}
+
+// ───────────────────────────── Platform ─────────────────────────────
+
+/// Append-only (UPDATE/DELETE rejected by trigger).
+model AuditEvent {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  action         String
+  entityType     String   @map("entity_type")
+  entityId       String?  @map("entity_id") @db.Uuid
+  changes        Json?
+  requestId      String?  @map("request_id")
+  occurredAt     DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([organizationId, entityType, entityId])
+  @@map("audit_events")
+}
+
+/// Records completed idempotent operations so a repeated submission returns
+/// the original result instead of creating a duplicate.
+model IdempotencyKey {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  key            String
+  operation      String
+  requestHash    String   @map("request_hash")
+  result         Json
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId, key])
+  @@map("idempotency_keys")
 }

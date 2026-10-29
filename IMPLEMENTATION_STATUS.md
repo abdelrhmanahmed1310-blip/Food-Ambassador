@@ -1,62 +1,74 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-29 (end of Milestone 0)
+Last updated: 2026-10-29 (end of Milestone 1)
 
 ## Summary
 
-| Milestone                    | Status                                           |
-| ---------------------------- | ------------------------------------------------ |
-| M0 Repository & architecture | ✅ Complete                                      |
-| M1 Application foundation    | ⏭ Next (awaiting confirmation of ADR-007 / A-03) |
-| M2 – M8                      | Not started                                      |
+| Milestone                    | Status                                    |
+| ---------------------------- | ----------------------------------------- |
+| M0 Repository & architecture | ✅ Complete                               |
+| M1 Application foundation    | ✅ Complete (all acceptance criteria met) |
+| M2 Inventory MVP             | ⏭ Next                                    |
+| M3 – M8                      | Not started                               |
 
-No business features exist yet. The application serves a placeholder home
-page and health endpoints only.
+## M1 — Delivered
 
-## M0 — Completed
+| Area                | What works                                                                                                                                                                                                                        | Where                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Database            | Identity, tenancy, RBAC, sites, invitations, audit, idempotency, rate-limit tables; composite tenant FKs; CHECK constraints; append-only audit trigger; row-level security on all tenant tables                                   | `prisma/schema.prisma`, `prisma/migrations/`                      |
+| Authentication      | Email/password sign-up and sign-in (Better Auth, scrypt hashes), DB sessions (7 days), sign-out, disabled users blocked, safe `next` redirects, rate limits (sign-in 5/min per IP+email, sign-up 10/h per IP, all auth endpoints) | `src/server/auth/`, `src/app/(auth)/`                             |
+| Organizations       | Sign-up creates org + 9 system roles + Owner membership; additional orgs; org switcher; settings (name, time zone, default language; base currency fixed)                                                                         | `src/modules/organizations/`                                      |
+| Members             | Invitations by single-use link (hashed token, 7-day expiry, email must match); grant/revoke roles at org/branch/warehouse scope; remove members; last-owner protection under concurrency; only owners manage ownership            | `src/modules/members/`                                            |
+| Roles & permissions | Permission catalogue in code; system role templates; custom roles; Owner immutable; scope-aware `hasPermission` / list filtering                                                                                                  | `src/modules/access/`                                             |
+| Tenant isolation    | `requireTenant` (404 for non-members), tenant-filtered services, RLS via `withTenantTx`, composite FKs                                                                                                                            | `src/modules/tenancy/`, `src/server/db/transactions.ts`           |
+| Sites               | Branches, warehouses, storage locations: create/edit/archive/restore, search, status filter, pagination, scope-aware visibility, archive rules, idempotent creation                                                               | `src/modules/sites/`, `src/app/o/[orgSlug]/{branches,warehouses}` |
+| Audit               | Events written in the same transaction for org, branch, warehouse, location, role, membership and invitation changes; filterable audit log page                                                                                   | `src/modules/audit/`                                              |
+| Localization        | Arabic/English, RTL/LTR, persisted per user, localized validation and errors, catalog parity test                                                                                                                                 | `src/i18n/`                                                       |
+| UI shell            | Responsive layout (sidebar / mobile menu), permission-aware navigation, empty/error/404 states, accessible forms (labels, `aria-invalid`, focus styles), pending-disabled submit buttons, confirmations for destructive actions   | `src/components/`, `src/app/o/[orgSlug]/layout.tsx`               |
+| Operations          | Request IDs (proxy) in logs; trusted client-IP derivation; health checks; Docker image; dev seed with `[DEMO]` data                                                                                                               | `src/proxy.ts`, `prisma/seed.ts`                                  |
 
-| Item                                                                            | Where                                                      | Verified by                                  |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------- |
-| Next.js 16.4 + React 19.3 + TS strict + Tailwind 4 scaffold                     | `src/app`, `next.config.ts`                                | `pnpm build`                                 |
-| Security headers, `X-Powered-By` removed                                        | `next.config.ts`                                           | E2E `security headers are set`               |
-| Cache Components disabled (ADR-004)                                             | `next.config.ts`                                           | review                                       |
-| Prisma 7 + pg driver adapter, singleton client                                  | `prisma/`, `prisma.config.ts`, `src/server/db/client.ts`   | integration tests                            |
-| Validated, lazily-parsed environment                                            | `src/server/env.ts`                                        | `env.test.ts`                                |
-| Structured JSON logger with secret redaction                                    | `src/server/logger.ts`                                     | `logger.test.ts`                             |
-| Typed application errors, safe error bodies                                     | `src/server/errors.ts`                                     | `errors.test.ts`                             |
-| Decimal arithmetic, rounding, proportional allocation, Zod decimal schema       | `src/lib/decimal.ts`                                       | `decimal.test.ts`                            |
-| Liveness `/api/health`, readiness `/api/health/ready` (503 on failure, no leak) | `src/app/api/health`, `src/server/health.ts`               | unit + integration + E2E + Docker run        |
-| Test harness: unit, integration (real PostgreSQL, auto-migrate), E2E            | `vitest.config.ts`, `playwright.config.ts`, `test/support` | all suites pass                              |
-| Docker Compose for PostgreSQL (dev + test DBs)                                  | `docker-compose.yml`                                       | — (see limitations)                          |
-| Production Dockerfile (standalone, non-root, HEALTHCHECK)                       | `Dockerfile`                                               | image built and run locally                  |
-| CI workflow                                                                     | `.github/workflows/ci.yml`                                 | not yet executed on GitHub (see limitations) |
-| Planning and design docs                                                        | `*.md`                                                     | —                                            |
+## Check results at end of M1 (clean install)
 
-## Check results at end of M0
+| Command                 | Result                                                         |
+| ----------------------- | -------------------------------------------------------------- |
+| `pnpm format:check`     | pass                                                           |
+| `pnpm lint`             | pass (0 warnings)                                              |
+| `pnpm typecheck`        | pass                                                           |
+| `pnpm test`             | 11 files, 67 tests pass                                        |
+| `pnpm test:integration` | 6 files, 49 tests pass (PostgreSQL 16)                         |
+| `pnpm build`            | pass (23 routes, all dynamic)                                  |
+| `pnpm test:e2e`         | 14 tests pass (13 desktop Chromium + 1 mobile viewport)        |
+| `docker build` + run    | image serves health (200), sign-in (200), Arabic RTL rendering |
+| `pnpm db:seed`          | creates two `[DEMO]` orgs; re-running skips them               |
 
-| Command                 | Result                                                                                    |
-| ----------------------- | ----------------------------------------------------------------------------------------- |
-| `pnpm format:check`     | pass                                                                                      |
-| `pnpm lint`             | pass (0 warnings)                                                                         |
-| `pnpm typecheck`        | pass                                                                                      |
-| `pnpm test`             | 5 files, 33 tests pass                                                                    |
-| `pnpm test:integration` | 1 file, 3 tests pass (PostgreSQL 16)                                                      |
-| `pnpm build`            | pass                                                                                      |
-| `pnpm test:e2e`         | 4 tests pass (Chromium)                                                                   |
-| `docker build` + run    | image serves `/api/health` 200; `/api/health/ready` 200 with DB, 503 with bad credentials |
+Screens were also checked visually in English and Arabic (desktop and
+mobile). That review found and fixed:
+
+- table row borders missing in the last column;
+- Latin codes aligned to the wrong side in RTL;
+- the invite form preselecting the Owner role (now requires an explicit choice);
+- a wrapping mobile menu label.
 
 ## Known limitations
 
-- The CI workflow has not run on GitHub yet; it will run on the first push/PR.
-- `docker compose` was not exercised in the build environment (PostgreSQL was
-  run natively there); the compose file uses the official `postgres:16-alpine`
-  image and an init script for the test database.
-- The Docker image was verified with an added CA certificate required by the
-  build sandbox's network proxy; the committed `Dockerfile` does not include it
-  and needs no changes for normal networks.
-- No migrations exist yet; the first arrives with Milestone 1.
-- UI is English-only until Milestone 1 delivers localization.
+- **No email delivery** (Q-10): invitations are shared as links; there is no
+  self-service password reset yet. An owner cannot reset another user's
+  password either.
+- **No email verification** at sign-up (depends on Q-10).
+- The CI workflow has not yet run on GitHub (it runs on pushes/PRs to `main`).
+- `docker compose` itself was not exercised in the build sandbox (PostgreSQL
+  ran natively); the Docker image was verified with a sandbox-only CA
+  certificate added to a scratch copy of the Dockerfile.
+- `idempotency_keys` and `rate_limit_buckets` are not yet cleaned up
+  automatically (planned with background jobs, ADR-008).
+- Editing has no optimistic-concurrency check yet: of two simultaneous edits
+  to the same branch, the last one wins (each is audited). An `updatedAt`
+  version check should be added before M2 documents with posting workflows.
+- Prisma blocks `migrate reset` when run by an AI agent without the user's
+  consent, so the test suites are written to need no resets. Local
+  `prisma migrate dev` may wait on an interactive prompt in non-interactive
+  shells; use `migrate dev --create-only` + `migrate deploy` there.
 
 ## Not started
 
-Everything in M1–M8 (see PROJECT_PLAN.md).
+M2–M8 (see PROJECT_PLAN.md).

@@ -4,9 +4,11 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, sales/invoice workflows and analytics.
 
-> **Status:** Milestone 0 (foundation) complete. No business features yet —
-> see [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) and
-> [PROJECT_PLAN.md](PROJECT_PLAN.md).
+> **Status:** Milestone 1 (application foundation) complete — sign-up/sign-in,
+> organizations, members and invitations, roles and scoped permissions,
+> branches/warehouses/storage locations, audit log, Arabic/English (RTL/LTR).
+> Business modules (inventory onward) start in Milestone 2. See
+> [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                             | Contents                                                      |
 | ---------------------------------------------------- | ------------------------------------------------------------- |
@@ -26,45 +28,71 @@ traceability, sales/invoice workflows and analytics.
 ```bash
 corepack enable
 pnpm install                 # also generates the Prisma client
-cp .env.example .env         # placeholder values work with docker compose
+cp .env.example .env         # then set AUTH_SECRET (openssl rand -base64 48)
 docker compose up -d         # PostgreSQL with dev + test databases
-pnpm db:deploy               # apply migrations (none until Milestone 1)
+pnpm db:deploy               # apply migrations
+pnpm db:seed                 # optional: [DEMO] organizations and users
 pnpm dev                     # http://localhost:3000
 ```
 
-Check it is running: `curl localhost:3000/api/health` and
-`curl localhost:3000/api/health/ready`.
+Sign up at `/sign-up` to create your own organization, or sign in with a seeded
+demo account. All demo accounts use the password `demo-password-123` (override
+with `SEED_PASSWORD` when seeding):
 
-Using a local PostgreSQL instead of Docker: create a role and the two
-databases named in `.env` (`food_ambassador`, `food_ambassador_test`).
+| Email                    | Organization         | Role                                 |
+| ------------------------ | -------------------- | ------------------------------------ |
+| `owner@nile.demo.test`   | [DEMO] Nile Kitchens | Owner                                |
+| `manager@nile.demo.test` | [DEMO] Nile Kitchens | Branch Manager (Cairo Downtown only) |
+| `analyst@nile.demo.test` | [DEMO] Nile Kitchens | Read-only Analyst                    |
+| `owner@gulf.demo.test`   | [DEMO] Gulf Catering | Owner                                |
+| `admin@gulf.demo.test`   | [DEMO] Gulf Catering | Administrator                        |
+
+The seed refuses to run with `NODE_ENV=production`.
+
+**Invitations** produce a one-time link that the inviter copies and shares; no
+email is sent yet (DECISIONS.md ADR-012).
+
+### Database role requirements
+
+The first migration creates the `fa_tenant` role used for row-level security
+and grants it to the role running the migration. Run migrations with **the
+same database role the app connects with** (`DATABASE_URL`), and give that
+role `CREATEROLE` for the first run (ADR-013). A local superuser works as is.
 
 ## Commands
 
-| Command                        | Purpose                                                                          |
-| ------------------------------ | -------------------------------------------------------------------------------- |
-| `pnpm dev`                     | Development server                                                               |
-| `pnpm build` / `start`         | Production build / serve it                                                      |
-| `pnpm lint`                    | ESLint (zero warnings allowed)                                                   |
-| `pnpm format` / `format:check` | Prettier write / verify                                                          |
-| `pnpm typecheck`               | Next route typegen + `tsc --noEmit`                                              |
-| `pnpm test`                    | Unit tests (Vitest)                                                              |
-| `pnpm test:integration`        | Integration tests against `TEST_DATABASE_URL` (migrations applied automatically) |
-| `pnpm test:e2e`                | Playwright tests against the production build (run `pnpm build` first)           |
-| `pnpm check`                   | format:check + lint + typecheck + unit tests + build                             |
-| `pnpm db:generate`             | Regenerate the Prisma client                                                     |
-| `pnpm db:migrate`              | Create/apply a migration in development                                          |
-| `pnpm db:deploy`               | Apply committed migrations (CI/production)                                       |
+| Command                        | Purpose                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| `pnpm dev`                     | Development server                                                                       |
+| `pnpm build` / `start`         | Production build / serve it                                                              |
+| `pnpm lint`                    | ESLint (zero warnings allowed)                                                           |
+| `pnpm format` / `format:check` | Prettier write / verify                                                                  |
+| `pnpm typecheck`               | Next route typegen + `tsc --noEmit`                                                      |
+| `pnpm test`                    | Unit tests (Vitest)                                                                      |
+| `pnpm test:integration`        | Integration tests against `TEST_DATABASE_URL` (applies migrations first)                 |
+| `pnpm test:e2e`                | Playwright against the production build and `TEST_DATABASE_URL` (run `pnpm build` first) |
+| `pnpm check`                   | format:check + lint + typecheck + unit tests + build                                     |
+| `pnpm db:generate`             | Regenerate the Prisma client                                                             |
+| `pnpm db:migrate`              | Create/apply a migration in development                                                  |
+| `pnpm db:deploy`               | Apply committed migrations (CI/production)                                               |
+| `pnpm db:seed`                 | Insert [DEMO] data (development only, idempotent)                                        |
+
+Integration and E2E tests create uniquely named data and never reset the
+database, so they can be re-run against the same test database.
 
 ## Environment variables
 
 See [.env.example](.env.example). Never commit `.env` files or real secrets.
 
-| Variable            | Required | Description                                             |
-| ------------------- | -------- | ------------------------------------------------------- |
-| `DATABASE_URL`      | yes      | PostgreSQL connection string for the app and Prisma CLI |
-| `TEST_DATABASE_URL` | tests    | Separate disposable database for integration tests      |
-| `LOG_LEVEL`         | no       | `fatal` · `error` · `warn` · `info` (default) · `debug` |
-| `APP_URL`           | no       | Public base URL (default `http://localhost:3000`)       |
+| Variable             | Required | Description                                                                                         |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`       | yes      | PostgreSQL connection for the app and the Prisma CLI                                                |
+| `AUTH_SECRET`        | yes      | 32+ character secret for session signing                                                            |
+| `APP_URL`            | prod     | Public base URL (default `http://localhost:3000`); used for auth origin checks and invitation links |
+| `TRUSTED_PROXY_HOPS` | no       | Reverse proxies in front of the app (default `1`; `0` if exposed directly) — see ADR-014            |
+| `TEST_DATABASE_URL`  | tests    | Separate database for integration/E2E tests                                                         |
+| `LOG_LEVEL`          | no       | `fatal` · `error` · `warn` · `info` (default) · `debug`                                             |
+| `SEED_PASSWORD`      | no       | Password for seeded demo users                                                                      |
 
 ## Deployment
 
@@ -73,21 +101,13 @@ with a container health check:
 
 ```bash
 docker build -t food-ambassador .
-docker run -p 3000:3000 -e DATABASE_URL=postgresql://... food-ambassador
+docker run -p 3000:3000 \
+  -e DATABASE_URL=postgresql://... -e AUTH_SECRET=... -e APP_URL=https://app.example.com \
+  food-ambassador
 ```
 
-Run `pnpm db:deploy` (with `DATABASE_URL` set) against the target database
-before starting a new version. Use `/api/health` for liveness and
-`/api/health/ready` for readiness probes.
-
-## Project structure
-
-```
-prisma/            schema and migrations
-src/app/           Next.js routes (thin; no business rules)
-src/modules/       business domains (from Milestone 1)
-src/server/        shared server infrastructure: db, env, logger, errors, health
-src/lib/           pure helpers (decimal arithmetic)
-test/support/      test setup
-tests/e2e/         Playwright tests
-```
+Before starting a new version, run `pnpm db:deploy` from a checkout of the same
+commit against the target database (the runtime image does not contain the
+Prisma CLI). Serve over HTTPS so session cookies are marked `Secure`
+(enabled automatically when `APP_URL` starts with `https://`). Use
+`/api/health` for liveness and `/api/health/ready` for readiness probes.

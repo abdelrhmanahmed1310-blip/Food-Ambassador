@@ -18,13 +18,16 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:seed": "tsx --conditions=react-server --tsconfig tsconfig.json prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "better-auth": "1.7.14",
     "decimal.js": "10.6.0",
     "next": "16.4.3",
+    "next-intl": "4.14.9",
     "pg": "8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",

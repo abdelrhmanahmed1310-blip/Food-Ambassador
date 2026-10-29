@@ -9,6 +9,10 @@ const envSchema = z.object({
     .refine((value) => /^postgres(ql)?:\/\//.test(value), "DATABASE_URL must be a PostgreSQL URL"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug"]).default("info"),
   APP_URL: z.url().default("http://localhost:3000"),
+  // Signs and encrypts session data. Generate with `openssl rand -base64 48`.
+  AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
+  // Read by proxy.ts (see src/lib/client-ip.ts); validated here so misconfiguration fails fast.
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

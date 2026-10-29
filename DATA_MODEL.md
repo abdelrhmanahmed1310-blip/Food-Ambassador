@@ -1,7 +1,7 @@
 # Food Ambassador — Data Model
 
-Status: **design baseline (Milestone 0)**. No business tables exist yet; models are
-added to `prisma/schema.prisma` milestone by milestone. This document is the
+Status: **§2 implemented (Milestone 1)**; later sections are the design baseline.
+Models are added to `prisma/schema.prisma` milestone by milestone. This document is the
 contract those migrations implement. Changes to invariants here require a
 DECISIONS.md entry.
 
@@ -87,88 +87,141 @@ exactly to the total (`allocateProportionally`).
 
 ---
 
-## 2. Identity, tenancy and access control (Milestone 1)
+## 2. Identity, tenancy and access control (Milestone 1 — implemented)
+
+Implemented in `prisma/schema.prisma` and migration
+`20261029055457_m1_identity_tenancy` (which also holds the hand-written CHECK
+constraints, partial/NULLS NOT DISTINCT indexes, the audit trigger and the
+row-level security policies).
 
 ```
 User ─< OrganizationMembership >─ Organization ─< Branch ─< Warehouse ─< StorageLocation
                 │
-                └─< MembershipRole >─ Role ─< RolePermission >─ Permission (code catalogue)
-                        (optional scope: branch or warehouse)
+                └─< MembershipRole >─ Role ─< RolePermission (permission code from code catalogue)
+                     (scope: organization | one branch | one warehouse)
+Organization ─< Invitation (role + scope, hashed single-use token)
 ```
 
-### users (global)
+### users (global, no RLS)
 
-`id`, `email` (UQ, case-insensitive via `citext` or lower-cased unique index),
-`name`, `locale` (`ar` | `en`), `status` (`ACTIVE` | `DISABLED`),
-`email_verified_at`. Credentials and sessions live in auth-library tables
-(`accounts`, `sessions`, `verifications`) linked by `user_id`.
+`id`, `email` (UQ; CK lower-case so uniqueness is case-insensitive), `name`,
+`email_verified`, `image`, `locale` (`en` | `ar`), `status`
+(`ACTIVE` | `DISABLED`). Credentials and sessions live in Better Auth tables
+(`accounts` — password hash, `sessions`, `verifications`) linked by `user_id`.
+Tenant transactions can read only `id, name, email, locale, status` of users
+(column grant) and nothing from `accounts` or `sessions`.
 
 ### organizations
 
-`id`, `name`, `slug` (UQ, URL-safe), `base_currency`, `time_zone`,
-`default_locale`, `status` (`ACTIVE` | `SUSPENDED`), timestamps.
+`id`, `name`, `slug` (UQ; CK `^[a-z0-9]+(-[a-z0-9]+)*$`), `base_currency`
+(CK ISO-4217 shape; fixed after creation), `time_zone`, `default_locale`,
+`status` (`ACTIVE` | `SUSPENDED`), `created_by_user_id`, timestamps.
 
 ### organization_memberships
 
-`id`, `organization_id`, `user_id`, `status` (`INVITED` | `ACTIVE` | `REMOVED`),
-`invited_by_user_id`, `joined_at`.
-UQ (organization_id, user_id). IX (user_id) for "my organizations".
+`id`, `organization_id`, `user_id`, `status` (`ACTIVE` | `REMOVED`),
+`invited_by_user_id`, `joined_at`, `removed_at`.
+UQ (organization_id, user_id) — a removed member who is re-invited gets the
+same row back (`ACTIVE`), keeping history. IX (user_id).
 
-### permissions (code catalogue, global)
+### Permissions (code catalogue — no table)
 
-Permissions are **defined in code** (`src/modules/access/permissions.ts`) and
-synced to this table by migration/seed, so a permission check can never
-reference a permission that does not exist. Format `domain.action`, e.g.
-`inventory.view`, `inventory.adjust`, `inventory.quarantine.release`,
-`procurement.po.approve`, `org.members.manage`.
+Permissions are **defined in code** (`src/modules/access/permissions.ts`,
+`domain.action` format) and validated with a Zod enum before any
+`role_permissions` row is written, so a check can never reference a
+permission that does not exist. (Design change from the M0 baseline: a
+mirror table would add a migration per new permission without adding safety.)
+M1 catalogue: `org.settings.manage`, `members.view`, `members.manage`,
+`roles.manage`, `branches.view`, `branches.manage`, `warehouses.view`,
+`warehouses.manage`, `audit.view`. Only `branches.*` and `warehouses.*` can be
+granted at branch/warehouse scope.
 
-### roles
+### roles / role_permissions
 
-`id`, `organization_id`, `key` (e.g. `owner`, `warehouse`), `name`,
-`is_system` (system templates are created per org on org creation and cannot
-be deleted; their permission sets can be customized except `owner`).
-UQ (organization_id, key).
-
-### role_permissions
-
-`(organization_id, role_id, permission_code)` PK.
+`roles`: `id`, `organization_id`, `key` (UQ per org; system keys such as
+`owner`, `branch_manager`; custom roles get `custom_<id>`), `name`,
+`description`, `is_system`. The nine system roles are created for every new
+organization. **Owner** always holds every permission (computed in code, so new
+permissions apply automatically) and cannot be edited.
+`role_permissions`: PK (role_id, permission), composite FK to the role.
 
 ### membership_roles
 
-`id`, `organization_id`, `membership_id`, `role_id`,
-`scope_type` (`ORGANIZATION` | `BRANCH` | `WAREHOUSE`), `scope_id` (nullable
-when `ORGANIZATION`). CK: `scope_id IS NULL` iff `scope_type = 'ORGANIZATION'`.
-UQ (membership_id, role_id, scope_type, scope_id).
+`id`, `organization_id`, `membership_id`, `role_id`, `scope_type`
+(`ORGANIZATION` | `BRANCH` | `WAREHOUSE`), `branch_id?`, `warehouse_id?`.
+Scope uses **explicit nullable FK columns** rather than a polymorphic
+`scope_id`, so the composite tenant FKs also protect scope references.
+CK: exactly the column matching `scope_type` is set.
+UQ (membership_id, role_id, scope_type, branch_id, warehouse_id)
+`NULLS NOT DISTINCT`.
 
-**Effective permission check**: user U may perform P on resource R in org O iff
-U has an `ACTIVE` membership in O (and O is `ACTIVE`) and some membership_role
-grants P with scope covering R (organization scope covers everything; branch
-scope covers that branch and its warehouses; warehouse scope covers that
-warehouse only).
+**Effective permission check** (`src/modules/access/authorize.ts`): user U may
+perform P on resource R in org O iff U is `ACTIVE`, O is `ACTIVE`, U has an
+`ACTIVE` membership in O, and some grant gives P with a scope covering R —
+organization scope covers everything; branch scope covers that branch and its
+warehouses; warehouse scope covers only that warehouse. Actions without a
+resource (e.g. creating a branch) require an organization-scope grant.
 
-Invariant: an organization always has at least one active member holding the
-`owner` role (enforced in the service layer inside the same transaction that
-removes/demotes a member, with a row lock on the organization).
+**Invariant — at least one owner**: revoking an Owner grant or removing an
+owner locks the organization row (`SELECT … FOR UPDATE`) and then counts the
+remaining owners in the same transaction; concurrent attempts are serialized
+(tested). Only owners can grant/revoke the Owner role or remove an owner.
+
+### invitations
+
+`id`, `organization_id`, `email` (CK lower-case), `role_id`, scope columns as
+in membership_roles (same CK), `token_hash` (UQ; SHA-256 of a 256-bit random
+token that is shown once to the inviter and never stored), `status`
+(`PENDING` | `ACCEPTED` | `REVOKED`), `expires_at` (7 days),
+`invited_by_user_id`, `accepted_by_user_id`, `accepted_at`.
+Partial UQ (organization_id, email) WHERE status = 'PENDING'.
+Acceptance requires the signed-in user's email to equal the invitation email
+and is single-use (conditional `PENDING → ACCEPTED` update).
 
 ### branches
 
-`id`, `organization_id`, `code` (UQ per org), `name`, `type`
-(`RESTAURANT` | `CENTRAL_KITCHEN` | `WAREHOUSE_SITE` | `OFFICE` | `OTHER`),
-`time_zone` (nullable → org default), `address` fields, `archived_at`.
+`id`, `organization_id`, `code` (UQ per org, upper-case `[A-Z0-9_-]`, ≤ 20),
+`name`, `type` (`RESTAURANT` | `CENTRAL_KITCHEN` | `WAREHOUSE_SITE` |
+`OFFICE` | `OTHER`), `time_zone?` (→ org default), `address_line?`, `city?`,
+`country?` (ISO-3166 alpha-2), `archived_at`, created/updated by + at.
+Rule: a branch can be archived only when it has no active warehouses.
 
 ### warehouses
 
-`id`, `organization_id`, `branch_id` (composite FK), `code` (UQ per org),
-`name`, `type` (`MAIN` | `KITCHEN_STORE` | `BAR` | `TRANSIT` | `OTHER`),
-`archived_at`. A warehouse is the unit of stock ownership and of warehouse
-permission scope.
+`id`, `organization_id`, `branch_id` (composite FK; cannot change after
+creation), `code` (UQ per org), `name`, `type` (`MAIN` | `KITCHEN_STORE` |
+`BAR` | `TRANSIT` | `OTHER`), `archived_at`, actors/timestamps. A warehouse is
+the unit of stock ownership and of warehouse permission scope. Rules: cannot be
+created in, or restored into, an archived branch. (M2 adds: cannot be archived
+while holding stock.)
 
 ### storage_locations
 
 `id`, `organization_id`, `warehouse_id`, `code` (UQ per warehouse), `name`,
 `temperature_zone` (`AMBIENT` | `CHILLED` | `FROZEN`), `archived_at`.
+Managed with the parent warehouse's `warehouses.manage` permission.
 Locations are optional: a warehouse with no locations tracks stock at the
 warehouse level (`location_id` NULL).
+
+### Platform tables added in M1
+
+- `audit_events` — append-only (UPDATE/DELETE/TRUNCATE rejected by trigger);
+  written in the same transaction as the change. See §10.
+- `idempotency_keys` — UQ (organization_id, user_id, key); stores the
+  operation, a SHA-256 request hash and the result. Reuse of a key with a
+  different payload is rejected.
+- `rate_limit_buckets` — fixed-window counters (`key` PK, `count`,
+  `window_start`) updated by a single atomic upsert; shared by Better Auth's
+  endpoints and the sign-in/sign-up actions.
+
+### Row-level security
+
+Every table with `organization_id`, plus `organizations`, has RLS enabled with
+a `tenant_isolation` policy (`organization_id = current_organization_id()` for
+both USING and WITH CHECK). Policies apply when a transaction runs
+`SET LOCAL ROLE fa_tenant` after `set_config('app.organization_id', …, true)`
+(`withTenantTx`). A test asserts that every table with an `organization_id`
+column has RLS and a policy, so new tables cannot silently skip it.
 
 ---
 
@@ -461,12 +514,14 @@ logged. `REJECTED` stock can only leave via `RETURN_TO_SUPPLIER` or `WRITE_OFF`.
 
 ## 10. Platform tables
 
-- **audit_events** (append-only): `organization_id?`, `actor_user_id?`,
-  `action` (e.g. `member.role_granted`), `entity_type`, `entity_id`,
-  `changes` (JSON, redacted), `request_id`, `ip_hash`, `occurred_at`.
+- **audit_events** (append-only, implemented M1): `organization_id`,
+  `actor_user_id?` (null = system), `action` (e.g. `member.role_granted`),
+  `entity_type`, `entity_id?`, `changes` (JSON field diff, secrets redacted),
+  `request_id`, `occurred_at`.
   IX (organization_id, occurred_at DESC), IX (organization_id, entity_type, entity_id).
-- **idempotency_keys**: (organization_id, key) UQ, operation, request hash,
-  response snapshot, expires_at — for API clients and form double-submits.
+  No IP address is stored (not needed so far; avoids personal data).
+- **idempotency_keys** (implemented M1): see §2. Rows are kept; a retention
+  job (delete after 30 days) is planned with background jobs (ADR-008).
 - **notifications**: recipient, type, payload, read_at.
 - **attachments**: owner entity, storage key, filename, content type, size,
   checksum, uploaded_by, `deleted_at`.

@@ -1,0 +1,109 @@
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-links";
+import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
+import { listUserOrganizations } from "@/modules/organizations/service";
+import { requireTenant } from "@/modules/tenancy/require-tenant";
+import { getCurrentUser } from "@/server/auth/session";
+import { signOutAction } from "../../(auth)/actions";
+
+/**
+ * Tenant shell. requireTenant() resolves membership server-side and 404s for
+ * non-members; navigation only hides links the user cannot use — every page
+ * and action re-checks permissions itself.
+ */
+export default async function TenantLayout({ children, params }: LayoutProps<"/o/[orgSlug]">) {
+  const { orgSlug } = await params;
+  const ctx = await requireTenant(orgSlug);
+  const [t, user, orgs] = await Promise.all([
+    getTranslations("nav"),
+    getCurrentUser(),
+    listUserOrganizations(ctx.userId),
+  ]);
+  const base = `/o/${ctx.organizationSlug}`;
+
+  const main: NavSection = { items: [{ href: base, label: t("overview"), exact: true }] };
+  if (holdsAnyGrant(ctx.grants, "branches.view"))
+    main.items.push({ href: `${base}/branches`, label: t("branches") });
+  if (holdsAnyGrant(ctx.grants, "warehouses.view"))
+    main.items.push({ href: `${base}/warehouses`, label: t("warehouses") });
+  const settings: NavSection = { title: t("settings"), items: [] };
+  if (hasPermission(ctx.grants, "org.settings.manage"))
+    settings.items.push({ href: `${base}/settings/organization`, label: t("organization") });
+  if (hasPermission(ctx.grants, "members.view"))
+    settings.items.push({ href: `${base}/settings/members`, label: t("members") });
+  if (hasPermission(ctx.grants, "roles.manage"))
+    settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
+  if (hasPermission(ctx.grants, "audit.view"))
+    settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
+  const sections = settings.items.length > 0 ? [main, settings] : [main];
+
+  return (
+    <div className="flex min-h-full flex-1 flex-col">
+      <header className="border-border bg-surface relative flex h-14 items-center justify-between gap-3 border-b px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <MobileNav
+            sections={sections}
+            label={t("main")}
+            openLabel={t("openMenu")}
+            closeLabel={t("closeMenu")}
+          />
+          <details className="relative min-w-0">
+            <summary className="hover:bg-surface-muted flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1.5 font-semibold">
+              <span className="truncate">{ctx.organizationName}</span>
+              <span className="sr-only">{t("switchOrganization")}</span>
+              <span aria-hidden="true" className="text-muted text-xs">
+                ▾
+              </span>
+            </summary>
+            <div className="border-border bg-surface absolute start-0 z-30 mt-1 w-64 rounded-md border p-1 shadow-md">
+              <ul>
+                {orgs.map((org) => (
+                  <li key={org.id}>
+                    <Link
+                      href={`/o/${org.slug}`}
+                      aria-current={org.id === ctx.organizationId ? "true" : undefined}
+                      className={`hover:bg-surface-muted block truncate rounded px-3 py-2 text-sm ${org.id === ctx.organizationId ? "font-medium" : ""}`}
+                    >
+                      {org.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/organizations/new"
+                className="border-border text-primary hover:bg-surface-muted mt-1 block border-t px-3 py-2 text-sm"
+              >
+                {t("newOrganization")}
+              </Link>
+            </div>
+          </details>
+        </div>
+        <div className="flex items-center gap-1">
+          <LocaleSwitcher />
+          <span
+            className="text-muted hidden max-w-40 truncate px-2 text-sm sm:inline"
+            title={user?.email}
+          >
+            {user?.name}
+          </span>
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="hover:bg-surface-muted rounded-md px-2.5 py-1.5 text-sm"
+            >
+              {t("signOut")}
+            </button>
+          </form>
+        </div>
+      </header>
+      <div className="flex flex-1">
+        <DesktopNav sections={sections} label={t("main")} />
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-5xl">{children}</div>
+        </main>
+      </div>
+    </div>
+  );
+}

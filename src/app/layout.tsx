@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
+import { directionOf, isLocale, DEFAULT_LOCALE } from "@/i18n/config";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Food Ambassador",
-  description:
-    "Food operations management: procurement, inventory, recipes, food safety and traceability.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("home");
+  return {
+    title: { default: "Food Ambassador", template: "%s · Food Ambassador" },
+    description: t("description"),
+  };
+}
 
-// Arabic/English localization with RTL support is delivered in Milestone 1;
-// until then the shell renders in English only.
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const raw = await getLocale();
+  const locale = isLocale(raw) ? raw : DEFAULT_LOCALE;
   return (
-    <html lang="en" dir="ltr" className="h-full antialiased">
-      <body className="flex min-h-full flex-col">{children}</body>
+    <html lang={locale} dir={directionOf(locale)} className="h-full antialiased">
+      <body className="flex min-h-full flex-col">
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

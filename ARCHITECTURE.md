@@ -4,154 +4,151 @@
 
 A **modular monolith**: one Next.js application and one PostgreSQL database,
 with business logic split into domain modules that have explicit public
-interfaces. No microservices until a measured need exists (ADR-001).
+functions. No microservices until a measured need exists (ADR-001).
 
 ```
-Browser ──HTTPS──> Next.js (App Router, Node runtime)
-                    ├─ app/            routes: pages, layouts, server actions, /api/v1 route handlers
-                    │    (thin: parse input → call module service → render/serialize)
-                    ├─ modules/<domain>/   business rules, services, repositories, schemas
-                    ├─ server/         shared infrastructure (db, env, logger, errors, auth, tenancy, audit)
-                    └─ lib/            pure, framework-free helpers (decimal, dates, units)
+Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
+                    ├─ proxy.ts           request ID, trusted client IP, early sign-in redirect (UX only)
+                    ├─ app/               routes: pages, layouts, server actions, route handlers
+                    │    (thin: resolve TenantContext → call module service → render / map errors)
+                    ├─ modules/<domain>/  business rules, services, Zod schemas
+                    ├─ server/            shared infrastructure (db, auth, env, logger, errors, actions)
+                    ├─ components/        UI (server components + small client components)
+                    └─ lib/               pure helpers (decimal, uuid, client-ip, reference data)
                               │
                               ▼
-                        PostgreSQL 16 (Prisma 7 + node-postgres driver adapter)
+                        PostgreSQL 16 (Prisma 7 + node-postgres adapter; RLS for tenant tables)
 ```
 
-## 2. Directory structure
+## 2. Directory structure (as of Milestone 1)
 
 ```
 .
 ├─ prisma/
-│  ├─ schema.prisma            # models, added milestone by milestone
-│  ├─ migrations/              # committed SQL migrations (incl. triggers, CK, partial indexes)
-│  └─ seed.ts                  # development-only demo seed (Milestone 1)
+│  ├─ schema.prisma            # models (see DATA_MODEL.md)
+│  ├─ migrations/              # SQL migrations incl. CHECKs, triggers, RLS policies
+│  └─ seed.ts                  # development-only [DEMO] data
 ├─ src/
-│  ├─ app/                     # Next.js routes only — no business rules here
-│  │  ├─ (auth)/               # sign-in, sign-up, invitation acceptance           [M1]
-│  │  ├─ o/[orgSlug]/          # tenant-scoped application shell and pages          [M1]
+│  ├─ proxy.ts                 # Next.js proxy (formerly "middleware")
+│  ├─ app/
+│  │  ├─ (auth)/               # sign-in, sign-up + auth server actions
+│  │  ├─ invite/[token]/       # invitation acceptance
+│  │  ├─ organizations/new/    # create another organization
+│  │  ├─ o/[orgSlug]/          # tenant shell + pages (overview, branches, warehouses, settings/*)
+│  │  │  └─ **/actions.ts      # server actions per area
 │  │  └─ api/
-│  │     ├─ health/            # liveness + readiness                               [M0]
-│  │     └─ v1/                # versioned REST API for integrations                [M2+]
-│  ├─ modules/                 # one folder per business domain                     [M1+]
-│  │  ├─ organizations/  access/  branches/  warehouses/
-│  │  ├─ catalog/  units/  inventory/  suppliers/  procurement/  receiving/
-│  │  ├─ recipes/  food-costing/  nutrition/  food-safety/  traceability/
-│  │  ├─ sales/  invoicing/  analytics/  notifications/  audit/
-│  │  └─ <domain>/
-│  │     ├─ index.ts           # the module's public API (only import from here)
-│  │     ├─ service.ts         # use cases; transactions; authorization calls
-│  │     ├─ repository.ts      # tenant-scoped data access
-│  │     ├─ schemas.ts         # Zod input schemas
-│  │     ├─ rules.ts           # pure business rules (unit-tested without a DB)
-│  │     └─ *.test.ts / *.int.test.ts
-│  ├─ server/                  # shared server infrastructure
-│  │  ├─ db/                   # Prisma client, probes, transaction helpers          [M0]
-│  │  ├─ env.ts  logger.ts  errors.ts  health.ts                                     [M0]
-│  │  ├─ auth/                 # session → identity                                  [M1]
-│  │  ├─ tenancy/              # TenantContext resolution, scoped db access          [M1]
-│  │  └─ audit/                # audit event writer                                  [M1]
-│  ├─ lib/                     # pure helpers safe for client and server (decimal)   [M0]
-│  ├─ components/              # shared UI components                               [M1]
-│  ├─ i18n/                    # messages/ar.json, messages/en.json, config          [M1]
+│  │     ├─ auth/[...all]/     # Better Auth HTTP endpoints
+│  │     └─ health/            # liveness + readiness
+│  ├─ modules/
+│  │  ├─ access/               # permission catalogue, role templates, authorize(), roles service
+│  │  ├─ audit/                # recordAudit(), audit log queries
+│  │  ├─ members/              # memberships, invitations, role grants, last-owner rule
+│  │  ├─ organizations/        # organization onboarding, settings, overview counts
+│  │  ├─ sites/                # branches, warehouses, storage locations
+│  │  ├─ tenancy/              # TenantContext resolution, requireTenant()
+│  │  └─ shared/               # shared Zod schemas, idempotency helper
+│  ├─ server/
+│  │  ├─ db/                   # Prisma client, withTenantTx / withSystemTx, error helpers, probe
+│  │  ├─ auth/                 # Better Auth config, session helpers
+│  │  ├─ actions/              # form-action plumbing: error → localized state, tenantMutation()
+│  │  ├─ env.ts  logger.ts  errors.ts  health.ts  rate-limit.ts  request.ts
+│  ├─ components/              # ui/ primitives, forms/ (ActionForm & fields), shell/, sites/, settings/
+│  ├─ i18n/                    # next-intl request config, messages/en.json, messages/ar.json
+│  ├─ lib/                     # decimal, uuid, client-ip, reference data
 │  └─ generated/prisma/        # generated client (git-ignored)
-├─ test/support/               # test setup helpers
+├─ test/support/               # Vitest setup and data factories
 └─ tests/e2e/                  # Playwright journeys
 ```
 
+Future domains (catalog, inventory, procurement, …) are added as new folders
+under `src/modules/`.
+
 ### Module boundary rules
 
-1. Routes and UI call **module services**, never Prisma directly.
-2. A module imports another module only through its `index.ts`.
-   No cycles; a module that needs to react to another's events gets an
-   explicit function call from the owner (e.g. receiving calls
-   `inventory.post(...)`), not a hidden coupling.
-3. **Only the `inventory` module writes ledger entries and balances.**
-   Receiving, transfers, production and sales post stock by calling it.
-4. Pure rules (`rules.ts`, `src/lib`) have no I/O and are unit-tested exhaustively;
-   services orchestrate I/O and are integration-tested against PostgreSQL.
+1. Routes, pages and actions call **module services**, never Prisma directly.
+2. Services take a `TenantContext` as their first argument and do their own
+   authorization; a page hiding a button is never the control.
+3. Cross-module calls go through exported service functions; no cycles.
+4. **Only the `inventory` module (M2) will write ledger entries and balances.**
+5. Pure rules (`authorize.ts`, `src/lib/*`) are unit-tested; services are
+   integration-tested against PostgreSQL.
 
 ## 3. Request lifecycle and security
 
 ```
 request
-  → proxy.ts            coarse gate: unauthenticated users redirected from /o/* (UX only, not security)
-  → route / action      parse & validate input with Zod (server-side, always)
-  → requireTenant()     session → user → ACTIVE membership in org resolved from URL slug
-  → authorize()         permission + scope check against the TenantContext
-  → service             business rules, single DB transaction, audit event
-  → response            typed result or AppError → localized message
+  → proxy.ts         sets x-request-id and x-client-ip (from trusted XFF hops, ADR-014);
+                     no session cookie on /o/* → redirect to /sign-in (UX only)
+  → page / action    requireTenant(slug): session (Better Auth, DB-validated) → ACTIVE user
+                     → ACTIVE membership in ACTIVE org → TenantContext with grants; else 404
+  → service          Zod validation → authorize (permission + scope) → withTenantTx:
+                       set_config('app.organization_id') + SET LOCAL ROLE fa_tenant (RLS)
+                       → tenant-filtered queries → business rules → audit event → commit
+  → action result    AppError → stable code → localized message / field errors (no internals)
 ```
 
-- **Tenant resolution**: the org is identified by the URL slug, but access is
-  granted only by looking up the authenticated user's active membership in that
-  org on the server. A client-supplied organization ID is never trusted by itself.
-- **TenantContext** `{ organizationId, userId, membershipId, grants }` is an
-  explicit argument to every service function. Repositories require it and add
-  `organization_id` to every `where`, `create` and `update`.
-- **Lookups by ID** always include the tenant (`where: { organizationId, id }`);
-  a miss returns `NOT_FOUND` whether the record is absent or belongs to another
-  tenant (no existence disclosure / IDOR).
-- **Defence in depth** at the database: composite tenant foreign keys
-  (DATA_MODEL.md §1.2) and, pending the M1 spike, PostgreSQL row-level
-  security (ADR-006).
-- **Authorization is server-side**. UI hides actions the user cannot perform
-  for usability only.
-- **Mutations** are protected against duplicate submission by idempotency keys
-  and conditional status transitions (DATA_MODEL.md §4).
-- **Audit**: important actions write an `audit_events` row in the same
-  transaction as the change.
-- **Secrets** only via environment variables, validated by `server/env.ts`,
-  never logged (logger redacts sensitive keys), never committed.
-- **Errors** returned to clients carry a stable code and safe message; internal
-  details go to server logs only (`toErrorBody`).
+Key properties (details in DECISIONS.md ADR-006, ADR-013 – ADR-015):
+
+- **Tenant resolution** never trusts client input: the org comes from the URL
+  slug, access from the user's membership; actions re-resolve it per request.
+- **Lookups by ID** always include the tenant and the user's visible scope; a
+  miss is `NOT_FOUND`, so other tenants' IDs reveal nothing (no IDOR).
+- **Defence in depth**: application filters + composite tenant FKs + RLS.
+- **System transactions** (`withSystemTx`) are reserved for sign-up,
+  invitation lookup/acceptance and membership resolution.
+- **Duplicate submissions**: idempotency keys on create forms and conditional
+  state transitions (invitation acceptance).
+- **Audit**: important changes write `audit_events` in the same transaction;
+  the table is append-only at the database level.
+- **Secrets**: environment only, validated by `server/env.ts`, redacted from
+  logs, never committed. Passwords are never echoed back into forms.
+- **Rate limiting**: sign-in (5/min per IP + email), sign-up (10/h per IP) and
+  all Better Auth endpoints, via one atomic PostgreSQL counter table.
 
 ## 4. Rendering and caching
 
-- Server Components by default; Client Components only for interactivity.
-- Next.js Cache Components is **disabled** (ADR-004). Authenticated pages are
-  rendered dynamically per request. Any future caching of tenant data must key
-  on `organizationId` explicitly and be reviewed for leakage.
-- Mutations use Server Actions for the web UI and `/api/v1` route handlers for
-  integrations; both call the same services.
+- Server Components by default; client components only for interactivity
+  (forms, mobile menu, copy button).
+- Next.js Cache Components is **disabled** (ADR-004). All tenant pages render
+  dynamically per request; nothing tenant-specific is cached on the server.
+- Mutations: server actions → `tenantMutation()` → service →
+  `revalidatePath('/o/{slug}', 'layout')`.
 
 ## 5. Localization
 
-- Arabic (`ar`, RTL) and English (`en`, LTR), using `next-intl` (compatible with
-  Next 16). Locale comes from the user's preference (cookie/profile), not the
-  URL, to keep tenant URLs stable.
-- `<html lang dir>` set from the active locale; layouts use logical CSS
-  properties (`ms-*`, `pe-*`, `start/end`) so RTL works without forks.
-- Numbers, currency and dates formatted with `Intl` in the active locale;
-  stored values are locale-independent.
-- Bilingual master data (`name_en`, `name_ar`) where users see it.
+- Arabic (`ar`, RTL) and English (`en`, LTR) with `next-intl`; locale from the
+  user preference cookie/profile, not the URL (ADR-011).
+- Messages live in `src/i18n/messages/*.json`; a unit test enforces identical
+  keys and placeholders in both languages.
+- Validation messages are translation keys in Zod schemas, translated when an
+  action returns its state.
+- Dates use `Intl` via next-intl, in the organization's time zone.
 
 ## 6. Observability and operations
 
-- Structured JSON logs (`server/logger.ts`) with redaction; a request ID is
-  bound per request from M1.
-- `/api/health` (liveness, no dependencies) and `/api/health/ready`
-  (readiness, checks PostgreSQL; returns 503 without leaking error details).
-- Docker image built from `Dockerfile` (standalone Next.js server, non-root
-  user, container HEALTHCHECK).
-- CI (`.github/workflows/ci.yml`): format, lint, typecheck, unit tests,
-  integration tests against PostgreSQL, production build, Playwright E2E.
+- Structured JSON logs with redaction; failed actions log the request ID.
+- `/api/health` (liveness) and `/api/health/ready` (database readiness, 503
+  without leaking details).
+- Docker image (standalone server, non-root, HEALTHCHECK). Migrations are run
+  separately with `pnpm db:deploy` using the same database role as the app
+  (ADR-013).
+- CI: format, lint, typecheck, unit, integration (PostgreSQL), build, E2E.
 
 ## 7. Background work
 
-None in M0–M1. When needed (CSV imports, notifications, scheduled expiry
-alerts) the first choice is a PostgreSQL-backed job table processed by a
-worker process from the same codebase, avoiding new infrastructure (ADR-008,
-proposed).
+None yet. First candidates: idempotency-key cleanup, email delivery (Q-10).
+Plan: PostgreSQL-backed job table + worker process (ADR-008, proposed).
 
 ## 8. Testing strategy
 
 | Layer       | Tool       | Location               | Runs against                          |
 | ----------- | ---------- | ---------------------- | ------------------------------------- |
-| Unit        | Vitest     | `src/**/*.test.ts`     | pure functions                        |
+| Unit        | Vitest     | `src/**/*.test.ts`     | pure functions, message catalogs      |
 | Integration | Vitest     | `src/**/*.int.test.ts` | real PostgreSQL (`TEST_DATABASE_URL`) |
-| End-to-end  | Playwright | `tests/e2e/*.spec.ts`  | production build                      |
+| End-to-end  | Playwright | `tests/e2e/*.spec.ts`  | production build + test database      |
 
-Every module that touches tenant data ships cross-tenant tests: a user of org A
-attempting to read/modify org B's resource by ID must get `NOT_FOUND`/`FORBIDDEN`
-and no data change.
+Integration and E2E tests never assume an empty database: each test creates
+uniquely named data, so the suites can run repeatedly without resets.
+Every entity that holds tenant data has cross-tenant tests
+(`src/modules/tenancy/isolation.int.test.ts`), and a schema test fails if a
+table with `organization_id` lacks an RLS policy.

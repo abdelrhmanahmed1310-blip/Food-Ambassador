@@ -1,28 +1,78 @@
 @import "tailwindcss";
 
+/* Design tokens. Layout uses logical properties (ms/me/ps/pe/start/end) so
+   the same markup renders correctly in RTL (Arabic) and LTR (English). */
 :root {
-  --background: #ffffff;
-  --foreground: #14181f;
-  --muted: #4b5563;
+  --background: #f6f7f5;
+  --surface: #ffffff;
+  --surface-muted: #f0f2ee;
+  --border: #dde1da;
+  --foreground: #161a14;
+  --muted: #545c50;
+  --primary: #1f6f43;
+  --primary-hover: #185a36;
+  --primary-foreground: #ffffff;
+  --danger: #b42318;
+  --danger-surface: #fef3f2;
+  --success: #166534;
+  --success-surface: #ecfdf3;
+  --warning-surface: #fffaeb;
+  --focus: #2563eb;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0d1117;
-    --foreground: #e6e9ee;
-    --muted: #9ca3af;
+    --background: #0f1210;
+    --surface: #171b18;
+    --surface-muted: #1f2420;
+    --border: #2e352f;
+    --foreground: #e7ebe5;
+    --muted: #a3ad9f;
+    --primary: #3fa36a;
+    --primary-hover: #52b67c;
+    --primary-foreground: #08130c;
+    --danger: #f97066;
+    --danger-surface: #2a1513;
+    --success: #4ade80;
+    --success-surface: #10241a;
+    --warning-surface: #2a2410;
+    --focus: #60a5fa;
   }
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
-  --font-sans: ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", "Noto Sans Arabic", sans-serif;
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
+  --color-warning-surface: var(--warning-surface);
+  --color-focus: var(--focus);
+  --font-sans:
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", "Noto Sans Arabic", Tahoma, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Latin-only values (codes, emails, slugs) stay left-to-right inside Arabic text. */
+.ltr-value {
+  direction: ltr;
+  unicode-bidi: isolate;
 }

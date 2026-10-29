@@ -49,26 +49,30 @@ with CHECK constraints preventing negative stock and a deterministic
 `posting_key` unique constraint preventing double posting. Corrections are
 reversals/adjustments. Full rules in DATA_MODEL.md §4.
 
-### ADR-006 Tenant isolation layers — Proposed (decide during M1)
+### ADR-006 Tenant isolation layers — Accepted (implemented M1)
 
-1. **Accepted**: application-layer enforcement — TenantContext required by
-   every service/repository, org resolved from server-side membership.
-2. **Accepted**: composite `(organization_id, id)` foreign keys so cross-tenant
-   references are impossible in the database.
-3. **Proposed**: PostgreSQL row-level security as a third layer. Requires the
-   app to connect as a non-owner role and to set `app.organization_id` with
-   `set_config(..., true)` inside each transaction (Prisma client extension).
-   An M1 spike will measure complexity and performance; if it works cleanly
-   we adopt it before Milestone 2 creates most tenant tables.
+1. **Application layer**: a `TenantContext` (resolved server-side from the
+   session + an `ACTIVE` membership in the org named by the URL slug) is
+   required by every service; every query filters by `organizationId`; lookups
+   by ID that miss — including other tenants' IDs — return `NOT_FOUND`.
+2. **Composite foreign keys** `(organization_id, x_id)` make cross-tenant
+   references impossible even for code that bypasses RLS.
+3. **PostgreSQL row-level security**: `withTenantTx` sets
+   `app.organization_id` and `SET LOCAL ROLE fa_tenant` for the transaction;
+   policies on all tenant tables restrict reads and writes to that org, and
+   `fa_tenant` has no access to credentials/sessions. The M1 spike worked
+   cleanly (one extra round-trip per transaction), so it was adopted.
+   System operations (sign-up, invitation acceptance, membership lookup) use
+   `withSystemTx` explicitly and filter by the authenticated user.
 
-### ADR-007 Authentication library — Proposed (confirm before M1)
+### ADR-007 Authentication library — Accepted (M1)
 
-**Better Auth** (1.7.x; maintained; supports Next 16 and Prisma 7) for
-email/password sign-in, database sessions in httpOnly cookies, password
-hashing, rate limiting, and later SSO/2FA. We use only its authentication
-features; organizations, memberships and RBAC are our own tables (its
-organization plugin is not used) so tenancy rules stay under our control.
-Alternative considered: Auth.js v5 — still published as beta.
+**Better Auth 1.7** for email/password sign-in, scrypt password hashing,
+database sessions (7-day expiry, refreshed daily) in httpOnly cookies, and
+rate limiting. Only its authentication features are used; organizations,
+memberships and RBAC are our own tables. Sign-in/sign-up run as server actions
+that call `auth.api` directly and apply the same rate limits as the HTTP
+endpoints.
 
 ### ADR-008 Background jobs — Proposed (decide when first needed)
 
@@ -79,16 +83,51 @@ introducing Redis/queues.
 
 UUIDv7 primary keys; per-org human-readable document numbers.
 
-### ADR-010 Tenant addressing in URLs — Proposed (M1)
+### ADR-010 Tenant addressing in URLs — Accepted (M1)
 
-Path-based: `/o/{orgSlug}/...`. Supports users in multiple organizations,
-bookmarkable links and simple deployment (no wildcard DNS/TLS). Subdomains can
-be added later as an alias.
+Path-based: `/o/{orgSlug}/...`. The slug only selects the organization; access
+is granted by membership lookup on the server.
 
-### ADR-011 Locale handling — Proposed (M1)
+### ADR-011 Locale handling — Accepted (M1)
 
-`next-intl`; locale from user preference cookie/profile (not URL prefix);
-Arabic RTL via `dir="rtl"` and logical CSS properties.
+`next-intl` without locale routing. Locale = `fa_locale` cookie (set at
+sign-in from the user profile and by the language switcher, which also saves
+it to the profile), else the browser's Accept-Language, else English.
+`<html lang dir>` follows the locale; layouts use logical CSS properties;
+Latin values (codes, emails) are wrapped in `.ltr-value` inside Arabic text.
+
+### ADR-012 Invitations by link, no email yet — Accepted (M1)
+
+No email provider is configured, so an invitation produces a single-use link
+(256-bit token, stored only as a SHA-256 hash, 7-day expiry) shown once to the
+inviter to share. The accepting account's email must match the invitation.
+Email delivery is Q-10.
+
+### ADR-013 Database roles — Accepted (M1)
+
+The app connects with one role that owns the schema and runs migrations
+(`DATABASE_URL`). The first migration creates the NOLOGIN role `fa_tenant`
+and grants it to the migrating role, which is what allows `SET LOCAL ROLE`.
+Therefore **the role that runs migrations must be the role the app connects
+with** (or be granted `fa_tenant` manually). The migrating role needs
+`CREATEROLE` the first time (managed PostgreSQL services allow this).
+
+### ADR-014 Client IP for rate limiting — Accepted (M1)
+
+`X-Forwarded-For` is client-controlled except for entries appended by your
+own proxies. `proxy.ts` takes the entry `TRUSTED_PROXY_HOPS` from the end,
+overwrites the internal `x-client-ip` header with it, and both the auth
+actions and Better Auth read only that header. Set `TRUSTED_PROXY_HOPS=0`
+when the app is exposed directly (all clients then share one bucket — safe
+but strict).
+
+### ADR-015 Next.js server actions for UI mutations — Accepted (M1)
+
+Forms post to server actions (CSRF-protected by Next's Origin check). Every
+action re-resolves the TenantContext from the session and the URL slug —
+never from hidden form fields — then calls the same service functions the
+future `/api/v1` handlers will use. Creation forms send an idempotency key
+generated per logical submission (reused on retry, discarded on success).
 
 ---
 
@@ -97,8 +136,8 @@ Arabic RTL via `dir="rtl"` and logical CSS properties.
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
 | A-01 | One organization = one customer legal/commercial entity; branches and warehouses belong to exactly one organization.                                                                                                                          | Proposed               |
-| A-02 | A user can belong to several organizations with different roles.                                                                                                                                                                              | Proposed               |
-| A-03 | Self-service sign-up creates a new organization with the signer as Owner; joining an existing org is by invitation only.                                                                                                                      | Proposed               |
+| A-02 | A user can belong to several organizations with different roles.                                                                                                                                                                              | Accepted (M1)          |
+| A-03 | Self-service sign-up creates a new organization with the signer as Owner; joining an existing org is by invitation only.                                                                                                                      | Accepted (M1)          |
 | A-04 | One base currency per organization; no multi-currency documents in the MVP.                                                                                                                                                                   | Proposed               |
 | A-05 | Stock is owned at warehouse level; storage locations are optional sub-divisions.                                                                                                                                                              | Proposed               |
 | A-06 | Negative stock is never allowed in the MVP.                                                                                                                                                                                                   | Accepted (requirement) |
@@ -120,3 +159,5 @@ Arabic RTL via `dir="rtl"` and logical CSS properties.
 | Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                                                                                                 | M1 (nice to know)     |
 | Q-08 | Attachment retention period and maximum file size.                                                                                                                                                                                                       | M6                    |
 | Q-09 | Over-receipt tolerance default (e.g. 0% or 5%)?                                                                                                                                                                                                          | M3                    |
+| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                                                                                                 | M2 (before pilot)     |
+| Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                                                                                                      | M2                    |

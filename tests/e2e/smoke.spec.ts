@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("home page renders the product name", async ({ page }) => {
+test("home page renders for visitors", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Food Ambassador" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create an organization" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });
 
@@ -11,6 +12,7 @@ test("liveness endpoint reports ok", async ({ request }) => {
   expect(response.status()).toBe(200);
   expect(await response.json()).toEqual({ status: "ok" });
   expect(response.headers()["cache-control"]).toContain("no-store");
+  expect(response.headers()["x-request-id"]).toBeTruthy();
 });
 
 test("readiness endpoint reports database status", async ({ request }) => {

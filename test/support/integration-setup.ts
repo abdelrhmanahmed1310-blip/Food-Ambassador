@@ -10,3 +10,5 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL === testUrl && process.
   throw new Error("TEST_DATABASE_URL must differ from DATABASE_URL outside CI");
 }
 process.env.DATABASE_URL = testUrl;
+process.env.AUTH_SECRET ??= "integration-test-secret-integration-test-secret";
+process.env.LOG_LEVEL ??= "warn";

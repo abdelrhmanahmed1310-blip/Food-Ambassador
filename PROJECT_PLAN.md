@@ -60,7 +60,7 @@ Acceptance criteria (all met — see IMPLEMENTATION_STATUS.md):
 
 ---
 
-## M1 — Application foundation (next)
+## M1 — Application foundation ✅
 
 ### Scope
 
@@ -116,13 +116,23 @@ Acceptance criteria (all met — see IMPLEMENTATION_STATUS.md):
 - **AC1.10** CI green: format, lint, typecheck, unit, integration, build, E2E
   (sign-up → create branch → create warehouse → switch language → sign out).
 
-### Test plan
+### Acceptance results
 
-- Unit: permission resolution (scope coverage), role templates, validation schemas.
-- Integration: membership resolution, cross-tenant read/update/archive attempts,
-  last-owner race (two concurrent transactions), audit immutability trigger,
-  idempotency key handling, composite-FK rejection of cross-tenant references.
-- E2E: sign-up/sign-in journey, RTL switch, unauthorized access redirect/404.
+| AC     | Status     | Verified by                                                                                                                      |
+| ------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| AC1.1  | ✅         | `organizations` via `createTenant` in every integration test; E2E `journey.spec.ts`                                              |
+| AC1.2  | ✅         | `auth.int.test.ts` (password, expired session); E2E sign-out → redirect → sign-in returns to `next`; forged cookie test          |
+| AC1.3  | ✅         | `tenancy/isolation.int.test.ts` (every M1 entity, RLS, composite FKs); E2E `tenancy.spec.ts` (404s, org switching)               |
+| AC1.4  | ✅         | `access/access.int.test.ts` (analyst, branch- and warehouse-scoped users); E2E invitation test (analyst gets 404 on admin pages) |
+| AC1.5  | ✅         | `access.int.test.ts` incl. concurrent mutual revocation (3 rounds)                                                               |
+| AC1.6  | ✅         | `sites.int.test.ts` (audit rows per change, none on failure; UPDATE/DELETE/TRUNCATE rejected)                                    |
+| AC1.7  | ✅         | E2E journey (dir/lang, Arabic nav, persists across reload); `i18n/messages.test.ts` (catalog parity)                             |
+| AC1.8  | ✅         | Service tests (`VALIDATION_FAILED` with field keys); E2E field errors with values preserved                                      |
+| AC1.9  | ✅         | `sites.int.test.ts` (sequential, 5 concurrent, key reuse rejected)                                                               |
+| AC1.10 | ✅ locally | All suites pass locally; CI workflow runs on the first push/PR to `main`                                                         |
+
+AC1.4 note: server actions only resolve the context and call the service, so
+the service-level tests cover direct action calls.
 
 ---
 
@@ -189,18 +199,16 @@ security review, pilot onboarding.
 
 ## Prioritized backlog (next items)
 
-| Pri | Item                                                      | Milestone | Depends on |
-| --- | --------------------------------------------------------- | --------- | ---------- |
-| P0  | Confirm ADR-007 (auth library) and A-03 (sign-up model)   | M1        | —          |
-| P0  | Identity & tenancy schema + migrations + composite FKs    | M1        | —          |
-| P0  | Better Auth integration, sessions, protected routes       | M1        | schema     |
-| P0  | TenantContext + `authorize()` + cross-tenant test harness | M1        | auth       |
-| P0  | RLS spike → ADR-006 decision                              | M1        | schema     |
-| P1  | Org onboarding, invitations, role management              | M1        | tenancy    |
-| P1  | Branches / warehouses / locations CRUD + audit            | M1        | tenancy    |
-| P1  | i18n (ar/en, RTL) + app shell                             | M1        | —          |
-| P1  | Dev seed with labelled demo orgs                          | M1        | schema     |
-| P2  | Answer Q-01 valuation method                              | before M3 | —          |
+| Pri | Item                                                                  | Milestone | Depends on |
+| --- | --------------------------------------------------------------------- | --------- | ---------- |
+| P0  | Units of measure + conversion rules (pure, exhaustively tested)       | M2        | —          |
+| P0  | Product/SKU master data + barcodes                                    | M2        | units      |
+| P0  | Lots, ledger, balance projection, posting service + concurrency tests | M2        | products   |
+| P1  | Opening balances, adjustments/write-offs, reversals                   | M2        | ledger     |
+| P1  | Transfers, stock counts, quarantine/release, FEFO                     | M2        | ledger     |
+| P1  | Inventory dashboard, movement history, CSV import/export              | M2        | ledger     |
+| P1  | Email provider for invitations and password reset (Q-10)              | M2        | decision   |
+| P2  | Answer Q-01 valuation method                                          | before M3 | —          |
 
 ## Top risks
 
