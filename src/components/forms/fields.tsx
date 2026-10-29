@@ -7,7 +7,8 @@ import { initialActionState, type ActionState } from "./action-state";
 
 type FormAction = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
-const FormStateContext = createContext<ActionState>(initialActionState);
+/** Exported for custom forms that render field components outside ActionForm. */
+export const FormStateContext = createContext<ActionState>(initialActionState);
 
 /**
  * Form bound to a server action. Shows the localized form error, provides the

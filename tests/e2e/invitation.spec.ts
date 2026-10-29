@@ -11,6 +11,13 @@ test("an invited user joins with the invited role and limited access", async ({ 
 
   const inviteeEmail = uniqueEmail("analyst");
   await owner.page.goto(`/o/${slug}/settings/members`);
+  // No role is preselected (a default of "Owner" would be one click from handing out ownership),
+  // and submitting without choosing one is rejected server-side.
+  await expect(owner.page.getByLabel("Role")).toHaveValue("");
+  await owner.page.getByLabel("Email").fill(inviteeEmail);
+  await owner.page.getByRole("button", { name: "Invite member" }).click();
+  await expect(owner.page.getByText("Select a valid option.")).toBeVisible();
+  expect(await owner.page.getByLabel("Invitation link").count()).toBe(0);
   await owner.page.getByLabel("Email").fill(inviteeEmail);
   await owner.page.getByLabel("Role").selectOption({ label: "Read-only Analyst" });
   await owner.page.getByRole("button", { name: "Invite member" }).click();

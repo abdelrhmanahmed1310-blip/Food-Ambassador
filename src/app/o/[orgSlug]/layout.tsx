@@ -116,7 +116,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
           <form action={signOutAction}>
             <button
               type="submit"
-              className="hover:bg-surface-muted rounded-md px-2.5 py-1.5 text-sm"
+              className="hover:bg-surface-muted rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap"
             >
               {t("signOut")}
             </button>

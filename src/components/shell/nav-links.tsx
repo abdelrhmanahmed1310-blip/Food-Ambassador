@@ -76,12 +76,13 @@ export function MobileNav({
     <div className="lg:hidden">
       <button
         type="button"
-        className="border-border rounded-md border px-3 py-1.5 text-sm"
+        className="border-border rounded-md border px-2.5 py-1 text-lg leading-none"
         aria-expanded={open}
         aria-controls="mobile-nav"
+        aria-label={open ? closeLabel : openLabel}
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? closeLabel : openLabel}
+        <span aria-hidden="true">{open ? "✕" : "☰"}</span>
       </button>
       {open ? (
         <nav

@@ -56,6 +56,21 @@ Last updated: 2026-10-29 (end of Milestone 2)
   changed by Prettier). It is fixed now, and screenshots of the new screens
   were checked in English and Arabic.
 
+### Corrections found while preparing the demo walkthrough
+
+Three Milestone 1 UI fixes had been reported as done but their edits had not
+applied (the text replacements missed after Prettier reformatted the files).
+All are now applied, verified in the files and in screenshots:
+
+- **Invite / grant-role forms preselected the first role — Owner.** Now no
+  role is preselected; submitting without one shows "Select a valid option."
+  next to the field. Covered by `tests/e2e/invitation.spec.ts`. (Field errors
+  in the invite form were also not displayed; the form now provides its
+  state to the field components.)
+- Mobile menu button showed a text label instead of an icon; "Sign out"
+  wrapped on narrow screens.
+- Codes (SKU, lot, warehouse) could break mid-code in narrow table cells.
+
 ## Known limitations
 
 - **Valuation (Q-01)**: unit costs are captured on opening balances; no stock

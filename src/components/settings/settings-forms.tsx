@@ -5,6 +5,7 @@ import type { ActionState } from "@/components/forms/action-state";
 import { initialActionState } from "@/components/forms/action-state";
 import {
   ActionForm,
+  FormStateContext,
   CheckboxGroup,
   CopyField,
   SelectField,
@@ -81,13 +82,8 @@ function RoleScopeFields({
   const [scope, setScope] = useState("ORGANIZATION");
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <SelectField
-        name="roleId"
-        label={labels.role}
-        options={roles}
-        defaultValue={roles[0]?.value}
-        required
-      />
+      {/* No default: granting a role (especially Owner) must be an explicit choice. */}
+      <SelectField name="roleId" label={labels.role} options={roles} placeholder="—" required />
       <div>
         <label htmlFor="scopeType" className="mb-1 block text-sm font-medium">
           {labels.scope}
@@ -161,45 +157,48 @@ export function InviteForm({
   const emailError = state.fieldErrors?.email;
   return (
     <div className="space-y-4">
-      <form action={formAction} className="space-y-4" noValidate>
-        {state.formError ? (
-          <p
-            role="alert"
-            className="border-danger/40 bg-danger-surface text-danger rounded-md border px-3 py-2 text-sm"
-          >
-            {state.formError}
-          </p>
-        ) : null}
-        <div>
-          <label htmlFor="invite-email" className="mb-1 block text-sm font-medium">
-            {labels.email}
-          </label>
-          <input
-            id="invite-email"
-            key={state.seq ?? 0}
-            name="email"
-            type="email"
-            dir="ltr"
-            required
-            defaultValue={state.ok ? "" : (state.values?.email ?? "")}
-            aria-invalid={emailError ? true : undefined}
-            aria-describedby={emailError ? "invite-email-error" : undefined}
-            className={inputClass}
-          />
-          {emailError ? (
-            <p id="invite-email-error" className="text-danger mt-1 text-xs">
-              {emailError}
+      {/* Provides the action state so RoleScopeFields can show field errors. */}
+      <FormStateContext value={state}>
+        <form action={formAction} className="space-y-4" noValidate>
+          {state.formError ? (
+            <p
+              role="alert"
+              className="border-danger/40 bg-danger-surface text-danger rounded-md border px-3 py-2 text-sm"
+            >
+              {state.formError}
             </p>
           ) : null}
-        </div>
-        <RoleScopeFields
-          labels={labels}
-          roles={roles}
-          branches={branches}
-          warehouses={warehouses}
-        />
-        <SubmitButton label={labels.submit} pendingLabel={labels.pending} />
-      </form>
+          <div>
+            <label htmlFor="invite-email" className="mb-1 block text-sm font-medium">
+              {labels.email}
+            </label>
+            <input
+              id="invite-email"
+              key={state.seq ?? 0}
+              name="email"
+              type="email"
+              dir="ltr"
+              required
+              defaultValue={state.ok ? "" : (state.values?.email ?? "")}
+              aria-invalid={emailError ? true : undefined}
+              aria-describedby={emailError ? "invite-email-error" : undefined}
+              className={inputClass}
+            />
+            {emailError ? (
+              <p id="invite-email-error" className="text-danger mt-1 text-xs">
+                {emailError}
+              </p>
+            ) : null}
+          </div>
+          <RoleScopeFields
+            labels={labels}
+            roles={roles}
+            branches={branches}
+            warehouses={warehouses}
+          />
+          <SubmitButton label={labels.submit} pendingLabel={labels.pending} />
+        </form>
+      </FormStateContext>
       {state.ok && state.data?.inviteUrl ? (
         <div className="border-success/40 bg-success-surface rounded-md border p-3">
           <CopyField

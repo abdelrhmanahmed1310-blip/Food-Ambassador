@@ -76,3 +76,8 @@ body {
   direction: ltr;
   unicode-bidi: isolate;
 }
+
+/* Codes (SKU, lot, warehouse) must never break mid-code in narrow cells. */
+.font-mono.ltr-value {
+  white-space: nowrap;
+}
