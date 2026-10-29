@@ -228,6 +228,9 @@ testing against the provider's real sandbox.
 
 ---
 
+Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`.
+Foodics-derived items enter the plan once Q-14 (POS scope) is decided.
+
 ## Prioritized backlog (next items)
 
 | Pri | Item                                                                    | Milestone | Depends on |

@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-29 (end of Milestone 2; Supy capability review added)
+Last updated: 2026-10-29 (end of Milestone 2; Supy and Foodics capability reviews added)
 
 ## Summary
 
