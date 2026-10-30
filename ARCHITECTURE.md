@@ -20,7 +20,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
                         PostgreSQL 16 (Prisma 7 + node-postgres adapter; RLS for tenant tables)
 ```
 
-## 2. Directory structure (as of Milestone 3b — purchasing and receiving)
+## 2. Directory structure (as of Milestone 3 — valuation, purchasing, receiving)
 
 ```
 .
@@ -45,7 +45,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ catalog/              # units & conversions, products, barcodes (pure rules: units.ts, barcodes.ts)
 │  │  ├─ inventory/            # posting engine (only ledger + valuation writer), operations, counts, queries, CSV,
 │  │  │                        #   valuation.ts (pure moving-average rules), valuation-queries.ts (stock value reports)
-│  │  ├─ procurement/          # suppliers, purchase orders + approval, receiving, supplier performance (rules.ts pure)
+│  │  ├─ procurement/          # suppliers, requisitions, purchase orders + approval, receiving, landed cost, reorder, supplier performance (rules.ts pure)
 │  │  ├─ members/              # memberships, invitations, role grants, last-owner rule
 │  │  ├─ organizations/        # organization onboarding, settings, overview counts
 │  │  ├─ sites/                # branches, warehouses, storage locations

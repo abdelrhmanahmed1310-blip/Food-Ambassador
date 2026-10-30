@@ -12,6 +12,7 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
+import { releaseRequisitionLines } from "./requisition-links";
 import {
   PO_STATUSES,
   approvalOutcome,
@@ -56,7 +57,7 @@ export function canOnWarehouse(ctx: TenantContext, permission: Permission, w: Wa
   return hasPermission(ctx.grants, permission, target(w));
 }
 
-async function loadWarehouseRef(tx: Tx, ctx: TenantContext, warehouseId: string) {
+export async function loadWarehouseRef(tx: Tx, ctx: TenantContext, warehouseId: string) {
   const wh = await tx.warehouse.findFirst({
     where: { organizationId: ctx.organizationId, id: warehouseId },
     select: {
@@ -353,10 +354,12 @@ export async function addDraftLineInTx(
   rawLine: unknown,
 ) {
   const { data } = await lineValues(tx, ctx, rawLine);
-  await tx.purchaseOrderLine.create({
+  const line = await tx.purchaseOrderLine.create({
     data: { ...data, organizationId: ctx.organizationId, purchaseOrderId: order.id, lineNo },
+    select: { id: true },
   });
   await audit(tx, ctx, order, "line_added", data);
+  return line;
 }
 
 export async function createOrder(ctx: TenantContext, rawInput: unknown) {
@@ -492,6 +495,7 @@ export async function removeOrderLine(ctx: TenantContext, orderId: string, lineI
     requireStatus(order, isEditable(order.status));
     const existing = order.lines.find((l) => l.id === lineId);
     if (!existing) throw notFound("Order line");
+    await releaseRequisitionLines(tx, ctx, [existing.id]);
     await tx.purchaseOrderLine.delete({ where: { id: existing.id } });
     const total = await recomputeTotal(tx, order.id);
     await audit(tx, ctx, order, "line_removed", {
@@ -603,6 +607,11 @@ export async function cancelOrder(ctx: TenantContext, orderId: string, rawInput:
       where: { organizationId: ctx.organizationId, purchaseOrderId: order.id, status: "POSTED" },
     });
     requireStatus(order, isCancellable(order.status, posted > 0));
+    await releaseRequisitionLines(
+      tx,
+      ctx,
+      order.lines.map((l) => l.id),
+    );
     await tx.purchaseOrder.update({
       where: { id: order.id },
       data: {

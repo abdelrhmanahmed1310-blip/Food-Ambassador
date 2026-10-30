@@ -38,24 +38,24 @@ M4 Recipes ─► POS1 Core ─► POS2 Floor & kitchen ─► POS4 Tax e-invoic
 
 A market goes live on the POS only after its e-invoicing work (POS4) passes.
 
-| #    | Milestone                   | Depends on                       | Status                               |
-| ---- | --------------------------- | -------------------------------- | ------------------------------------ |
-| M0   | Repository & architecture   | —                                | **Complete**                         |
-| M1   | Application foundation      | M0                               | **Complete**                         |
-| M2   | Inventory MVP               | M1                               | **Complete**                         |
-| M3   | Procurement & receiving     | M2                               | In progress (M3a, M3b, M3c 1–3 done) |
-| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | Not started                          |
-| M5   | Nutrition & allergens       | M4                               | Not started                          |
-| M6   | Food safety & traceability  | M2, M3, M4                       | Not started                          |
-| M7   | Sales & financial workflows | M3, M4                           | Not started                          |
-| M8   | Analytics & pilot readiness | M2–M7                            | Not started                          |
-| M9   | Central kitchen & B2B       | M4, M6                           | Proposed                             |
-| M10  | Integrations                | M7                               | Proposed                             |
-| POS1 | Core                        | M4                               | Planned                              |
-| POS2 | Floor & kitchen             | POS1                             | Planned                              |
-| POS3 | Payments                    | POS1, Q-15                       | Planned                              |
-| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                              |
-| POS5 | Customer channels           | POS1–POS4                        | Planned                              |
+| #    | Milestone                   | Depends on                       | Status       |
+| ---- | --------------------------- | -------------------------------- | ------------ |
+| M0   | Repository & architecture   | —                                | **Complete** |
+| M1   | Application foundation      | M0                               | **Complete** |
+| M2   | Inventory MVP               | M1                               | **Complete** |
+| M3   | Procurement & receiving     | M2                               | **Complete** |
+| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | Not started  |
+| M5   | Nutrition & allergens       | M4                               | Not started  |
+| M6   | Food safety & traceability  | M2, M3, M4                       | Not started  |
+| M7   | Sales & financial workflows | M3, M4                           | Not started  |
+| M8   | Analytics & pilot readiness | M2–M7                            | Not started  |
+| M9   | Central kitchen & B2B       | M4, M6                           | Proposed     |
+| M10  | Integrations                | M7                               | Proposed     |
+| POS1 | Core                        | M4                               | Planned      |
+| POS2 | Floor & kitchen             | POS1                             | Planned      |
+| POS3 | Payments                    | POS1, Q-15                       | Planned      |
+| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned      |
+| POS5 | Customer channels           | POS1–POS4                        | Planned      |
 
 ---
 
@@ -203,7 +203,7 @@ rejections with reasons, quarantine, lots/expiry, temperature for chilled
 and frozen goods, over-receipt tolerance; receipt reversal; short close and
 cancel; supplier scorecard; purchasing settings.
 
-**M3c — in progress:**
+**M3c — ✅ complete:**
 
 - ✅ Product categories (ADR-025), reorder levels with suggested draft
   orders, supplier price history, printable purchase order.
@@ -211,9 +211,9 @@ cancel; supplier scorecard; purchasing settings.
   shortages, recall.
 - ✅ Landed cost on receipts (ADR-028): by value or quantity, only stock still
   on hand is revalued, the rest shown as expensed.
-- Purchase
-  requisitions from branches. PO email needs Q-10; count templates moved to
-  the backlog.
+- ✅ Purchase requisitions from branches (ADR-029): request, submit, order
+  from a supplier in steps, reject, close, cancel.
+- Moved out: PO email (needs Q-10); stock count templates (backlog).
 
 ## M4 — Recipes and food cost
 
@@ -314,7 +314,8 @@ Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`
 | ✅  | Suppliers and supplier products                                        | M3b       | done       |
 | ✅  | Purchase orders with approval limit (Q-04 default); requisitions → M3c | M3b       | done       |
 | ✅  | Goods receipts: partial, rejected, quarantined; posting via ledger     | M3b       | done       |
-| ✅  | In-transit transfers (ADR-026); requisitions still open                | M3c       | done       |
+| ✅  | In-transit transfers (ADR-026)                                         | M3c       | done       |
+| ✅  | Purchase requisitions from branches (ADR-029)                          | M3c       | done       |
 | ✅  | Landed cost allocation (ADR-028)                                       | M3c       | done       |
 | P1  | Email provider for invitations and password reset (Q-10)               | M3        | decision   |
 | P2  | Searchable product picker for large catalogs                           | M3        | —          |

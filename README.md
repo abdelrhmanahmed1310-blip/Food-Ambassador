@@ -4,15 +4,17 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, point of sale, sales/invoice workflows and analytics.
 
-> **Status:** Milestone 2 (inventory MVP) complete — on top of the M1
+> **Status:** Milestones 0–3 complete — on top of the M1
 > foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
 > release, reversals, stock counts, FEFO, dashboard, CSV import/export.
-> Milestone 3 adds **stock valuation** (moving weighted average) and
-> **purchasing**: suppliers, purchase orders with an optional approval limit,
-> and receiving with rejections, quarantine, lots and temperatures. Requisitions,
-> landed cost and in-transit transfers come next. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Milestone 3 added **stock valuation** (moving weighted average) and
+> **purchasing**: suppliers, branch requisitions, purchase orders with an
+> optional approval limit, receiving with rejections, quarantine, lots and
+> temperatures, landed cost, reorder levels with suggested orders, and
+> shipments between warehouses with an in-transit stage. Recipes and food
+> cost (M4) come next. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

@@ -17,6 +17,16 @@ import {
 import { addReceiptLandedCost } from "@/modules/procurement/landed-costs";
 import { postReceipt, reverseReceipt } from "@/modules/procurement/receipts";
 import {
+  addRequisitionLine,
+  cancelRequisition,
+  closeRequisition,
+  createRequisition,
+  orderRequisition,
+  rejectRequisition,
+  removeRequisitionLine,
+  submitRequisition,
+} from "@/modules/procurement/requisitions";
+import {
   createOrdersFromPlan,
   removeReorderRule,
   saveReorderRule,
@@ -231,4 +241,101 @@ export async function addLandedCostAction(
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await addReceiptLandedCost(ctx, receiptId, formValues(formData));
   });
+}
+
+// ─── Requisitions ───
+
+export async function createRequisitionAction(
+  orgSlug: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  let id = "";
+  const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    id = (await createRequisition(ctx, formValues(formData))).id;
+  });
+  if (state.ok) redirect(`/o/${orgSlug}/purchasing/requisitions/${id}`);
+  return state;
+}
+
+export async function addRequisitionLineAction(
+  orgSlug: string,
+  requisitionId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    addRequisitionLine(ctx, requisitionId, formValues(formData)),
+  );
+}
+
+export async function removeRequisitionLineAction(
+  orgSlug: string,
+  requisitionId: string,
+  lineId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    removeRequisitionLine(ctx, requisitionId, lineId),
+  );
+}
+
+export async function submitRequisitionAction(
+  orgSlug: string,
+  requisitionId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    submitRequisition(ctx, requisitionId),
+  );
+}
+
+export async function cancelRequisitionAction(
+  orgSlug: string,
+  requisitionId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    cancelRequisition(ctx, requisitionId, formValues(formData)),
+  );
+}
+
+export async function rejectRequisitionAction(
+  orgSlug: string,
+  requisitionId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    rejectRequisition(ctx, requisitionId, formValues(formData)),
+  );
+}
+
+export async function closeRequisitionAction(
+  orgSlug: string,
+  requisitionId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    closeRequisition(ctx, requisitionId, formValues(formData)),
+  );
+}
+
+export async function orderRequisitionAction(
+  orgSlug: string,
+  requisitionId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  let orderId = "";
+  const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    orderId = (await orderRequisition(ctx, requisitionId, receiptInput(formValues(formData))))
+      .orderId;
+  });
+  if (state.ok) redirect(`/o/${orgSlug}/purchasing/orders/${orderId}`);
+  return state;
 }

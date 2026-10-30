@@ -341,6 +341,31 @@ documents stay scoped. Found by a scoped-user integration test.
   volume (needs product weights), one charge over several receipts, and
   linking the charge to a carrier's invoice (M7).
 
+### ADR-029 Purchase requisitions — Accepted (M3c)
+
+- A **requisition** (`REQ-` number) asks for goods for one warehouse, with
+  lines (product, quantity in any convertible unit, note), an optional
+  needed-by date and a note. One line per product.
+- New permission **`purchasing.request`** (scopable), granted by data
+  migration to Administrator, Operations Manager, Procurement, Warehouse and
+  Branch Manager. Requesters edit drafts, submit, and cancel while nothing
+  is ordered. Requisitions are visible with `purchasing.view` or
+  `purchasing.request` at the warehouse.
+- Statuses: DRAFT → SUBMITTED → PARTIALLY_ORDERED → ORDERED; a buyer can
+  REJECT a submitted one (nothing ordered) or CLOSE a partly ordered one,
+  always with a reason; a requester can CANCEL.
+- **Ordering:** a buyer (`purchasing.manage` at the warehouse) picks a
+  supplier and the open lines; one draft purchase order is created for the
+  requisition's warehouse in the requested quantities and units, at prices
+  the buyer enters. The supplier's last price is offered only when quoted in
+  the same unit — never converted or guessed. The order goes through the
+  normal approval (ADR-023). Requisitions themselves need no approval
+  (Q-04 still open).
+- Each line links to its order line. Removing that order line from a draft,
+  or cancelling the order, frees the line to be ordered again; a short-closed
+  or received order keeps it.
+- Requisitions do not count as "on order" for reorder suggestions (ADR-025).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

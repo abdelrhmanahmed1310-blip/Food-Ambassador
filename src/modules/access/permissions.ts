@@ -32,6 +32,7 @@ export const PERMISSIONS = [
   "purchasing.manage",
   "purchasing.approve",
   "purchasing.receive",
+  "purchasing.request",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -56,6 +57,7 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "purchasing.manage",
   "purchasing.approve",
   "purchasing.receive",
+  "purchasing.request",
 ]);
 
 /**
@@ -135,6 +137,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.view",
       "purchasing.approve",
       "purchasing.receive",
+      "purchasing.request",
     ],
     organizationScopeOnly: false,
   },
@@ -152,6 +155,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.view",
       "purchasing.manage",
       "purchasing.receive",
+      "purchasing.request",
     ],
     organizationScopeOnly: false,
   },
@@ -168,6 +172,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "suppliers.view",
       "purchasing.view",
       "purchasing.receive",
+      "purchasing.request",
     ],
     organizationScopeOnly: false,
   },
@@ -222,6 +227,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.view",
       "purchasing.manage",
       "purchasing.receive",
+      "purchasing.request",
     ],
     organizationScopeOnly: false,
   },

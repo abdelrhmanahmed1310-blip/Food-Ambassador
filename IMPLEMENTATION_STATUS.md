@@ -1,16 +1,42 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-30 (Milestone 3c, part 1 — categories, reorder, price history, PO print)
+Last updated: 2026-10-30 (Milestone 3 complete — M3c part 4, purchase requisitions)
 
 ## Summary
 
-| Milestone                    | Status                                                                                                         |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture | ✅ Complete                                                                                                    |
-| M1 Application foundation    | ✅ Complete                                                                                                    |
-| M2 Inventory MVP             | ✅ Complete                                                                                                    |
-| M3 Procurement & receiving   | 🔄 In progress — M3a ✅, M3b ✅, M3c parts 1–2 ✅, **M3c part 3 ✅** (landed cost); purchase requisitions next |
-| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                       |
+| Milestone                    | Status                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture | ✅ Complete                                                                                                                         |
+| M1 Application foundation    | ✅ Complete                                                                                                                         |
+| M2 Inventory MVP             | ✅ Complete                                                                                                                         |
+| M3 Procurement & receiving   | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
+| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                            |
+
+## M3c part 4 — Purchase requisitions (delivered; M3 complete)
+
+Rules: DECISIONS.md ADR-029.
+
+| Area       | What works                                                                                                                                 | Where                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Requesting | `REQ-` numbered request for a warehouse, needed-by date, lines in any convertible unit (one per product), submit, cancel with a reason     | `src/modules/procurement/requisitions.ts` |
+| Ordering   | Buyer picks a supplier and open lines → one draft PO at entered prices (supplier's last price offered only in the same unit); repeatable   | `orderRequisition`                        |
+| Decisions  | Reject (nothing ordered), close (partly ordered), cancel — each with a reason, shown on the page                                           | `rejectRequisition`, `closeRequisition`   |
+| Links      | Each line links to its PO line; removing it from a draft or cancelling the PO frees the line and recomputes the status                     | `requisition-links.ts`, `orders.ts`       |
+| Access     | New scopable `purchasing.request` (data migration for existing organizations); branch users see only their warehouses; other tenants: none | `permissions.ts`, migration               |
+| Screens    | List with status filter, new requisition, detail with lines, submit, supplier choice, order form, reject/close/cancel; EN/AR               | `/purchasing/requisitions`                |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 19 files / 137 tests — new
+requisition status and action rules, build); `pnpm test:integration` 15 files
+/ 136 tests pass (new: request → order in steps → line freed by removing the
+PO line → fully ordered → freed by cancelling the PO; reject/close/cancel
+states and reasons; branch, role and tenant isolation; permission-migration
+sync); `pnpm test:e2e` 23 tests pass (new: requisition → supplier → price
+required → draft PO 2,200 → requisition ordered).
+
+Limitations: requisitions have no approval step of their own (Q-04); one
+supplier per draft order (repeat for others); no merging into an existing
+draft order; quantities cannot be changed while ordering (edit the draft
+order instead).
 
 ## M3c part 3 — Landed cost (delivered)
 

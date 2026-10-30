@@ -9,6 +9,8 @@ import {
   isReceivable,
   lineTotal,
   maxAcceptable,
+  requisitionActions,
+  requisitionStatusFromLines,
   statusFromReceipts,
   suggestReorder,
   supplierPerformance,
@@ -176,5 +178,37 @@ describe("landed cost allocation", () => {
     expect(() => allocateCharge(d("10"), [d("0"), d("0")])).toThrow(RangeError);
     expect(() => allocateCharge(d("0"), [d("1")])).toThrow(RangeError);
     expect(() => allocateCharge(d("10"), [d("-1"), d("2")])).toThrow(RangeError);
+  });
+});
+
+describe("requisition rules", () => {
+  it("derives the status from ordered lines", () => {
+    expect(requisitionStatusFromLines(0, 3)).toBe("SUBMITTED");
+    expect(requisitionStatusFromLines(1, 3)).toBe("PARTIALLY_ORDERED");
+    expect(requisitionStatusFromLines(3, 3)).toBe("ORDERED");
+  });
+
+  it("allows each action only in the right state", () => {
+    expect(requisitionActions("DRAFT", 0)).toEqual({
+      edit: true,
+      cancel: true,
+      order: false,
+      reject: false,
+      close: false,
+    });
+    expect(requisitionActions("SUBMITTED", 0)).toMatchObject({
+      cancel: true,
+      order: true,
+      reject: true,
+    });
+    expect(requisitionActions("PARTIALLY_ORDERED", 1)).toEqual({
+      edit: false,
+      cancel: false,
+      order: true,
+      reject: false,
+      close: true,
+    });
+    for (const s of ["ORDERED", "REJECTED", "CLOSED", "CANCELLED"] as const)
+      expect(Object.values(requisitionActions(s, 0)).some(Boolean)).toBe(false);
   });
 });

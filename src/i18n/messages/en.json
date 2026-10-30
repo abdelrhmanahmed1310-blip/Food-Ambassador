@@ -90,7 +90,8 @@
     "purchasingSettings": "Purchasing",
     "categories": "Categories",
     "reorder": "Reorder",
-    "shipments": "Shipments"
+    "shipments": "Shipments",
+    "requisitions": "Requisitions"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -166,7 +167,8 @@
     "invalidDays": "Enter a whole number of days (0–3650).",
     "belowMinimum": "The value is too low.",
     "aboveMaximum": "The value is too high.",
-    "rejectedExceedsReceived": "Rejected cannot be more than received."
+    "rejectedExceedsReceived": "Rejected cannot be more than received.",
+    "nothingSelected": "Select at least one line."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -247,7 +249,10 @@
     "LANDED_COST_NO_BASIS": "There is nothing to spread this cost over with this method. Receipts without stock cannot take landed costs; goods received at no price need allocation by quantity.",
     "LANDED_COST_MIXED_UNITS": "The lines are in different units, so the cost cannot be spread by quantity. Spread it by value.",
     "RECEIPT_HAS_LANDED_COST": "This receipt has landed costs, so it cannot be reversed. Correct the stock with an adjustment instead.",
-    "CANNOT_REVERSE_LANDED_COST": "A landed cost cannot be reversed. Correct the cost with a revaluation."
+    "CANNOT_REVERSE_LANDED_COST": "A landed cost cannot be reversed. Correct the cost with a revaluation.",
+    "REQUISITION_STATUS": "This is not possible in the requisition's current status.",
+    "REQUISITION_HAS_NO_LINES": "Add at least one line before submitting.",
+    "REQUISITION_LINE_ORDERED": "This line is already on a purchase order."
   },
   "notFound": {
     "title": "Page not found",
@@ -431,7 +436,8 @@
       "purchasing.view": "View purchase orders and receipts",
       "purchasing.manage": "Create, edit, submit, close and cancel purchase orders; reverse receipts",
       "purchasing.approve": "Approve purchase orders",
-      "purchasing.receive": "Receive deliveries"
+      "purchasing.receive": "Receive deliveries",
+      "purchasing.request": "Request purchases for a branch (requisitions)"
     }
   },
   "audit": {
@@ -460,7 +466,8 @@
       "purchase_order": "Purchase order",
       "goods_receipt": "Goods receipt",
       "category": "Category",
-      "shipment": "Shipment"
+      "shipment": "Shipment",
+      "requisition": "Requisition"
     }
   },
   "invite": {
@@ -1004,6 +1011,50 @@
     "methods": {
       "BY_VALUE": "Line value",
       "BY_QUANTITY": "Quantity"
+    }
+  },
+  "requisitions": {
+    "title": "Requisitions",
+    "new": "New requisition",
+    "newTitle": "New requisition",
+    "hint": "Branches ask for the goods they need; buyers turn the requests into purchase orders.",
+    "empty": "No requisitions yet.",
+    "warehouse": "For warehouse",
+    "neededBy": "Needed by",
+    "lines": "Lines",
+    "addLine": "Add line",
+    "submittedAt": "Submitted",
+    "submit": "Submit to purchasing",
+    "submitHint": "Once submitted, the lines can no longer be changed.",
+    "confirmSubmit": "Submit this requisition to purchasing?",
+    "order": "Purchase order",
+    "notOrdered": "Not ordered yet",
+    "orderTitle": "Order from a supplier",
+    "orderHint": "Choose a supplier, then the lines to order and their prices. A draft purchase order is created; you can still edit it before submitting.",
+    "chooseSupplier": "Use this supplier",
+    "include": "Order",
+    "createOrder": "Create draft order",
+    "lastPrice": "Supplier's last price in this unit.",
+    "noPrice": "No known price in this unit — enter the agreed price.",
+    "reject": "Reject requisition",
+    "close": "Close requisition",
+    "closeHint": "The lines not yet ordered will not be ordered.",
+    "cancel": "Cancel requisition",
+    "reason": "Reason",
+    "decidedBy": "Decided by",
+    "decision": {
+      "REJECTED": "Rejected: {reason}",
+      "CLOSED": "Closed: {reason}",
+      "CANCELLED": "Cancelled: {reason}"
+    },
+    "statuses": {
+      "DRAFT": "Draft",
+      "SUBMITTED": "Submitted",
+      "PARTIALLY_ORDERED": "Partly ordered",
+      "ORDERED": "Ordered",
+      "REJECTED": "Rejected",
+      "CLOSED": "Closed",
+      "CANCELLED": "Cancelled"
     }
   }
 }

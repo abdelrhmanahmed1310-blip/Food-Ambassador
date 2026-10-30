@@ -158,6 +158,8 @@ model Organization {
   stockShipmentLines  StockShipmentLine[]
   landedCosts         LandedCost[]
   landedCostLines     LandedCostLine[]
+  requisitions        PurchaseRequisition[]
+  requisitionLines    PurchaseRequisitionLine[]
 
   @@map("organizations")
 }
@@ -366,6 +368,7 @@ model Warehouse {
   shipmentsIn     StockShipment[]        @relation("ShipmentTo")
   landedCosts     LandedCost[]
   landedCostLines LandedCostLine[]
+  requisitions    PurchaseRequisition[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -470,7 +473,7 @@ model UnitOfMeasure {
   archivedAt     DateTime?     @map("archived_at") @db.Timestamptz(3)
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  organization       Organization?          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization       Organization?             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   baseOf             Product[]
   conversions        ProductUomConversion[]
   barcodes           ProductBarcode[]
@@ -479,6 +482,7 @@ model UnitOfMeasure {
   purchaseOrderLines PurchaseOrderLine[]
   goodsReceiptLines  GoodsReceiptLine[]
   shipmentLines      StockShipmentLine[]
+  requisitionLines   PurchaseRequisitionLine[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
   @@unique([organizationId, code], map: "units_of_measure_code_key")
@@ -518,9 +522,9 @@ model Product {
   createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  baseUom            UnitOfMeasure          @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
-  category           ProductCategory?       @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  baseUom            UnitOfMeasure             @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
+  category           ProductCategory?          @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
   barcodes           ProductBarcode[]
   conversions        ProductUomConversion[]
   lots               InventoryLot[]
@@ -534,6 +538,7 @@ model Product {
   goodsReceiptLines  GoodsReceiptLine[]
   reorderRules       ReorderRule[]
   shipmentLines      StockShipmentLine[]
+  requisitionLines   PurchaseRequisitionLine[]
   landedCostLines    LandedCostLine[]
 
   @@unique([organizationId, id])
@@ -1066,11 +1071,12 @@ model PurchaseOrderLine {
   receivedQuantityBase Decimal @default(0) @map("received_quantity_base") @db.Decimal(20, 6)
   note                 String?
 
-  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  purchaseOrder PurchaseOrder      @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Cascade)
-  product       Product            @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
-  uom           UnitOfMeasure      @relation(fields: [uomId], references: [id], onDelete: Restrict)
-  receiptLines  GoodsReceiptLine[]
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  purchaseOrder   PurchaseOrder            @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Cascade)
+  product         Product                  @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom             UnitOfMeasure            @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  receiptLines    GoodsReceiptLine[]
+  requisitionLine PurchaseRequisitionLine?
 
   @@unique([organizationId, id])
   @@unique([organizationId, purchaseOrderId, lineNo])
@@ -1357,4 +1363,73 @@ model LandedCostLine {
   @@unique([organizationId, landedCostId, receiptLineId])
   @@index([organizationId, warehouseId, productId])
   @@map("landed_cost_lines")
+}
+
+// ─── Purchase requisitions (Milestone 3c, ADR-029) ───
+
+enum RequisitionStatus {
+  DRAFT
+  SUBMITTED
+  PARTIALLY_ORDERED
+  ORDERED
+  REJECTED
+  CLOSED
+  CANCELLED
+}
+
+/// A branch's request for goods; buyers turn its lines into purchase orders.
+model PurchaseRequisition {
+  id                String            @id @default(uuid(7)) @db.Uuid
+  organizationId    String            @map("organization_id") @db.Uuid
+  number            String
+  warehouseId       String            @map("warehouse_id") @db.Uuid
+  status            RequisitionStatus @default(DRAFT)
+  neededBy          DateTime?         @map("needed_by") @db.Date
+  note              String?
+  createdByUserId   String            @map("created_by_user_id") @db.Uuid
+  submittedAt       DateTime?         @map("submitted_at") @db.Timestamptz(3)
+  submittedByUserId String?           @map("submitted_by_user_id") @db.Uuid
+  /// Rejected, closed or cancelled: who, when and why.
+  decidedAt         DateTime?         @map("decided_at") @db.Timestamptz(3)
+  decidedByUserId   String?           @map("decided_by_user_id") @db.Uuid
+  decisionReason    String?           @map("decision_reason")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse                 @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  lines        PurchaseRequisitionLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, warehouseId])
+  @@map("purchase_requisitions")
+}
+
+model PurchaseRequisitionLine {
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  requisitionId       String    @map("requisition_id") @db.Uuid
+  lineNo              Int       @map("line_no")
+  productId           String    @map("product_id") @db.Uuid
+  uomId               String    @map("uom_id") @db.Uuid
+  quantity            Decimal   @db.Decimal(20, 6)
+  quantityBase        Decimal   @map("quantity_base") @db.Decimal(20, 6)
+  note                String?
+  /// The purchase order line this was ordered on; cleared if that line is removed or its order cancelled.
+  purchaseOrderLineId String?   @map("purchase_order_line_id") @db.Uuid
+  orderedAt           DateTime? @map("ordered_at") @db.Timestamptz(3)
+
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requisition       PurchaseRequisition @relation(fields: [organizationId, requisitionId], references: [organizationId, id], onDelete: Cascade)
+  product           Product             @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom               UnitOfMeasure       @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  purchaseOrderLine PurchaseOrderLine?  @relation(fields: [organizationId, purchaseOrderLineId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, requisitionId, lineNo])
+  @@unique([organizationId, requisitionId, productId])
+  @@unique([organizationId, purchaseOrderLineId])
+  @@map("purchase_requisition_lines")
 }

@@ -205,3 +205,46 @@ export const landedCostSchema = z.object({
   note: optionalText(500),
   idempotencyKey: idempotencyKeySchema,
 });
+
+export const createRequisitionSchema = z.object({
+  warehouseId: uuidSchema,
+  neededBy: dateSchema,
+  note: optionalText(500),
+  idempotencyKey: idempotencyKeySchema,
+});
+
+export const requisitionLineSchema = z.object({
+  productId: uuidSchema,
+  quantity: decimalString({ maxScale: 6, min: "0.000001" }),
+  uomId: uuidSchema,
+  note: optionalText(200),
+});
+
+/** Turn selected open lines into one draft order; each selected line needs a price. */
+export const orderRequisitionSchema = z.object({
+  supplierId: uuidSchema,
+  expectedOn: dateSchema,
+  lines: z
+    .array(
+      z
+        .object({
+          lineId: uuidSchema,
+          include: z
+            .string()
+            .optional()
+            .transform((v) => v === "on" || v === "true"),
+          unitPrice: optionalDecimal({ maxScale: 6, min: "0" }),
+        })
+        .strict(),
+    )
+    .max(500)
+    .superRefine((lines, ctx) => {
+      lines.forEach((l, i) => {
+        if (l.include && l.unitPrice === undefined)
+          ctx.addIssue({ code: "custom", path: [i, "unitPrice"], message: "required" });
+      });
+      if (!lines.some((l) => l.include))
+        ctx.addIssue({ code: "custom", path: [], message: "nothingSelected" });
+    }),
+  idempotencyKey: idempotencyKeySchema,
+});

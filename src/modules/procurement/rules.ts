@@ -176,3 +176,35 @@ export function allocateCharge(amount: Decimal, weights: readonly Decimal[]): De
   }
   return shares;
 }
+
+// ─── Purchase requisitions (ADR-029) ───
+
+export const REQUISITION_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "PARTIALLY_ORDERED",
+  "ORDERED",
+  "REJECTED",
+  "CLOSED",
+  "CANCELLED",
+] as const;
+export type RequisitionStatus = (typeof REQUISITION_STATUSES)[number];
+
+/** Status of a submitted requisition implied by how many of its lines are on orders. */
+export function requisitionStatusFromLines(
+  ordered: number,
+  total: number,
+): "SUBMITTED" | "PARTIALLY_ORDERED" | "ORDERED" {
+  if (ordered === 0) return "SUBMITTED";
+  return ordered >= total ? "ORDERED" : "PARTIALLY_ORDERED";
+}
+
+export const requisitionActions = (status: RequisitionStatus, ordered: number) => ({
+  /** Requester side. */
+  edit: status === "DRAFT",
+  cancel: status === "DRAFT" || (status === "SUBMITTED" && ordered === 0),
+  /** Buyer side. */
+  order: status === "SUBMITTED" || status === "PARTIALLY_ORDERED",
+  reject: status === "SUBMITTED" && ordered === 0,
+  close: status === "PARTIALLY_ORDERED",
+});

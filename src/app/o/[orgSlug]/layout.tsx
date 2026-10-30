@@ -45,6 +45,11 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   const purchasing: NavSection = { title: t("purchasingSection"), items: [] };
   if (hasPermission(ctx.grants, "suppliers.view"))
     purchasing.items.push({ href: `${base}/suppliers`, label: t("suppliers") });
+  if (
+    holdsAnyGrant(ctx.grants, "purchasing.view") ||
+    holdsAnyGrant(ctx.grants, "purchasing.request")
+  )
+    purchasing.items.push({ href: `${base}/purchasing/requisitions`, label: t("requisitions") });
   if (holdsAnyGrant(ctx.grants, "purchasing.view")) {
     purchasing.items.push(
       { href: `${base}/purchasing/orders`, label: t("purchaseOrders") },

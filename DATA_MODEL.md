@@ -635,7 +635,21 @@ Migration `20261030150000_m3_landed_cost`.
 - Both tables are append-only (triggers) with RLS. `reconcileValuations()`
   adds `capitalized_amount` to ledger value + revaluations.
 
-**Not yet built (rest of M3c):** purchase requisitions, PO email (Q-10).
+### Purchase requisitions (Milestone 3c — implemented, ADR-029)
+
+Migration `20261030180000_m3_requisitions` (also grants `purchasing.request`).
+
+- **purchase_requisitions**: `number` (UQ per org, `REQ-YYYY-NNNNNN`),
+  `warehouse_id`, `status` (DRAFT | SUBMITTED | PARTIALLY_ORDERED | ORDERED |
+  REJECTED | CLOSED | CANCELLED), `needed_by`, `note`, creator, submitter,
+  `decided_at` / `decided_by_user_id` / `decision_reason` (required for
+  rejected, closed, cancelled — CK).
+- **purchase_requisition_lines**: `line_no`, `product_id` (UQ per
+  requisition), `uom_id`, `quantity`, `quantity_base` (> 0), `note`,
+  `purchase_order_line_id` (UQ, composite FK) with `ordered_at` (both set or
+  both null — CK).
+
+**Not yet built:** PO email (Q-10).
 
 ## 6. Recipes and food cost (Milestone 4)
 
