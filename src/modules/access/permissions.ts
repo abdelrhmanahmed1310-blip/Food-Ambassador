@@ -58,6 +58,17 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "purchasing.receive",
 ]);
 
+/**
+ * Read access to organization-wide master data. Scoped staff (a branch
+ * manager, a warehouse clerk) must see the product catalogue and supplier
+ * list to work in their own sites, so these apply organization-wide even
+ * when granted through a branch- or warehouse-scoped role (ADR-027).
+ */
+export const ORGANIZATION_READ_PERMISSIONS: ReadonlySet<Permission> = new Set([
+  "catalog.view",
+  "suppliers.view",
+]);
+
 export function isPermission(value: string): value is Permission {
   return (PERMISSIONS as readonly string[]).includes(value);
 }

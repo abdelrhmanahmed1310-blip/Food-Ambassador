@@ -4,13 +4,41 @@ Last updated: 2026-10-30 (Milestone 3c, part 1 — categories, reorder, price hi
 
 ## Summary
 
-| Milestone                    | Status                                                                                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| M0 Repository & architecture | ✅ Complete                                                                                                                                |
-| M1 Application foundation    | ✅ Complete                                                                                                                                |
-| M2 Inventory MVP             | ✅ Complete                                                                                                                                |
-| M3 Procurement & receiving   | 🔄 In progress — M3a ✅, M3b ✅, **M3c part 1 ✅** (categories, reorder, price history, PO print); transit, landed cost, requisitions next |
-| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                                   |
+| Milestone                    | Status                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture | ✅ Complete                                                                                                                         |
+| M1 Application foundation    | ✅ Complete                                                                                                                         |
+| M2 Inventory MVP             | ✅ Complete                                                                                                                         |
+| M3 Procurement & receiving   | 🔄 In progress — M3a ✅, M3b ✅, M3c part 1 ✅, **M3c part 2 ✅** (shipments with in-transit stage); landed cost, requisitions next |
+| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                            |
+
+## M3c part 2 — Shipments with an in-transit stage (delivered)
+
+Rules: DECISIONS.md ADR-026 (extends ADR-016, replaces assumption A-08) and
+ADR-027.
+
+| Area        | What works                                                                                                                                       | Where                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| Drafts      | `SHP-` numbered shipment between two warehouses; lines pick a stock line (product, lot, location) in any convertible unit; add/remove lines      | `src/modules/inventory/shipments.ts` |
+| Dispatch    | `DSP-` document moves stock AVAILABLE → IN_TRANSIT at the source; value stays with the source; expired/recalled lots and missing stock refused   | `dispatchShipment`                   |
+| Receive     | `TRR-` document: received stock to AVAILABLE at the destination (optional location) with its value; shortages written off with a required reason | `receiveShipment`, receive form      |
+| Recall      | Cancelling a shipment in transit returns its stock to AVAILABLE at the source; drafts are simply cancelled                                       | `cancelShipment`                     |
+| Safeguards  | No over-receipt; IN_TRANSIT stock cannot be adjusted, written off, transferred or status-changed by hand; shipment documents cannot be reversed  | schemas, `reverseDocumentInTx`       |
+| Access      | Source needs `inventory.transfer` to edit/dispatch/cancel, destination to receive; visible to users who see stock at either end; audited         | `shipments.ts`                       |
+| Master data | Scoped roles read products and suppliers organization-wide (ADR-027) — fixes postings by branch-scoped users                                     | `src/modules/access/authorize.ts`    |
+| Screens     | Shipments list with status filter, new shipment, detail with lines, dispatch, receive and cancel, links to documents; EN/AR                      | `/inventory/shipments`               |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 19 files / 127 tests, build);
+`pnpm test:integration` 13 files / 130 tests pass (new: dispatch → receive
+with value and shortage, recall and draft cancel, expired/recalled/moved
+stock refused, source/destination access and visibility, scoped-user
+adjustment); `pnpm test:e2e` 21 tests pass (new: draft → dispatch → stock
+in transit → receive with a damaged shortage → stock value).
+
+Known limitation: the server logs a `pg` deprecation warning ("client.query()
+while already executing") that comes from inside Prisma's query interpreter
+with the pg adapter, not from application code; it predates this slice and
+is harmless with pg 8.
 
 ## M3c part 1 — Categories, reorder levels, price history, PO print (delivered)
 

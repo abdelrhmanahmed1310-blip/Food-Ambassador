@@ -36,6 +36,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/inventory/stock`, label: t("stock") },
       { href: `${base}/inventory/movements`, label: t("movements") },
       { href: `${base}/inventory/documents`, label: t("documents") },
+      { href: `${base}/inventory/shipments`, label: t("shipments") },
       { href: `${base}/inventory/counts`, label: t("counts") },
     );
   }

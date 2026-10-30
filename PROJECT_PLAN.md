@@ -207,7 +207,9 @@ cancel; supplier scorecard; purchasing settings.
 
 - ✅ Product categories (ADR-025), reorder levels with suggested draft
   orders, supplier price history, printable purchase order.
-- In-transit transfers (ADR-016), landed cost allocation, purchase
+- ✅ Shipments with an in-transit stage (ADR-026): dispatch, receive with
+  shortages, recall.
+- Landed cost allocation, purchase
   requisitions from branches. PO email needs Q-10; count templates moved to
   the backlog.
 
@@ -310,7 +312,7 @@ Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`
 | ✅  | Suppliers and supplier products                                             | M3b       | done       |
 | ✅  | Purchase orders with approval limit (Q-04 default); requisitions → M3c      | M3b       | done       |
 | ✅  | Goods receipts: partial, rejected, quarantined; posting via ledger          | M3b       | done       |
-| P1  | In-transit transfers (ADR-016); purchase requisitions                       | M3c       | receipts   |
+| ✅  | In-transit transfers (ADR-026); requisitions still open                     | M3c       | done       |
 | P1  | Landed cost allocation (discrepancies and supplier performance done in M3b) | M3c       | receipts   |
 | P1  | Email provider for invitations and password reset (Q-10)                    | M3        | decision   |
 | P2  | Searchable product picker for large catalogs                                | M3        | —          |

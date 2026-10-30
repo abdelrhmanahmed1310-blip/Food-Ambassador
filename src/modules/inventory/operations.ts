@@ -680,6 +680,11 @@ export async function reverseDocumentInTx(
   }
   if (doc.type === "REVERSAL")
     throw businessRuleViolation("CANNOT_REVERSE_REVERSAL", "A reversal cannot be reversed");
+  if (doc.type === "DISPATCH" || doc.type === "TRANSIT_RECEIPT")
+    throw businessRuleViolation(
+      "SHIPMENT_DOCUMENT_NOT_REVERSIBLE",
+      "Shipment postings are corrected from the shipment",
+    );
   if (doc.type === "RECEIPT" && !options.allowReceipt)
     throw businessRuleViolation(
       "RECEIPT_REVERSE_IN_PURCHASING",

@@ -849,6 +849,15 @@ describe("scope and tenant isolation", () => {
       }),
       "NOT_FOUND",
     );
+    // In its own warehouse the scoped user can work (it needs the organization's catalogue).
+    await postAdjustment(scoped.ctx, {
+      warehouseId: kitchenWh,
+      productId: rice,
+      direction: "INCREASE",
+      quantity: "1",
+      uomId: units.kg,
+      reasonCode: "FOUND_STOCK",
+    });
     // Transfers need permission at both ends.
     await expectAppError(
       postTransfer(scoped.ctx, {

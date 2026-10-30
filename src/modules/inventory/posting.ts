@@ -94,6 +94,8 @@ const NUMBER_PREFIX: Record<InventoryDocumentType, string> = {
   REVERSAL: "REV",
   REVALUATION: "RVL",
   RECEIPT: "RCV",
+  DISPATCH: "DSP",
+  TRANSIT_RECEIPT: "TRR",
 };
 
 /** Atomically allocate the next number for (organization, series, year). */

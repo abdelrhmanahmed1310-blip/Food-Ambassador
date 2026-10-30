@@ -89,7 +89,8 @@
     "receipts": "Goods receipts",
     "purchasingSettings": "Purchasing",
     "categories": "Categories",
-    "reorder": "Reorder"
+    "reorder": "Reorder",
+    "shipments": "Shipments"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -236,7 +237,13 @@
     "RECEIPT_ORDER_CLOSED": "The order is closed. Correct the stock with an adjustment instead.",
     "CATEGORY_ARCHIVED": "The category is archived. Restore it or choose another.",
     "REORDER_MAX_BELOW_MIN": "The maximum must not be below the minimum.",
-    "NOTHING_SELECTED": "Select at least one suggestion."
+    "NOTHING_SELECTED": "Select at least one suggestion.",
+    "SHIPMENT_STATUS": "This is not possible in the shipment's current status.",
+    "SHIPMENT_HAS_NO_LINES": "Add at least one line before dispatching.",
+    "SHIPMENT_LINE_MISSING": "Every shipment line must be received.",
+    "SHIPMENT_OVER_RECEIPT": "You cannot receive more than was dispatched.",
+    "SHORTAGE_REASON_REQUIRED": "Choose a reason for the shortage.",
+    "SHIPMENT_DOCUMENT_NOT_REVERSIBLE": "Shipment documents cannot be reversed; cancel or receive the shipment instead."
   },
   "notFound": {
     "title": "Page not found",
@@ -448,7 +455,8 @@
       "supplier": "Supplier",
       "purchase_order": "Purchase order",
       "goods_receipt": "Goods receipt",
-      "category": "Category"
+      "category": "Category",
+      "shipment": "Shipment"
     }
   },
   "invite": {
@@ -661,7 +669,8 @@
       "AVAILABLE": "Available",
       "QUARANTINE": "Quarantine",
       "REJECTED": "Rejected",
-      "ON_HOLD": "On hold"
+      "ON_HOLD": "On hold",
+      "IN_TRANSIT": "In transit"
     },
     "expiryStates": {
       "NONE": "—",
@@ -700,7 +709,9 @@
       "STOCK_COUNT": "Stock count",
       "REVERSAL": "Reversal",
       "REVALUATION": "Revaluation",
-      "RECEIPT": "Goods receipt"
+      "RECEIPT": "Goods receipt",
+      "DISPATCH": "Dispatch",
+      "TRANSIT_RECEIPT": "Transit receipt"
     },
     "reasons": {
       "DATA_CORRECTION": "Data correction",
@@ -724,7 +735,10 @@
       "STOCK_COUNT": "Stock count",
       "MISSING_COST": "Cost was missing",
       "COST_CORRECTION": "Cost correction",
-      "SUPPLIER_PRICE_CHANGE": "Supplier price change"
+      "SUPPLIER_PRICE_CHANGE": "Supplier price change",
+      "DAMAGED_IN_TRANSIT": "Damaged in transit",
+      "LOST_IN_TRANSIT": "Lost in transit",
+      "SHORT_SHIPPED": "Short-shipped"
     },
     "valuationTitle": "Stock value",
     "valuationHint": "Moving weighted average cost per product and warehouse, in {currency}.",
@@ -924,6 +938,45 @@
       "NO_SUPPLIER": "No supplier",
       "NO_PRICE": "No known price",
       "OK": "OK"
+    }
+  },
+  "shipments": {
+    "title": "Shipments",
+    "new": "New shipment",
+    "newTitle": "New shipment",
+    "newHint": "Stock leaves the source warehouse when you dispatch and arrives at the destination when it is received.",
+    "empty": "No shipments yet.",
+    "number": "Number",
+    "from": "From",
+    "to": "To",
+    "expectedOn": "Expected on",
+    "lines": "Lines",
+    "stock": "Stock",
+    "addLine": "Add line",
+    "removeLine": "Remove",
+    "dispatch": "Dispatch",
+    "dispatchHint": "Dispatching moves these quantities to In transit at the source warehouse.",
+    "confirmDispatch": "Dispatch this shipment?",
+    "receive": "Receive shipment",
+    "receiveHint": "Enter what actually arrived. Anything less than dispatched is written off with the reason you choose.",
+    "received": "Received",
+    "dispatched": "Dispatched: {quantity}",
+    "shortageReason": "Shortage reason",
+    "shortage": "Shortage",
+    "cancel": "Cancel shipment",
+    "cancelHint": "A draft is simply cancelled. A shipment in transit returns its stock to Available at the source.",
+    "cancelReason": "Reason",
+    "dispatchedAt": "Dispatched",
+    "receivedAt": "Received",
+    "cancelledAt": "Cancelled",
+    "documents": "Documents",
+    "noStock": "No usable stock in this warehouse.",
+    "noSources": "You cannot dispatch from any warehouse.",
+    "statuses": {
+      "DRAFT": "Draft",
+      "IN_TRANSIT": "In transit",
+      "RECEIVED": "Received",
+      "CANCELLED": "Cancelled"
     }
   }
 }

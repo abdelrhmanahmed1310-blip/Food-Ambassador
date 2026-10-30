@@ -129,7 +129,7 @@ never from hidden form fields — then calls the same service functions the
 future `/api/v1` handlers will use. Creation forms send an idempotency key
 generated per logical submission (reused on retry, discarded on success).
 
-### ADR-016 Immediate transfers, no in-transit stage — Accepted (M2)
+### ADR-016 Immediate transfers, no in-transit stage — Accepted (M2; extended by ADR-026)
 
 Transfers post TRANSFER_OUT and TRANSFER_IN in one transaction. This fits
 transfers within a site and short same-day moves. Inter-branch transfers with
@@ -283,6 +283,41 @@ development and test data).
   are skipped and listed, never priced by guess. Suggestions are always
   recomputed on the server when orders are created.
 
+### ADR-026 Shipments with an in-transit stage — Accepted (M3c, extends ADR-016)
+
+Immediate transfers stay for moves within a site. Moves with a gap between
+leaving and arriving use **shipments** (`SHP-` numbers):
+
+- **Draft** at the source: lines pick a specific stock line (product, lot,
+  location) and a quantity in any convertible unit. Only users with
+  `inventory.transfer` at the source can edit, dispatch or cancel; the
+  destination can be any active warehouse of the organization.
+- **Dispatch** (`DSP-` document) moves the quantity from AVAILABLE to a new
+  `IN_TRANSIT` status **at the source warehouse**. Value stays with the
+  source (no new transit warehouse — this replaces assumption A-08), so the
+  stock-value report always shows stock on the truck where it left from.
+  Expired or recall-held lots cannot be dispatched.
+- **Receive** (`TRR-` document) needs `inventory.transfer` at the
+  destination. Every line is answered with the received quantity: received
+  stock goes from IN_TRANSIT at the source to AVAILABLE at the destination
+  carrying its value; any shortage is written off from IN_TRANSIT with a
+  required reason (damaged, lost, short-shipped, other). Receiving more than
+  was dispatched is refused.
+- **Cancel**: a draft is just cancelled; a shipment in transit is recalled
+  with a document that returns the stock to AVAILABLE at the source.
+- Shipment documents cannot be reversed from the documents screen; the
+  shipment's own actions are the only way to change them. IN_TRANSIT stock
+  cannot be adjusted, written off, transferred or status-changed by hand.
+- Shipments are visible to users who see stock at either end.
+
+### ADR-027 Organization-wide read of master data — Accepted (M3c)
+
+`catalog.view` and `suppliers.view` granted by a branch- or warehouse-scoped
+role apply to the whole organization. Products, units and suppliers are
+shared master data, not stock; without this, a branch storekeeper could not
+post anything, because postings must read the product. Stock, costs and
+documents stay scoped. Found by a scoped-user integration test.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -296,7 +331,7 @@ development and test data).
 | A-05 | Stock is owned at warehouse level; storage locations are optional sub-divisions.                                                                                                                                                              | Proposed               |
 | A-06 | Negative stock is never allowed in the MVP.                                                                                                                                                                                                   | Accepted (requirement) |
 | A-07 | Expiry is evaluated against the calendar date in the branch's time zone; stock expiring today is still usable today.                                                                                                                          | Proposed               |
-| A-08 | Inventory in transit between branches is held in a per-organization transit warehouse.                                                                                                                                                        | Proposed               |
+| A-08 | ~~Inventory in transit is held in a per-organization transit warehouse.~~ Replaced by ADR-026: in-transit stock stays at the source warehouse with status IN_TRANSIT.                                                                         | Superseded             |
 | A-09 | Nutrition values and allergen absence are never inferred; missing data is shown as unknown.                                                                                                                                                   | Accepted (requirement) |
 | A-10 | Initial suggested roles (Owner, Administrator, Operations Manager, Procurement, Warehouse, Food Safety/Quality, Finance, Branch Manager, Read-only Analyst) are system templates per organization; permission sets are editable except Owner. | Proposed               |
 

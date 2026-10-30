@@ -20,6 +20,14 @@ import {
   reverseDocument,
   revalueStock,
 } from "@/modules/inventory/operations";
+import {
+  addShipmentLine,
+  cancelShipment,
+  createShipment,
+  dispatchShipment,
+  receiveShipment,
+  removeShipmentLine,
+} from "@/modules/inventory/shipments";
 import { formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
 
@@ -189,5 +197,84 @@ export async function revalueAction(
   return postAndShow(orgSlug, previous, formData, (ctx, input) =>
     // The product and warehouse come from the page URL (validated again in the service).
     revalueStock(ctx, { ...input, warehouseId, productId }),
+  );
+}
+
+// ─── Shipments ───
+
+export async function createShipmentAction(
+  orgSlug: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let id = "";
+  const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    id = (await createShipment(ctx, formValues(formData))).id;
+  });
+  if (state.ok) redirect(`/o/${orgSlug}/inventory/shipments/${id}`);
+  return state;
+}
+
+export async function addShipmentLineAction(
+  orgSlug: string,
+  shipmentId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await addShipmentLine(ctx, shipmentId, formValues(formData));
+  });
+}
+
+export async function removeShipmentLineAction(
+  orgSlug: string,
+  shipmentId: string,
+  lineId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    removeShipmentLine(ctx, shipmentId, lineId),
+  );
+}
+
+export async function dispatchShipmentAction(
+  orgSlug: string,
+  shipmentId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await dispatchShipment(ctx, shipmentId);
+  });
+}
+
+export async function receiveShipmentAction(
+  orgSlug: string,
+  shipmentId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    const values = formValues(formData);
+    const lines: Array<Record<string, string>> = [];
+    const header: Record<string, string> = {};
+    for (const [key, value] of Object.entries(values)) {
+      const m = /^lines\.(\d{1,3})\.([A-Za-z]+)$/.exec(key);
+      if (m) (lines[Number(m[1])] ??= {})[m[2]] = value;
+      else header[key] = value;
+    }
+    await receiveShipment(ctx, shipmentId, { ...header, lines: lines.filter(Boolean) });
+  });
+}
+
+export async function cancelShipmentAction(
+  orgSlug: string,
+  shipmentId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    cancelShipment(ctx, shipmentId, formValues(formData)),
   );
 }

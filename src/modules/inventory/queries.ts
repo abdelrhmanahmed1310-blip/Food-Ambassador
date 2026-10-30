@@ -347,6 +347,8 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
       doc.type !== "REVERSAL" &&
       doc.type !== "REVALUATION" &&
       doc.type !== "RECEIPT" &&
+      doc.type !== "DISPATCH" &&
+      doc.type !== "TRANSIT_RECEIPT" &&
       !doc.reversedBy &&
       hasPermission(ctx.grants, "inventory.reverse", { branchId: wh.branchId, warehouseId: wh.id });
     const costVisible = hasPermission(ctx.grants, "inventory.valuation.view", {

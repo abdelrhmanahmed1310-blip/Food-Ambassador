@@ -75,6 +75,21 @@ describe("hasPermission scope coverage", () => {
     expect(hasPermission(branchManager, "branches.manage")).toBe(false);
   });
 
+  it("applies master-data read access organization-wide even from a scoped role", () => {
+    const clerk = buildGrants([
+      {
+        roleKey: "warehouse",
+        permissions: ["catalog.view", "suppliers.view", "catalog.manage", "inventory.view"],
+        scope: { type: "WAREHOUSE", warehouseId: W1 },
+      },
+    ]);
+    expect(hasPermission(clerk, "catalog.view")).toBe(true);
+    expect(hasPermission(clerk, "suppliers.view")).toBe(true);
+    // Managing master data and seeing other warehouses' stock stay out of reach.
+    expect(hasPermission(clerk, "catalog.manage")).toBe(false);
+    expect(hasPermission(clerk, "inventory.view", { branchId: B2, warehouseId: W2 })).toBe(false);
+  });
+
   it("warehouse scope covers only that warehouse, not its branch", () => {
     expect(
       hasPermission(warehouseClerk, "warehouses.view", { branchId: B1, warehouseId: W1 }),

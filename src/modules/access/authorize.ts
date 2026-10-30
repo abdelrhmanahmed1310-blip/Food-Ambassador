@@ -1,5 +1,10 @@
 import { forbidden } from "@/server/errors";
-import { OWNER_ROLE_KEY, PERMISSIONS, type Permission } from "./permissions";
+import {
+  ORGANIZATION_READ_PERMISSIONS,
+  OWNER_ROLE_KEY,
+  PERMISSIONS,
+  type Permission,
+} from "./permissions";
 
 export type GrantScope =
   | { type: "ORGANIZATION" }
@@ -35,9 +40,13 @@ export function buildGrants(assignments: readonly RoleAssignment[]): Grant[] {
       continue;
     }
     for (const p of a.permissions) {
-      if ((PERMISSIONS as readonly string[]).includes(p)) {
-        grants.push({ permission: p as Permission, scope: a.scope, roleKey: a.roleKey });
-      }
+      if (!(PERMISSIONS as readonly string[]).includes(p)) continue;
+      const permission = p as Permission;
+      // Master-data read access is organization-wide whatever the role's scope (ADR-027).
+      const scope = ORGANIZATION_READ_PERMISSIONS.has(permission)
+        ? ({ type: "ORGANIZATION" } as const)
+        : a.scope;
+      grants.push({ permission, scope, roleKey: a.roleKey });
     }
   }
   return grants;

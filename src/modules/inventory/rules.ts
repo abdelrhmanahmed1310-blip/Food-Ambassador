@@ -1,7 +1,19 @@
 import { Decimal, toDecimal, type DecimalInput } from "@/lib/decimal";
 
-export const STOCK_STATUSES = ["AVAILABLE", "QUARANTINE", "REJECTED", "ON_HOLD"] as const;
+export const STOCK_STATUSES = [
+  "AVAILABLE",
+  "QUARANTINE",
+  "REJECTED",
+  "ON_HOLD",
+  "IN_TRANSIT",
+] as const;
 export type StockStatus = (typeof STOCK_STATUSES)[number];
+
+/**
+ * Statuses that adjustments, write-offs and status changes may touch.
+ * IN_TRANSIT stock moves only through shipments (ADR-026).
+ */
+export const MANUAL_STATUSES = ["AVAILABLE", "QUARANTINE", "REJECTED", "ON_HOLD"] as const;
 
 /** Calendar date (YYYY-MM-DD) at `instant` in an IANA time zone. */
 export function businessDate(timeZone: string, instant: Date = new Date()): string {

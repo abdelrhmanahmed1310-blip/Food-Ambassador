@@ -68,7 +68,8 @@ export default async function StockLinePage({
       (o) => o.value !== here,
     );
   }
-  const canWriteOff = can("inventory.adjust");
+  // In-transit stock is moved only by its shipment (ADR-026).
+  const canWriteOff = can("inventory.adjust") && row.stockStatus !== "IN_TRANSIT";
 
   return (
     <>

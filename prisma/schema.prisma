@@ -154,6 +154,8 @@ model Organization {
   goodsReceiptLines   GoodsReceiptLine[]
   productCategories   ProductCategory[]
   reorderRules        ReorderRule[]
+  stockShipments      StockShipment[]
+  stockShipmentLines  StockShipmentLine[]
 
   @@map("organizations")
 }
@@ -358,6 +360,8 @@ model Warehouse {
   purchaseOrders  PurchaseOrder[]
   goodsReceipts   GoodsReceipt[]
   reorderRules    ReorderRule[]
+  shipmentsOut    StockShipment[]        @relation("ShipmentFrom")
+  shipmentsIn     StockShipment[]        @relation("ShipmentTo")
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -389,6 +393,8 @@ model StorageLocation {
   ledgerEntries InventoryLedgerEntry[]
   balances      StockBalance[]
   goodsReceipts GoodsReceipt[]
+  shipmentLines StockShipmentLine[]
+  shipmentsIn   StockShipment[]
   stockCounts   StockCount[]
   countLines    StockCountLine[]
 
@@ -468,6 +474,7 @@ model UnitOfMeasure {
   supplierProducts   SupplierProduct[]
   purchaseOrderLines PurchaseOrderLine[]
   goodsReceiptLines  GoodsReceiptLine[]
+  shipmentLines      StockShipmentLine[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
   @@unique([organizationId, code], map: "units_of_measure_code_key")
@@ -522,6 +529,7 @@ model Product {
   purchaseOrderLines PurchaseOrderLine[]
   goodsReceiptLines  GoodsReceiptLine[]
   reorderRules       ReorderRule[]
+  shipmentLines      StockShipmentLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -598,6 +606,7 @@ model InventoryLot {
   balances      StockBalance[]
   countLines    StockCountLine[]
   receiptLines  GoodsReceiptLine[]
+  shipmentLines StockShipmentLine[]
 
   @@unique([organizationId, id])
   /// Lets ledger rows prove their lot belongs to their product.
@@ -611,6 +620,8 @@ enum StockStatus {
   QUARANTINE
   REJECTED
   ON_HOLD
+  /// Dispatched on a shipment, held at the source warehouse until received (ADR-026).
+  IN_TRANSIT
 }
 
 enum MovementType {
@@ -640,6 +651,8 @@ enum InventoryDocumentType {
   REVERSAL
   REVALUATION
   RECEIPT
+  DISPATCH
+  TRANSIT_RECEIPT
 }
 
 /// How the unit cost of a ledger entry was determined (ADR-021).
@@ -671,16 +684,19 @@ model InventoryDocument {
   postedAt               DateTime              @default(now()) @map("posted_at") @db.Timestamptz(3)
   postedByUserId         String                @map("posted_by_user_id") @db.Uuid
 
-  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  warehouse       Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
-  destination     Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
-  reverses        InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
-  reversedBy      InventoryDocument?     @relation("DocumentReversal")
-  entries         InventoryLedgerEntry[]
-  stockCount      StockCount?
-  revaluation     StockRevaluation?
-  receipt         GoodsReceipt?          @relation("ReceiptDocument")
-  receiptReversal GoodsReceipt?          @relation("ReceiptReversal")
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse        Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  destination      Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  reverses         InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
+  reversedBy       InventoryDocument?     @relation("DocumentReversal")
+  entries          InventoryLedgerEntry[]
+  stockCount       StockCount?
+  revaluation      StockRevaluation?
+  receipt          GoodsReceipt?          @relation("ReceiptDocument")
+  receiptReversal  GoodsReceipt?          @relation("ReceiptReversal")
+  shipmentDispatch StockShipment?         @relation("ShipmentDispatch")
+  shipmentReceipt  StockShipment?         @relation("ShipmentReceipt")
+  shipmentCancel   StockShipment?         @relation("ShipmentCancel")
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1174,4 +1190,85 @@ model ReorderRule {
   @@unique([organizationId, id])
   @@unique([organizationId, warehouseId, productId])
   @@map("reorder_rules")
+}
+
+// ─── In-transit transfers (Milestone 3c) ───
+
+enum ShipmentStatus {
+  DRAFT
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+/// Stock sent between warehouses with a dispatch → receive gap (ADR-026).
+model StockShipment {
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  organizationId     String         @map("organization_id") @db.Uuid
+  number             String
+  fromWarehouseId    String         @map("from_warehouse_id") @db.Uuid
+  toWarehouseId      String         @map("to_warehouse_id") @db.Uuid
+  /// Where the stock is put away at the destination (optional).
+  toLocationId       String?        @map("to_location_id") @db.Uuid
+  status             ShipmentStatus @default(DRAFT)
+  expectedOn         DateTime?      @map("expected_on") @db.Date
+  note               String?
+  dispatchDocumentId String?        @map("dispatch_document_id") @db.Uuid
+  receiptDocumentId  String?        @map("receipt_document_id") @db.Uuid
+  cancelDocumentId   String?        @map("cancel_document_id") @db.Uuid
+  createdByUserId    String         @map("created_by_user_id") @db.Uuid
+  dispatchedAt       DateTime?      @map("dispatched_at") @db.Timestamptz(3)
+  dispatchedByUserId String?        @map("dispatched_by_user_id") @db.Uuid
+  receivedAt         DateTime?      @map("received_at") @db.Timestamptz(3)
+  receivedByUserId   String?        @map("received_by_user_id") @db.Uuid
+  cancelledAt        DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  cancelledByUserId  String?        @map("cancelled_by_user_id") @db.Uuid
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  from         Warehouse           @relation("ShipmentFrom", fields: [organizationId, fromWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  to           Warehouse           @relation("ShipmentTo", fields: [organizationId, toWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  toLocation   StorageLocation?    @relation(fields: [organizationId, toWarehouseId, toLocationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+  dispatchDoc  InventoryDocument?  @relation("ShipmentDispatch", fields: [organizationId, dispatchDocumentId], references: [organizationId, id], onDelete: Restrict)
+  receiptDoc   InventoryDocument?  @relation("ShipmentReceipt", fields: [organizationId, receiptDocumentId], references: [organizationId, id], onDelete: Restrict)
+  cancelDoc    InventoryDocument?  @relation("ShipmentCancel", fields: [organizationId, cancelDocumentId], references: [organizationId, id], onDelete: Restrict)
+  lines        StockShipmentLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@unique([organizationId, dispatchDocumentId])
+  @@unique([organizationId, receiptDocumentId])
+  @@unique([organizationId, cancelDocumentId])
+  @@index([organizationId, status])
+  @@map("stock_shipments")
+}
+
+model StockShipmentLine {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  shipmentId           String   @map("shipment_id") @db.Uuid
+  lineNo               Int      @map("line_no")
+  productId            String   @map("product_id") @db.Uuid
+  lotId                String?  @map("lot_id") @db.Uuid
+  /// Source location the stock is taken from.
+  fromWarehouseId      String   @map("from_warehouse_id") @db.Uuid
+  fromLocationId       String?  @map("from_location_id") @db.Uuid
+  uomId                String   @map("uom_id") @db.Uuid
+  quantity             Decimal  @db.Decimal(20, 6)
+  quantityBase         Decimal  @map("quantity_base") @db.Decimal(20, 6)
+  /// Set when received; the rest (if any) is a recorded shortage.
+  receivedQuantityBase Decimal? @map("received_quantity_base") @db.Decimal(20, 6)
+  shortageReason       String?  @map("shortage_reason")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shipment     StockShipment    @relation(fields: [organizationId, shipmentId], references: [organizationId, id], onDelete: Cascade)
+  product      Product          @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  lot          InventoryLot?    @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  fromLocation StorageLocation? @relation(fields: [organizationId, fromWarehouseId, fromLocationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+  uom          UnitOfMeasure    @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, shipmentId, lineNo])
+  @@map("stock_shipment_lines")
 }

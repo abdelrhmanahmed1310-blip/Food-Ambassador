@@ -89,7 +89,8 @@
     "receipts": "استلام البضائع",
     "purchasingSettings": "المشتريات",
     "categories": "الفئات",
-    "reorder": "إعادة الطلب"
+    "reorder": "إعادة الطلب",
+    "shipments": "الشحنات"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -236,7 +237,13 @@
     "RECEIPT_ORDER_CLOSED": "الأمر مغلق. صحّح المخزون بتسوية بدلًا من ذلك.",
     "CATEGORY_ARCHIVED": "الفئة مؤرشفة. استعدها أو اختر فئة أخرى.",
     "REORDER_MAX_BELOW_MIN": "يجب ألا يقل الحد الأقصى عن الحد الأدنى.",
-    "NOTHING_SELECTED": "اختر اقتراحًا واحدًا على الأقل."
+    "NOTHING_SELECTED": "اختر اقتراحًا واحدًا على الأقل.",
+    "SHIPMENT_STATUS": "لا يمكن تنفيذ ذلك في الحالة الحالية للشحنة.",
+    "SHIPMENT_HAS_NO_LINES": "أضف بندًا واحدًا على الأقل قبل الإرسال.",
+    "SHIPMENT_LINE_MISSING": "يجب استلام جميع بنود الشحنة.",
+    "SHIPMENT_OVER_RECEIPT": "لا يمكن استلام كمية أكبر من المرسلة.",
+    "SHORTAGE_REASON_REQUIRED": "اختر سببًا للنقص.",
+    "SHIPMENT_DOCUMENT_NOT_REVERSIBLE": "لا يمكن عكس مستندات الشحن؛ ألغِ الشحنة أو استلمها بدلًا من ذلك."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -448,7 +455,8 @@
       "supplier": "مورد",
       "purchase_order": "أمر شراء",
       "goods_receipt": "استلام بضائع",
-      "category": "فئة"
+      "category": "فئة",
+      "shipment": "شحنة"
     }
   },
   "invite": {
@@ -661,7 +669,8 @@
       "AVAILABLE": "متاح",
       "QUARANTINE": "معزول",
       "REJECTED": "مرفوض",
-      "ON_HOLD": "موقوف"
+      "ON_HOLD": "موقوف",
+      "IN_TRANSIT": "قيد النقل"
     },
     "expiryStates": {
       "NONE": "—",
@@ -700,7 +709,9 @@
       "STOCK_COUNT": "جرد",
       "REVERSAL": "عكس",
       "REVALUATION": "إعادة تقييم",
-      "RECEIPT": "استلام بضائع"
+      "RECEIPT": "استلام بضائع",
+      "DISPATCH": "إرسال",
+      "TRANSIT_RECEIPT": "استلام شحنة"
     },
     "reasons": {
       "DATA_CORRECTION": "تصحيح بيانات",
@@ -724,7 +735,10 @@
       "STOCK_COUNT": "جرد",
       "MISSING_COST": "كانت التكلفة مفقودة",
       "COST_CORRECTION": "تصحيح التكلفة",
-      "SUPPLIER_PRICE_CHANGE": "تغيّر سعر المورّد"
+      "SUPPLIER_PRICE_CHANGE": "تغيّر سعر المورّد",
+      "DAMAGED_IN_TRANSIT": "تلف أثناء النقل",
+      "LOST_IN_TRANSIT": "فقد أثناء النقل",
+      "SHORT_SHIPPED": "شحن ناقص"
     },
     "valuationTitle": "قيمة المخزون",
     "valuationHint": "متوسط التكلفة المرجّح المتحرك لكل منتج ومستودع، بعملة {currency}.",
@@ -924,6 +938,45 @@
       "NO_SUPPLIER": "لا يوجد مورد",
       "NO_PRICE": "لا يوجد سعر معروف",
       "OK": "جاهز"
+    }
+  },
+  "shipments": {
+    "title": "الشحنات",
+    "new": "شحنة جديدة",
+    "newTitle": "شحنة جديدة",
+    "newHint": "يخرج المخزون من المستودع المصدر عند الإرسال ويصل إلى الوجهة عند الاستلام.",
+    "empty": "لا توجد شحنات بعد.",
+    "number": "الرقم",
+    "from": "من",
+    "to": "إلى",
+    "expectedOn": "التاريخ المتوقع",
+    "lines": "البنود",
+    "stock": "المخزون",
+    "addLine": "إضافة بند",
+    "removeLine": "إزالة",
+    "dispatch": "إرسال",
+    "dispatchHint": "ينقل الإرسال هذه الكميات إلى حالة قيد النقل في المستودع المصدر.",
+    "confirmDispatch": "هل تريد إرسال هذه الشحنة؟",
+    "receive": "استلام الشحنة",
+    "receiveHint": "أدخل ما وصل فعلًا. أي كمية أقل من المرسلة تُشطب بالسبب الذي تختاره.",
+    "received": "المستلم",
+    "dispatched": "المرسل: {quantity}",
+    "shortageReason": "سبب النقص",
+    "shortage": "النقص",
+    "cancel": "إلغاء الشحنة",
+    "cancelHint": "تُلغى المسودة ببساطة. أما الشحنة قيد النقل فيعود مخزونها متاحًا في المصدر.",
+    "cancelReason": "السبب",
+    "dispatchedAt": "أُرسلت",
+    "receivedAt": "استُلمت",
+    "cancelledAt": "أُلغيت",
+    "documents": "المستندات",
+    "noStock": "لا يوجد مخزون صالح للاستخدام في هذا المستودع.",
+    "noSources": "لا يمكنك الإرسال من أي مستودع.",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "IN_TRANSIT": "قيد النقل",
+      "RECEIVED": "مستلمة",
+      "CANCELLED": "ملغاة"
     }
   }
 }

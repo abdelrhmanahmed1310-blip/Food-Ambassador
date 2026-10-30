@@ -406,12 +406,9 @@ pick another lot (recorded), but cannot pick unavailable stock.
 
 ### stock_transfers / stock_transfer_lines
 
-Header: from/to warehouse (same org, composite FKs), status
-`DRAFT → DISPATCHED → RECEIVED` (or `DRAFT → POSTED` for same-site
-immediate transfers). Dispatch posts `TRANSFER_OUT` from the source and
-`TRANSFER_IN` into the destination's `TRANSIT` handling (in-transit stock is
-held in a transit warehouse per org, so on-hand is never lost between sites).
-Lot identity and status are preserved across transfers.
+Design note superseded: immediate transfers are `TRANSFER` documents (M2)
+and transfers with a transit stage are `stock_shipments` (M3c, ADR-026,
+below). Lot identity and status are preserved across both.
 
 ### stock_counts / stock_count_lines
 
@@ -600,8 +597,29 @@ Migration `20261030090000_m3_reorder_categories`.
   `max_quantity_base` (CK min ≥ 0, max > 0, max ≥ min). Suggestions are
   computed (`suggestReorder` in `procurement/rules.ts`), never stored.
 
+### Shipments (Milestone 3c — implemented, ADR-026)
+
+Migration `20261030120000_m3_shipments`.
+
+- `stock_status` gains **IN_TRANSIT**; `inventory_document_type` gains
+  `DISPATCH`, `TRANSIT_RECEIPT` (also used for the recall of a cancelled
+  shipment: DISPATCH type, IN_TRANSIT → AVAILABLE).
+- **stock_shipments**: `number` (UQ per org, `SHP-YYYY-NNNNNN`),
+  `from_warehouse_id`, `to_warehouse_id` (CK different), optional
+  `to_location_id` (composite FK to the destination's locations),
+  `status` DRAFT | IN_TRANSIT | RECEIVED | CANCELLED, `expected_on`, `note`,
+  `dispatch_document_id` / `receipt_document_id` / `cancel_document_id`
+  (each UQ, composite FKs), actors and timestamps.
+- **stock_shipment_lines**: `line_no`, `product_id`, `lot_id`,
+  `from_warehouse_id` + `from_location_id` (composite FK), `uom_id`,
+  `quantity`, `quantity_base` (> 0), `received_quantity_base`
+  (0 ≤ received ≤ quantity_base), `shortage_reason`.
+- Ledger shape: dispatch = STATUS_CHANGE −AVAILABLE / +IN_TRANSIT at the
+  source; receipt = TRANSFER_OUT IN_TRANSIT (source) + TRANSFER_IN AVAILABLE
+  (destination, value carried) + WRITE_OFF IN_TRANSIT for a shortage.
+
 **Not yet built (rest of M3c):** purchase requisitions, landed cost
-allocation, in-transit transfers (ADR-016), PO email (Q-10).
+allocation, PO email (Q-10).
 
 ## 6. Recipes and food cost (Milestone 4)
 

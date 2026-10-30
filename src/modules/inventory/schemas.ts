@@ -4,9 +4,10 @@ import {
   idempotencyKeySchema,
   optionalText,
   optionalUuidSchema,
+  requiredText,
   uuidSchema,
 } from "@/modules/shared/schemas";
-import { STOCK_STATUSES } from "./rules";
+import { MANUAL_STATUSES } from "./rules";
 
 export const ADJUSTMENT_REASONS = [
   "DATA_CORRECTION",
@@ -73,7 +74,7 @@ const unitCostSchema = z
   .optional()
   .transform((v) => (v && v.trim() ? v.trim() : undefined))
   .pipe(decimalString({ maxScale: 6, min: "0" }).optional());
-const statusSchema = z.enum(STOCK_STATUSES, { error: "invalidOption" });
+const statusSchema = z.enum(MANUAL_STATUSES, { error: "invalidOption" });
 
 /** "OTHER" reasons need an explanatory note. */
 function requireNoteForOther<T extends { reasonCode: string; note?: string }>(
@@ -196,3 +197,50 @@ export const addCountLineSchema = z.object({
   expiresOn: dateSchema,
   locationId: optionalUuidSchema,
 });
+
+export const SHORTAGE_REASONS = [
+  "DAMAGED_IN_TRANSIT",
+  "LOST_IN_TRANSIT",
+  "SHORT_SHIPPED",
+  "OTHER",
+] as const;
+
+export const createShipmentSchema = z.object({
+  fromWarehouseId: uuidSchema,
+  toWarehouseId: uuidSchema,
+  expectedOn: dateSchema,
+  note: optionalText(500),
+  idempotencyKey: idempotencyKeySchema,
+});
+
+export const shipmentLineSchema = z.object({
+  balanceId: uuidSchema,
+  quantity: quantitySchema,
+  uomId: uuidSchema,
+});
+
+export const receiveShipmentSchema = z.object({
+  toLocationId: optionalUuidSchema,
+  lines: z
+    .array(
+      z
+        .object({
+          lineId: uuidSchema,
+          /** In the line's unit; less than dispatched needs a shortage reason. */
+          receivedQuantity: decimalString({ maxScale: 6, min: "0" }),
+          shortageReason: z
+            .string()
+            .optional()
+            .transform((v) => (v ? v : undefined))
+            .refine((v) => v === undefined || (SHORTAGE_REASONS as readonly string[]).includes(v), {
+              error: "invalidOption",
+            }),
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(500),
+  idempotencyKey: idempotencyKeySchema,
+});
+
+export const cancelShipmentSchema = z.object({ reason: requiredText(500) });
