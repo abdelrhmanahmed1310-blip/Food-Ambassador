@@ -99,7 +99,12 @@
     "replaceIngredient": "استبدال مكوّن",
     "safetySection": "سلامة الغذاء",
     "traceability": "التتبع",
-    "recalls": "الاستدعاءات"
+    "recalls": "الاستدعاءات",
+    "foodSafetyOverview": "نظرة على سلامة الغذاء",
+    "safetyRecords": "السجلات",
+    "checklists": "قوائم الفحص",
+    "nonConformances": "عدم المطابقة",
+    "checkpoints": "نقاط المراقبة"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -176,7 +181,10 @@
     "belowMinimum": "القيمة منخفضة جدًا.",
     "aboveMaximum": "القيمة مرتفعة جدًا.",
     "rejectedExceedsReceived": "لا يمكن أن تتجاوز الكمية المرفوضة الكمية المستلمة.",
-    "nothingSelected": "اختر بندًا واحدًا على الأقل."
+    "nothingSelected": "اختر بندًا واحدًا على الأقل.",
+    "limitRequired": "حدد حدًا واحدًا على الأقل.",
+    "maxBelowMin": "يجب ألا يقل الحد الأقصى عن الحد الأدنى.",
+    "notForYesNo": "بنود نعم/لا ليس لها نطاق."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -274,7 +282,16 @@
     "RECIPE_NOT_DISH": "أسعار البيع للأطباق فقط.",
     "REPLACE_SAME_PRODUCT": "اختر منتجًا مختلفًا للاستبدال.",
     "RECALL_STATUS": "لا يمكن تنفيذ ذلك في الحالة الحالية للاستدعاء.",
-    "RECALL_HAS_NO_LOTS": "أضف دفعة واحدة على الأقل قبل التفعيل."
+    "RECALL_HAS_NO_LOTS": "أضف دفعة واحدة على الأقل قبل التفعيل.",
+    "CHECKPOINT_ARCHIVED": "نقطة المراقبة هذه مؤرشفة.",
+    "CORRECTIVE_NOTE_REQUIRED": "خارج الحدود أو راسب: اذكر ما تم بشأنه.",
+    "CHECKLIST_EMPTY": "قائمة الفحص بلا بنود.",
+    "CHECKLIST_ITEM_UNANSWERED": "أجب عن كل البنود.",
+    "NC_CLOSED": "حالة عدم المطابقة مغلقة.",
+    "OWNER_NOT_MEMBER": "اختر عضوًا نشطًا في المؤسسة.",
+    "ACTION_STATUS": "لا يمكن ذلك في الحالة الحالية للإجراء.",
+    "SELF_VERIFICATION_NOT_ALLOWED": "يجب أن يتحقق من الإجراء شخص غير من نفّذه.",
+    "NC_ACTIONS_NOT_VERIFIED": "تحقق من كل الإجراءات التصحيحية قبل الإغلاق."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -464,7 +481,10 @@
       "recipes.manage": "إنشاء الوصفات وتعديلها والتكاليف المعيارية",
       "recipes.costs.view": "عرض تكاليف الوصفات وسجلها",
       "traceability.view": "تتبع الدفعات في المؤسسة وعرض الاستدعاءات",
-      "recalls.manage": "إنشاء الاستدعاءات وتفعيلها وإغلاقها"
+      "recalls.manage": "إنشاء الاستدعاءات وتفعيلها وإغلاقها",
+      "foodsafety.view": "عرض سجلات سلامة الغذاء وقوائم الفحص وحالات عدم المطابقة",
+      "foodsafety.record": "تسجيل القراءات والفحوص وإكمال القوائم وتسجيل حالات عدم المطابقة",
+      "foodsafety.manage": "إدارة نقاط المراقبة وقوائم الفحص والإجراءات التصحيحية"
     }
   },
   "audit": {
@@ -496,7 +516,11 @@
       "shipment": "شحنة",
       "requisition": "طلب شراء",
       "recipe": "وصفة",
-      "recall": "استدعاء"
+      "recall": "استدعاء",
+      "non_conformance": "عدم مطابقة",
+      "food_safety_record": "سجل سلامة غذاء",
+      "safety_checkpoint": "نقطة مراقبة",
+      "checklist_template": "قائمة فحص"
     }
   },
   "invite": {
@@ -1325,5 +1349,138 @@
     "cancel": "إلغاء المسودة",
     "confirmCancel": "هل تريد إلغاء مسودة الاستدعاء هذه؟",
     "printReport": "طباعة التقرير"
+  },
+  "foodSafety": {
+    "title": "سلامة الغذاء",
+    "hint": "حالات عدم المطابقة المفتوحة والقراءات خارج الحدود مؤخرًا، من السجلات الفعلية فقط.",
+    "openNcs": "حالات عدم مطابقة مفتوحة",
+    "recentOutOfSpec": "سجلات خارج الحدود مؤخرًا",
+    "noOutOfSpec": "لا توجد سجلات خارج الحدود.",
+    "recordsTitle": "سجلات سلامة الغذاء",
+    "recordsHint": "درجات الحرارة مقابل حدود كل نقطة، وفحوص النظافة والتنظيف ومكافحة الآفات بنجاح أو رسوب. لا يمكن تعديل السجلات.",
+    "newRecord": "سجل جديد",
+    "record": "تسجيل",
+    "recordType": "النوع",
+    "checkpoint": "النقطة",
+    "reading": "القراءة (°م)",
+    "branch": "الفرع",
+    "result": "النتيجة",
+    "pass": "ناجح",
+    "fail": "راسب",
+    "limits": "الحدود",
+    "inSpec": "ضمن الحدود",
+    "outOfSpec": "خارج الحدود",
+    "correctiveNote": "الإجراء الفوري",
+    "correctiveHint": "مطلوب عند الخروج عن الحدود أو الرسوب، مثل ما تم نقله أو التخلص منه.",
+    "outOfSpecOnly": "خارج الحدود فقط",
+    "noRecords": "لا توجد سجلات بعد.",
+    "recordedOk": "تم التسجيل — ضمن الحدود.",
+    "recordedOutOfSpec": "تم التسجيل خارج الحدود — فُتحت حالة عدم مطابقة {number}.",
+    "recordTypes": {
+      "TEMPERATURE": "درجة الحرارة",
+      "HYGIENE": "النظافة الشخصية",
+      "CLEANING": "التنظيف",
+      "PEST_CONTROL": "مكافحة الآفات",
+      "OTHER": "أخرى"
+    },
+    "checkpointsTitle": "نقاط المراقبة",
+    "checkpointsHint": "الثلاجات والمجمدات والحفظ الساخن ونقاط أخرى بحدود حرارة، لكل فرع.",
+    "newCheckpoint": "نقطة مراقبة جديدة",
+    "noCheckpoints": "لا توجد نقاط مراقبة بعد.",
+    "code": "الرمز",
+    "name": "الاسم",
+    "kind": "النوع",
+    "minCelsius": "الحد الأدنى °م",
+    "maxCelsius": "الحد الأقصى °م",
+    "lastReading": "آخر قراءة",
+    "kinds": {
+      "FRIDGE": "ثلاجة",
+      "FREEZER": "مجمد",
+      "HOT_HOLDING": "حفظ ساخن",
+      "COOKING": "طهي",
+      "AMBIENT": "حرارة الغرفة",
+      "OTHER": "أخرى"
+    },
+    "checklistsTitle": "قوائم الفحص",
+    "checklistsHint": "قوائم الفتح والإغلاق والتنظيف. القوائم المكتملة تحتفظ بإجاباتها كما هي.",
+    "noTemplates": "لا توجد قوائم فحص بعد.",
+    "newTemplate": "قائمة فحص جديدة",
+    "itemsRuns": "{items} بنود · {runs} مكتملة",
+    "recentRuns": "المكتملة مؤخرًا",
+    "checklist": "قائمة الفحص",
+    "allPassed": "الكل ناجح",
+    "failedCount": "{count} راسب",
+    "items": "البنود",
+    "noItems": "لا توجد بنود بعد.",
+    "addItem": "إضافة بند",
+    "itemText": "البند",
+    "answerKind": "الإجابة",
+    "answerKinds": {
+      "YES_NO": "نعم / لا",
+      "NUMBER": "رقم"
+    },
+    "min": "الأدنى",
+    "max": "الأقصى",
+    "runChecklist": "إكمال قائمة الفحص",
+    "completeChecklist": "إرسال القائمة",
+    "answer": "الإجابة",
+    "completedBy": "أكملها",
+    "nonConformance": "عدم المطابقة",
+    "ncTitlePlural": "حالات عدم المطابقة",
+    "ncHint": "المشكلات المكتشفة وسببها والإجراءات التصحيحية — ينفذها شخص ويتحقق منها آخر.",
+    "openOnly": "المفتوحة",
+    "noNcs": "لا توجد حالات عدم مطابقة.",
+    "ncTitle": "العنوان",
+    "severity": "الخطورة",
+    "actions": "الإجراءات",
+    "source": "المصدر",
+    "openActions": "{count} مفتوحة",
+    "overdueCount": "{count} متأخرة",
+    "overdue": "متأخر",
+    "raiseTitle": "تسجيل حالة عدم مطابقة",
+    "raise": "تسجيل",
+    "description": "الوصف",
+    "raisedBy": "سجّلها",
+    "rootCause": "السبب الجذري",
+    "closedBy": "أغلقها",
+    "severities": {
+      "LOW": "منخفضة",
+      "MEDIUM": "متوسطة",
+      "HIGH": "عالية",
+      "CRITICAL": "حرجة"
+    },
+    "sources": {
+      "MANUAL": "سُجلت يدويًا",
+      "RECORD": "سجل خارج الحدود",
+      "CHECKLIST": "قائمة فحص راسبة"
+    },
+    "ncStatuses": {
+      "OPEN": "مفتوحة",
+      "INVESTIGATING": "قيد التحقيق",
+      "ACTION_PLANNED": "إجراء مخطط",
+      "CLOSED": "مغلقة"
+    },
+    "correctiveActions": "الإجراءات التصحيحية",
+    "noActions": "لا توجد إجراءات تصحيحية بعد.",
+    "addAction": "إضافة إجراء",
+    "actionDescription": "الإجراء",
+    "owner": "المسؤول",
+    "dueOn": "الموعد",
+    "doneBy": "نفّذه",
+    "verifiedBy": "تحقق منه",
+    "markDone": "تم التنفيذ",
+    "whatWasDone": "ما الذي تم",
+    "verify": "تحقق",
+    "verification": "كيف تم التحقق",
+    "verifyByOther": "يجب أن يتحقق شخص آخر من هذا الإجراء.",
+    "actionStatuses": {
+      "OPEN": "مفتوح",
+      "DONE": "منفّذ، بانتظار التحقق",
+      "VERIFIED": "تم التحقق"
+    },
+    "investigation": "التحقيق",
+    "closeNc": "إغلاق حالة عدم المطابقة",
+    "closeNote": "الخلاصة",
+    "closeBlocked": "يمكن إغلاقها بعد التحقق من كل الإجراءات التصحيحية."
   }
 }

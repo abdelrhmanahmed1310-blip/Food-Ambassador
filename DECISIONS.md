@@ -474,6 +474,34 @@ documents stay scoped. Found by a scoped-user integration test.
 - The application role may update only `inventory_lots.recall_hold`; lots
   stay otherwise immutable.
 
+### ADR-035 Food safety records, checklists and corrective actions — Accepted (M6b)
+
+- **Monitoring points** per branch (fridge, freezer, hot holding, cooking,
+  ambient, other) with at least one temperature limit (°C, inclusive). The
+  limits are set by the organization — no regulatory values are assumed
+  (they depend on the market, Q-02).
+- **Records:** temperature readings against a point (judged on the server
+  against the limits at that moment, which are copied onto the record), and
+  pass/fail hygiene, cleaning, pest-control and other checks. Records are
+  evidence: never edited or deleted. Out of spec or failed requires the
+  immediate action taken and opens a non-conformance (MEDIUM) in the same
+  transaction.
+- **Checklists:** organization-wide templates with yes/no and number items
+  (optional range); items are retired, not deleted. A run is completed in
+  one submission for a branch, every item answered; answers keep the item
+  text and range as they were. Failures open one non-conformance per run
+  (HIGH when more than one item failed).
+- **Non-conformances** (`NC-`): branch, title, description, severity
+  (LOW…CRITICAL), source (manual, record, checklist), status OPEN →
+  INVESTIGATING (root cause) → ACTION_PLANNED (first action) → CLOSED.
+  **Corrective actions** have an optional owner (an active member) and due
+  date, are done with a note and **verified by someone else** (also a DB
+  check). Closing requires every action verified; open actions past their
+  due date are overdue.
+- Permissions `foodsafety.view`, `foodsafety.record`, `foodsafety.manage`,
+  all branch-scopable; templates are shared and managed by anyone with
+  `foodsafety.manage` somewhere.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

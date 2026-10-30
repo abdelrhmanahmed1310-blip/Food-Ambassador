@@ -68,6 +68,14 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   if (hasPermission(ctx.grants, "recipes.manage"))
     kitchen.items.push({ href: `${base}/recipes/replace`, label: t("replaceIngredient") });
   const safety: NavSection = { title: t("safetySection"), items: [] };
+  if (holdsAnyGrant(ctx.grants, "foodsafety.view"))
+    safety.items.push(
+      { href: `${base}/food-safety`, label: t("foodSafetyOverview"), exact: true },
+      { href: `${base}/food-safety/records`, label: t("safetyRecords") },
+      { href: `${base}/food-safety/checklists`, label: t("checklists") },
+      { href: `${base}/food-safety/non-conformances`, label: t("nonConformances") },
+      { href: `${base}/food-safety/checkpoints`, label: t("checkpoints") },
+    );
   if (hasPermission(ctx.grants, "traceability.view"))
     safety.items.push(
       { href: `${base}/traceability`, label: t("traceability") },

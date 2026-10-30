@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (Milestone 6a — traceability and recalls)
+Last updated: 2026-11-01 (Milestone 6 complete — M6b food safety records)
 
 ## Summary
 
@@ -11,8 +11,37 @@ Last updated: 2026-11-01 (Milestone 6a — traceability and recalls)
 | M2 Inventory MVP              | ✅ Complete                                                                                                                         |
 | M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
 | M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card   |
-| M6 Food safety & traceability | 🔄 In progress — **M6a ✅** (traceability, recalls); M6b food safety records next                                                   |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                        |
 | M5, M7 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                            |
+
+## M6b — Food safety records, checklists, corrective actions (delivered; M6 complete)
+
+Rules: DECISIONS.md ADR-035.
+
+| Area               | What works                                                                                                                              | Where                                          |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Monitoring points  | Per branch, kind, °C limits (at least one), last reading shown, archive                                                                 | `src/modules/foodsafety/service.ts`            |
+| Records            | Temperatures judged against the limits at the time (copied); pass/fail checks; immediate action required when out of spec; never edited | `addRecord`, `/food-safety/records`            |
+| Checklists         | Yes/no and number items with ranges; complete per branch in one go; answers keep the item text and range; items retired, not deleted    | `completeChecklist`, `/food-safety/checklists` |
+| Non-conformances   | Opened automatically from out-of-spec records and failed checklists, or by hand; root cause; severity; status flow                      | `nonconformances.ts`                           |
+| Corrective actions | Owner (member), due date, overdue flag; done with a note; verified by someone else (service and DB); close only when all verified       | `completeAction`, `verifyAction`               |
+| Overview           | Open non-conformances with overdue actions, recent out-of-spec records                                                                  | `/food-safety`                                 |
+| Access             | `foodsafety.view` / `record` / `manage`, branch-scopable (data migration); other branches and tenants see nothing                       | `permissions.ts`                               |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 23 files / 154 tests — 3 new
+for limits, closing, status and overdue rules; build); `pnpm test:integration`
+19 files / 160 tests pass (5 new: readings against limits with automatic
+non-conformance and undeletable records; pass/fail checks and refusals;
+checklist snapshot, failures, one NC per run, answers append-only; NC flow
+with overdue action, self-verification refused, verification by another
+member, close; branch, role and tenant isolation); `pnpm test:e2e` 27 tests
+pass (new: fridge 0–5 °C → 4 °C in spec → 8 °C needs action → NC opened →
+action done, own verification blocked → failed checklist opens an NC).
+
+Limitations: limits are set by each organization (no market defaults, Q-02);
+no reminders for readings that were not taken (needs scheduling and
+notifications, Q-10); no photo attachments (Q-08); checklist runs are
+submitted in one go (no saving half-way).
 
 ## M6a — Lot traceability and recalls (delivered)
 

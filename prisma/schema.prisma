@@ -171,6 +171,14 @@ model Organization {
   recallLots          RecallLot[]
   recallStock         RecallStock[]
   recallDocuments     RecallDocument[]
+  safetyCheckpoints   SafetyCheckpoint[]
+  safetyRecords       FoodSafetyRecord[]
+  checklistTemplates  ChecklistTemplate[]
+  checklistItems      ChecklistItem[]
+  checklistRuns       ChecklistRun[]
+  checklistAnswers    ChecklistAnswer[]
+  nonConformances     NonConformance[]
+  correctiveActions   CorrectiveAction[]
 
   @@map("organizations")
 }
@@ -329,10 +337,14 @@ model Branch {
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  warehouses      Warehouse[]
-  membershipRoles MembershipRole[]
-  invitations     Invitation[]
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouses        Warehouse[]
+  membershipRoles   MembershipRole[]
+  invitations       Invitation[]
+  safetyCheckpoints SafetyCheckpoint[]
+  safetyRecords     FoodSafetyRecord[]
+  checklistRuns     ChecklistRun[]
+  nonConformances   NonConformance[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1754,4 +1766,247 @@ model RecallDocument {
   @@unique([organizationId, documentId])
   @@index([organizationId, recallId])
   @@map("recall_documents")
+}
+
+// ─── Food safety records, checklists, non-conformances (Milestone 6b, ADR-035) ───
+
+enum CheckpointKind {
+  FRIDGE
+  FREEZER
+  HOT_HOLDING
+  COOKING
+  AMBIENT
+  OTHER
+}
+
+/// A monitored place or piece of equipment with temperature limits (°C).
+model SafetyCheckpoint {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  branchId       String         @map("branch_id") @db.Uuid
+  code           String
+  name           String
+  kind           CheckpointKind
+  minCelsius     Decimal?       @map("min_celsius") @db.Decimal(5, 1)
+  maxCelsius     Decimal?       @map("max_celsius") @db.Decimal(5, 1)
+  archivedAt     DateTime?      @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  records      FoodSafetyRecord[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, code])
+  @@map("safety_checkpoints")
+}
+
+enum SafetyRecordType {
+  TEMPERATURE
+  HYGIENE
+  CLEANING
+  PEST_CONTROL
+  OTHER
+}
+
+/// One food safety observation. Append-only; limits copied at the time of recording.
+model FoodSafetyRecord {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  branchId         String           @map("branch_id") @db.Uuid
+  checkpointId     String?          @map("checkpoint_id") @db.Uuid
+  type             SafetyRecordType
+  /// Temperature readings only.
+  valueCelsius     Decimal?         @map("value_celsius") @db.Decimal(5, 1)
+  minCelsius       Decimal?         @map("min_celsius") @db.Decimal(5, 1)
+  maxCelsius       Decimal?         @map("max_celsius") @db.Decimal(5, 1)
+  /// Pass/fail checks (hygiene, cleaning, pest control, other).
+  passed           Boolean?
+  inSpec           Boolean          @map("in_spec")
+  note             String?
+  /// Required when out of spec: what was done immediately.
+  correctiveNote   String?          @map("corrective_note")
+  nonConformanceId String?          @map("non_conformance_id") @db.Uuid
+  recordedAt       DateTime         @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  recordedByUserId String           @map("recorded_by_user_id") @db.Uuid
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch         Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  checkpoint     SafetyCheckpoint? @relation(fields: [organizationId, checkpointId], references: [organizationId, id], onDelete: Restrict)
+  nonConformance NonConformance?   @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId, recordedAt(sort: Desc)])
+  @@index([organizationId, checkpointId, recordedAt(sort: Desc)])
+  @@map("food_safety_records")
+}
+
+enum ChecklistItemKind {
+  YES_NO
+  NUMBER
+}
+
+model ChecklistTemplate {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  items        ChecklistItem[]
+  runs         ChecklistRun[]
+
+  @@unique([organizationId, id])
+  @@map("checklist_templates")
+}
+
+model ChecklistItem {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  templateId     String            @map("template_id") @db.Uuid
+  position       Int
+  text           String
+  kind           ChecklistItemKind
+  /// NUMBER items: acceptable range (either bound optional).
+  minValue       Decimal?          @map("min_value") @db.Decimal(12, 3)
+  maxValue       Decimal?          @map("max_value") @db.Decimal(12, 3)
+  archivedAt     DateTime?         @map("archived_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  template     ChecklistTemplate @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, templateId, position])
+  @@map("checklist_items")
+}
+
+/// A completed checklist. Append-only; answers keep the item text and limits as they were.
+model ChecklistRun {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  templateId        String   @map("template_id") @db.Uuid
+  branchId          String   @map("branch_id") @db.Uuid
+  failedCount       Int      @map("failed_count")
+  note              String?
+  nonConformanceId  String?  @map("non_conformance_id") @db.Uuid
+  completedAt       DateTime @default(now()) @map("completed_at") @db.Timestamptz(3)
+  completedByUserId String   @map("completed_by_user_id") @db.Uuid
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  template       ChecklistTemplate @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Restrict)
+  branch         Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  nonConformance NonConformance?   @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
+  answers        ChecklistAnswer[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId, completedAt(sort: Desc)])
+  @@map("checklist_runs")
+}
+
+model ChecklistAnswer {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  runId          String            @map("run_id") @db.Uuid
+  itemId         String            @map("item_id") @db.Uuid
+  position       Int
+  text           String
+  kind           ChecklistItemKind
+  minValue       Decimal?          @map("min_value") @db.Decimal(12, 3)
+  maxValue       Decimal?          @map("max_value") @db.Decimal(12, 3)
+  yes            Boolean?
+  value          Decimal?          @db.Decimal(12, 3)
+  ok             Boolean
+  note           String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  run          ChecklistRun @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, runId, itemId])
+  @@map("checklist_answers")
+}
+
+enum NcSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NcSource {
+  MANUAL
+  RECORD
+  CHECKLIST
+}
+
+enum NcStatus {
+  OPEN
+  INVESTIGATING
+  ACTION_PLANNED
+  CLOSED
+}
+
+model NonConformance {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  number         String
+  branchId       String     @map("branch_id") @db.Uuid
+  title          String
+  description    String
+  severity       NcSeverity
+  source         NcSource
+  status         NcStatus   @default(OPEN)
+  rootCause      String?    @map("root_cause")
+  raisedAt       DateTime   @default(now()) @map("raised_at") @db.Timestamptz(3)
+  raisedByUserId String     @map("raised_by_user_id") @db.Uuid
+  closedAt       DateTime?  @map("closed_at") @db.Timestamptz(3)
+  closedByUserId String?    @map("closed_by_user_id") @db.Uuid
+  closeNote      String?    @map("close_note")
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  actions      CorrectiveAction[]
+  records      FoodSafetyRecord[]
+  runs         ChecklistRun[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@map("non_conformances")
+}
+
+enum CorrectiveActionStatus {
+  OPEN
+  DONE
+  VERIFIED
+}
+
+model CorrectiveAction {
+  id               String                 @id @default(uuid(7)) @db.Uuid
+  organizationId   String                 @map("organization_id") @db.Uuid
+  nonConformanceId String                 @map("non_conformance_id") @db.Uuid
+  description      String
+  ownerUserId      String?                @map("owner_user_id") @db.Uuid
+  dueOn            DateTime?              @map("due_on") @db.Date
+  status           CorrectiveActionStatus @default(OPEN)
+  createdByUserId  String                 @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  doneAt           DateTime?              @map("done_at") @db.Timestamptz(3)
+  doneByUserId     String?                @map("done_by_user_id") @db.Uuid
+  doneNote         String?                @map("done_note")
+  verifiedAt       DateTime?              @map("verified_at") @db.Timestamptz(3)
+  verifiedByUserId String?                @map("verified_by_user_id") @db.Uuid
+  verifyNote       String?                @map("verify_note")
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  nonConformance NonConformance @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, nonConformanceId])
+  @@map("corrective_actions")
 }

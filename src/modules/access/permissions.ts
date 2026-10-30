@@ -38,6 +38,9 @@ export const PERMISSIONS = [
   "recipes.costs.view",
   "traceability.view",
   "recalls.manage",
+  "foodsafety.view",
+  "foodsafety.record",
+  "foodsafety.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -63,6 +66,9 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "purchasing.approve",
   "purchasing.receive",
   "purchasing.request",
+  "foodsafety.view",
+  "foodsafety.record",
+  "foodsafety.manage",
 ]);
 
 /**
@@ -149,6 +155,9 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "recipes.costs.view",
       "traceability.view",
       "recalls.manage",
+      "foodsafety.view",
+      "foodsafety.record",
+      "foodsafety.manage",
     ],
     organizationScopeOnly: false,
   },
@@ -189,6 +198,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.request",
       "recipes.view",
       "traceability.view",
+      "foodsafety.view",
+      "foodsafety.record",
     ],
     organizationScopeOnly: false,
   },
@@ -206,6 +217,9 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "recipes.view",
       "traceability.view",
       "recalls.manage",
+      "foodsafety.view",
+      "foodsafety.record",
+      "foodsafety.manage",
     ],
     organizationScopeOnly: false,
   },
@@ -251,6 +265,9 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.request",
       "recipes.view",
       "traceability.view",
+      "foodsafety.view",
+      "foodsafety.record",
+      "foodsafety.manage",
     ],
     organizationScopeOnly: false,
   },
@@ -267,6 +284,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "recipes.view",
       "recipes.costs.view",
       "traceability.view",
+      "foodsafety.view",
     ],
     organizationScopeOnly: false,
   },

@@ -727,6 +727,22 @@ Implemented in M6a (migrations `20261101090000_m6_recalls`,
   and status (append-only).
 - **recall_documents**: stock documents posted by the recall, kind HOLD |
   DISPOSAL (append-only; UQ document).
+  M6b (migration `20261101150000_m6_food_safety`, ADR-035):
+
+- **safety_checkpoints**: branch, `code` (UQ per branch), name, kind,
+  `min_celsius` / `max_celsius` (CK min ≤ max), archived.
+- **food_safety_records**: branch, checkpoint (temperature), type,
+  `value_celsius` (exactly for TEMPERATURE) or `passed`, limits copied,
+  `in_spec`, note, `corrective_note` (CK: required when not in spec),
+  `non_conformance_id`; no delete (trigger), only the NC link is updatable.
+- **checklist_templates / checklist_items** (position, text, kind YES_NO |
+  NUMBER, optional range, retired via `archived_at`);
+  **checklist_runs** (branch, failed count, NC link; no delete) and
+  **checklist_answers** (item text, kind and range copied, answer, ok;
+  append-only).
+- **non_conformances** (`NC-` number, branch, severity, source, status,
+  root cause, raised/closed) and **corrective_actions** (owner, due date,
+  OPEN → DONE → VERIFIED; CK: verifier ≠ doer).
 - Traces are queries over `inventory_ledger_entries`, `goods_receipt_lines`
   and `stock_shipment_lines`; no trace tables. Production lot links come
   with production (not yet planned in a milestone).
