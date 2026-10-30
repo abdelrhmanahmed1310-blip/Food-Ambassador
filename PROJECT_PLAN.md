@@ -38,24 +38,24 @@ M4 Recipes ─► POS1 Core ─► POS2 Floor & kitchen ─► POS4 Tax e-invoic
 
 A market goes live on the POS only after its e-invoicing work (POS4) passes.
 
-| #    | Milestone                   | Depends on                       | Status       |
-| ---- | --------------------------- | -------------------------------- | ------------ |
-| M0   | Repository & architecture   | —                                | **Complete** |
-| M1   | Application foundation      | M0                               | **Complete** |
-| M2   | Inventory MVP               | M1                               | **Complete** |
-| M3   | Procurement & receiving     | M2                               | **Complete** |
-| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete** |
-| M5   | Nutrition & allergens       | M4                               | Not started  |
-| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete** |
-| M7   | Sales & financial workflows | M3, M4                           | Not started  |
-| M8   | Analytics & pilot readiness | M2–M7                            | Not started  |
-| M9   | Central kitchen & B2B       | M4, M6                           | Proposed     |
-| M10  | Integrations                | M7                               | Proposed     |
-| POS1 | Core                        | M4                               | Planned      |
-| POS2 | Floor & kitchen             | POS1                             | Planned      |
-| POS3 | Payments                    | POS1, Q-15                       | Planned      |
-| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned      |
-| POS5 | Customer channels           | POS1–POS4                        | Planned      |
+| #    | Milestone                   | Depends on                       | Status                 |
+| ---- | --------------------------- | -------------------------------- | ---------------------- |
+| M0   | Repository & architecture   | —                                | **Complete**           |
+| M1   | Application foundation      | M0                               | **Complete**           |
+| M2   | Inventory MVP               | M1                               | **Complete**           |
+| M3   | Procurement & receiving     | M2                               | **Complete**           |
+| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete**           |
+| M5   | Nutrition & allergens       | M4                               | Not started            |
+| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**           |
+| M7   | Sales & financial workflows | M3, M4                           | In progress (M7a done) |
+| M8   | Analytics & pilot readiness | M2–M7                            | Not started            |
+| M9   | Central kitchen & B2B       | M4, M6                           | Proposed               |
+| M10  | Integrations                | M7                               | Proposed               |
+| POS1 | Core                        | M4                               | Planned                |
+| POS2 | Floor & kitchen             | POS1                             | Planned                |
+| POS3 | Payments                    | POS1, Q-15                       | Planned                |
+| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                |
+| POS5 | Customer channels           | POS1–POS4                        | Planned                |
 
 ---
 
@@ -263,6 +263,14 @@ Sales records/imports (idempotent), recipe-based consumption, supplier invoice
 capture, 3-way match, supplier balances and settlements, accounting export
 files. No live POS/ERP integration is claimed without testing against a real
 interface.
+
+**M7a — Sales import and consumption ✅ (ADR-036):** CSV sales per warehouse,
+idempotent by external id, recipes exploded through sub-recipes with waste,
+FEFO consumption through the ledger (cost of sales), all-or-nothing with
+every problem listed, reversal from the import.
+
+**M7b — next:** supplier invoices with 3-way match (order ↔ receipt ↔
+invoice). **M7c:** supplier balances, settlements, accounting export.
 
 ## M8 — Analytics and pilot readiness
 

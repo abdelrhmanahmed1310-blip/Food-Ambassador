@@ -104,6 +104,7 @@ const NUMBER_PREFIX: Record<InventoryDocumentType, string> = {
   DISPATCH: "DSP",
   TRANSIT_RECEIPT: "TRR",
   LANDED_COST: "LCA",
+  CONSUMPTION: "CON",
 };
 
 /** Atomically allocate the next number for (organization, series, year). */

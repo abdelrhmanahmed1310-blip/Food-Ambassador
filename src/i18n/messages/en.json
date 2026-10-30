@@ -104,7 +104,8 @@
     "safetyRecords": "Records",
     "checklists": "Checklists",
     "nonConformances": "Non-conformances",
-    "checkpoints": "Monitoring points"
+    "checkpoints": "Monitoring points",
+    "sales": "Sales"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -291,7 +292,10 @@
     "OWNER_NOT_MEMBER": "Choose an active member of the organization.",
     "ACTION_STATUS": "Not possible in the action's current status.",
     "SELF_VERIFICATION_NOT_ALLOWED": "Someone other than the person who did it must verify the action.",
-    "NC_ACTIONS_NOT_VERIFIED": "Verify every corrective action before closing."
+    "NC_ACTIONS_NOT_VERIFIED": "Verify every corrective action before closing.",
+    "CONSUMPTION_REVERSE_IN_SALES": "Reverse sales consumption from the sales import.",
+    "SALES_IMPORT_REVERSED": "This import was already reversed.",
+    "REASON_REQUIRED": "Give a reason."
   },
   "notFound": {
     "title": "Page not found",
@@ -484,7 +488,9 @@
       "recalls.manage": "Create, activate and close recalls",
       "foodsafety.view": "View food safety records, checklists and non-conformances",
       "foodsafety.record": "Record readings and checks, complete checklists, raise non-conformances",
-      "foodsafety.manage": "Manage monitoring points, checklists and corrective actions"
+      "foodsafety.manage": "Manage monitoring points, checklists and corrective actions",
+      "sales.view": "View sales imports",
+      "sales.import": "Import sales and reverse imports"
     }
   },
   "audit": {
@@ -520,7 +526,8 @@
       "non_conformance": "Non-conformance",
       "food_safety_record": "Food safety record",
       "safety_checkpoint": "Monitoring point",
-      "checklist_template": "Checklist"
+      "checklist_template": "Checklist",
+      "sales_import": "Sales import"
     }
   },
   "invite": {
@@ -776,7 +783,8 @@
       "RECEIPT": "Goods receipt",
       "DISPATCH": "Dispatch",
       "TRANSIT_RECEIPT": "Transit receipt",
-      "LANDED_COST": "Landed cost"
+      "LANDED_COST": "Landed cost",
+      "CONSUMPTION": "Sales consumption"
     },
     "reasons": {
       "DATA_CORRECTION": "Data correction",
@@ -803,7 +811,8 @@
       "SUPPLIER_PRICE_CHANGE": "Supplier price change",
       "DAMAGED_IN_TRANSIT": "Damaged in transit",
       "LOST_IN_TRANSIT": "Lost in transit",
-      "SHORT_SHIPPED": "Short-shipped"
+      "SHORT_SHIPPED": "Short-shipped",
+      "SALES": "Sales"
     },
     "valuationTitle": "Stock value",
     "valuationHint": "Moving weighted average cost per product and warehouse, in {currency}.",
@@ -1290,7 +1299,7 @@
       "ORIGIN_WITHOUT_SUPPLIER": "{quantity} entered in {warehouse} without a supplier (opening balance or adjustment).",
       "UNLOTTED_USAGE": "{quantity} of this product was used in {warehouse} without a lot number — it may have been this lot."
     },
-    "consumptionNote": "Sales and production do not yet consume stock (they come with sales, M7); stock leaving through them cannot be traced yet.",
+    "consumptionNote": "Imported sales consume stock (first-expiring lots first) and show here as consumption. Production is not recorded yet, so stock turned into other products cannot be traced to them.",
     "backward": "Where it came from",
     "noReceipts": "No goods receipt recorded for this lot.",
     "forward": "Where it went",
@@ -1482,5 +1491,47 @@
     "closeNc": "Close non-conformance",
     "closeNote": "Conclusion",
     "closeBlocked": "It can be closed once every corrective action is verified."
+  },
+  "sales": {
+    "title": "Sales",
+    "hint": "Upload sales from your till or POS as CSV. Each sold item uses up stock through its active recipe, first-expiring lots first.",
+    "noLiveIntegration": "File import only: there is no live connection to a POS yet. Lines already imported (same external id) are skipped, so a file can safely be uploaded again.",
+    "uploadTitle": "Import sales",
+    "uploadHint": "Columns: date (YYYY-MM-DD), external_id (unique per sold line), item_code (recipe code or product SKU), item_type (RECIPE or PRODUCT, optional), quantity (portions for dishes, yield unit for preparations, base unit for products), net_amount and channel (optional). Nothing is posted unless every row and the stock are fine.",
+    "warehouse": "Warehouse",
+    "empty": "No sales imported yet.",
+    "lines": "Lines",
+    "netAmount": "Net amount",
+    "skippedCount": "{count} already imported",
+    "statuses": {
+      "POSTED": "Posted",
+      "REVERSED": "Reversed"
+    },
+    "imported": "{count, plural, =0 {Nothing new to import} one {1 line imported} other {# lines imported}}{skipped, plural, =0 {.} other {; # already imported.}}",
+    "file": "File",
+    "costOfSales": "Cost of sales (stock value used)",
+    "stockDocument": "Stock document",
+    "reversedWith": "Reversed with",
+    "soldItems": "Sold items",
+    "reference": "Reference",
+    "item": "Item",
+    "stockUsed": "Stock used",
+    "reverse": "Reverse import",
+    "reverseHint": "Puts the stock back and frees these lines to be imported again (e.g. after correcting the file).",
+    "reverseReason": "Reason",
+    "errors": {
+      "unknownItem": "No recipe or product with code {code}.",
+      "ambiguousItem": "{code} is both a recipe and a product; set item_type.",
+      "duplicateInFile": "This external id appears twice in the file.",
+      "NO_ACTIVE_VERSION": "{code} has no active recipe version.",
+      "PRODUCT_ARCHIVED": "Product {code} is archived.",
+      "INSUFFICIENT_STOCK": "Not enough {sku} in stock: {required} needed, {available} usable (expired and recalled lots excluded).",
+      "explode": {
+        "NO_PORTIONS": "Recipe {code} has no portions.",
+        "NO_ACTIVE_VERSION": "A preparation used by {code} has no active version.",
+        "INCOMPATIBLE_UNITS": "An ingredient of {code} is in a unit that does not convert.",
+        "CYCLE": "Recipe {code} contains itself."
+      }
+    }
   }
 }

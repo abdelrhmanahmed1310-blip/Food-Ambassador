@@ -132,7 +132,13 @@ async function loadWorld(
   tx: Tx,
   ctx: TenantContext,
   versionId: string,
-  options: { warehouseId?: string; asOf: string; overrides?: ReadonlyMap<string, Decimal> },
+  options: {
+    warehouseId?: string;
+    asOf: string;
+    overrides?: ReadonlyMap<string, Decimal>;
+    /** Structure only (no cost lookups), e.g. to explode sales into product use. */
+    withoutCosts?: boolean;
+  },
 ): Promise<{ root: VersionInput; world: CostWorld }> {
   const units = await loadUnits(tx, ctx, true);
   const [root] = await versionInputs(tx, ctx, [versionId], units);
@@ -170,7 +176,9 @@ async function loadWorld(
     for (const id of subIds) seen.add(id);
   }
   const ids = [...productIds];
-  const costs = await productCosts(tx, ctx, ids, options);
+  const costs = options.withoutCosts
+    ? new Map<string, ProductInfo["costs"]>()
+    : await productCosts(tx, ctx, ids, options);
   const products = await tx.product.findMany({
     where: { organizationId: ctx.organizationId, id: { in: ids } },
     select: {
@@ -453,5 +461,14 @@ export async function costVersionsInTx(
     });
     result.set(id, costVersion(root, world, options.policy));
   }
+  return result;
+}
+
+/** Versions with every active sub-recipe they reach and their products (no costs). */
+export async function loadRecipeStructureInTx(tx: Tx, ctx: TenantContext, versionIds: string[]) {
+  const asOf = businessDate(ctx.timeZone);
+  const result = new Map<string, { root: VersionInput; world: CostWorld }>();
+  for (const id of new Set(versionIds))
+    result.set(id, await loadWorld(tx, ctx, id, { asOf, withoutCosts: true }));
   return result;
 }

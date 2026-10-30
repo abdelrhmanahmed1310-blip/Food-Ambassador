@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (Milestone 6 complete — M6b food safety records)
+Last updated: 2026-11-02 (Milestone 7a — sales import and consumption)
 
 ## Summary
 
@@ -12,7 +12,43 @@ Last updated: 2026-11-01 (Milestone 6 complete — M6b food safety records)
 | M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
 | M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card   |
 | M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                        |
-| M5, M7 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                            |
+| M7 Sales & finance            | 🔄 In progress — **M7a ✅** (sales import, recipe consumption); supplier invoices next                                              |
+| M5, M8 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                            |
+
+## M7a — Sales import and recipe-based consumption (delivered)
+
+Rules: DECISIONS.md ADR-036.
+
+| Area        | What works                                                                                                                                | Where                               |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Import      | CSV per warehouse with template; dishes (portions), preparations (yield unit), products (base unit); net amount and channel kept as given | `src/modules/sales/imports.ts`      |
+| Idempotency | External id posted once (partial unique index, serialized imports); re-uploads skip what was imported                                     | `importSales`                       |
+| Explosion   | Through the active version and every sub-recipe, gross quantities with waste; version used stored per line                                | `explodeRecipe` (pure, unit-tested) |
+| Consumption | One `CON-` document; FEFO over usable lots (expired and recalled excluded); cost of sales from moving average; visible in lot trace       | `inventory/consumption.ts`          |
+| Validation  | All or nothing: unknown/ambiguous items, no active version, bad dates and numbers, duplicates in file, stock shortages — all listed       | `importSales`                       |
+| Reversal    | From the import: stock restored, lines freed for re-import; generic reversal refused                                                      | `reverseSalesImport`                |
+| Screens     | Sales (upload, history), import detail (sold items, stock used by lot, cost of sales, reverse); EN/AR                                     | `/sales`                            |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 25 files / 158 tests — new:
+recipe explosion through sub-recipes with waste and its problems, calendar
+date validation; build); `pnpm test:integration` 20 files / 165 tests pass
+(5 new: dish and product sales use stock FEFO with exact cost of sales and
+show in lot trace; re-upload posts nothing twice; every row and stock
+problem listed with nothing posted; reversal frees lines for re-import and
+generic reversal is refused; warehouse scope, roles and other tenants;
+ledger and valuations reconcile afterwards); `pnpm test:e2e` 28 tests pass
+(new: salad recipe → file with an unknown item rejected → 4 portions
+imported → same file again skipped → cost of sales 40.00 → 8 kg left).
+
+Found and fixed: date validators in purchasing, recipes and food safety
+crashed (server error) on well-formed but impossible dates such as
+2026-13-01 instead of reporting "invalid date"; all now use one tested
+`isCalendarDate` helper. The traceability page note is updated now that
+sales consume stock.
+
+Limitations: no live POS connection (file import only); no refunds or
+negative quantities; amounts are stored as given (no VAT until Q-02);
+no theoretical-vs-actual usage report yet (planned with analytics, M8).
 
 ## M6b — Food safety records, checklists, corrective actions (delivered; M6 complete)
 

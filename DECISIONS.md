@@ -502,6 +502,35 @@ documents stay scoped. Found by a scoped-user integration test.
   all branch-scopable; templates are shared and managed by anyone with
   `foodsafety.manage` somewhere.
 
+### ADR-036 Sales import and recipe-based consumption — Accepted (M7a)
+
+- Sales arrive as **CSV files** per warehouse (no live POS connection is
+  claimed): date, external id (unique per sold line), item code, optional
+  item type, quantity, optional net amount (as given, excluding VAT — no tax
+  is calculated until Q-02) and channel.
+- **Item:** a recipe code — a DISH is sold in portions, a PREPARATION in its
+  yield unit — or a product SKU (sold in its base unit). A code that is both
+  needs `item_type`. Recipes need an active version; the version used is
+  stored on the line.
+- **Idempotent:** an external id is posted at most once (partial unique
+  index over active lines; imports are serialized per organization). Lines
+  already imported are skipped and counted, so a file can be uploaded again.
+- **All or nothing:** every row is validated, recipes are exploded (gross
+  quantities with waste, sub-recipes through their active versions), and the
+  stock plan is checked before anything is written. Any problem — unknown
+  item, no active version, unit that does not convert, not enough usable
+  stock — rejects the file with every problem listed. Stock never goes
+  negative.
+- **Posting:** one CONSUMPTION document per import; per product, AVAILABLE
+  stock is taken first-expired-first-out, expired and recall-held lots
+  excluded. Its value at moving average is the import's cost of sales.
+  Consumption shows in lot traceability.
+- **Reversal** happens from the sales import (generic reversal is refused):
+  stock is restored and the lines become inactive, so the same external ids
+  can be imported again from a corrected file.
+- Permissions `sales.view`, `sales.import` (warehouse-scopable). Refunds and
+  negative quantities are not supported yet.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isCalendarDate } from "@/lib/dates";
 import { decimalString, toDecimal } from "@/lib/decimal";
 import {
   codeSchema,
@@ -80,11 +81,7 @@ export const standardCostSchema = z.object({
   effectiveFrom: z
     .string({ error: "required" })
     .trim()
-    .refine(
-      (v) =>
-        /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v),
-      { error: "invalidDate" },
-    ),
+    .refine((v) => isCalendarDate(v), { error: "invalidDate" }),
   note: optionalText(200),
   idempotencyKey: idempotencyKeySchema,
 });
@@ -105,11 +102,7 @@ export const recipePriceSchema = z.object({
   effectiveFrom: z
     .string({ error: "required" })
     .trim()
-    .refine(
-      (v) =>
-        /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v),
-      { error: "invalidDate" },
-    ),
+    .refine((v) => isCalendarDate(v), { error: "invalidDate" }),
   note: optionalText(200),
   idempotencyKey: idempotencyKeySchema,
 });

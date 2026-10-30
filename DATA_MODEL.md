@@ -752,6 +752,15 @@ Implemented in M6a (migrations `20261101090000_m6_recalls`,
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),
   qty, price, imported source + external id (UQ per org for idempotent
   imports). Recipe-based consumption posts `CONSUMPTION` entries.
+
+Implemented in M7a as **sales_imports** (`SAL-` number, warehouse, file
+name, status POSTED | REVERSED, line and skipped counts, net amount, cost
+amount, consumption and reversal documents) and **sales_lines** (row,
+`external_id` — partial UQ per organization over active lines — date,
+channel, item type RECIPE (recipe + version) | PRODUCT, quantity, net
+amount, `active`). `inventory_document_type` gains CONSUMPTION (`CON-`).
+Migration `20261102090000_m7_sales`, ADR-036.
+
 - **supplier_invoices / lines**, **invoice_matches** (PO line ↔ receipt line ↔
   invoice line, with quantity/price variances and tolerances),
   **supplier_settlements** (payments, credit notes) and supplier balance

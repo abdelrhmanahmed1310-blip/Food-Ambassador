@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isCalendarDate } from "@/lib/dates";
 import { decimalString } from "@/lib/decimal";
 import {
   idempotencyKeySchema,
@@ -49,16 +50,9 @@ const dateSchema = z
   .string()
   .optional()
   .transform((v) => (v && v.trim() ? v.trim() : undefined))
-  .refine(
-    (v) =>
-      v === undefined ||
-      (/^\d{4}-\d{2}-\d{2}$/.test(v) &&
-        !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) &&
-        new Date(`${v}T00:00:00Z`).toISOString().startsWith(v)),
-    {
-      error: "invalidDate",
-    },
-  );
+  .refine((v) => v === undefined || isCalendarDate(v), {
+    error: "invalidDate",
+  });
 
 const lotCodeSchema = z
   .string()

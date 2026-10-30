@@ -179,6 +179,8 @@ model Organization {
   checklistAnswers    ChecklistAnswer[]
   nonConformances     NonConformance[]
   correctiveActions   CorrectiveAction[]
+  salesImports        SalesImport[]
+  salesLines          SalesLine[]
 
   @@map("organizations")
 }
@@ -394,6 +396,7 @@ model Warehouse {
   requisitions    PurchaseRequisition[]
   recipeSnapshots RecipeCostSnapshot[]
   recallStock     RecallStock[]
+  salesImports    SalesImport[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -568,6 +571,7 @@ model Product {
   requisitionLines   PurchaseRequisitionLine[]
   recipeIngredients  RecipeIngredient[]
   standardCosts      ProductStandardCost[]
+  salesLines         SalesLine[]
   landedCostLines    LandedCostLine[]
 
   @@unique([organizationId, id])
@@ -695,6 +699,7 @@ enum InventoryDocumentType {
   DISPATCH
   TRANSIT_RECEIPT
   LANDED_COST
+  CONSUMPTION
 }
 
 /// How the unit cost of a ledger entry was determined (ADR-021).
@@ -741,6 +746,8 @@ model InventoryDocument {
   shipmentCancel   StockShipment?         @relation("ShipmentCancel")
   landedCost       LandedCost?            @relation("LandedCostDocument")
   recallDocument   RecallDocument?
+  salesImport      SalesImport?           @relation("SalesConsumption")
+  salesReversal    SalesImport?           @relation("SalesReversal")
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1511,6 +1518,7 @@ model Recipe {
   versions     RecipeVersion[]
   usedIn       RecipeIngredient[] @relation("SubRecipe")
   prices       RecipePrice[]
+  salesLines   SalesLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1544,6 +1552,7 @@ model RecipeVersion {
   yieldUom     UnitOfMeasure        @relation(fields: [yieldUomId], references: [id], onDelete: Restrict)
   ingredients  RecipeIngredient[]
   snapshots    RecipeCostSnapshot[]
+  salesLines   SalesLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, recipeId, versionNo])
@@ -2009,4 +2018,84 @@ model CorrectiveAction {
   @@unique([organizationId, id])
   @@index([organizationId, nonConformanceId])
   @@map("corrective_actions")
+}
+
+// ─── Sales import and recipe consumption (Milestone 7a, ADR-036) ───
+
+enum SalesImportStatus {
+  POSTED
+  REVERSED
+}
+
+enum SalesItemType {
+  RECIPE
+  PRODUCT
+}
+
+/// One uploaded sales file for one warehouse; its stock use is one CONSUMPTION document.
+model SalesImport {
+  id                 String            @id @default(uuid(7)) @db.Uuid
+  organizationId     String            @map("organization_id") @db.Uuid
+  number             String
+  warehouseId        String            @map("warehouse_id") @db.Uuid
+  fileName           String?           @map("file_name")
+  status             SalesImportStatus @default(POSTED)
+  lineCount          Int               @map("line_count")
+  /// Rows already imported earlier (same external id), not posted again.
+  skippedCount       Int               @map("skipped_count")
+  /// Sum of the file's net amounts (as given, excluding VAT); null when the file had none.
+  netAmount          Decimal?          @map("net_amount") @db.Decimal(19, 4)
+  /// Stock value consumed (moving average at posting).
+  costAmount         Decimal           @map("cost_amount") @db.Decimal(19, 4)
+  documentId         String            @map("document_id") @db.Uuid
+  reversalDocumentId String?           @map("reversal_document_id") @db.Uuid
+  postedByUserId     String            @map("posted_by_user_id") @db.Uuid
+  postedAt           DateTime          @default(now()) @map("posted_at") @db.Timestamptz(3)
+  reversedAt         DateTime?         @map("reversed_at") @db.Timestamptz(3)
+  reversedByUserId   String?           @map("reversed_by_user_id") @db.Uuid
+  reversalReason     String?           @map("reversal_reason")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse          @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  document     InventoryDocument  @relation("SalesConsumption", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  reversal     InventoryDocument? @relation("SalesReversal", fields: [organizationId, reversalDocumentId], references: [organizationId, id], onDelete: Restrict)
+  lines        SalesLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@unique([organizationId, documentId])
+  @@unique([organizationId, reversalDocumentId])
+  @@index([organizationId, postedAt(sort: Desc)])
+  @@map("sales_imports")
+}
+
+/// A sold item from an import. The external id is unique among active lines (idempotent imports).
+model SalesLine {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  importId        String        @map("import_id") @db.Uuid
+  rowNo           Int           @map("row_no")
+  externalId      String        @map("external_id")
+  soldOn          DateTime      @map("sold_on") @db.Date
+  channel         String?
+  itemType        SalesItemType @map("item_type")
+  recipeId        String?       @map("recipe_id") @db.Uuid
+  /// The recipe version that was active when the line was posted.
+  recipeVersionId String?       @map("recipe_version_id") @db.Uuid
+  productId       String?       @map("product_id") @db.Uuid
+  quantity        Decimal       @db.Decimal(20, 6)
+  netAmount       Decimal?      @map("net_amount") @db.Decimal(19, 4)
+  /// False once the import is reversed; the external id may then be imported again.
+  active          Boolean       @default(true)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  salesImport   SalesImport    @relation(fields: [organizationId, importId], references: [organizationId, id], onDelete: Restrict)
+  recipe        Recipe?        @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+  recipeVersion RecipeVersion? @relation(fields: [organizationId, recipeVersionId], references: [organizationId, id], onDelete: Restrict)
+  product       Product?       @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, importId])
+  @@index([organizationId, soldOn])
+  @@map("sales_lines")
 }

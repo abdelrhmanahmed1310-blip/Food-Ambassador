@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isCalendarDate } from "@/lib/dates";
 import { decimalString, toDecimal, type Decimal } from "@/lib/decimal";
 import {
   codeSchema,
@@ -29,12 +30,7 @@ const dateSchema = z
   .string()
   .optional()
   .transform(blank)
-  .refine(
-    (v) =>
-      v === undefined ||
-      (/^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v)),
-    { error: "invalidDate" },
-  );
+  .refine((v) => v === undefined || isCalendarDate(v), { error: "invalidDate" });
 
 const optionalDecimal = (opts: {
   maxScale: number;
