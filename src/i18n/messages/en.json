@@ -110,7 +110,8 @@
     "taxSettings": "VAT",
     "supplierInvoices": "Supplier invoices",
     "payables": "Supplier balances",
-    "allergenMatrix": "Allergen matrix"
+    "allergenMatrix": "Allergen matrix",
+    "ingredientLibrary": "Ingredient library"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -347,7 +348,13 @@
     "LABEL_DATA_INCOMPLETE": "Nutrition or allergen data is missing; see what the label needs.",
     "LABEL_NOT_PENDING": "This label was already reviewed.",
     "LABEL_SELF_REVIEW": "You generated this label, so someone else must review it.",
-    "LABEL_STALE": "The data changed since the label was generated; reject it and generate a new one."
+    "LABEL_STALE": "The data changed since the label was generated; reject it and generate a new one.",
+    "LIBRARY_FILE_TOO_LARGE": "Too many records in one file (at most {max}); use the import command for full downloads.",
+    "LIBRARY_NOTHING_READ": "No records could be read from this file; check the source and format.",
+    "NOTHING_TO_APPLY": "Choose what to use from the record.",
+    "REFERENCE_HAS_NO_VALUES": "This record has no nutrition values.",
+    "REFERENCE_VALUES_IMPLAUSIBLE": "This record's values fail the plausibility checks ({detail}); enter the values by hand.",
+    "REFERENCE_WOULD_REPLACE_SPEC": "The product has values from a specification or lab report; a database record does not replace them."
   },
   "notFound": {
     "title": "Page not found",
@@ -1960,5 +1967,59 @@
     "recipe": "Recipe",
     "matrixNote": "“?” means not every ingredient has a statement (or a “free from” is not verified yet). Treat it as a possible allergen.",
     "noActiveRecipes": "No active recipes yet."
+  },
+  "library": {
+    "title": "Ingredient library",
+    "hint": "Records copied from public food databases, with their licence and source link, to use for your products.",
+    "notVerifiedNote": "Library values are reference data. When you use them for a product they are marked as database values and count only after a second person verifies them. A database never shows that an allergen is absent.",
+    "search": "Search",
+    "source": "Source",
+    "allSources": "All sources",
+    "none": "No library records yet.",
+    "name": "Name",
+    "nameAr": "Arabic name",
+    "brand": "Brand",
+    "description": "Description",
+    "linkedTo": "Used for",
+    "sources": {
+      "USDA_FDC": "USDA FoodData Central",
+      "OPEN_FOOD_FACTS": "Open Food Facts",
+      "WIKIDATA": "Wikidata"
+    },
+    "importTitle": "Import from a file",
+    "importHint": "Upload a JSON file as published by the source:",
+    "formats": {
+      "USDA_FDC": "a FoodData Central JSON download (Foundation, SR Legacy, Survey, Branded) or an API response; nutrition per 100 g, no allergens.",
+      "OPEN_FOOD_FACTS": "a product or search JSON from the API, or lines of the JSONL dump; nutrition per 100 g/ml and listed allergens.",
+      "WIKIDATA": "entity JSON (Special:EntityData); English and Arabic names."
+    },
+    "largeFiles": "Files up to 900 KB here. Full database downloads are imported with the pnpm library:import command (see README).",
+    "file": "File",
+    "import": "Import",
+    "fileRequired": "Choose a JSON file of at most 900 KB.",
+    "alreadyImported": "This file was already imported; nothing changed.",
+    "imported": "Imported: {created} new, {updated} updated, {skipped} skipped.",
+    "imports": "Recent imports",
+    "importCounts": "{created} new, {updated} updated, {skipped} skipped",
+    "record": "Source record",
+    "licence": "Licence",
+    "attribution": "Attribution",
+    "importedFrom": "Imported from",
+    "notes": "How values were read",
+    "unmappedTags": "Other tags in the record:",
+    "absenceNote": "An allergen not listed here is unknown, not absent.",
+    "linkTitle": "Use for a product",
+    "linkHint": "Values replace a product's database or hand-entered values (never a supplier specification or lab report). Listed allergens are added only where nothing is known yet; contradictions are shown, not applied. An Arabic name is filled in only if the product has none.",
+    "product": "Product",
+    "useValues": "Use the nutrition values",
+    "useAllergens": "Use the listed allergens",
+    "useArabicName": "Use the Arabic name",
+    "link": "Apply",
+    "linkedValues": "Nutrition values copied (not verified yet).",
+    "linkedAllergens": "{count, plural, one {# allergen statement} other {# allergen statements}} added.",
+    "linkedName": "Arabic name filled in.",
+    "conflicts": "Not applied because someone stated otherwise: {allergens}. Check them on the product.",
+    "linkedNothing": "Nothing was changed.",
+    "fromLibraryRecord": "Copied from a library record"
   }
 }

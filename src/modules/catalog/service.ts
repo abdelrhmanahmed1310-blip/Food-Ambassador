@@ -609,3 +609,27 @@ export async function productEntryUnits(ctx: TenantContext, productId: string) {
     );
   });
 }
+
+/**
+ * Fill in a product's Arabic name from a linked library record (ADR-041);
+ * a name someone already entered is never replaced. Returns whether it was set.
+ */
+export async function setArabicNameIfEmptyInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  productId: string,
+  nameAr: string,
+): Promise<boolean> {
+  const { count } = await tx.product.updateMany({
+    where: { organizationId: ctx.organizationId, id: productId, nameAr: null },
+    data: { nameAr: nameAr.slice(0, 160), updatedByUserId: ctx.userId },
+  });
+  if (count > 0)
+    await recordAudit(tx, actorOf(ctx), {
+      action: "product.updated",
+      entityType: "product",
+      entityId: productId,
+      changes: { nameAr: { from: null, to: nameAr.slice(0, 160) }, via: "ingredient_library" },
+    });
+  return count > 0;
+}

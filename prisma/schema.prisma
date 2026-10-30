@@ -192,6 +192,8 @@ model Organization {
   allergenDeclarations  AllergenDeclaration[]
   nutritionProfiles     NutritionProfile[]
   recipeLabels          RecipeLabel[]
+  referenceFoods        ReferenceFood[]
+  referenceImports      ReferenceImport[]
 
   @@map("organizations")
 }
@@ -592,6 +594,7 @@ model Product {
   landedCostLines      LandedCostLine[]
   allergenDeclarations AllergenDeclaration[]
   nutritionProfiles    NutritionProfile[]
+  referenceLinks       ReferenceFood[]           @relation("ReferenceLinkedProduct")
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -2498,9 +2501,12 @@ model NutritionProfile {
   verifiedByUserId String?         @map("verified_by_user_id") @db.Uuid
   verifiedAt       DateTime?       @map("verified_at") @db.Timestamptz(3)
   supersededAt     DateTime?       @map("superseded_at") @db.Timestamptz(3)
+  /// Library record the values were copied from (source DATABASE).
+  referenceFoodId  String?         @map("reference_food_id") @db.Uuid
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product       Product        @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  referenceFood ReferenceFood? @relation(fields: [organizationId, referenceFoodId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@index([organizationId, productId])
@@ -2534,4 +2540,88 @@ model RecipeLabel {
   @@unique([organizationId, recipeId, labelNo])
   @@index([organizationId, recipeId, status])
   @@map("recipe_labels")
+}
+
+// ─── Ingredient library (Milestone 5b, ADR-041) ───
+
+enum ReferenceSource {
+  USDA_FDC
+  OPEN_FOOD_FACTS
+  WIKIDATA
+}
+
+/// A record copied from a public food database, with its licence and
+/// provenance. Reference only: a product uses it after a person links it,
+/// and the copied values stay unverified until a second person checks them.
+model ReferenceFood {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  source          ReferenceSource
+  /// FDC id, Open Food Facts barcode or Wikidata QID.
+  sourceId        String          @map("source_id")
+  /// e.g. "Foundation", "SR Legacy", "Branded".
+  dataType        String?         @map("data_type")
+  name            String
+  nameAr          String?         @map("name_ar")
+  description     String?
+  brand           String?
+  basis           NutritionBasis?
+  energyKcal      Decimal?        @map("energy_kcal") @db.Decimal(12, 4)
+  energyKj        Decimal?        @map("energy_kj") @db.Decimal(12, 4)
+  fat             Decimal?        @db.Decimal(12, 4)
+  saturatedFat    Decimal?        @map("saturated_fat") @db.Decimal(12, 4)
+  carbohydrate    Decimal?        @db.Decimal(12, 4)
+  sugars          Decimal?        @db.Decimal(12, 4)
+  fibre           Decimal?        @db.Decimal(12, 4)
+  protein         Decimal?        @db.Decimal(12, 4)
+  salt            Decimal?        @db.Decimal(12, 4)
+  sodium          Decimal?        @db.Decimal(12, 4)
+  /// Allergen codes the source lists as present / as traces (Open Food Facts).
+  allergens       String[]        @default([])
+  traces          String[]        @default([])
+  /// Source tags not mapped to the 14 allergens, kept for review.
+  unmappedTags    String[]        @default([]) @map("unmapped_tags")
+  /// How a value was chosen when the source has several (e.g. which energy figure).
+  notes           String[]        @default([])
+  licence         String
+  attribution     String
+  sourceUrl       String          @map("source_url")
+  /// Product this record was linked to, if any.
+  linkedProductId String?         @map("linked_product_id") @db.Uuid
+  importId        String          @map("import_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  import        ReferenceImport    @relation(fields: [organizationId, importId], references: [organizationId, id], onDelete: Restrict)
+  linkedProduct Product?           @relation("ReferenceLinkedProduct", fields: [organizationId, linkedProductId], references: [organizationId, id], onDelete: Restrict)
+  profiles      NutritionProfile[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, source, sourceId])
+  @@index([organizationId, name])
+  @@map("reference_foods")
+}
+
+/// One uploaded library file; the same file (by hash) is imported once.
+model ReferenceImport {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  source           ReferenceSource
+  fileName         String          @map("file_name")
+  sha256           String
+  created          Int             @default(0)
+  updated          Int             @default(0)
+  skipped          Int             @default(0)
+  /// Records that could not be read, with the reason.
+  problems         Json            @default("[]")
+  importedByUserId String          @map("imported_by_user_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  foods        ReferenceFood[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, sha256])
+  @@map("reference_imports")
 }

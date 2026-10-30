@@ -101,6 +101,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/catalog/categories`, label: t("categories") },
     );
   }
+  if (hasPermission(ctx.grants, "nutrition.view"))
+    catalog.items.push({ href: `${base}/catalog/library`, label: t("ingredientLibrary") });
   if (
     hasPermission(ctx.grants, "catalog.manage") ||
     holdsAnyGrant(ctx.grants, "inventory.adjust")

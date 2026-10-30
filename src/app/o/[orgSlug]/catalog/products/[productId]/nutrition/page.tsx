@@ -86,6 +86,16 @@ export default async function ProductNutritionPage({
                   <Badge tone="warning">{t("nutrition.notVerified")}</Badge>
                 )}
               </p>
+              {p.referenceFoodId ? (
+                <p className="text-sm">
+                  <Link
+                    href={`/o/${orgSlug}/catalog/library/${p.referenceFoodId}`}
+                    className="text-primary hover:underline"
+                  >
+                    {t("library.fromLibraryRecord")}
+                  </Link>
+                </p>
+              ) : null}
               <p className="text-muted text-xs">
                 {t("nutrition.enteredBy", {
                   name: n.name(p.createdByUserId) ?? "—",

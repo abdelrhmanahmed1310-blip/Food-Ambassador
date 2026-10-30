@@ -19,7 +19,8 @@
     "db:deploy": "prisma migrate deploy",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "postinstall": "prisma generate",
-    "db:seed": "tsx --conditions=react-server --tsconfig tsconfig.json prisma/seed.ts"
+    "db:seed": "tsx --conditions=react-server --tsconfig tsconfig.json prisma/seed.ts",
+    "library:import": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import-library.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

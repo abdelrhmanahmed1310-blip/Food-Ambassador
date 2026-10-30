@@ -713,6 +713,45 @@ documents stay scoped. Found by a scoped-user integration test.
 - Permissions: `nutrition.view`, `nutrition.manage`, `labels.approve`
   (quality and operations managers approve).
 
+### ADR-041 Ingredient library from USDA FoodData Central, Open Food Facts and Wikidata — Accepted (M5b)
+
+- **All three sources**, each for what it is good at: USDA FoodData Central
+  for generic ingredients' nutrition (Foundation, SR Legacy, Survey,
+  Branded); Open Food Facts for packaged products by barcode, with their
+  listed allergens and traces; Wikidata for English and Arabic names.
+- **Copies with provenance:** a library record keeps its source id, data
+  type, source link, licence and attribution, and notes on how values were
+  read. Per organization (tenant data like everything else), unique per
+  source and id; a later file updates the copy. A file (by content hash) is
+  imported once. Up to 2,000 records per import (one transaction); full
+  downloads go through `pnpm library:import`, split into atomic,
+  idempotent parts.
+- **Read, never filled in:** values are taken only from the fields the
+  source publishes per 100 g/ml, by FDC nutrient number and unit (energy
+  208, else 958/957 with a note; carbohydrate 205, else 205.2 with a note;
+  sugars 269 or 269.3; sodium 307 mg → g) or Open Food Facts' `_100g`
+  fields. Nothing is derived (no salt from sodium), and allergens are never
+  read from ingredient text. A value in an unexpected unit is left out with
+  a note.
+- **Using a record for a product** (`nutrition.manage`): values become a
+  new DATABASE profile, unverified until a second person checks it
+  (ADR-040), linked to the record; refused over a supplier-specification or
+  lab profile and when the values fail the plausibility checks. Open Food
+  Facts allergens become CONTAINS / traces MAY_CONTAIN only where nothing is
+  known yet; a database never sets FREE_FROM, never overrides a statement,
+  and contradictions (e.g. the product is declared free from milk but the
+  record lists milk) are reported for a person to resolve. A Wikidata
+  Arabic name fills a product's empty Arabic name only.
+- **Licences:** FDC and Wikidata are CC0. Open Food Facts is ODbL 1.0
+  (contents DbCL): attribution is shown on every record, and a database
+  derived from it that is made public must be offered under ODbL — so the
+  library is per organization and not republished.
+- **Live lookup** (search the sources from the app) is not built: this
+  environment cannot reach the hosts, and nothing is claimed without
+  testing against the real services. File formats follow the sources'
+  published documentation; validate against a real download when one is
+  imported.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

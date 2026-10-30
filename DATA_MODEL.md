@@ -713,6 +713,16 @@ SUPERSEDED, `content` JSON snapshot, `inputs_hash`, reviewer ≠ author;
 partial UQs one pending and one approved per recipe; trigger allows only
 PENDING → APPROVED | REJECTED and APPROVED → SUPERSEDED).
 
+**Ingredient library** (migration `20261106090000_m5_ingredient_library`,
+ADR-041): **reference_foods** (source USDA_FDC | OPEN_FOOD_FACTS |
+WIKIDATA, `source_id` UQ per organization and source, data type, names,
+brand, basis, the ten nutrients, allergen and trace codes (CK subset of the
+14), unmapped tags, notes, licence, attribution, source URL, linked
+product, import) and **reference_imports** (source, file name, `sha256` UQ
+per organization, created / updated / skipped counts, problems; insert-only).
+`nutrition_profiles.reference_food_id` links copied values (CK source =
+DATABASE).
+
 ## 8. Food safety and traceability (Milestone 6)
 
 - **food_safety_records**: type (temperature, hygiene, cleaning, pest control),

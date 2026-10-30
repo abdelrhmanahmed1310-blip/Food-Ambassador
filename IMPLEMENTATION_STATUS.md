@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-05 (M5a nutrition, allergens and labels)
+Last updated: 2026-11-06 (M5b ingredient library; Milestone 5 complete)
 
 ## Summary
 
@@ -13,8 +13,40 @@ Last updated: 2026-11-05 (M5a nutrition, allergens and labels)
 | M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                              |
 | M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                   |
 | M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export) |
-| M5 Nutrition & allergens      | 🔄 In progress — **M5a ✅** (allergens, nutrition values, recipe roll-up, matrix, approved labels); M5b library imports next                                                                   |
+| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts     |
 | M8 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+
+## M5b — Ingredient library (delivered)
+
+Rules: DECISIONS.md ADR-041.
+
+| Area            | What works                                                                                                                                                        | Where                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| USDA FDC        | JSON downloads (Foundation, SR Legacy, Survey, Branded) and API responses; nutrients by number and unit; sodium mg → g; choices noted                             | `library-parsers.ts` (pure, unit-tested)                        |
+| Open Food Facts | Product / search JSON and JSONL dump; per-100 values; allergen and trace tags mapped to the 14; other tags kept                                                   | `library-parsers.ts`                                            |
+| Wikidata        | Entity JSON: English and Arabic names                                                                                                                             | `library-parsers.ts`                                            |
+| Import          | Upload up to 900 KB, or `pnpm library:import` for full downloads in idempotent parts of 2,000; a file is imported once; licence on each record                    | `src/modules/nutrition/library.ts`, `scripts/import-library.ts` |
+| Use for product | Values as unverified DATABASE profile (not over spec/lab, plausibility-checked); allergens only where unknown, contradictions reported; Arabic name only if empty | `linkReferenceFood`                                             |
+| Screens         | Library search by name / brand / id and source, record detail with licence and source link, import history; EN/AR                                                 | `/catalog/library`                                              |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 30 files / 183 tests — 4
+new: FDC download and API formats with fallbacks, unit mismatch and no
+derived salt; Open Food Facts tags, liquids, no-allergen note, JSON Lines
+with bad lines; Wikidata labels; build); `pnpm test:integration` 25 files /
+187 tests pass (3 new: import once per file with licence, update on a later
+file, search; use for a product as unverified database values, implausible
+values refused, Arabic name, allergens with a reported contradiction, spec
+values not replaced; permissions and other tenants); `pnpm test:e2e` 33
+tests pass (new: upload an Open Food Facts file, second upload skipped,
+record with licence, use for a product, values unverified, sesame contains,
+peanut may contain, milk still unknown). The command-line import was run
+once against the development database with 2,500 placeholder records (2
+parts, rerun skipped both); those records were removed afterwards.
+
+Not verified here: the parsers follow the sources' published formats but
+could not be run against real downloads — this environment cannot reach
+fdc.nal.usda.gov, world.openfoodfacts.org or wikidata.org. Live search from
+the app is therefore not built.
 
 ## M5a — Nutrition, allergens and labels (delivered)
 
@@ -47,7 +79,7 @@ pass (new: chef enters values (saturates > fat refused) and statements
 allergens, quality lead verifies, label generated as a draft, approved by
 the quality lead, printable, matrix shows sesame).
 
-Limitations: no food library yet (M5b); cooking losses and retention
+Limitations: cooking losses and retention
 factors are not modelled (per 100 g uses the yield weight entered); no
 market-specific label layouts (Q-02); no front-of-pack schemes (e.g.
 Nutri-Score); labels are not yet pushed to a POS or printer.

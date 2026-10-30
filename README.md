@@ -4,7 +4,7 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, point of sale, sales/invoice workflows and analytics.
 
-> **Status:** Milestones 0–4, 6 and 7 complete — on top of the M1
+> **Status:** Milestones 0–7 complete — on top of the M1
 > foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
@@ -27,10 +27,11 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > sale line, net prices in food cost), supplier invoices matched against
 > orders and receipts with input VAT, and payables: payments, credit notes,
 > supplier balances and aging, statements and accounting export files.
-> Milestone 5 (in progress) adds nutrition values and the 14 allergens per
-> product with second-person verification, recipe nutrition and allergens
-> through sub-recipes, an allergen matrix and labels approved by a second
-> person. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Milestone 5 adds nutrition values and the 14 allergens per product with
+> second-person verification, recipe nutrition and allergens through
+> sub-recipes, an allergen matrix, labels approved by a second person, and
+> an ingredient library imported from USDA FoodData Central, Open Food Facts
+> and Wikidata. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |
@@ -102,9 +103,27 @@ role `CREATEROLE` for the first run (ADR-013). A local superuser works as is.
 | `pnpm db:migrate`              | Create/apply a migration in development                                                  |
 | `pnpm db:deploy`               | Apply committed migrations (CI/production)                                               |
 | `pnpm db:seed`                 | Insert [DEMO] data (development only, idempotent)                                        |
+| `pnpm library:import …`        | Import a full food-database download into one organization's ingredient library (below)  |
 
 Integration and E2E tests create uniquely named data and never reset the
 database, so they can be re-run against the same test database.
+
+### Ingredient library downloads
+
+Small files (up to 900 KB) are uploaded under Catalog → Ingredient library.
+Full downloads are imported from the command line, in parts of 2,000
+records; re-running skips parts already imported:
+
+```bash
+NODE_OPTIONS=--max-old-space-size=8192 pnpm library:import \
+  --org <organization-slug> --user <member-email> --source USDA_FDC FoodData_Central_foundation_food_json.json
+```
+
+Sources: `USDA_FDC` (FoodData Central JSON downloads from
+fdc.nal.usda.gov/download-datasets, CC0), `OPEN_FOOD_FACTS` (product JSON or
+the JSONL dump from world.openfoodfacts.org/data, ODbL — keep the
+attribution, and share-alike applies to a database you publish from it),
+`WIKIDATA` (entity JSON, CC0). The member needs `nutrition.manage`.
 
 ## Environment variables
 
