@@ -14,6 +14,8 @@ import { planConsumptionInTx, postConsumptionInTx } from "@/modules/inventory/co
 import { reverseDocumentInTx } from "@/modules/inventory/operations";
 import { nextDocumentNumber } from "@/modules/inventory/posting";
 import { loadRecipeStructureInTx } from "@/modules/recipes/costs";
+import { taxFromGross, taxFromNet } from "@/modules/tax/rules";
+import { loadTaxContextInTx } from "@/modules/tax/service";
 import { explodeRecipe } from "@/modules/recipes/explode";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
@@ -34,7 +36,7 @@ import { z } from "zod";
 
 export const MAX_SALES_ROWS = 5000;
 export const SALES_TEMPLATE =
-  "date,external_id,item_code,item_type,quantity,net_amount,channel\n2026-11-01,T-1001-1,PASTA,RECIPE,2,240.00,dine-in\n";
+  "date,external_id,item_code,item_type,quantity,net_amount,gross_amount,tax_code,channel\n2026-11-01,T-1001-1,PASTA,RECIPE,2,,276.00,,dine-in\n";
 
 export interface SalesRowError {
   row: number;
@@ -87,6 +89,7 @@ export async function importSales(
               id: true,
               code: true,
               type: true,
+              taxCodeId: true,
               versions: { where: { status: "ACTIVE" }, select: { id: true } },
             },
           })
@@ -110,6 +113,7 @@ export async function importSales(
         ).map((l) => l.externalId),
       );
 
+      const tax = await loadTaxContextInTx(tx, ctx);
       const errors: SalesRowError[] = [];
       const seen = new Set<string>();
       let skipped = 0;
@@ -125,6 +129,10 @@ export async function importSales(
         productId: string | null;
         quantity: Decimal;
         netAmount: string | null;
+        taxCodeId: string | null;
+        taxRate: string | null;
+        taxAmount: string | null;
+        grossAmount: string | null;
       }> = [];
       for (const [i, r] of records.entries()) {
         const row = i + 1;
@@ -137,7 +145,8 @@ export async function importSales(
         else if (seen.has(externalId))
           errors.push({ row, column: "external_id", message: "duplicateInFile" });
         seen.add(externalId);
-        if (!isCalendarDate(date)) errors.push({ row, column: "date", message: "invalidDate" });
+        const validDate = isCalendarDate(date);
+        if (!validDate) errors.push({ row, column: "date", message: "invalidDate" });
         const qty = quantitySchema.safeParse(r.quantity ?? "");
         if (!qty.success)
           errors.push({
@@ -151,6 +160,23 @@ export async function importSales(
             row,
             column: "net_amount",
             message: amount.error.issues[0]?.message ?? "invalidDecimal",
+          });
+        const gross = r.gross_amount?.trim() ? amountSchema.safeParse(r.gross_amount) : null;
+        if (gross && !gross.success)
+          errors.push({
+            row,
+            column: "gross_amount",
+            message: gross.error.issues[0]?.message ?? "invalidDecimal",
+          });
+        if (amount && gross) errors.push({ row, column: "gross_amount", message: "netOrGross" });
+        const taxCodeText = (r.tax_code ?? "").trim().toUpperCase();
+        const taxCode = taxCodeText ? tax.byCode.get(taxCodeText) : undefined;
+        if (taxCodeText && !taxCode)
+          errors.push({
+            row,
+            column: "tax_code",
+            message: "unknownTaxCode",
+            params: { code: taxCodeText },
           });
         if (type && type !== "RECIPE" && type !== "PRODUCT")
           errors.push({ row, column: "item_type", message: "invalidOption" });
@@ -177,6 +203,44 @@ export async function importSales(
           continue;
         }
         if (!qty.success) continue;
+        // VAT (ADR-037): the file's code, else the dish's, else the default; rate on the sale date.
+        const given = amount?.success ? amount.data : gross?.success ? gross.data : null;
+        let taxed: {
+          codeId: string | null;
+          rate: Decimal | null;
+          net: string | null;
+          tax: string | null;
+          gross: string | null;
+        } = {
+          codeId: null,
+          rate: null,
+          net: amount?.success ? amount.data : gross?.success ? gross.data : null,
+          tax: null,
+          gross: given,
+        };
+        const resolved =
+          given !== null && validDate ? tax.resolve(taxCode?.id ?? recipe?.taxCodeId, date) : null;
+        if (resolved && !resolved.ok) {
+          errors.push({
+            row,
+            column: "tax_code",
+            message: resolved.problem,
+            params: { code: resolved.code },
+          });
+          continue;
+        }
+        if (resolved) {
+          const split = amount?.success
+            ? taxFromNet(toDecimal(amount.data), resolved.rate, ctx.baseCurrency)
+            : taxFromGross(toDecimal(given as string), resolved.rate, ctx.baseCurrency);
+          taxed = {
+            codeId: resolved.codeId,
+            rate: resolved.rate,
+            net: split.net.toFixed(),
+            tax: split.tax.toFixed(),
+            gross: split.gross.toFixed(),
+          };
+        }
         lines.push({
           rowNo: row,
           externalId,
@@ -188,7 +252,11 @@ export async function importSales(
           asPortions: recipe?.type === "DISH",
           productId: product?.id ?? null,
           quantity: toDecimal(qty.data),
-          netAmount: amount?.success ? amount.data : null,
+          netAmount: taxed.net,
+          taxCodeId: taxed.codeId,
+          taxRate: taxed.rate?.toFixed() ?? null,
+          taxAmount: taxed.tax,
+          grossAmount: taxed.gross,
         });
       }
       if (errors.length > 0) return fail(errors);
@@ -248,6 +316,12 @@ export async function importSales(
       const number = await nextDocumentNumber(tx, ctx.organizationId, "SAL", year);
       const posted = await postConsumptionInTx(tx, ctx, wh, plan.picks, `Sales ${number}`);
       const amounts = lines.filter((l) => l.netAmount !== null);
+      const sum = (pick: (l: (typeof lines)[number]) => string | null) => {
+        const values = lines.map(pick).filter((v): v is string => v !== null);
+        return values.length
+          ? roundMoney(values.reduce((a, v) => a.plus(toDecimal(v)), new Decimal(0))).toFixed()
+          : null;
+      };
       const sales = await tx.salesImport.create({
         data: {
           organizationId: ctx.organizationId,
@@ -261,6 +335,8 @@ export async function importSales(
                 amounts.reduce((a, l) => a.plus(toDecimal(l.netAmount as string)), new Decimal(0)),
               ).toFixed()
             : null,
+          taxAmount: sum((l) => l.taxAmount),
+          grossAmount: sum((l) => l.grossAmount),
           costAmount: posted.cost.toFixed(),
           documentId: posted.documentId,
           postedByUserId: ctx.userId,
@@ -281,6 +357,10 @@ export async function importSales(
           productId: l.productId,
           quantity: l.quantity.toFixed(),
           netAmount: l.netAmount,
+          taxCodeId: l.taxCodeId,
+          taxRate: l.taxRate,
+          taxAmount: l.taxAmount,
+          grossAmount: l.grossAmount,
         })),
       });
       await recordAudit(tx, actorOf(ctx), {

@@ -531,6 +531,51 @@ documents stay scoped. Found by a scoped-user integration test.
 - Permissions `sales.view`, `sales.import` (warehouse-scopable). Refunds and
   negative quantities are not supported yet.
 
+### ADR-037 VAT setup for Saudi Arabia, Egypt and the GCC — Accepted (answers Q-02 for these markets)
+
+- **One VAT country per organization:** SA, AE, BH, OM, QA, KW or EG. A
+  country preset creates the organization's own codes — STD (standard rate
+  with its history), ZERO, EXEMPT, OOS — which it can extend; re-applying
+  adds missing rates only. Which items are zero-rated or exempt is the
+  organization's decision; nothing is assigned automatically.
+- **Preset rates** (checked 2026-11-02):
+
+  | Country       | Standard rate history                     | VAT number format check                       |
+  | ------------- | ----------------------------------------- | --------------------------------------------- |
+  | Saudi Arabia  | 5 % from 2018-01-01; 15 % from 2020-07-01 | 15 digits, first and last 3 (ZATCA BR-KSA-40) |
+  | UAE           | 5 % from 2018-01-01                       | 15 digits (TRN)                               |
+  | Bahrain       | 5 % from 2019-01-01; 10 % from 2022-01-01 | 15 digits                                     |
+  | Oman          | 5 % from 2021-04-16                       | not confirmed — letters/digits only           |
+  | Egypt         | 14 % from FY 2017/18                      | 9 digits (secondary sources)                  |
+  | Qatar, Kuwait | no VAT in force — no codes created        | —                                             |
+
+  Sources: KPMG GCC VAT comparison; Baker McKenzie GCC VAT framework update
+  (2026); KSA Ministerial Decision (Official Gazette 2020-05-15); Oman Royal
+  Decree 121/2020; Egypt VAT Law 67/2016 and later amendments; ZATCA
+  e-invoicing rule BR-KSA-40. Format checks never prove registration — only
+  the tax authority's lookup does.
+
+- **Rates are dated and append-only:** a change in the law is a new rate
+  with its effective date; every sale uses the rate on its own date, and
+  stores code, rate, net, VAT and gross.
+- **Rounding:** VAT per line, half-up to the currency's minor unit (2
+  decimals for SAR, AED, EGP, QAR; 3 for BHD, KWD, OMR — from ICU data).
+  From net: VAT = net × rate. From gross: VAT = gross × rate ÷ (1 + rate),
+  net = gross − VAT, so the parts always add up.
+- **Registration:** VAT is charged only when the organization is VAT
+  registered, has a default sales code and a valid-format number;
+  registering is refused in countries without VAT.
+- **Sales import** (amends ADR-036): `net_amount` or `gross_amount` (not
+  both) and an optional `tax_code`; the code is the file's, else the dish's,
+  else the default; no rate on the sale date is an error.
+- **Selling prices** (amends ADR-032): with "prices include VAT" on, a price
+  is stored as including VAT; food cost % and margin always use the net
+  price at today's rate of the dish's code.
+- **VAT summary:** output VAT from imported sales by code and rate for a
+  period — not a VAT return. Input VAT comes with supplier invoices (M7b);
+  ZATCA Fatoora and Egypt ETA e-invoicing/e-receipts remain POS4.
+- Changing the setup needs `org.settings.manage`.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -550,23 +595,23 @@ documents stay scoped. Found by a scoped-user integration test.
 
 ## Open questions
 
-| ID   | Question                                                                                                                                                                | Needed by             |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                    |
-| Q-02 | Target launch markets (e.g. Egypt, KSA, UAE)? Determines allergen lists, label rules, tax (VAT) handling, data residency, and default currency/time zone.               | M5 (labels), M7 (tax) |
-| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)            |
-| Q-04 | Purchase approval policy — **default in place** (ADR-023): one optional approval limit; author cannot approve. Confirm, or ask for multi-level approval.                | M3                    |
-| Q-05 | Foreign-currency supplier invoices — **default in place** (ADR-023): base currency only. Confirm for the pilot.                                                         | M7                    |
-| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                    |
-| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)     |
-| Q-08 | Attachment retention period and maximum file size.                                                                                                                      | M6                    |
-| Q-09 | Over-receipt tolerance — **default in place** (ADR-023): 0 %, configurable per organization.                                                                            | M3                    |
-| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)     |
-| Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                     | M2                    |
-| Q-12 | Should counting and approving a stock count require two different people (segregation of duties)? Currently allowed to be the same user.                                | M8 (pilot)            |
-| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                  | M3                    |
-| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                          | —                     |
-| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                          | POS3                  |
-| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline? | POS1                  |
-| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                           | POS4                  |
-| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                    | POS5                  |
+| ID   | Question                                                                                                                                                                | Needed by                 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                        |
+| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.             | M5 (labels), M8 (hosting) |
+| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)                |
+| Q-04 | Purchase approval policy — **default in place** (ADR-023): one optional approval limit; author cannot approve. Confirm, or ask for multi-level approval.                | M3                        |
+| Q-05 | Foreign-currency supplier invoices — **default in place** (ADR-023): base currency only. Confirm for the pilot.                                                         | M7                        |
+| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                        |
+| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)         |
+| Q-08 | Attachment retention period and maximum file size.                                                                                                                      | M6                        |
+| Q-09 | Over-receipt tolerance — **default in place** (ADR-023): 0 %, configurable per organization.                                                                            | M3                        |
+| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)         |
+| Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                     | M2                        |
+| Q-12 | Should counting and approving a stock count require two different people (segregation of duties)? Currently allowed to be the same user.                                | M8 (pilot)                |
+| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                  | M3                        |
+| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                          | —                         |
+| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                          | POS3                      |
+| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline? | POS1                      |
+| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                           | POS4                      |
+| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                    | POS5                      |

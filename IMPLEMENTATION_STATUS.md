@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (Milestone 7a — sales import and consumption)
+Last updated: 2026-11-02 (VAT setup for Saudi Arabia, Egypt and the GCC)
 
 ## Summary
 
@@ -12,8 +12,45 @@ Last updated: 2026-11-02 (Milestone 7a — sales import and consumption)
 | M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
 | M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card   |
 | M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                        |
-| M7 Sales & finance            | 🔄 In progress — **M7a ✅** (sales import, recipe consumption); supplier invoices next                                              |
+| M7 Sales & finance            | 🔄 In progress — M7a ✅ (sales import, recipe consumption), **VAT setup ✅** (KSA, Egypt, GCC); supplier invoices next              |
 | M5, M8 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                            |
+
+## VAT setup — Saudi Arabia, Egypt, GCC (delivered)
+
+Rules: DECISIONS.md ADR-037 (answers Q-02 for VAT).
+
+| Area            | What works                                                                                                                                      | Where                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| Country presets | SA 15 % (5 % before 2020-07-01), AE 5 %, BH 10 % (5 % before 2022), OM 5 %, EG 14 %; QA and KW: no VAT in force, no codes; sources shown        | `src/modules/tax/presets.ts`   |
+| Codes and rates | STD / ZERO / EXEMPT / OOS per preset, own codes, new dated rates when the law changes; rates append-only                                        | `src/modules/tax/service.ts`   |
+| Registration    | VAT registered flag, number format check per country (KSA 3…3, 15 digits; AE/BH 15; EG 9), prices incl./excl. VAT, default sales/purchase codes | `/settings/tax`                |
+| Calculation     | Per line at the rate on the sale date; from net or from gross; rounded to the currency unit (3 decimals for BHD, KWD, OMR)                      | `rules.ts` (pure, unit-tested) |
+| Sales import    | `net_amount` or `gross_amount`, optional `tax_code`; dish VAT code; code, rate, net, VAT and gross stored per line and per import               | `src/modules/sales/imports.ts` |
+| Food cost       | Prices entered incl. VAT are converted to net for food cost % and margin                                                                        | `src/modules/recipes/menu.ts`  |
+| VAT summary     | Output VAT by code and rate for a period, from imported sales                                                                                   | `/sales/vat`                   |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 26 files / 163 tests — 5 new:
+currency units, rate on a date, VAT from net and from gross with rounding
+incl. BHD, VAT number formats, presets; build); `pnpm test:integration` 21
+files / 170 tests pass (5 new: Saudi preset with history and idempotent
+re-apply; registration checks, append-only rates and admin-only changes;
+VAT per sale line at the rate on its date incl. 5 % in 2019 and an exempt
+override, with summary; net price in food cost and a zero-rated dish; Egypt
+unregistered and Qatar without VAT); `pnpm test:e2e` 29 tests pass (new:
+Saudi preset → invalid then valid VAT number → sale of 23.00 incl. VAT →
+3.00 VAT → VAT summary).
+
+Found and fixed: after a failed save, checkboxes in forms went back to
+their initial state (React resets forms after an action), so correcting
+the VAT number and saving again silently stored "not registered"; a shared
+checkbox field now keeps the user's choice — also used for "activate now"
+in bulk replacement and the line selection when ordering a requisition.
+
+Limitations: no e-invoicing (ZATCA Fatoora phases, Egypt ETA e-invoice /
+e-receipt — POS4); input VAT and VAT returns need supplier invoices (M7b)
+and are not filed from here; the VAT country is not tied to the base
+currency; special regimes (e.g. tourism, free zones) are left to the
+organization's own codes.
 
 ## M7a — Sales import and recipe-based consumption (delivered)
 

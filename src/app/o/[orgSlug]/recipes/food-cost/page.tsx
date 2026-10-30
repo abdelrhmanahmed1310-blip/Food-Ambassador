@@ -152,8 +152,15 @@ export default async function FoodCostPage({
                   </Td>
                   <Td className="tabular-nums">
                     <span className="ltr-value whitespace-nowrap">
-                      {r.price ? money.money(r.price) : "—"}
+                      {r.price ? money.money(r.price.entered) : "—"}
                     </span>
+                    {r.price?.includesTax ? (
+                      <span className="text-muted block text-xs">
+                        {r.price.net
+                          ? t("tax.netOfVat", { amount: money.money(r.price.net) })
+                          : t("tax.noRateForPrice")}
+                      </span>
+                    ) : null}
                   </Td>
                   <Td className="tabular-nums">
                     <span className="ltr-value">{r.fraction ? pct(r.fraction) : "—"}</span>

@@ -61,7 +61,10 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   if (hasPermission(ctx.grants, "recipes.view"))
     kitchen.items.push({ href: `${base}/recipes`, label: t("recipes") });
   if (holdsAnyGrant(ctx.grants, "sales.view"))
-    kitchen.items.push({ href: `${base}/sales`, label: t("sales") });
+    kitchen.items.push(
+      { href: `${base}/sales`, label: t("sales"), exact: true },
+      { href: `${base}/sales/vat`, label: t("vatSummary") },
+    );
   if (hasPermission(ctx.grants, "recipes.costs.view"))
     kitchen.items.push(
       { href: `${base}/recipes/food-cost`, label: t("foodCost") },
@@ -101,7 +104,10 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   if (hasPermission(ctx.grants, "org.settings.manage"))
     settings.items.push({ href: `${base}/settings/organization`, label: t("organization") });
   if (hasPermission(ctx.grants, "org.settings.manage"))
-    settings.items.push({ href: `${base}/settings/purchasing`, label: t("purchasingSettings") });
+    settings.items.push(
+      { href: `${base}/settings/purchasing`, label: t("purchasingSettings") },
+      { href: `${base}/settings/tax`, label: t("taxSettings") },
+    );
   if (hasPermission(ctx.grants, "members.view"))
     settings.items.push({ href: `${base}/settings/members`, label: t("members") });
   if (hasPermission(ctx.grants, "roles.manage"))

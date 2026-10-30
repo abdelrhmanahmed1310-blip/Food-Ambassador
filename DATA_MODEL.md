@@ -761,6 +761,16 @@ channel, item type RECIPE (recipe + version) | PRODUCT, quantity, net
 amount, `active`). `inventory_document_type` gains CONSUMPTION (`CON-`).
 Migration `20261102090000_m7_sales`, ADR-036.
 
+**VAT** (migration `20261102150000_vat_setup`, ADR-037): **tax_settings**
+(one per organization: `country` CK in SA/AE/BH/OM/QA/KW/EG,
+`vat_registered`, `vat_number`, `prices_include_tax`, default sales and
+purchase codes); **tax_codes** (`code` UQ, names, category STANDARD |
+ZERO_RATED | EXEMPT | OUT_OF_SCOPE); **tax_rates** (code, `rate` fraction in
+[0, 1), `effective_from` UQ per code, source; append-only). New columns:
+`recipes.tax_code_id`, `products.purchase_tax_code_id` (for M7b),
+`recipe_prices.includes_tax`, `sales_lines.tax_code_id / tax_rate /
+tax_amount / gross_amount` and `sales_imports.tax_amount / gross_amount`.
+
 - **supplier_invoices / lines**, **invoice_matches** (PO line ↔ receipt line ↔
   invoice line, with quantity/price variances and tolerances),
   **supplier_settlements** (payments, credit notes) and supplier balance

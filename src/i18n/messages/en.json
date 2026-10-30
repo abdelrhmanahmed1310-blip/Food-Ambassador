@@ -105,7 +105,9 @@
     "checklists": "Checklists",
     "nonConformances": "Non-conformances",
     "checkpoints": "Monitoring points",
-    "sales": "Sales"
+    "sales": "Sales",
+    "vatSummary": "VAT on sales",
+    "taxSettings": "VAT"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -295,7 +297,13 @@
     "NC_ACTIONS_NOT_VERIFIED": "Verify every corrective action before closing.",
     "CONSUMPTION_REVERSE_IN_SALES": "Reverse sales consumption from the sales import.",
     "SALES_IMPORT_REVERSED": "This import was already reversed.",
-    "REASON_REQUIRED": "Give a reason."
+    "REASON_REQUIRED": "Give a reason.",
+    "UNKNOWN_TAX_COUNTRY": "This country is not supported.",
+    "NO_VAT_IN_COUNTRY": "There is no VAT in force in this country.",
+    "VAT_NUMBER_REQUIRED": "Enter the VAT registration number.",
+    "INVALID_VAT_NUMBER": "The VAT number does not have the expected format for this country.",
+    "DEFAULT_TAX_CODE_REQUIRED": "Choose the default sales VAT code.",
+    "NON_STANDARD_RATE_MUST_BE_ZERO": "Zero-rated, exempt and out-of-scope codes have a 0 % rate."
   },
   "notFound": {
     "title": "Page not found",
@@ -1497,7 +1505,7 @@
     "hint": "Upload sales from your till or POS as CSV. Each sold item uses up stock through its active recipe, first-expiring lots first.",
     "noLiveIntegration": "File import only: there is no live connection to a POS yet. Lines already imported (same external id) are skipped, so a file can safely be uploaded again.",
     "uploadTitle": "Import sales",
-    "uploadHint": "Columns: date (YYYY-MM-DD), external_id (unique per sold line), item_code (recipe code or product SKU), item_type (RECIPE or PRODUCT, optional), quantity (portions for dishes, yield unit for preparations, base unit for products), net_amount and channel (optional). Nothing is posted unless every row and the stock are fine.",
+    "uploadHint": "Columns: date (YYYY-MM-DD), external_id (unique per sold line), item_code (recipe code or product SKU), item_type (RECIPE or PRODUCT, optional), quantity (portions for dishes, yield unit for preparations, base unit for products), and optionally net_amount (excl. VAT) or gross_amount (incl. VAT), tax_code and channel. When the organization is VAT registered, VAT is worked out per line at the rate in force on the sale date. Nothing is posted unless every row and the stock are fine.",
     "warehouse": "Warehouse",
     "empty": "No sales imported yet.",
     "lines": "Lines",
@@ -1531,7 +1539,64 @@
         "NO_ACTIVE_VERSION": "A preparation used by {code} has no active version.",
         "INCOMPATIBLE_UNITS": "An ingredient of {code} is in a unit that does not convert.",
         "CYCLE": "Recipe {code} contains itself."
-      }
+      },
+      "netOrGross": "Give net_amount or gross_amount, not both.",
+      "unknownTaxCode": "No VAT code {code}.",
+      "noTaxCode": "No VAT code applies; set a default sales code.",
+      "noTaxRate": "VAT code {code} has no rate on this date."
     }
+  },
+  "tax": {
+    "title": "VAT",
+    "hint": "Country, VAT registration, whether selling prices include VAT, and the VAT codes with their rates over time.",
+    "disclaimer": "Presets reflect the standard rates checked on 2 November 2026 with their sources. Tax law changes: confirm with your tax adviser and add new rates with their start date when the law changes. Zero-rated, exempt and special cases must be assigned by you; nothing is decided automatically.",
+    "presetTitle": "Country preset",
+    "presetHint": "Creates the codes STD (standard rate with its history), ZERO, EXEMPT and OOS for the country. Running it again only adds missing rates.",
+    "applyPreset": "Apply preset",
+    "presetApplied": "Preset applied.",
+    "presetNoVat": "There is no VAT in force in this country; no VAT codes were created.",
+    "presetSource": "Source: {source}",
+    "country": "Country",
+    "noVatInForce": "no VAT in force",
+    "settingsTitle": "Registration and defaults",
+    "vatRegistered": "VAT registered (charge VAT on sales)",
+    "vatNumber": "VAT registration number",
+    "vatNumberHint": "Format check only: Saudi Arabia 15 digits starting and ending with 3; UAE and Bahrain 15 digits; Egypt 9 digits. Only the tax authority can confirm the number is registered.",
+    "pricesIncludeTax": "Selling prices are entered including VAT",
+    "defaultSales": "Default sales VAT code",
+    "defaultPurchase": "Default purchase VAT code",
+    "codesTitle": "VAT codes and rates",
+    "noCodes": "No VAT codes yet — apply a country preset or add a code.",
+    "newCode": "New VAT code",
+    "code": "Code",
+    "name": "Name (English)",
+    "nameAr": "Name (Arabic)",
+    "category": "Category",
+    "rate": "Rate",
+    "rates": "Rates",
+    "ratePercent": "Rate %",
+    "effectiveFrom": "Effective from",
+    "source": "Source / legal basis",
+    "addRate": "Add rate",
+    "categories": {
+      "STANDARD": "Standard rate",
+      "ZERO_RATED": "Zero-rated",
+      "EXEMPT": "Exempt",
+      "OUT_OF_SCOPE": "Out of scope"
+    },
+    "dishTaxCode": "VAT code for this dish",
+    "useDefault": "Organization default",
+    "netOfVat": "{amount} excl. VAT",
+    "noRateForPrice": "No VAT rate for today — net price unknown",
+    "summaryTitle": "VAT on sales",
+    "summaryHint": "Output VAT from imported sales, by code and rate, for a period.",
+    "summaryNote": "Output VAT only, from imported sales. Input VAT from supplier invoices comes with invoice capture (M7b). This summary does not replace your VAT return.",
+    "from": "From",
+    "to": "To",
+    "net": "Net",
+    "vat": "VAT",
+    "gross": "Gross",
+    "noSales": "No sales in this period.",
+    "notTaxed": "No VAT applied"
   }
 }

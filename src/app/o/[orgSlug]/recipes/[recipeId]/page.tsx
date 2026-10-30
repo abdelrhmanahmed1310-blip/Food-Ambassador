@@ -9,6 +9,8 @@ import { listSnapshots } from "@/modules/recipes/costs";
 import { businessDate } from "@/modules/inventory/rules";
 import { listRecipePrices } from "@/modules/recipes/menu";
 import { RecipePriceForm, TargetForm } from "@/components/recipes/forms";
+import { RecipeTaxForm } from "@/components/tax/forms";
+import { getTaxSetup } from "@/modules/tax/service";
 import { getRecipe } from "@/modules/recipes/recipes";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -19,6 +21,7 @@ import {
   createDraftVersionAction,
   setRecipeArchivedAction,
   setRecipeTargetAction,
+  setRecipeTaxCodeAction,
   updateRecipeAction,
 } from "../actions";
 
@@ -39,6 +42,10 @@ export default async function RecipePage({ params }: PageProps<"/o/[orgSlug]/rec
     costs ? listSnapshots(ctx, recipe.id) : Promise.resolve([]),
   ]);
   const prices = recipe.type === "DISH" ? await listRecipePrices(ctx, recipe.id) : [];
+  const taxCodes =
+    recipe.type === "DISH" && recipe.can.edit
+      ? (await getTaxSetup(ctx)).codes.filter((c) => !c.archivedAt)
+      : [];
   const base = `/o/${orgSlug}/recipes/${recipe.id}`;
   const dt = (d: Date) =>
     format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone });
@@ -137,6 +144,16 @@ export default async function RecipePage({ params }: PageProps<"/o/[orgSlug]/rec
                   currency={ctx.baseCurrency}
                   today={businessDate(ctx.timeZone)}
                 />
+                {taxCodes.length > 0 ? (
+                  <RecipeTaxForm
+                    action={setRecipeTaxCodeAction.bind(null, orgSlug, recipe.id)}
+                    codes={taxCodes.map((c) => ({
+                      value: c.id,
+                      label: `${c.code} — ${(locale === "ar" && c.nameAr) || c.name}`,
+                    }))}
+                    current={recipe.taxCodeId ?? undefined}
+                  />
+                ) : null}
                 <TargetForm
                   action={setRecipeTargetAction.bind(null, orgSlug, recipe.id)}
                   label={t("recipes.recipeTarget")}

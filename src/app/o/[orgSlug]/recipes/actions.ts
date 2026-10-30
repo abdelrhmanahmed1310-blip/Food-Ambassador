@@ -8,6 +8,7 @@ import {
   addRecipePrice,
   bulkReplaceIngredient,
   setRecipeTarget,
+  setRecipeTaxCode,
   updateRecipeSettings,
 } from "@/modules/recipes/menu";
 import {
@@ -207,4 +208,15 @@ export async function bulkReplaceAction(
     for (const s of skipped) parts.push(t(`replaceSkipped.${s.reason}`, { code: s.code }));
     return { message: parts.join(" ") };
   });
+}
+
+export async function setRecipeTaxCodeAction(
+  orgSlug: string,
+  recipeId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    setRecipeTaxCode(ctx, recipeId, String(formData.get("taxCodeId") ?? "") || null),
+  );
 }

@@ -328,3 +328,34 @@ export function CopyField({
     </div>
   );
 }
+
+/**
+ * A single checkbox that keeps what the user chose after a failed
+ * submission (React resets forms after an action; values are restored from
+ * the action state like text fields).
+ */
+export function CheckboxField({
+  name,
+  label,
+  defaultChecked = false,
+}: {
+  name: string;
+  label: ReactNode;
+  defaultChecked?: boolean;
+}) {
+  const state = useFormState();
+  const checked = state.values
+    ? state.values[name] === "on" || state.values[name] === "true"
+    : defaultChecked;
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input
+        key={`${state.seq ?? 0}-${checked}`}
+        type="checkbox"
+        name={name}
+        defaultChecked={checked}
+      />
+      {label}
+    </label>
+  );
+}

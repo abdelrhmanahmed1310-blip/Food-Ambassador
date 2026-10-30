@@ -79,6 +79,26 @@ export default async function SalesImportPage({
                   </span>
                 ),
               },
+              ...(imp.taxAmount !== null
+                ? [
+                    {
+                      label: t("tax.vat"),
+                      value: (
+                        <span className="ltr-value tabular-nums" data-testid="sales-vat">
+                          {money.money(imp.taxAmount)}
+                        </span>
+                      ),
+                    },
+                    {
+                      label: t("tax.gross"),
+                      value: (
+                        <span className="ltr-value tabular-nums">
+                          {imp.grossAmount ? money.money(imp.grossAmount) : "—"}
+                        </span>
+                      ),
+                    },
+                  ]
+                : []),
               ...(imp.costAmount !== null
                 ? [
                     {
@@ -117,6 +137,7 @@ export default async function SalesImportPage({
                 <Th>{t("sales.item")}</Th>
                 <Th>{t("common.quantity")}</Th>
                 <Th>{t("sales.netAmount")}</Th>
+                <Th>{t("tax.vat")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -156,6 +177,16 @@ export default async function SalesImportPage({
                     <span className="ltr-value whitespace-nowrap">
                       {l.netAmount ? money.money(l.netAmount) : "—"}
                     </span>
+                  </Td>
+                  <Td className="tabular-nums">
+                    <span className="ltr-value whitespace-nowrap">
+                      {l.taxAmount ? money.money(l.taxAmount) : "—"}
+                    </span>
+                    {l.taxRate ? (
+                      <span className="ltr-value text-muted block text-xs">
+                        {l.taxRate.times(100).toFixed()} %
+                      </span>
+                    ) : null}
                   </Td>
                 </tr>
               ))}

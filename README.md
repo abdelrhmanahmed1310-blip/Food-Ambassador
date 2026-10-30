@@ -22,7 +22,9 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > every warehouse, disposal or release), temperature and hygiene records
 > against limits, checklists, and non-conformances with corrective actions
 > verified by a second person. Milestone 7 adds sales import from CSV that
-> uses up stock through recipes (first-expiring lots first, cost of sales). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> uses up stock through recipes (first-expiring lots first, cost of sales)
+> and a VAT setup for Saudi Arabia, Egypt and the GCC (dated rates, VAT per
+> sale line, net prices in food cost). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

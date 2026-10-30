@@ -13,6 +13,8 @@ import { businessRuleViolation, conflict, notFound, validationFailed } from "@/s
 import { usesProduct, type CostPolicy, type VersionCost } from "./costing";
 import { costVersionsInTx } from "./costs";
 import { dishEconomics } from "./pricing";
+import { taxFromGross } from "@/modules/tax/rules";
+import { loadTaxContextInTx } from "@/modules/tax/service";
 import { activateInTx, createDraftInTx } from "./recipes";
 import {
   bulkReplaceSchema,
@@ -53,6 +55,9 @@ export async function addRecipePrice(ctx: TenantContext, recipeId: string, rawIn
             organizationId: ctx.organizationId,
             recipeId: recipe.id,
             price: input.price,
+            includesTax:
+              (await tx.taxSettings.findUnique({ where: { organizationId: ctx.organizationId } }))
+                ?.pricesIncludeTax ?? false,
             effectiveFrom: new Date(`${input.effectiveFrom}T00:00:00Z`),
             note: input.note,
             createdByUserId: ctx.userId,
@@ -90,17 +95,44 @@ export async function listRecipePrices(ctx: TenantContext, recipeId: string) {
   );
 }
 
-/** Price in effect today per recipe. */
-async function currentPrices(tx: Tx, ctx: TenantContext, recipeIds: string[]) {
-  if (recipeIds.length === 0) return new Map<string, Decimal>();
-  const rows = await tx.$queryRaw<Array<{ recipe_id: string; price: string }>>`
-    SELECT DISTINCT ON ("recipe_id") "recipe_id", "price"::text
+export interface DishPrice {
+  /** As entered. */
+  entered: Decimal;
+  includesTax: boolean;
+  /** Excluding VAT — what food cost % and margin use (ADR-037); null if the VAT rate is unknown. */
+  net: Decimal | null;
+}
+
+/** Price in effect today per recipe, with its net (ex-VAT) amount. */
+async function currentPrices(
+  tx: Tx,
+  ctx: TenantContext,
+  dishes: ReadonlyArray<{ id: string; taxCodeId: string | null }>,
+) {
+  const result = new Map<string, DishPrice>();
+  if (dishes.length === 0) return result;
+  const today = businessDate(ctx.timeZone);
+  const rows = await tx.$queryRaw<
+    Array<{ recipe_id: string; price: string; includes_tax: boolean }>
+  >`
+    SELECT DISTINCT ON ("recipe_id") "recipe_id", "price"::text, "includes_tax"
     FROM "recipe_prices"
     WHERE "organization_id" = ${ctx.organizationId}::uuid
-      AND "recipe_id" = ANY(${recipeIds}::uuid[])
-      AND "effective_from" <= ${businessDate(ctx.timeZone)}::date
+      AND "recipe_id" = ANY(${dishes.map((d) => d.id)}::uuid[])
+      AND "effective_from" <= ${today}::date
     ORDER BY "recipe_id", "effective_from" DESC`;
-  return new Map(rows.map((r) => [r.recipe_id, new Decimal(r.price)]));
+  const tax = await loadTaxContextInTx(tx, ctx);
+  for (const r of rows) {
+    const entered = new Decimal(r.price);
+    let net: Decimal | null = entered;
+    if (r.includes_tax) {
+      const resolved = tax.resolve(dishes.find((d) => d.id === r.recipe_id)?.taxCodeId, today);
+      if (resolved && !resolved.ok) net = null;
+      else if (resolved) net = taxFromGross(entered, resolved.rate, ctx.baseCurrency).net;
+    }
+    result.set(r.recipe_id, { entered, includesTax: r.includes_tax, net });
+  }
+  return result;
 }
 
 export async function getRecipeSettings(ctx: TenantContext) {
@@ -171,6 +203,7 @@ async function activeDishes(tx: Tx, ctx: TenantContext) {
       name: true,
       nameAr: true,
       targetFoodCostFraction: true,
+      taxCodeId: true,
       versions: { where: { status: "ACTIVE" }, select: { id: true, versionNo: true } },
     },
     orderBy: { code: "asc" },
@@ -212,16 +245,17 @@ export async function foodCostReport(ctx: TenantContext, rawQuery: unknown) {
       dishes.map((d) => d.versions[0].id),
       query,
     );
-    const prices = await currentPrices(
-      tx,
-      ctx,
-      dishes.map((d) => d.id),
-    );
+    const prices = await currentPrices(tx, ctx, dishes);
     const rows = dishes.map((d) => ({
       recipe: { id: d.id, code: d.code, name: d.name, nameAr: d.nameAr },
       version: d.versions[0],
       price: prices.get(d.id) ?? null,
-      ...row(d, costs.get(d.versions[0].id) as VersionCost, prices.get(d.id) ?? null, orgTarget),
+      ...row(
+        d,
+        costs.get(d.versions[0].id) as VersionCost,
+        prices.get(d.id)?.net ?? null,
+        orgTarget,
+      ),
     }));
     return { ...query, orgTarget, rows };
   });
@@ -251,17 +285,18 @@ export async function simulatePrice(ctx: TenantContext, rawInput: unknown, rawQu
     const orgTarget = settings?.targetFoodCostFraction
       ? dec(settings.targetFoodCostFraction)
       : null;
-    const prices = await currentPrices(
-      tx,
-      ctx,
-      dishes.map((d) => d.id),
-    );
+    const prices = await currentPrices(tx, ctx, dishes);
     const rows = dishes
       .filter((d) => usesProduct(before.get(d.versions[0].id) as VersionCost, product.id))
       .map((d) => {
         const price = prices.get(d.id) ?? null;
-        const b = row(d, before.get(d.versions[0].id) as VersionCost, price, orgTarget);
-        const a = row(d, after.get(d.versions[0].id) as VersionCost, price, orgTarget);
+        const b = row(
+          d,
+          before.get(d.versions[0].id) as VersionCost,
+          price?.net ?? null,
+          orgTarget,
+        );
+        const a = row(d, after.get(d.versions[0].id) as VersionCost, price?.net ?? null, orgTarget);
         return {
           recipe: { id: d.id, code: d.code, name: d.name, nameAr: d.nameAr },
           price,
@@ -421,5 +456,34 @@ export async function bulkReplaceIngredient(
       done.push({ recipeId: recipe.id, code: recipe.code, versionId: draft.id, activated });
     }
     return { done, skipped };
+  });
+}
+
+/** VAT code of a dish; empty uses the organization's default sales code. */
+export async function setRecipeTaxCode(
+  ctx: TenantContext,
+  recipeId: string,
+  taxCodeId: string | null,
+) {
+  assertPermission(ctx.grants, "recipes.manage");
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    const recipe = await tx.recipe.findFirst({
+      where: { organizationId: ctx.organizationId, id: recipeId },
+      select: { id: true, code: true },
+    });
+    if (!recipe) throw notFound("Recipe");
+    if (taxCodeId) {
+      const code = await tx.taxCode.findFirst({
+        where: { organizationId: ctx.organizationId, id: taxCodeId, archivedAt: null },
+      });
+      if (!code) throw notFound("Tax code");
+    }
+    await tx.recipe.update({ where: { id: recipe.id }, data: { taxCodeId } });
+    await recordAudit(tx, actorOf(ctx), {
+      action: "recipe.tax_code_updated",
+      entityType: "recipe",
+      entityId: recipe.id,
+      changes: { code: recipe.code, taxCodeId },
+    });
   });
 }

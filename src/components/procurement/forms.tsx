@@ -2,7 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import type { ActionState } from "@/components/forms/action-state";
-import { ActionForm, SelectField, TextField, useFormState } from "@/components/forms/fields";
+import {
+  ActionForm,
+  CheckboxField,
+  SelectField,
+  TextField,
+  useFormState,
+} from "@/components/forms/fields";
 
 type Option = { value: string; label: string };
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -769,15 +775,18 @@ export function OrderRequisitionForm({
           <legend className="px-1 text-sm font-medium">{l.label}</legend>
           <input type="hidden" name={`lines.${i}.lineId`} value={l.id} />
           <div className="grid items-end gap-3 sm:grid-cols-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name={`lines.${i}.include`} defaultChecked />
-              <span>
-                {t("requisitions.include")} —{" "}
-                <span className="ltr-value tabular-nums">
-                  {l.quantity} {l.unit}
+            <CheckboxField
+              name={`lines.${i}.include`}
+              defaultChecked
+              label={
+                <span>
+                  {t("requisitions.include")} —{" "}
+                  <span className="ltr-value tabular-nums">
+                    {l.quantity} {l.unit}
+                  </span>
                 </span>
-              </span>
-            </label>
+              }
+            />
             <TextField
               name={`lines.${i}.unitPrice`}
               label={`${t("purchasing.unitPrice")} (${currency} / ${l.unit})`}

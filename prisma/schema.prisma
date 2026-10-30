@@ -181,6 +181,9 @@ model Organization {
   correctiveActions   CorrectiveAction[]
   salesImports        SalesImport[]
   salesLines          SalesLine[]
+  taxCodes            TaxCode[]
+  taxRates            TaxRate[]
+  taxSettings         TaxSettings?
 
   @@map("organizations")
 }
@@ -552,7 +555,11 @@ model Product {
   createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  /// Purchase tax code for supplier invoices; null = the organization's default.
+  purchaseTaxCodeId String? @map("purchase_tax_code_id") @db.Uuid
+
   organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  purchaseTaxCode    TaxCode?                  @relation("ProductPurchaseTaxCode", fields: [organizationId, purchaseTaxCodeId], references: [organizationId, id], onDelete: Restrict)
   baseUom            UnitOfMeasure             @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
   category           ProductCategory?          @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
   barcodes           ProductBarcode[]
@@ -1511,6 +1518,8 @@ model Recipe {
   archivedAt             DateTime?  @map("archived_at") @db.Timestamptz(3)
   /// Overrides the organization's target food cost for this recipe (fraction).
   targetFoodCostFraction Decimal?   @map("target_food_cost_fraction") @db.Decimal(7, 6)
+  /// Sales tax code; null = the organization's default sales code.
+  taxCodeId              String?    @map("tax_code_id") @db.Uuid
   createdAt              DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1518,6 +1527,7 @@ model Recipe {
   versions     RecipeVersion[]
   usedIn       RecipeIngredient[] @relation("SubRecipe")
   prices       RecipePrice[]
+  taxCode      TaxCode?           @relation("RecipeTaxCode", fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
   salesLines   SalesLine[]
 
   @@unique([organizationId, id])
@@ -1643,6 +1653,8 @@ model RecipePrice {
   organizationId  String   @map("organization_id") @db.Uuid
   recipeId        String   @map("recipe_id") @db.Uuid
   price           Decimal  @db.Decimal(19, 4)
+  /// The price was entered including VAT (the organization's setting at the time).
+  includesTax     Boolean  @default(false) @map("includes_tax")
   effectiveFrom   DateTime @map("effective_from") @db.Date
   note            String?
   createdByUserId String   @map("created_by_user_id") @db.Uuid
@@ -2045,6 +2057,8 @@ model SalesImport {
   skippedCount       Int               @map("skipped_count")
   /// Sum of the file's net amounts (as given, excluding VAT); null when the file had none.
   netAmount          Decimal?          @map("net_amount") @db.Decimal(19, 4)
+  taxAmount          Decimal?          @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount        Decimal?          @map("gross_amount") @db.Decimal(19, 4)
   /// Stock value consumed (moving average at posting).
   costAmount         Decimal           @map("cost_amount") @db.Decimal(19, 4)
   documentId         String            @map("document_id") @db.Uuid
@@ -2085,6 +2099,11 @@ model SalesLine {
   productId       String?       @map("product_id") @db.Uuid
   quantity        Decimal       @db.Decimal(20, 6)
   netAmount       Decimal?      @map("net_amount") @db.Decimal(19, 4)
+  /// VAT applied (ADR-037): code and rate at the sale date, tax and gross amounts.
+  taxCodeId       String?       @map("tax_code_id") @db.Uuid
+  taxRate         Decimal?      @map("tax_rate") @db.Decimal(7, 6)
+  taxAmount       Decimal?      @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount     Decimal?      @map("gross_amount") @db.Decimal(19, 4)
   /// False once the import is reversed; the external id may then be imported again.
   active          Boolean       @default(true)
 
@@ -2093,9 +2112,84 @@ model SalesLine {
   recipe        Recipe?        @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
   recipeVersion RecipeVersion? @relation(fields: [organizationId, recipeVersionId], references: [organizationId, id], onDelete: Restrict)
   product       Product?       @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  taxCode       TaxCode?       @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@index([organizationId, importId])
   @@index([organizationId, soldOn])
   @@map("sales_lines")
+}
+
+// ─── VAT setup (ADR-037) ───
+
+enum TaxCategory {
+  STANDARD
+  ZERO_RATED
+  EXEMPT
+  OUT_OF_SCOPE
+}
+
+/// A VAT code of the organization (e.g. VAT15, ZERO, EXEMPT); rates change by date.
+model TaxCode {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?     @map("name_ar")
+  category       TaxCategory
+  archivedAt     DateTime?   @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization       Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  rates              TaxRate[]
+  recipes            Recipe[]      @relation("RecipeTaxCode")
+  purchaseProducts   Product[]     @relation("ProductPurchaseTaxCode")
+  salesLines         SalesLine[]
+  salesDefaultFor    TaxSettings[] @relation("DefaultSalesTax")
+  purchaseDefaultFor TaxSettings[] @relation("DefaultPurchaseTax")
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("tax_codes")
+}
+
+/// Rate of a tax code from a date (fraction: 0.15 = 15 %). Append-only.
+model TaxRate {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  taxCodeId       String   @map("tax_code_id") @db.Uuid
+  rate            Decimal  @db.Decimal(7, 6)
+  effectiveFrom   DateTime @map("effective_from") @db.Date
+  /// Where the rate comes from (law, preset source).
+  source          String?
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  taxCode      TaxCode      @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, taxCodeId, effectiveFrom])
+  @@map("tax_rates")
+}
+
+model TaxSettings {
+  organizationId           String    @id @map("organization_id") @db.Uuid
+  /// ISO country whose VAT rules apply (SA, AE, BH, OM, QA, KW, EG).
+  country                  String?   @db.Char(2)
+  vatRegistered            Boolean   @default(false) @map("vat_registered")
+  vatNumber                String?   @map("vat_number")
+  /// Selling prices (recipes, imported sales) are entered including VAT.
+  pricesIncludeTax         Boolean   @default(false) @map("prices_include_tax")
+  defaultSalesTaxCodeId    String?   @map("default_sales_tax_code_id") @db.Uuid
+  defaultPurchaseTaxCodeId String?   @map("default_purchase_tax_code_id") @db.Uuid
+  presetAppliedAt          DateTime? @map("preset_applied_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  defaultSalesTaxCode    TaxCode?     @relation("DefaultSalesTax", fields: [organizationId, defaultSalesTaxCodeId], references: [organizationId, id], onDelete: Restrict)
+  defaultPurchaseTaxCode TaxCode?     @relation("DefaultPurchaseTax", fields: [organizationId, defaultPurchaseTaxCodeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@map("tax_settings")
 }

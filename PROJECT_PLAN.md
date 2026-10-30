@@ -269,6 +269,10 @@ idempotent by external id, recipes exploded through sub-recipes with waste,
 FEFO consumption through the ledger (cost of sales), all-or-nothing with
 every problem listed, reversal from the import.
 
+**VAT setup ✅ (ADR-037):** Saudi Arabia, Egypt and GCC presets with dated
+rates, VAT number checks, prices incl./excl. VAT, VAT per imported sale line,
+net prices in food cost, output-VAT summary.
+
 **M7b — next:** supplier invoices with 3-way match (order ↔ receipt ↔
 invoice). **M7c:** supplier balances, settlements, accounting export.
 

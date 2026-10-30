@@ -132,7 +132,7 @@ describe("menu pricing and food cost", () => {
       "12",
     ]);
     const report = await foodCostReport(ctx, {});
-    expect(row(report, "PASTA").price?.toFixed()).toBe("15");
+    expect(row(report, "PASTA").price?.entered.toFixed()).toBe("15");
   });
 
   it("classifies dishes against the target and suggests prices", async () => {

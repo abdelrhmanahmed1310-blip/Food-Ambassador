@@ -2,7 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import type { ActionState } from "@/components/forms/action-state";
-import { ActionForm, CheckboxGroup, SelectField, TextField } from "@/components/forms/fields";
+import {
+  ActionForm,
+  CheckboxField,
+  CheckboxGroup,
+  SelectField,
+  TextField,
+} from "@/components/forms/fields";
 
 type Option = { value: string; label: string };
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -380,10 +386,7 @@ export function BulkReplaceForm({
         options={recipes}
         defaultValues={recipes.map((r) => r.value)}
       />
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="activate" />
-        {t("recipes.activateNow")}
-      </label>
+      <CheckboxField name="activate" label={t("recipes.activateNow")} />
     </ActionForm>
   );
 }
