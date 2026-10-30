@@ -1,4 +1,4 @@
-import { Decimal, roundMoney, roundQuantity } from "@/lib/decimal";
+import { Decimal, MONEY_SCALE, roundMoney, roundQuantity } from "@/lib/decimal";
 
 /** Pure purchasing rules (DECISIONS.md ADR-023). Unit-tested; services apply them under locks. */
 
@@ -146,4 +146,33 @@ export function suggestReorder(
     base: roundQuantity(units.times(input.basePerPurchaseUnit)),
     projectedBase: projected,
   };
+}
+
+/**
+ * Split a landed cost over receipt lines in proportion to `weights`
+ * (line value or quantity, ADR-028), at money scale, so the shares add up to
+ * the amount exactly: each share is rounded down and the remaining 0.0001s
+ * go to the largest remainders (earlier lines first on ties).
+ */
+export function allocateCharge(amount: Decimal, weights: readonly Decimal[]): Decimal[] {
+  if (!amount.gt(0)) throw new RangeError("Amount must be positive");
+  if (weights.some((w) => w.lt(0))) throw new RangeError("Weights must not be negative");
+  const total = weights.reduce((a, w) => a.plus(w), new Decimal(0));
+  if (!total.gt(0)) throw new RangeError("Nothing to allocate over");
+  const unit = new Decimal(1).dividedBy(new Decimal(10).pow(MONEY_SCALE));
+  const exact = weights.map((w) => amount.times(w).dividedBy(total));
+  const shares = exact.map((e) => e.toDecimalPlaces(MONEY_SCALE, Decimal.ROUND_DOWN));
+  let left = amount
+    .minus(shares.reduce((a, s) => a.plus(s), new Decimal(0)))
+    .dividedBy(unit)
+    .toNumber();
+  const order = exact
+    .map((e, i) => ({ i, rest: e.minus(shares[i]) }))
+    .sort((a, b) => b.rest.comparedTo(a.rest) || a.i - b.i);
+  for (const { i } of order) {
+    if (left <= 0) break;
+    shares[i] = shares[i].plus(unit);
+    left -= 1;
+  }
+  return shares;
 }

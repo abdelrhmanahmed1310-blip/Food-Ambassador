@@ -119,6 +119,37 @@ export default async function DocumentPage({
                     },
                   ]
                 : []),
+              ...(doc.landedCost
+                ? [
+                    {
+                      label: t("landedCost.charge"),
+                      value: (
+                        <>
+                          {t(`landedCost.charges.${doc.landedCost.chargeType}`)}
+                          {doc.landedCost.amount !== null ? (
+                            <>
+                              {" "}
+                              <span className="ltr-value tabular-nums">
+                                {money.money(doc.landedCost.amount)}
+                              </span>
+                            </>
+                          ) : null}
+                        </>
+                      ),
+                    },
+                    {
+                      label: t("purchasing.receiptTitle"),
+                      value: (
+                        <Link
+                          className="ltr-value text-primary font-mono hover:underline"
+                          href={`/o/${orgSlug}/purchasing/receipts/${doc.landedCost.receipt.id}`}
+                        >
+                          {doc.landedCost.receipt.number}
+                        </Link>
+                      ),
+                    },
+                  ]
+                : []),
               ...(doc.stockCount
                 ? [
                     {

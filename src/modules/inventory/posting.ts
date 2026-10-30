@@ -1,5 +1,11 @@
 import "server-only";
-import type { InventoryDocumentType, MovementType, StockStatus } from "@/generated/prisma/client";
+import type {
+  InventoryDocumentType,
+  LandedCostCharge,
+  LandedCostMethod,
+  MovementType,
+  StockStatus,
+} from "@/generated/prisma/client";
 import { Decimal, roundQuantity, roundUnitCost } from "@/lib/decimal";
 import { uuidv7 } from "@/lib/uuid";
 import { actorOf, recordAudit } from "@/modules/audit/service";
@@ -8,6 +14,7 @@ import { isUniqueViolation } from "@/server/db/errors";
 import type { Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict } from "@/server/errors";
 import {
+  addLandedCost,
   costInbound,
   costInboundReversal,
   costOutbound,
@@ -96,6 +103,7 @@ const NUMBER_PREFIX: Record<InventoryDocumentType, string> = {
   RECEIPT: "RCV",
   DISPATCH: "DSP",
   TRANSIT_RECEIPT: "TRR",
+  LANDED_COST: "LCA",
 };
 
 /** Atomically allocate the next number for (organization, series, year). */
@@ -517,5 +525,144 @@ export async function postRevaluation(
     number,
     entryIds: [],
     valueDelta: result.valueDelta.toFixed(),
+  };
+}
+
+export interface LandedCostInput {
+  warehouseId: string;
+  receiptId: string;
+  chargeType: LandedCostCharge;
+  method: LandedCostMethod;
+  amount: Decimal;
+  reference?: string;
+  note?: string;
+  /** One per receipt line (one per product); shares add up to `amount`. */
+  lines: Array<{
+    receiptLineId: string;
+    productId: string;
+    receivedBase: Decimal;
+    allocated: Decimal;
+  }>;
+}
+
+/**
+ * Post a landed cost (ADR-028): a LANDED_COST document with no ledger
+ * entries, the landed_costs record and, per receipt line, the share added to
+ * the product's valuation (only for units still on hand) with before/after
+ * values. Valuations are locked in product order, as in costLines.
+ */
+export async function postLandedCost(
+  tx: Tx,
+  ctx: TenantContext,
+  input: LandedCostInput,
+  options: { year: number },
+): Promise<PostingResult & { landedCostId: string; capitalized: string; expensed: string }> {
+  const products = input.lines.map((l) => l.productId);
+  if (new Set(products).size !== products.length)
+    throw new Error("A landed cost has one line per product");
+  const number = await nextDocumentNumber(
+    tx,
+    ctx.organizationId,
+    NUMBER_PREFIX.LANDED_COST,
+    options.year,
+  );
+  const document = await tx.inventoryDocument.create({
+    data: {
+      id: uuidv7(),
+      organizationId: ctx.organizationId,
+      number,
+      type: "LANDED_COST",
+      warehouseId: input.warehouseId,
+      reasonCode: input.chargeType,
+      note: input.note,
+      occurredAt: new Date(),
+      postedByUserId: ctx.userId,
+    },
+    select: { id: true },
+  });
+  const sorted = [...input.lines].sort((a, b) => (a.productId < b.productId ? -1 : 1));
+  const rows = [];
+  for (const l of sorted) {
+    const v = await lockValuation(tx, ctx.organizationId, input.warehouseId, l.productId);
+    const previous = v.state;
+    const result = addLandedCost(previous, l.allocated, l.receivedBase);
+    if (!result.capitalized.isZero()) {
+      v.state = result.state;
+      await saveValuation(tx, v);
+    }
+    rows.push({
+      receiptLineId: l.receiptLineId,
+      productId: l.productId,
+      allocatedAmount: l.allocated.toFixed(),
+      receivedQuantityBase: l.receivedBase.toFixed(),
+      onHandQuantity: previous.quantity.toFixed(),
+      capitalizedAmount: result.capitalized.toFixed(),
+      expensedAmount: result.expensed.toFixed(),
+      previousValue: previous.totalValue.toFixed(),
+      newValue: result.state.totalValue.toFixed(),
+      previousUnitCost: previous.averageUnitCost?.toFixed() ?? null,
+      newUnitCost: result.state.averageUnitCost?.toFixed() ?? null,
+      capitalized: result.capitalized,
+    });
+  }
+  const capitalized = rows.reduce((a, r) => a.plus(r.capitalized), new Decimal(0));
+  const expensed = input.amount.minus(capitalized);
+  const landedCost = await tx.landedCost.create({
+    data: {
+      organizationId: ctx.organizationId,
+      receiptId: input.receiptId,
+      documentId: document.id,
+      warehouseId: input.warehouseId,
+      chargeType: input.chargeType,
+      method: input.method,
+      amount: input.amount.toFixed(),
+      capitalizedAmount: capitalized.toFixed(),
+      expensedAmount: expensed.toFixed(),
+      reference: input.reference,
+      note: input.note,
+      postedByUserId: ctx.userId,
+    },
+    select: { id: true },
+  });
+  await tx.landedCostLine.createMany({
+    data: rows.map((r) => ({
+      receiptLineId: r.receiptLineId,
+      productId: r.productId,
+      allocatedAmount: r.allocatedAmount,
+      receivedQuantityBase: r.receivedQuantityBase,
+      onHandQuantity: r.onHandQuantity,
+      capitalizedAmount: r.capitalizedAmount,
+      expensedAmount: r.expensedAmount,
+      previousValue: r.previousValue,
+      newValue: r.newValue,
+      previousUnitCost: r.previousUnitCost,
+      newUnitCost: r.newUnitCost,
+      organizationId: ctx.organizationId,
+      landedCostId: landedCost.id,
+      warehouseId: input.warehouseId,
+    })),
+  });
+  await recordAudit(tx, actorOf(ctx), {
+    action: "inventory.document_posted",
+    entityType: "inventory_document",
+    entityId: document.id,
+    changes: {
+      number,
+      type: "LANDED_COST",
+      receiptId: input.receiptId,
+      chargeType: input.chargeType,
+      method: input.method,
+      amount: input.amount.toFixed(),
+      capitalized: capitalized.toFixed(),
+      expensed: expensed.toFixed(),
+    },
+  });
+  return {
+    documentId: document.id,
+    number,
+    entryIds: [],
+    landedCostId: landedCost.id,
+    capitalized: capitalized.toFixed(),
+    expensed: expensed.toFixed(),
   };
 }

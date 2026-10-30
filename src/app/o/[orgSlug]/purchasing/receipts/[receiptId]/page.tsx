@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ReverseForm } from "@/components/inventory/forms";
 import { ReceiptStatusBadge } from "@/components/procurement/badges";
+import { LandedCostForm } from "@/components/procurement/forms";
 import {
   Badge,
   Card,
@@ -12,12 +13,13 @@ import {
   Td,
   Th,
 } from "@/components/ui/primitives";
+import { Decimal } from "@/lib/decimal";
 import { isUuid } from "@/lib/uuid";
 import { getReceipt } from "@/modules/procurement/receipts";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
-import { reverseReceiptAction } from "../../actions";
+import { addLandedCostAction, reverseReceiptAction } from "../../actions";
 
 export default async function ReceiptPage({
   params,
@@ -46,6 +48,18 @@ export default async function ReceiptPage({
     ) : (
       "—"
     );
+  const dec = (v: { toString(): string }) => new Decimal(v.toString());
+  const landedByLine = new Map<string, Decimal>();
+  for (const c of receipt.landedCosts)
+    for (const l of c.lines)
+      landedByLine.set(
+        l.receiptLineId,
+        (landedByLine.get(l.receiptLineId) ?? new Decimal(0)).plus(dec(l.allocatedAmount)),
+      );
+  const hasLanded = receipt.landedCosts.length > 0;
+  const stockedUnits = new Set(
+    receipt.lines.filter((l) => l.acceptedQuantityBase.gt(0)).map((l) => l.product.baseUom.code),
+  );
   return (
     <>
       <PageHeader
@@ -107,6 +121,7 @@ export default async function ReceiptPage({
               <Th>{t("purchasing.lotCode")}</Th>
               <Th>{t("purchasing.chargedPrice")}</Th>
               <Th>{t("purchasing.temperature")}</Th>
+              {hasLanded ? <Th>{t("landedCost.title")}</Th> : null}
             </tr>
           </thead>
           <tbody>
@@ -169,10 +184,73 @@ export default async function ReceiptPage({
                 <Td className="tabular-nums">
                   <span className="ltr-value">{l.temperatureCelsius?.toFixed() ?? "—"}</span>
                 </Td>
+                {hasLanded ? (
+                  <Td className="tabular-nums">
+                    <span className="ltr-value whitespace-nowrap">
+                      {landedByLine.has(l.id) ? money.money(landedByLine.get(l.id)!) : "—"}
+                    </span>
+                  </Td>
+                ) : null}
               </tr>
             ))}
           </tbody>
         </Table>
+        {hasLanded || receipt.canAddLandedCost ? (
+          <Card title={t("landedCost.title")}>
+            <p className="text-muted mb-3 text-sm">{t("landedCost.hint")}</p>
+            {hasLanded ? (
+              <Table label={t("landedCost.title")}>
+                <thead>
+                  <tr>
+                    <Th>{t("purchasing.number")}</Th>
+                    <Th>{t("landedCost.charge")}</Th>
+                    <Th>{t("landedCost.method")}</Th>
+                    <Th>{t("landedCost.amount")}</Th>
+                    <Th>{t("landedCost.capitalized")}</Th>
+                    <Th>{t("landedCost.expensed")}</Th>
+                    <Th>{t("landedCost.reference")}</Th>
+                    <Th>{t("common.date")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receipt.landedCosts.map((c) => (
+                    <tr key={c.id}>
+                      <Td>{docLink(c.document)}</Td>
+                      <Td>{t(`landedCost.charges.${c.chargeType}`)}</Td>
+                      <Td>{t(`landedCost.methods.${c.method}`)}</Td>
+                      <Td className="tabular-nums">
+                        <span className="ltr-value whitespace-nowrap">{money.money(c.amount)}</span>
+                      </Td>
+                      <Td className="tabular-nums">
+                        <span className="ltr-value whitespace-nowrap">
+                          {money.money(c.capitalizedAmount)}
+                        </span>
+                      </Td>
+                      <Td className="tabular-nums">
+                        <span className="ltr-value whitespace-nowrap">
+                          {money.money(c.expensedAmount)}
+                        </span>
+                      </Td>
+                      <Td>
+                        <span className="ltr-value">{c.reference ?? "—"}</span>
+                      </Td>
+                      <Td className="whitespace-nowrap">{dt(c.postedAt)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            ) : null}
+            {receipt.canAddLandedCost ? (
+              <div className={hasLanded ? "mt-4" : ""}>
+                <LandedCostForm
+                  action={addLandedCostAction.bind(null, orgSlug, receipt.id)}
+                  currency={ctx.baseCurrency}
+                  quantityAllowed={stockedUnits.size === 1}
+                />
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
         {receipt.canReverse ? (
           <Card title={t("purchasing.reverseReceipt")}>
             <p className="text-muted mb-3 text-sm">{t("purchasing.reverseReceiptHint")}</p>

@@ -618,8 +618,24 @@ Migration `20261030120000_m3_shipments`.
   source; receipt = TRANSFER_OUT IN_TRANSIT (source) + TRANSFER_IN AVAILABLE
   (destination, value carried) + WRITE_OFF IN_TRANSIT for a shortage.
 
-**Not yet built (rest of M3c):** purchase requisitions, landed cost
-allocation, PO email (Q-10).
+### Landed cost (Milestone 3c — implemented, ADR-028)
+
+Migration `20261030150000_m3_landed_cost`.
+
+- `inventory_document_type` gains **LANDED_COST** (`LCA-` numbers, no ledger
+  entries, like REVALUATION).
+- **landed_costs**: `receipt_id`, `document_id` (UQ), `warehouse_id`,
+  `charge_type` (FREIGHT | CUSTOMS_DUTY | INSURANCE | HANDLING | OTHER),
+  `method` (BY_VALUE | BY_QUANTITY), `amount` > 0, `capitalized_amount` +
+  `expensed_amount` = `amount`, `reference`, `note`, poster and time.
+- **landed_cost_lines**: one per receipt line (UQ landed cost × receipt
+  line): `allocated_amount`, `received_quantity_base`, `on_hand_quantity` at
+  posting, `capitalized_amount` + `expensed_amount` = allocated, previous and
+  new value (new = previous + capitalized) and unit cost.
+- Both tables are append-only (triggers) with RLS. `reconcileValuations()`
+  adds `capitalized_amount` to ledger value + revaluations.
+
+**Not yet built (rest of M3c):** purchase requisitions, PO email (Q-10).
 
 ## 6. Recipes and food cost (Milestone 4)
 

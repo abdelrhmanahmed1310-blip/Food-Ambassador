@@ -187,3 +187,21 @@ export const reorderRuleSchema = z.object({
   minQuantity: decimalString({ maxScale: 6, min: "0" }),
   maxQuantity: decimalString({ maxScale: 6, min: "0.000001" }),
 });
+
+export const LANDED_COST_CHARGES = [
+  "FREIGHT",
+  "CUSTOMS_DUTY",
+  "INSURANCE",
+  "HANDLING",
+  "OTHER",
+] as const;
+export const LANDED_COST_METHODS = ["BY_VALUE", "BY_QUANTITY"] as const;
+
+export const landedCostSchema = z.object({
+  chargeType: z.enum(LANDED_COST_CHARGES, { error: "invalidOption" }),
+  method: z.enum(LANDED_COST_METHODS, { error: "invalidOption" }),
+  amount: decimalString({ maxScale: 4, min: "0.0001" }),
+  reference: optionalText(100),
+  note: optionalText(500),
+  idempotencyKey: idempotencyKeySchema,
+});

@@ -214,6 +214,9 @@ export async function reconcileValuations(ctx: TenantContext) {
       revaluations AS (
         SELECT "warehouse_id", "product_id", SUM("value_delta") AS value
         FROM "stock_revaluations", org WHERE "organization_id" = org.id GROUP BY 1, 2
+        UNION ALL
+        SELECT "warehouse_id", "product_id", SUM("capitalized_amount")
+        FROM "landed_cost_lines", org WHERE "organization_id" = org.id GROUP BY 1, 2
       ),
       expected AS (
         SELECT COALESCE(b."warehouse_id", l."warehouse_id") AS warehouse_id,
@@ -222,7 +225,7 @@ export async function reconcileValuations(ctx: TenantContext) {
                COALESCE(l.value, 0) + COALESCE(r.value, 0) AS value
         FROM balances b
         FULL OUTER JOIN ledger l ON l."warehouse_id" = b."warehouse_id" AND l."product_id" = b."product_id"
-        LEFT JOIN revaluations r
+        LEFT JOIN (SELECT "warehouse_id", "product_id", SUM(value) AS value FROM revaluations GROUP BY 1, 2) r
           ON r."warehouse_id" = COALESCE(b."warehouse_id", l."warehouse_id")
          AND r."product_id" = COALESCE(b."product_id", l."product_id")
       )

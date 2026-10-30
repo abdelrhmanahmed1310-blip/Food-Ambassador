@@ -318,6 +318,29 @@ shared master data, not stock; without this, a branch storekeeper could not
 post anything, because postings must read the product. Stock, costs and
 documents stay scoped. Found by a scoped-user integration test.
 
+### ADR-028 Landed cost — Accepted (M3c, extends ADR-021)
+
+- A **landed cost** is a charge (freight, customs duty, insurance, handling,
+  other) in the base currency added to one posted goods receipt that put
+  stock in. Each charge is its own `LCA-` document; several can be added.
+- **Allocation** over the receipt's accepted lines: by **line value** at the
+  charged price (default), or by **quantity** when all those lines share one
+  base unit. Shares are rounded to money scale and always add up to the
+  amount exactly (largest remainder).
+- **Valuation (moving average, ADR-021):** the share of a line is added to
+  the product × warehouse value only for units still on hand —
+  min(on hand, received) ÷ received of it. The rest relates to stock already
+  used and is recorded as **expensed** (for finance in M7), never spread over
+  other stock. Quantity never changes; the average is recomputed (kept as
+  is while costs are missing). This is an approximation: average costing
+  does not track which units are from which receipt.
+- Needs `inventory.valuation.revalue` at the receipt's warehouse.
+  Append-only; a landed cost cannot be reversed (correct it with a
+  revaluation), and a receipt with landed costs can no longer be reversed.
+- Not yet: charges in a foreign currency (Q-05), allocation by weight or
+  volume (needs product weights), one charge over several receipts, and
+  linking the charge to a carrier's invoice (M7).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

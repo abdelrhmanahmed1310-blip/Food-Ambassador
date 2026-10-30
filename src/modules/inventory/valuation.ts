@@ -201,3 +201,29 @@ export function revalue(
     },
   };
 }
+
+/**
+ * Add a landed cost allocated to `receivedBase` units of one receipt
+ * (DECISIONS.md ADR-028). Only the share for units still on hand is added
+ * to the value — min(on hand, received) ÷ received of it; the rest relates to
+ * stock already used and is returned as `expensed`. Quantity never changes.
+ */
+export function addLandedCost(
+  state: ValuationState,
+  allocated: Decimal,
+  receivedBase: Decimal,
+): { capitalized: Decimal; expensed: Decimal; state: ValuationState } {
+  if (allocated.lt(0)) throw new RangeError("Allocated amount must not be negative");
+  if (!receivedBase.gt(0)) throw new RangeError("Received quantity must be positive");
+  const onHand = Decimal.min(state.quantity, receivedBase);
+  const capitalized = onHand.gt(0)
+    ? roundMoney(allocated.times(onHand).dividedBy(receivedBase))
+    : new Decimal(0);
+  const expensed = allocated.minus(capitalized);
+  if (capitalized.isZero()) return { capitalized, expensed, state };
+  return {
+    capitalized,
+    expensed,
+    state: settle(state, state.quantity, state.totalValue.plus(capitalized), state.costMissing),
+  };
+}

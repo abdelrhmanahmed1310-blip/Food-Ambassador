@@ -43,7 +43,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M0   | Repository & architecture   | —                                | **Complete**                         |
 | M1   | Application foundation      | M0                               | **Complete**                         |
 | M2   | Inventory MVP               | M1                               | **Complete**                         |
-| M3   | Procurement & receiving     | M2                               | In progress (M3a, M3b, M3c 1–2 done) |
+| M3   | Procurement & receiving     | M2                               | In progress (M3a, M3b, M3c 1–3 done) |
 | M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | Not started                          |
 | M5   | Nutrition & allergens       | M4                               | Not started                          |
 | M6   | Food safety & traceability  | M2, M3, M4                       | Not started                          |
@@ -209,7 +209,9 @@ cancel; supplier scorecard; purchasing settings.
   orders, supplier price history, printable purchase order.
 - ✅ Shipments with an in-transit stage (ADR-026): dispatch, receive with
   shortages, recall.
-- Landed cost allocation, purchase
+- ✅ Landed cost on receipts (ADR-028): by value or quantity, only stock still
+  on hand is revalued, the rest shown as expensed.
+- Purchase
   requisitions from branches. PO email needs Q-10; count templates moved to
   the backlog.
 
@@ -306,23 +308,23 @@ Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`
 
 ## Prioritized backlog (next items)
 
-| Pri | Item                                                                        | Milestone | Depends on |
-| --- | --------------------------------------------------------------------------- | --------- | ---------- |
-| ✅  | Stock valuation — moving weighted average (ADR-021)                         | M3a       | done       |
-| ✅  | Suppliers and supplier products                                             | M3b       | done       |
-| ✅  | Purchase orders with approval limit (Q-04 default); requisitions → M3c      | M3b       | done       |
-| ✅  | Goods receipts: partial, rejected, quarantined; posting via ledger          | M3b       | done       |
-| ✅  | In-transit transfers (ADR-026); requisitions still open                     | M3c       | done       |
-| P1  | Landed cost allocation (discrepancies and supplier performance done in M3b) | M3c       | receipts   |
-| P1  | Email provider for invitations and password reset (Q-10)                    | M3        | decision   |
-| P2  | Searchable product picker for large catalogs                                | M3        | —          |
-| ✅  | Product categories (Q-13 default, ADR-025)                                  | M3c       | done       |
-| ✅  | Par levels + suggested order quantities                                     | M3c       | done       |
-| ✅  | Supplier item price history                                                 | M3c       | done       |
-| P2  | Stock count templates                                                       | M3        | —          |
-| P2  | Margin alerts, price simulator, bulk ingredient replace                     | M4        | recipes    |
-| P2  | Credit notes for short/rejected deliveries                                  | M7        | invoices   |
-| P3  | Installable PWA with offline counting; native apps                          | backlog   | —          |
+| Pri | Item                                                                   | Milestone | Depends on |
+| --- | ---------------------------------------------------------------------- | --------- | ---------- |
+| ✅  | Stock valuation — moving weighted average (ADR-021)                    | M3a       | done       |
+| ✅  | Suppliers and supplier products                                        | M3b       | done       |
+| ✅  | Purchase orders with approval limit (Q-04 default); requisitions → M3c | M3b       | done       |
+| ✅  | Goods receipts: partial, rejected, quarantined; posting via ledger     | M3b       | done       |
+| ✅  | In-transit transfers (ADR-026); requisitions still open                | M3c       | done       |
+| ✅  | Landed cost allocation (ADR-028)                                       | M3c       | done       |
+| P1  | Email provider for invitations and password reset (Q-10)               | M3        | decision   |
+| P2  | Searchable product picker for large catalogs                           | M3        | —          |
+| ✅  | Product categories (Q-13 default, ADR-025)                             | M3c       | done       |
+| ✅  | Par levels + suggested order quantities                                | M3c       | done       |
+| ✅  | Supplier item price history                                            | M3c       | done       |
+| P2  | Stock count templates                                                  | M3        | —          |
+| P2  | Margin alerts, price simulator, bulk ingredient replace                | M4        | recipes    |
+| P2  | Credit notes for short/rejected deliveries                             | M7        | invoices   |
+| P3  | Installable PWA with offline counting; native apps                     | backlog   | —          |
 
 ## Top risks
 

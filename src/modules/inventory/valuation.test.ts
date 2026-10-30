@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
+  addLandedCost,
   costInbound,
   costInboundReversal,
   costOutbound,
@@ -221,5 +222,55 @@ describe("moving weighted average", () => {
     const r = revalue(emptyValuation(), d("3"));
     expect(r.valueDelta.toFixed()).toBe("0");
     expect(costInbound(r.state, d("2"), { kind: "average" }).valueDelta.toFixed()).toBe("6");
+  });
+});
+
+describe("landed cost", () => {
+  const state = (quantity: string, value: string, avg: string | null, costMissing = false) => ({
+    quantity: new Decimal(quantity),
+    totalValue: new Decimal(value),
+    averageUnitCost: avg === null ? null : new Decimal(avg),
+    costMissing,
+  });
+  const d = (v: string) => new Decimal(v);
+
+  it("adds the whole charge while all received units are on hand", () => {
+    const r = addLandedCost(state("100", "2000", "20"), d("150"), d("50"));
+    expect(r.capitalized.toFixed()).toBe("150");
+    expect(r.expensed.toFixed()).toBe("0");
+    expect(r.state.totalValue.toFixed()).toBe("2150");
+    expect(r.state.averageUnitCost?.toFixed()).toBe("21.5");
+    expect(r.state.quantity.toFixed()).toBe("100");
+  });
+
+  it("adds only the share of units still on hand and expenses the rest", () => {
+    const r = addLandedCost(state("30", "600", "20"), d("100"), d("40"));
+    expect(r.capitalized.toFixed()).toBe("75");
+    expect(r.expensed.toFixed()).toBe("25");
+    expect(r.state.totalValue.toFixed()).toBe("675");
+    expect(r.state.averageUnitCost?.toFixed()).toBe("22.5");
+  });
+
+  it("expenses everything when nothing is on hand", () => {
+    const before = state("0", "0", "20");
+    const r = addLandedCost(before, d("100"), d("40"));
+    expect(r.capitalized.toFixed()).toBe("0");
+    expect(r.expensed.toFixed()).toBe("100");
+    expect(r.state).toBe(before);
+  });
+
+  it("keeps the last reliable average while costs are missing", () => {
+    const r = addLandedCost(state("10", "100", "10", true), d("5"), d("10"));
+    expect(r.state.totalValue.toFixed()).toBe("105");
+    expect(r.state.averageUnitCost?.toFixed()).toBe("10");
+    expect(r.state.costMissing).toBe(true);
+  });
+
+  it("rounds the capitalized share at money scale and keeps the parts exact", () => {
+    const r = addLandedCost(state("1", "10", "10"), d("10"), d("3"));
+    expect(r.capitalized.toFixed()).toBe("3.3333");
+    expect(r.capitalized.plus(r.expensed).toFixed()).toBe("10");
+    expect(() => addLandedCost(state("1", "1", "1"), d("-1"), d("1"))).toThrow(RangeError);
+    expect(() => addLandedCost(state("1", "1", "1"), d("1"), d("0"))).toThrow(RangeError);
   });
 });

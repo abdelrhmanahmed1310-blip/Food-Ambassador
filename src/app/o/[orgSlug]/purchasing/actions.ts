@@ -14,6 +14,7 @@ import {
   submitOrder,
   updateOrderHeader,
 } from "@/modules/procurement/orders";
+import { addReceiptLandedCost } from "@/modules/procurement/landed-costs";
 import { postReceipt, reverseReceipt } from "@/modules/procurement/receipts";
 import {
   createOrdersFromPlan,
@@ -218,5 +219,16 @@ export async function createOrdersFromPlanAction(
       message:
         skipped.length > 0 ? `${created} ${t("skipped", { skus: skipped.join(", ") })}` : created,
     };
+  });
+}
+
+export async function addLandedCostAction(
+  orgSlug: string,
+  receiptId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await addReceiptLandedCost(ctx, receiptId, formValues(formData));
   });
 }

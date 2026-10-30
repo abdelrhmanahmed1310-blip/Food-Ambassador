@@ -156,6 +156,8 @@ model Organization {
   reorderRules        ReorderRule[]
   stockShipments      StockShipment[]
   stockShipmentLines  StockShipmentLine[]
+  landedCosts         LandedCost[]
+  landedCostLines     LandedCostLine[]
 
   @@map("organizations")
 }
@@ -362,6 +364,8 @@ model Warehouse {
   reorderRules    ReorderRule[]
   shipmentsOut    StockShipment[]        @relation("ShipmentFrom")
   shipmentsIn     StockShipment[]        @relation("ShipmentTo")
+  landedCosts     LandedCost[]
+  landedCostLines LandedCostLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -530,6 +534,7 @@ model Product {
   goodsReceiptLines  GoodsReceiptLine[]
   reorderRules       ReorderRule[]
   shipmentLines      StockShipmentLine[]
+  landedCostLines    LandedCostLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -653,6 +658,7 @@ enum InventoryDocumentType {
   RECEIPT
   DISPATCH
   TRANSIT_RECEIPT
+  LANDED_COST
 }
 
 /// How the unit cost of a ledger entry was determined (ADR-021).
@@ -697,6 +703,7 @@ model InventoryDocument {
   shipmentDispatch StockShipment?         @relation("ShipmentDispatch")
   shipmentReceipt  StockShipment?         @relation("ShipmentReceipt")
   shipmentCancel   StockShipment?         @relation("ShipmentCancel")
+  landedCost       LandedCost?            @relation("LandedCostDocument")
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1106,6 +1113,7 @@ model GoodsReceipt {
   document      InventoryDocument? @relation("ReceiptDocument", fields: [organizationId, inventoryDocumentId], references: [organizationId, id], onDelete: Restrict)
   reversal      InventoryDocument? @relation("ReceiptReversal", fields: [organizationId, reversalDocumentId], references: [organizationId, id], onDelete: Restrict)
   lines         GoodsReceiptLine[]
+  landedCosts   LandedCost[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1143,6 +1151,7 @@ model GoodsReceiptLine {
   product           Product           @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
   uom               UnitOfMeasure     @relation(fields: [uomId], references: [id], onDelete: Restrict)
   lot               InventoryLot?     @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  landedCostLines   LandedCostLine[]
 
   @@unique([organizationId, id])
   @@index([organizationId, receiptId])
@@ -1271,4 +1280,81 @@ model StockShipmentLine {
   @@unique([organizationId, id])
   @@unique([organizationId, shipmentId, lineNo])
   @@map("stock_shipment_lines")
+}
+
+// ─── Landed cost (Milestone 3c, ADR-028) ───
+
+enum LandedCostCharge {
+  FREIGHT
+  CUSTOMS_DUTY
+  INSURANCE
+  HANDLING
+  OTHER
+}
+
+enum LandedCostMethod {
+  BY_VALUE
+  BY_QUANTITY
+}
+
+/// A charge (freight, duty, …) added to the cost of a posted goods receipt. Append-only.
+model LandedCost {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  receiptId         String           @map("receipt_id") @db.Uuid
+  /// The LANDED_COST inventory document (its number identifies the charge).
+  documentId        String           @map("document_id") @db.Uuid
+  warehouseId       String           @map("warehouse_id") @db.Uuid
+  chargeType        LandedCostCharge @map("charge_type")
+  method            LandedCostMethod
+  amount            Decimal          @db.Decimal(19, 4)
+  /// Added to stock still on hand; the rest relates to stock already used.
+  capitalizedAmount Decimal          @map("capitalized_amount") @db.Decimal(19, 4)
+  expensedAmount    Decimal          @map("expensed_amount") @db.Decimal(19, 4)
+  reference         String?
+  note              String?
+  postedByUserId    String           @map("posted_by_user_id") @db.Uuid
+  postedAt          DateTime         @default(now()) @map("posted_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  receipt      GoodsReceipt      @relation(fields: [organizationId, receiptId], references: [organizationId, id], onDelete: Restrict)
+  document     InventoryDocument @relation("LandedCostDocument", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse         @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  lines        LandedCostLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, documentId])
+  @@index([organizationId, receiptId])
+  @@map("landed_costs")
+}
+
+/// Share of a landed cost for one receipt line, with its effect on the valuation. Append-only.
+model LandedCostLine {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  landedCostId         String   @map("landed_cost_id") @db.Uuid
+  receiptLineId        String   @map("receipt_line_id") @db.Uuid
+  warehouseId          String   @map("warehouse_id") @db.Uuid
+  productId            String   @map("product_id") @db.Uuid
+  allocatedAmount      Decimal  @map("allocated_amount") @db.Decimal(19, 4)
+  receivedQuantityBase Decimal  @map("received_quantity_base") @db.Decimal(20, 6)
+  /// Quantity of the product on hand in the warehouse when the charge was posted.
+  onHandQuantity       Decimal  @map("on_hand_quantity") @db.Decimal(20, 6)
+  capitalizedAmount    Decimal  @map("capitalized_amount") @db.Decimal(19, 4)
+  expensedAmount       Decimal  @map("expensed_amount") @db.Decimal(19, 4)
+  previousValue        Decimal  @map("previous_value") @db.Decimal(19, 4)
+  newValue             Decimal  @map("new_value") @db.Decimal(19, 4)
+  previousUnitCost     Decimal? @map("previous_unit_cost") @db.Decimal(20, 6)
+  newUnitCost          Decimal? @map("new_unit_cost") @db.Decimal(20, 6)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  landedCost   LandedCost       @relation(fields: [organizationId, landedCostId], references: [organizationId, id], onDelete: Restrict)
+  receiptLine  GoodsReceiptLine @relation(fields: [organizationId, receiptLineId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse        @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  product      Product          @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, landedCostId, receiptLineId])
+  @@index([organizationId, warehouseId, productId])
+  @@map("landed_cost_lines")
 }

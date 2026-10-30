@@ -690,6 +690,11 @@ export async function reverseDocumentInTx(
       "RECEIPT_REVERSE_IN_PURCHASING",
       "Reverse goods receipts from the receipt page",
     );
+  if (doc.type === "LANDED_COST")
+    throw businessRuleViolation(
+      "CANNOT_REVERSE_LANDED_COST",
+      "A landed cost cannot be reversed; correct the cost with a revaluation",
+    );
   if (doc.type === "REVALUATION")
     throw businessRuleViolation(
       "CANNOT_REVERSE_REVALUATION",

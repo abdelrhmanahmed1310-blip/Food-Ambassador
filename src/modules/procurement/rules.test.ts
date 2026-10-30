@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
+  allocateCharge,
   approvalOutcome,
   isCancellable,
   isClosable,
@@ -147,5 +148,33 @@ describe("reorder suggestions", () => {
   it("never suggests when the maximum is already covered", () => {
     expect(suggestReorder({ ...base, minBase: d("100"), availableBase: d("100") })).toBeNull();
     expect(() => suggestReorder({ ...base, basePerPurchaseUnit: d("0") })).toThrow(RangeError);
+  });
+});
+
+describe("landed cost allocation", () => {
+  const sum = (xs: Decimal[]) => xs.reduce((a, x) => a.plus(x), new Decimal(0)).toFixed();
+
+  it("splits in proportion to the weights", () => {
+    expect(allocateCharge(d("300"), [d("200"), d("400")]).map((x) => x.toFixed())).toEqual([
+      "100",
+      "200",
+    ]);
+  });
+
+  it("adds up to the amount exactly, remainders to the largest fractions", () => {
+    const shares = allocateCharge(d("100"), [d("1"), d("1"), d("1")]);
+    expect(shares.map((x) => x.toFixed())).toEqual(["33.3334", "33.3333", "33.3333"]);
+    expect(sum(shares)).toBe("100");
+    const uneven = allocateCharge(d("0.0005"), [d("1"), d("2"), d("2")]);
+    expect(uneven.map((x) => x.toFixed())).toEqual(["0.0001", "0.0002", "0.0002"]);
+    const many = allocateCharge(d("1"), [d("3"), d("7"), d("11"), d("13"), d("0")]);
+    expect(sum(many)).toBe("1");
+    expect(many[4].toFixed()).toBe("0");
+  });
+
+  it("refuses nothing to allocate over and bad input", () => {
+    expect(() => allocateCharge(d("10"), [d("0"), d("0")])).toThrow(RangeError);
+    expect(() => allocateCharge(d("0"), [d("1")])).toThrow(RangeError);
+    expect(() => allocateCharge(d("10"), [d("-1"), d("2")])).toThrow(RangeError);
   });
 });

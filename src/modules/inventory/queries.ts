@@ -317,6 +317,13 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
         reversedBy: { select: { id: true, number: true } },
         stockCount: { select: { id: true, number: true } },
         receipt: { select: { id: true, number: true } },
+        landedCost: {
+          select: {
+            amount: true,
+            chargeType: true,
+            receipt: { select: { id: true, number: true } },
+          },
+        },
         revaluation: {
           select: {
             quantity: true,
@@ -349,6 +356,7 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
       doc.type !== "RECEIPT" &&
       doc.type !== "DISPATCH" &&
       doc.type !== "TRANSIT_RECEIPT" &&
+      doc.type !== "LANDED_COST" &&
       !doc.reversedBy &&
       hasPermission(ctx.grants, "inventory.reverse", { branchId: wh.branchId, warehouseId: wh.id });
     const costVisible = hasPermission(ctx.grants, "inventory.valuation.view", {
@@ -359,6 +367,9 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
       ...withNames,
       entries: redactCosts(ctx, doc.entries),
       revaluation: costVisible ? doc.revaluation : null,
+      landedCost: doc.landedCost
+        ? { ...doc.landedCost, amount: costVisible ? doc.landedCost.amount : null }
+        : null,
       costVisible,
       canReverse,
     };

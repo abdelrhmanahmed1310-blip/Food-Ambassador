@@ -243,7 +243,11 @@
     "SHIPMENT_LINE_MISSING": "Every shipment line must be received.",
     "SHIPMENT_OVER_RECEIPT": "You cannot receive more than was dispatched.",
     "SHORTAGE_REASON_REQUIRED": "Choose a reason for the shortage.",
-    "SHIPMENT_DOCUMENT_NOT_REVERSIBLE": "Shipment documents cannot be reversed; cancel or receive the shipment instead."
+    "SHIPMENT_DOCUMENT_NOT_REVERSIBLE": "Shipment documents cannot be reversed; cancel or receive the shipment instead.",
+    "LANDED_COST_NO_BASIS": "There is nothing to spread this cost over with this method. Receipts without stock cannot take landed costs; goods received at no price need allocation by quantity.",
+    "LANDED_COST_MIXED_UNITS": "The lines are in different units, so the cost cannot be spread by quantity. Spread it by value.",
+    "RECEIPT_HAS_LANDED_COST": "This receipt has landed costs, so it cannot be reversed. Correct the stock with an adjustment instead.",
+    "CANNOT_REVERSE_LANDED_COST": "A landed cost cannot be reversed. Correct the cost with a revaluation."
   },
   "notFound": {
     "title": "Page not found",
@@ -711,7 +715,8 @@
       "REVALUATION": "Revaluation",
       "RECEIPT": "Goods receipt",
       "DISPATCH": "Dispatch",
-      "TRANSIT_RECEIPT": "Transit receipt"
+      "TRANSIT_RECEIPT": "Transit receipt",
+      "LANDED_COST": "Landed cost"
     },
     "reasons": {
       "DATA_CORRECTION": "Data correction",
@@ -977,6 +982,28 @@
       "IN_TRANSIT": "In transit",
       "RECEIVED": "Received",
       "CANCELLED": "Cancelled"
+    }
+  },
+  "landedCost": {
+    "title": "Landed costs",
+    "add": "Add landed cost",
+    "hint": "Freight, duty and other charges are spread over the received lines and added to the cost of the stock still on hand. The share for stock already used is shown as expensed.",
+    "charge": "Charge",
+    "amount": "Amount",
+    "method": "Spread by",
+    "capitalized": "Added to stock",
+    "expensed": "Expensed (stock already used)",
+    "reference": "Invoice / reference",
+    "charges": {
+      "FREIGHT": "Freight",
+      "CUSTOMS_DUTY": "Customs duty",
+      "INSURANCE": "Insurance",
+      "HANDLING": "Handling",
+      "OTHER": "Other"
+    },
+    "methods": {
+      "BY_VALUE": "Line value",
+      "BY_QUANTITY": "Quantity"
     }
   }
 }

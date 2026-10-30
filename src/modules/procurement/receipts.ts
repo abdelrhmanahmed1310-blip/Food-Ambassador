@@ -298,7 +298,7 @@ export async function reverseReceipt(ctx: TenantContext, receiptId: string, rawI
     const order = await lockOrder(tx, ctx, found.purchaseOrderId);
     const receipt = await tx.goodsReceipt.findFirstOrThrow({
       where: { organizationId: ctx.organizationId, id: receiptId },
-      include: { lines: true },
+      include: { lines: true, _count: { select: { landedCosts: true } } },
     });
     assertPermission(ctx.grants, "purchasing.manage", {
       branchId: order.warehouse.branchId,
@@ -306,6 +306,12 @@ export async function reverseReceipt(ctx: TenantContext, receiptId: string, rawI
     });
     if (receipt.status !== "POSTED")
       throw businessRuleViolation("RECEIPT_ALREADY_REVERSED", "This receipt was already reversed");
+    // Its landed costs are now part of the stock's value (ADR-028).
+    if (receipt._count.landedCosts > 0)
+      throw businessRuleViolation(
+        "RECEIPT_HAS_LANDED_COST",
+        "The receipt has landed costs; correct the stock with an adjustment instead",
+      );
     if (order.status === "CLOSED" || order.status === "CANCELLED")
       throw businessRuleViolation(
         "RECEIPT_ORDER_CLOSED",
@@ -430,6 +436,15 @@ export async function getReceipt(ctx: TenantContext, receiptId: string) {
         location: { select: { code: true } },
         document: { select: { id: true, number: true } },
         reversal: { select: { id: true, number: true } },
+        landedCosts: {
+          orderBy: { postedAt: "asc" },
+          include: {
+            document: { select: { id: true, number: true } },
+            lines: {
+              select: { receiptLineId: true, allocatedAmount: true, capitalizedAmount: true },
+            },
+          },
+        },
         lines: {
           orderBy: { id: "asc" },
           include: {
@@ -463,7 +478,12 @@ export async function getReceipt(ctx: TenantContext, receiptId: string) {
     return {
       ...receipt,
       names: { postedBy: name(receipt.postedByUserId), reversedBy: name(receipt.reversedByUserId) },
+      canAddLandedCost:
+        receipt.status === "POSTED" &&
+        receipt.inventoryDocumentId !== null &&
+        canOnWarehouse(ctx, "inventory.valuation.revalue", receipt.warehouse),
       canReverse:
+        receipt.landedCosts.length === 0 &&
         receipt.status === "POSTED" &&
         receipt.purchaseOrder.status !== "CLOSED" &&
         receipt.purchaseOrder.status !== "CANCELLED" &&

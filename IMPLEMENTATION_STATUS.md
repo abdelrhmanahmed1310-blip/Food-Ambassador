@@ -4,13 +4,36 @@ Last updated: 2026-10-30 (Milestone 3c, part 1 — categories, reorder, price hi
 
 ## Summary
 
-| Milestone                    | Status                                                                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture | ✅ Complete                                                                                                                         |
-| M1 Application foundation    | ✅ Complete                                                                                                                         |
-| M2 Inventory MVP             | ✅ Complete                                                                                                                         |
-| M3 Procurement & receiving   | 🔄 In progress — M3a ✅, M3b ✅, M3c part 1 ✅, **M3c part 2 ✅** (shipments with in-transit stage); landed cost, requisitions next |
-| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                            |
+| Milestone                    | Status                                                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture | ✅ Complete                                                                                                    |
+| M1 Application foundation    | ✅ Complete                                                                                                    |
+| M2 Inventory MVP             | ✅ Complete                                                                                                    |
+| M3 Procurement & receiving   | 🔄 In progress — M3a ✅, M3b ✅, M3c parts 1–2 ✅, **M3c part 3 ✅** (landed cost); purchase requisitions next |
+| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                       |
+
+## M3c part 3 — Landed cost (delivered)
+
+Rules: DECISIONS.md ADR-028 (extends ADR-021).
+
+| Area       | What works                                                                                                                                       | Where                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Charges    | Freight, customs duty, insurance, handling, other — amount, reference, note — on a posted receipt; each its own `LCA-` document; idempotent      | `src/modules/procurement/landed-costs.ts`              |
+| Allocation | By line value at the charged price, or by quantity when all lines share a base unit; exact to 0.0001 (largest remainder)                         | `allocateCharge` (pure, unit-tested)                   |
+| Valuation  | Only the share for units still on hand is added to the average cost; the rest is recorded as expensed; before/after value and cost per line kept | `addLandedCost` (pure), `postLandedCost` in posting.ts |
+| Safeguards | Append-only tables with DB checks; landed costs cannot be reversed; receipts with landed costs cannot be reversed; reconciliation includes them  | migration, `reconcileValuations`                       |
+| Access     | `inventory.valuation.revalue` at the receipt's warehouse; other tenants get not found; amounts on stock documents hidden without valuation view  | `landed-costs.ts`, `queries.ts`                        |
+| Screens    | Landed-cost card on the receipt page (list, add form, per-line share), link from the stock document; EN/AR                                       | `/purchasing/receipts/[receiptId]`                     |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 19 files / 135 tests — 8 new
+for allocation and capitalization, build); `pnpm test:integration` 14 files /
+133 tests pass (new: by value with partly used stock, by quantity, retry with
+the same key, reversals refused, mixed units, free goods, permission, other
+tenant, reversed receipt; valuations reconcile afterwards); `pnpm test:e2e`
+22 tests pass (new: order → receipt → freight → stock value 2,300).
+
+Limitations: base currency only (Q-05); no allocation by weight or volume;
+one charge covers one receipt; no link to the carrier's invoice yet (M7).
 
 ## M3c part 2 — Shipments with an in-transit stage (delivered)
 

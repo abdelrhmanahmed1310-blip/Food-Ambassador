@@ -584,3 +584,66 @@ export function CreateOrdersForm({ action, formId }: { action: Action; formId: s
     </ActionForm>
   );
 }
+
+const LANDED_COST_CHARGES = ["FREIGHT", "CUSTOMS_DUTY", "INSURANCE", "HANDLING", "OTHER"] as const;
+
+export function LandedCostForm({
+  action,
+  currency,
+  quantityAllowed,
+}: {
+  action: Action;
+  currency: string;
+  /** Allocation by quantity is offered only when all lines share a base unit. */
+  quantityAllowed: boolean;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("landedCost.add")}
+      pendingLabel={t("common.saving")}
+      idempotent
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SelectField
+          name="chargeType"
+          label={t("landedCost.charge")}
+          options={LANDED_COST_CHARGES.map((c) => ({
+            value: c,
+            label: t(`landedCost.charges.${c}`),
+          }))}
+          placeholder={t("common.select")}
+          required
+        />
+        <TextField
+          name="amount"
+          label={`${t("landedCost.amount")} (${currency})`}
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+        <SelectField
+          name="method"
+          label={t("landedCost.method")}
+          options={[
+            { value: "BY_VALUE", label: t("landedCost.methods.BY_VALUE") },
+            ...(quantityAllowed
+              ? [{ value: "BY_QUANTITY", label: t("landedCost.methods.BY_QUANTITY") }]
+              : []),
+          ]}
+          defaultValue="BY_VALUE"
+          required
+        />
+        <TextField
+          name="reference"
+          label={t("landedCost.reference")}
+          optionalLabel={t("common.optional")}
+        />
+        <div className="sm:col-span-2">
+          <TextField name="note" label={t("common.note")} optionalLabel={t("common.optional")} />
+        </div>
+      </div>
+    </ActionForm>
+  );
+}
