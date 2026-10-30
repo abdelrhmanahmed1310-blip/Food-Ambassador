@@ -24,6 +24,7 @@ export function ActionForm({
   className = "space-y-4",
   submitVariant = "primary",
   hideSubmit = false,
+  id,
 }: {
   action: FormAction;
   children: ReactNode;
@@ -33,6 +34,8 @@ export function ActionForm({
   className?: string;
   submitVariant?: ButtonVariant;
   hideSubmit?: boolean;
+  /** Lets inputs elsewhere on the page join this form via their `form` attribute. */
+  id?: string;
 }) {
   // One key per logical submission: reused when retrying after an error,
   // discarded after success, so a double submit cannot create duplicates.
@@ -50,7 +53,7 @@ export function ActionForm({
 
   return (
     <FormStateContext value={state}>
-      <form action={formAction} className={className} noValidate>
+      <form id={id} action={formAction} className={className} noValidate>
         {state.formError ? (
           <p
             role="alert"

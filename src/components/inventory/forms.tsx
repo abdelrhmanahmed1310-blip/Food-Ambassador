@@ -67,6 +67,7 @@ function useOptions() {
 export function ProductForm({
   action,
   units,
+  categories = [],
   defaults = {},
   locked = false,
   submitLabel,
@@ -74,6 +75,7 @@ export function ProductForm({
 }: {
   action: Action;
   units: Option[];
+  categories?: Option[];
   defaults?: Record<string, string | undefined>;
   /** Base unit and lot tracking are frozen once the product has stock history. */
   locked?: boolean;
@@ -157,6 +159,52 @@ export function ProductForm({
           label={t("catalog.storage")}
           options={ZONES.map((v) => ({ value: v, label: t(`catalog.zones.${v}`) }))}
           defaultValue={defaults.storageRequirement ?? "AMBIENT"}
+        />
+        <SelectField
+          name="categoryId"
+          label={t("catalog.category")}
+          options={categories}
+          defaultValue={defaults.categoryId}
+          placeholder="—"
+          optionalLabel={t("common.optional")}
+        />
+      </div>
+    </ActionForm>
+  );
+}
+
+export function CategoryForm({
+  action,
+  submitLabel,
+  defaults = {},
+}: {
+  action: Action;
+  submitLabel: string;
+  defaults?: Record<string, string | undefined>;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm action={action} submitLabel={submitLabel} pendingLabel={t("common.saving")}>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField
+          name="code"
+          label={t("catalog.categoryCode")}
+          defaultValue={defaults.code}
+          dir="ltr"
+          required
+        />
+        <TextField
+          name="name"
+          label={t("catalog.categoryName")}
+          defaultValue={defaults.name}
+          required
+        />
+        <TextField
+          name="nameAr"
+          label={t("catalog.nameAr")}
+          defaultValue={defaults.nameAr}
+          dir="rtl"
+          optionalLabel={t("common.optional")}
         />
       </div>
     </ActionForm>

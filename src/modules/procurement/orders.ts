@@ -116,7 +116,7 @@ function requireStatus(order: LockedOrder, ok: boolean) {
     );
 }
 
-async function recomputeTotal(tx: Tx, orderId: string) {
+export async function recomputeTotal(tx: Tx, orderId: string) {
   const lines = await tx.purchaseOrderLine.findMany({
     where: { purchaseOrderId: orderId },
     select: { lineTotal: true },
@@ -308,6 +308,57 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
 
 // ─── Draft ───
 
+/**
+ * Create a draft order inside the caller's transaction (manual creation and
+ * orders generated from reorder suggestions share it).
+ */
+export async function createDraftOrderInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  input: { supplierId: string; warehouseId: string; expectedOn?: string; note?: string },
+) {
+  const wh = await loadWarehouseRef(tx, ctx, input.warehouseId);
+  if (!canOnWarehouse(ctx, "purchasing.view", wh)) throw notFound("Warehouse");
+  assertPermission(ctx.grants, "purchasing.manage", target(wh));
+  if (wh.archivedAt || wh.branch.archivedAt)
+    throw businessRuleViolation("WAREHOUSE_ARCHIVED", "The warehouse is archived");
+  const supplier = await loadSupplier(tx, ctx, input.supplierId);
+  if (supplier.archivedAt)
+    throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
+  const today = businessDate(wh.branch.timeZone ?? ctx.timeZone);
+  const number = await nextDocumentNumber(tx, ctx.organizationId, "PO", Number(today.slice(0, 4)));
+  const order = await tx.purchaseOrder.create({
+    data: {
+      organizationId: ctx.organizationId,
+      number,
+      supplierId: supplier.id,
+      warehouseId: wh.id,
+      currency: ctx.baseCurrency,
+      expectedOn: input.expectedOn ? new Date(`${input.expectedOn}T00:00:00Z`) : null,
+      note: input.note,
+      createdByUserId: ctx.userId,
+    },
+    select: { id: true, number: true },
+  });
+  await audit(tx, ctx, order, "created", { supplierId: supplier.id, warehouseId: wh.id });
+  return order;
+}
+
+/** Add a line to a draft order created in the same transaction. */
+export async function addDraftLineInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  order: { id: string; number: string },
+  lineNo: number,
+  rawLine: unknown,
+) {
+  const { data } = await lineValues(tx, ctx, rawLine);
+  await tx.purchaseOrderLine.create({
+    data: { ...data, organizationId: ctx.organizationId, purchaseOrderId: order.id, lineNo },
+  });
+  await audit(tx, ctx, order, "line_added", data);
+}
+
 export async function createOrder(ctx: TenantContext, rawInput: unknown) {
   const parsed = createOrderSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
@@ -316,35 +367,7 @@ export async function createOrder(ctx: TenantContext, rawInput: unknown) {
     ctx,
     { key: idempotencyKey, operation: "purchase_order.create", input },
     async (tx) => {
-      const wh = await loadWarehouseRef(tx, ctx, input.warehouseId);
-      if (!canOnWarehouse(ctx, "purchasing.view", wh)) throw notFound("Warehouse");
-      assertPermission(ctx.grants, "purchasing.manage", target(wh));
-      if (wh.archivedAt || wh.branch.archivedAt)
-        throw businessRuleViolation("WAREHOUSE_ARCHIVED", "The warehouse is archived");
-      const supplier = await loadSupplier(tx, ctx, input.supplierId);
-      if (supplier.archivedAt)
-        throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
-      const today = businessDate(wh.branch.timeZone ?? ctx.timeZone);
-      const number = await nextDocumentNumber(
-        tx,
-        ctx.organizationId,
-        "PO",
-        Number(today.slice(0, 4)),
-      );
-      const order = await tx.purchaseOrder.create({
-        data: {
-          organizationId: ctx.organizationId,
-          number,
-          supplierId: supplier.id,
-          warehouseId: wh.id,
-          currency: ctx.baseCurrency,
-          expectedOn: input.expectedOn ? new Date(`${input.expectedOn}T00:00:00Z`) : null,
-          note: input.note,
-          createdByUserId: ctx.userId,
-        },
-        select: { id: true, number: true },
-      });
-      await audit(tx, ctx, order, "created", { supplierId: supplier.id, warehouseId: wh.id });
+      const order = await createDraftOrderInTx(tx, ctx, input);
       return { id: order.id, number: order.number };
     },
   );

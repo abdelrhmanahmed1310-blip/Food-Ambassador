@@ -9,6 +9,7 @@ import {
   lineTotal,
   maxAcceptable,
   statusFromReceipts,
+  suggestReorder,
   supplierPerformance,
 } from "./rules";
 
@@ -105,5 +106,46 @@ describe("supplier performance", () => {
     expect(p.fillRate?.toFixed()).toBe("0.975");
     expect(p.rejectionRate?.toFixed()).toBe("0.025");
     expect(p.priceVariance.toFixed()).toBe("3.5");
+  });
+});
+
+describe("reorder suggestions", () => {
+  const base = {
+    minBase: d("20"),
+    maxBase: d("100"),
+    availableBase: d("15"),
+    onOrderBase: d("0"),
+    basePerPurchaseUnit: d("1"),
+    minOrderPurchaseUnits: null,
+  };
+
+  it("orders up to the maximum once available + on order reaches the minimum", () => {
+    expect(suggestReorder({ ...base, availableBase: d("21") })).toBeNull();
+    const s = suggestReorder({ ...base, availableBase: d("20") });
+    expect(s?.purchaseUnits.toFixed()).toBe("80");
+    expect(s?.projectedBase.toFixed()).toBe("20");
+  });
+
+  it("counts stock already on order", () => {
+    expect(suggestReorder({ ...base, onOrderBase: d("10") })).toBeNull(); // 25 > 20
+    expect(suggestReorder({ ...base, onOrderBase: d("5") })?.base.toFixed()).toBe("80");
+  });
+
+  it("rounds up to whole purchase units and respects the supplier minimum", () => {
+    // 85 eggs needed, cases of 30 → 3 cases (90 eggs).
+    const eggs = suggestReorder({ ...base, basePerPurchaseUnit: d("30") });
+    expect(eggs?.purchaseUnits.toFixed()).toBe("3");
+    expect(eggs?.base.toFixed()).toBe("90");
+    const min = suggestReorder({
+      ...base,
+      basePerPurchaseUnit: d("30"),
+      minOrderPurchaseUnits: d("5"),
+    });
+    expect(min?.purchaseUnits.toFixed()).toBe("5");
+  });
+
+  it("never suggests when the maximum is already covered", () => {
+    expect(suggestReorder({ ...base, minBase: d("100"), availableBase: d("100") })).toBeNull();
+    expect(() => suggestReorder({ ...base, basePerPurchaseUnit: d("0") })).toThrow(RangeError);
   });
 });

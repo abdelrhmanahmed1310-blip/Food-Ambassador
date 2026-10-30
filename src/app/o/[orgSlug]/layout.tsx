@@ -48,6 +48,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     purchasing.items.push(
       { href: `${base}/purchasing/orders`, label: t("purchaseOrders") },
       { href: `${base}/purchasing/receipts`, label: t("receipts") },
+      { href: `${base}/purchasing/reorder`, label: t("reorder") },
     );
   }
   const catalog: NavSection = { title: t("catalogSection"), items: [] };
@@ -55,6 +56,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     catalog.items.push(
       { href: `${base}/catalog/products`, label: t("products") },
       { href: `${base}/catalog/units`, label: t("units") },
+      { href: `${base}/catalog/categories`, label: t("categories") },
     );
   }
   if (
@@ -80,7 +82,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-border bg-surface relative flex h-14 items-center justify-between gap-3 border-b px-4">
+      <header className="border-border bg-surface relative flex h-14 items-center justify-between gap-3 border-b px-4 print:hidden">
         <div className="flex min-w-0 items-center gap-2">
           <MobileNav
             sections={sections}

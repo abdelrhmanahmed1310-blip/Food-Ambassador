@@ -124,11 +124,12 @@ const productListSelect = {
   storageRequirement: true,
   archivedAt: true,
   baseUom: { select: { id: true, code: true } },
+  category: { select: { id: true, code: true, name: true, nameAr: true } },
 } satisfies Prisma.ProductSelect;
 
 export async function listProducts(
   ctx: TenantContext,
-  options: { q?: string; status?: ListStatus; page?: number } = {},
+  options: { q?: string; status?: ListStatus; categoryId?: string; page?: number } = {},
 ) {
   assertPermission(ctx.grants, "catalog.view");
   const page = Math.max(1, options.page ?? 1);
@@ -136,6 +137,7 @@ export async function listProducts(
   const status = options.status ?? "active";
   const where: Prisma.ProductWhereInput = {
     organizationId: ctx.organizationId,
+    ...(options.categoryId ? { categoryId: options.categoryId } : {}),
     ...(status === "active"
       ? { archivedAt: null }
       : status === "archived"
@@ -172,6 +174,7 @@ export async function findProduct(tx: Tx, ctx: TenantContext, productId: string)
     where: { organizationId: ctx.organizationId, id: productId },
     select: {
       ...productListSelect,
+      categoryId: true,
       shelfLifeDays: true,
       baseUomId: true,
       baseUom: { select: unitSelect },
@@ -259,6 +262,7 @@ export async function createProduct(
       { key: idempotencyKey, operation: "product.create", input },
       async (tx) => {
         await assertUnitUsable(tx, ctx, input.baseUomId);
+        await assertCategoryUsable(tx, ctx, input.categoryId);
         const product = await tx.product.create({
           data: {
             ...input,
@@ -294,10 +298,13 @@ export async function updateProduct(
     ...parsed.data,
     nameAr: parsed.data.nameAr ?? null,
     shelfLifeDays: parsed.data.shelfLifeDays ?? null,
+    categoryId: parsed.data.categoryId ?? null,
   };
   try {
     await withTenantTx(ctx.organizationId, async (tx) => {
       const before = await findProduct(tx, ctx, productId);
+      if (input.categoryId !== before.categoryId)
+        await assertCategoryUsable(tx, ctx, input.categoryId ?? undefined);
       if (input.baseUomId !== before.baseUomId || input.lotTracking !== before.lotTracking) {
         // Stock history is expressed in the base unit and lot identity: both are frozen once used.
         const used = await tx.inventoryLedgerEntry.count({
@@ -324,6 +331,7 @@ export async function updateProduct(
           lotTracking: before.lotTracking,
           shelfLifeDays: before.shelfLifeDays,
           storageRequirement: before.storageRequirement,
+          categoryId: before.categoryId,
         },
         input,
       );
@@ -338,6 +346,18 @@ export async function updateProduct(
   } catch (error) {
     skuConflict(error);
   }
+}
+
+/** A category may be assigned only if it belongs to this organization and is not archived. */
+async function assertCategoryUsable(tx: Tx, ctx: TenantContext, categoryId: string | undefined) {
+  if (!categoryId) return;
+  const category = await tx.productCategory.findFirst({
+    where: { organizationId: ctx.organizationId, id: categoryId },
+    select: { archivedAt: true },
+  });
+  if (!category) throw notFound("Category");
+  if (category.archivedAt)
+    throw businessRuleViolation("CATEGORY_ARCHIVED", "The category is archived");
 }
 
 export async function setProductArchived(

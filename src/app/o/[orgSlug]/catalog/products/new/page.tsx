@@ -3,9 +3,10 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ProductForm } from "@/components/inventory/forms";
 import { Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
+import { listCategories } from "@/modules/catalog/categories";
 import { listUnits } from "@/modules/catalog/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { unitOptions } from "@/server/inventory-view";
+import { categoryOptions, unitOptions } from "@/server/inventory-view";
 import { createProductAction } from "../../actions";
 
 export default async function NewProductPage({
@@ -14,7 +15,12 @@ export default async function NewProductPage({
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "catalog.manage")) notFound();
-  const [t, locale, units] = await Promise.all([getTranslations(), getLocale(), listUnits(ctx)]);
+  const [t, locale, units, categories] = await Promise.all([
+    getTranslations(),
+    getLocale(),
+    listUnits(ctx),
+    listCategories(ctx),
+  ]);
   return (
     <>
       <PageHeader title={t("catalog.newProductTitle")} />
@@ -22,6 +28,7 @@ export default async function NewProductPage({
         <ProductForm
           action={createProductAction.bind(null, orgSlug)}
           units={unitOptions(units, locale)}
+          categories={categoryOptions(categories, locale)}
           submitLabel={t("common.create")}
           idempotent
         />

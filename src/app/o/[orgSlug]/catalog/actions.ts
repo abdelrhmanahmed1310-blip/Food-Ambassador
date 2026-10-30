@@ -13,6 +13,7 @@ import {
   setProductArchived,
   updateProduct,
 } from "@/modules/catalog/service";
+import { createCategory, setCategoryArchived, updateCategory } from "@/modules/catalog/categories";
 import { importOpeningBalances, importProducts, type ImportResult } from "@/modules/inventory/csv";
 import { formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
@@ -162,4 +163,41 @@ export async function importOpeningBalancesAction(
   formData: FormData,
 ): Promise<ActionState> {
   return importAction(orgSlug, previous, formData, importOpeningBalances);
+}
+
+export async function createCategoryAction(
+  orgSlug: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("common");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await createCategory(ctx, formValues(formData));
+    return { message: t("savedSuccessfully") };
+  });
+}
+
+export async function updateCategoryAction(
+  orgSlug: string,
+  categoryId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("common");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await updateCategory(ctx, categoryId, formValues(formData));
+    return { message: t("savedSuccessfully") };
+  });
+}
+
+export async function setCategoryArchivedAction(
+  orgSlug: string,
+  categoryId: string,
+  archived: boolean,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    setCategoryArchived(ctx, categoryId, archived),
+  );
 }

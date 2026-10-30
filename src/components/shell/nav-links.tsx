@@ -52,7 +52,7 @@ export function DesktopNav({ sections, label }: { sections: NavSection[]; label:
   return (
     <nav
       aria-label={label}
-      className="border-border bg-surface hidden w-60 shrink-0 border-e px-3 py-6 lg:block"
+      className="border-border bg-surface hidden w-60 shrink-0 border-e px-3 py-6 lg:block print:hidden"
     >
       <Links sections={sections} />
     </nav>

@@ -203,10 +203,13 @@ rejections with reasons, quarantine, lots/expiry, temperature for chilled
 and frozen goods, over-receipt tolerance; receipt reversal; short close and
 cancel; supplier scorecard; purchasing settings.
 
-**M3c — next:** purchase requisitions from branches, in-transit transfers
-(ADR-016), landed cost allocation, par levels with suggested orders,
-product categories (Q-13), supplier price history view, printable PO
-(email needs Q-10), count templates.
+**M3c — in progress:**
+
+- ✅ Product categories (ADR-025), reorder levels with suggested draft
+  orders, supplier price history, printable purchase order.
+- In-transit transfers (ADR-016), landed cost allocation, purchase
+  requisitions from branches. PO email needs Q-10; count templates moved to
+  the backlog.
 
 ## M4 — Recipes and food cost
 
@@ -311,9 +314,9 @@ Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`
 | P1  | Landed cost allocation (discrepancies and supplier performance done in M3b) | M3c       | receipts   |
 | P1  | Email provider for invitations and password reset (Q-10)                    | M3        | decision   |
 | P2  | Searchable product picker for large catalogs                                | M3        | —          |
-| P1  | Product categories (Q-13)                                                   | M3        | —          |
-| P1  | Par levels + suggested order quantities                                     | M3        | POs        |
-| P2  | Supplier item price history                                                 | M3        | suppliers  |
+| ✅  | Product categories (Q-13 default, ADR-025)                                  | M3c       | done       |
+| ✅  | Par levels + suggested order quantities                                     | M3c       | done       |
+| ✅  | Supplier item price history                                                 | M3c       | done       |
 | P2  | Stock count templates                                                       | M3        | —          |
 | P2  | Margin alerts, price simulator, bulk ingredient replace                     | M4        | recipes    |
 | P2  | Credit notes for short/rejected deliveries                                  | M7        | invoices   |

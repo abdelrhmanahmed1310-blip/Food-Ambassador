@@ -179,3 +179,11 @@ export const receiptSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 });
 export type ReceiptInput = z.input<typeof receiptSchema>;
+
+export const reorderRuleSchema = z.object({
+  warehouseId: uuidSchema,
+  productId: uuidSchema,
+  uomId: uuidSchema,
+  minQuantity: decimalString({ maxScale: 6, min: "0" }),
+  maxQuantity: decimalString({ maxScale: 6, min: "0.000001" }),
+});

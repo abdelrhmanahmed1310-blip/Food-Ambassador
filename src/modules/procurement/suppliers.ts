@@ -273,7 +273,7 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
   assertPermission(ctx.grants, "suppliers.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
     const supplier = await loadSupplier(tx, ctx, supplierId);
-    const [products, receipts, finished] = await inSequence([
+    const [products, receipts, finished, priceHistory] = await inSequence([
       tx.supplierProduct.findMany({
         where: { organizationId: ctx.organizationId, supplierId: supplier.id, archivedAt: null },
         include: {
@@ -314,6 +314,25 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
           purchaseOrder: { supplierId: supplier.id, status: { in: ["RECEIVED", "CLOSED"] } },
         },
         select: { purchaseOrderId: true, quantityBase: true, receivedQuantityBase: true },
+      }),
+      // Prices actually charged, newest first (posted receipts only).
+      tx.goodsReceiptLine.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          acceptedQuantity: { gt: 0 },
+          receipt: { supplierId: supplier.id, status: "POSTED" },
+        },
+        select: {
+          id: true,
+          unitPrice: true,
+          orderedUnitPrice: true,
+          acceptedQuantity: true,
+          uom: { select: { code: true } },
+          product: { select: { id: true, sku: true, nameEn: true, nameAr: true } },
+          receipt: { select: { id: true, number: true, receivedAt: true } },
+        },
+        orderBy: { receipt: { receivedAt: "desc" } },
+        take: 50,
       }),
     ]);
     const byOrder = new Map<string, { orderedBase: Decimal; acceptedBase: Decimal }>();
@@ -357,6 +376,6 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
       }),
       finishedOrders: [...byOrder.values()],
     });
-    return { supplier, products, performance };
+    return { supplier, products, performance, priceHistory };
   });
 }

@@ -46,6 +46,17 @@ export function unitOptions(
   }));
 }
 
+export function categoryName(c: { name: string; nameAr: string | null }, locale: string) {
+  return (locale === "ar" && c.nameAr) || c.name;
+}
+
+export function categoryOptions(
+  categories: Array<{ id: string; code: string; name: string; nameAr: string | null }>,
+  locale: string,
+) {
+  return categories.map((c) => ({ value: c.id, label: `${c.code} — ${categoryName(c, locale)}` }));
+}
+
 export function productName(p: { nameEn: string; nameAr: string | null }, locale: string) {
   return (locale === "ar" && p.nameAr) || p.nameEn;
 }

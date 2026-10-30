@@ -17,7 +17,9 @@ import { listProducts } from "@/modules/catalog/service";
 import { pageSchema } from "@/modules/shared/schemas";
 import { listStatusSchema } from "@/modules/sites/schemas";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { productName } from "@/server/inventory-view";
+import { categoryName, categoryOptions, productName } from "@/server/inventory-view";
+import { listCategories } from "@/modules/catalog/categories";
+import { isUuid } from "@/lib/uuid";
 
 export default async function ProductsPage({
   params,
@@ -30,10 +32,13 @@ export default async function ProductsPage({
   const q = typeof sp.q === "string" ? sp.q : undefined;
   const status = listStatusSchema.parse(sp.status);
   const page = pageSchema.parse(sp.page);
-  const [t, locale, result] = await Promise.all([
+  const categoryId =
+    typeof sp.categoryId === "string" && isUuid(sp.categoryId) ? sp.categoryId : undefined;
+  const [t, locale, result, categories] = await Promise.all([
     getTranslations(),
     getLocale(),
-    listProducts(ctx, { q, status, page }),
+    listProducts(ctx, { q, status, categoryId, page }),
+    listCategories(ctx, { includeArchived: true }),
   ]);
   const canManage = hasPermission(ctx.grants, "catalog.manage");
   const base = `/o/${orgSlug}/catalog/products`;
@@ -59,7 +64,20 @@ export default async function ProductsPage({
           </>
         }
       />
-      <ListFilters q={q} status={status} />
+      <ListFilters
+        q={q}
+        status={status}
+        extra={
+          categories.length > 0
+            ? {
+                name: "categoryId",
+                label: t("catalog.allCategories"),
+                value: categoryId,
+                options: categoryOptions(categories, locale),
+              }
+            : undefined
+        }
+      />
       {result.total === 0 && !q && status === "active" ? (
         <EmptyState
           title={t("catalog.emptyProducts")}
@@ -75,6 +93,7 @@ export default async function ProductsPage({
               <Th>{t("catalog.sku")}</Th>
               <Th>{t("branches.name")}</Th>
               <Th>{t("catalog.type")}</Th>
+              <Th>{t("catalog.category")}</Th>
               <Th>{t("catalog.baseUnit")}</Th>
               <Th>{t("catalog.lotTracking")}</Th>
               <Th>{t("common.status")}</Th>
@@ -95,6 +114,7 @@ export default async function ProductsPage({
                   </Link>
                 </Td>
                 <Td>{t(`catalog.types.${p.type}`)}</Td>
+                <Td>{p.category ? categoryName(p.category, locale) : "—"}</Td>
                 <Td>
                   <span className="ltr-value font-mono text-xs">{p.baseUom.code}</span>
                 </Td>
@@ -113,7 +133,7 @@ export default async function ProductsPage({
       )}
       <Pagination
         basePath={base}
-        params={{ q, status: status === "active" ? undefined : status }}
+        params={{ q, categoryId, status: status === "active" ? undefined : status }}
         page={result.page}
         pageCount={result.pageCount}
         total={result.total}

@@ -516,3 +516,71 @@ export function ReceiptForm({
     </ActionForm>
   );
 }
+
+// ─── Reorder planning ───
+
+export function ReorderRuleForm({
+  action,
+  products,
+  units,
+}: {
+  action: Action;
+  products: Option[];
+  units: Option[];
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("common.save")}
+      pendingLabel={t("common.saving")}
+      submitVariant="secondary"
+    >
+      <div className="grid gap-4 sm:grid-cols-4">
+        <SelectField
+          name="productId"
+          label={t("purchasing.product")}
+          options={products}
+          placeholder={t("common.select")}
+          required
+        />
+        <SelectField
+          name="uomId"
+          label={t("common.unit")}
+          options={units}
+          placeholder={t("common.select")}
+          required
+        />
+        <TextField
+          name="minQuantity"
+          label={t("reorder.min")}
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+        <TextField
+          name="maxQuantity"
+          label={t("reorder.max")}
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+      </div>
+    </ActionForm>
+  );
+}
+
+/** Submit for the suggestions table; the row checkboxes join it by form id. */
+export function CreateOrdersForm({ action, formId }: { action: Action; formId: string }) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      id={formId}
+      action={action}
+      submitLabel={t("reorder.createOrders")}
+      pendingLabel={t("common.saving")}
+    >
+      <p className="text-muted text-sm">{t("reorder.createOrdersHint")}</p>
+    </ActionForm>
+  );
+}

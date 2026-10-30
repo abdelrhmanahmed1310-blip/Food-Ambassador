@@ -15,6 +15,7 @@ import {
   Td,
   Th,
 } from "@/components/ui/primitives";
+import { PrintButton } from "@/components/ui/print-button";
 import { isUuid } from "@/lib/uuid";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
 import { getOrder, purchasingWarehouseOptions } from "@/modules/procurement/orders";
@@ -82,10 +83,13 @@ export default async function OrderPage({
         actions={
           <>
             <OrderStatusBadge status={order.status} />
+            {order.status !== "DRAFT" ? <PrintButton label={t("purchasing.print")} /> : null}
             {order.can.receive ? (
-              <LinkButton href={`/o/${orgSlug}/purchasing/orders/${order.id}/receive`}>
-                {t("purchasing.receive")}
-              </LinkButton>
+              <span className="print:hidden">
+                <LinkButton href={`/o/${orgSlug}/purchasing/orders/${order.id}/receive`}>
+                  {t("purchasing.receive")}
+                </LinkButton>
+              </span>
             ) : null}
           </>
         }
@@ -242,105 +246,110 @@ export default async function OrderPage({
           ) : null}
         </Card>
 
-        {order.can.submit ? (
-          <Card>
-            <p className="text-muted mb-3 text-sm">{t("purchasing.submitHint")}</p>
-            <ConfirmActionButton
-              action={submitOrderAction.bind(null, orgSlug, order.id)}
-              label={t("purchasing.submit")}
-              confirmMessage={t("purchasing.confirmSubmit")}
-              variant="primary"
-            />
-          </Card>
-        ) : null}
-
-        {order.can.approve ? (
-          <Card>
-            <div className="flex flex-wrap items-start gap-6">
+        <div className="space-y-6 print:hidden">
+          {order.can.submit ? (
+            <Card>
+              <p className="text-muted mb-3 text-sm">{t("purchasing.submitHint")}</p>
               <ConfirmActionButton
-                action={approveOrderAction.bind(null, orgSlug, order.id)}
-                label={t("purchasing.approve")}
-                confirmMessage={t("purchasing.confirmApprove")}
+                action={submitOrderAction.bind(null, orgSlug, order.id)}
+                label={t("purchasing.submit")}
+                confirmMessage={t("purchasing.confirmSubmit")}
                 variant="primary"
               />
-              <div className="min-w-64 flex-1">
-                <ReasonForm
-                  action={rejectOrderAction.bind(null, orgSlug, order.id)}
-                  submitLabel={t("purchasing.reject")}
-                  label={t("purchasing.rejectReason")}
+            </Card>
+          ) : null}
+
+          {order.can.approve ? (
+            <Card>
+              <div className="flex flex-wrap items-start gap-6">
+                <ConfirmActionButton
+                  action={approveOrderAction.bind(null, orgSlug, order.id)}
+                  label={t("purchasing.approve")}
+                  confirmMessage={t("purchasing.confirmApprove")}
+                  variant="primary"
                 />
+                <div className="min-w-64 flex-1">
+                  <ReasonForm
+                    action={rejectOrderAction.bind(null, orgSlug, order.id)}
+                    submitLabel={t("purchasing.reject")}
+                    label={t("purchasing.rejectReason")}
+                  />
+                </div>
               </div>
-            </div>
-          </Card>
-        ) : order.selfApprovalBlocked ? (
-          <Alert tone="info">{t("purchasing.selfApproval")}</Alert>
-        ) : null}
+            </Card>
+          ) : order.selfApprovalBlocked ? (
+            <Alert tone="info">{t("purchasing.selfApproval")}</Alert>
+          ) : null}
 
-        <Card title={t("purchasing.receiptsTitle")}>
-          {order.receipts.length === 0 ? (
-            <p className="text-muted text-sm">{t("purchasing.noReceipts")}</p>
-          ) : (
-            <ul className="divide-border divide-y">
-              {order.receipts.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
-                >
-                  <Link
-                    href={`/o/${orgSlug}/purchasing/receipts/${r.id}`}
-                    className="ltr-value text-primary font-mono hover:underline"
+          <Card title={t("purchasing.receiptsTitle")}>
+            {order.receipts.length === 0 ? (
+              <p className="text-muted text-sm">{t("purchasing.noReceipts")}</p>
+            ) : (
+              <ul className="divide-border divide-y">
+                {order.receipts.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
                   >
-                    {r.number}
-                  </Link>
-                  <ReceiptStatusBadge status={r.status} />
-                  <span className="text-muted">{dt(r.receivedAt)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+                    <Link
+                      href={`/o/${orgSlug}/purchasing/receipts/${r.id}`}
+                      className="ltr-value text-primary font-mono hover:underline"
+                    >
+                      {r.number}
+                    </Link>
+                    <ReceiptStatusBadge status={r.status} />
+                    <span className="text-muted">{dt(r.receivedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
-        {editing ? (
-          <Card title={t("purchasing.editHeader")}>
-            <OrderHeaderForm
-              action={updateOrderHeaderAction.bind(null, orgSlug, order.id)}
-              suppliers={suppliers.map((s) => ({
-                value: s.id,
-                label: `${s.code} — ${(locale === "ar" && s.nameAr) || s.name}`,
-              }))}
-              warehouses={warehouses.map((w) => ({ value: w.id, label: `${w.code} — ${w.name}` }))}
-              submitLabel={t("common.save")}
-              defaults={{
-                supplierId: order.supplierId,
-                warehouseId: order.warehouseId,
-                expectedOn: order.expectedOn?.toISOString().slice(0, 10),
-                note: order.note ?? undefined,
-              }}
-            />
-          </Card>
-        ) : null}
+          {editing ? (
+            <Card title={t("purchasing.editHeader")}>
+              <OrderHeaderForm
+                action={updateOrderHeaderAction.bind(null, orgSlug, order.id)}
+                suppliers={suppliers.map((s) => ({
+                  value: s.id,
+                  label: `${s.code} — ${(locale === "ar" && s.nameAr) || s.name}`,
+                }))}
+                warehouses={warehouses.map((w) => ({
+                  value: w.id,
+                  label: `${w.code} — ${w.name}`,
+                }))}
+                submitLabel={t("common.save")}
+                defaults={{
+                  supplierId: order.supplierId,
+                  warehouseId: order.warehouseId,
+                  expectedOn: order.expectedOn?.toISOString().slice(0, 10),
+                  note: order.note ?? undefined,
+                }}
+              />
+            </Card>
+          ) : null}
 
-        {order.can.close ? (
-          <Card title={t("purchasing.close")}>
-            <p className="text-muted mb-3 text-sm">{t("purchasing.closeHint")}</p>
-            <ReasonForm
-              action={closeOrderAction.bind(null, orgSlug, order.id)}
-              submitLabel={t("purchasing.close")}
-              label={t("purchasing.closeReason")}
-            />
-          </Card>
-        ) : null}
-        {order.can.cancel ? (
-          <Card title={t("purchasing.cancelOrder")}>
-            <p className="text-muted mb-3 text-sm">{t("purchasing.cancelHint")}</p>
-            <ReasonForm
-              action={cancelOrderAction.bind(null, orgSlug, order.id)}
-              submitLabel={t("purchasing.cancelOrder")}
-              label={t("purchasing.closeReason")}
-              variant="danger"
-            />
-          </Card>
-        ) : null}
+          {order.can.close ? (
+            <Card title={t("purchasing.close")}>
+              <p className="text-muted mb-3 text-sm">{t("purchasing.closeHint")}</p>
+              <ReasonForm
+                action={closeOrderAction.bind(null, orgSlug, order.id)}
+                submitLabel={t("purchasing.close")}
+                label={t("purchasing.closeReason")}
+              />
+            </Card>
+          ) : null}
+          {order.can.cancel ? (
+            <Card title={t("purchasing.cancelOrder")}>
+              <p className="text-muted mb-3 text-sm">{t("purchasing.cancelHint")}</p>
+              <ReasonForm
+                action={cancelOrderAction.bind(null, orgSlug, order.id)}
+                submitLabel={t("purchasing.cancelOrder")}
+                label={t("purchasing.closeReason")}
+                variant="danger"
+              />
+            </Card>
+          ) : null}
+        </div>
       </div>
     </>
   );

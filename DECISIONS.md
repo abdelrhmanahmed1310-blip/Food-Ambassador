@@ -265,6 +265,24 @@ paired documents (transfers, status changes) are unchanged. History
 replayed by the M3a migration keeps the earlier rule (it only affected
 development and test data).
 
+### ADR-025 Categories and reorder levels — Accepted (M3c; default for Q-13)
+
+- **Categories (Q-13 default):** one flat list per organization, optional
+  on each product. Archived categories cannot be newly assigned; products
+  keep theirs. A hierarchy can be added later without changing products.
+- **Reorder levels** are set per product × warehouse as minimum and maximum
+  in the product's base unit (entered in any convertible unit).
+- **Suggestion:** when usable stock (AVAILABLE, not expired, not on recall
+  hold, minus reservations) plus stock still to arrive on open orders
+  (draft, awaiting approval, approved, partly received) is at or below the
+  minimum, order up to the maximum, rounded up to whole purchase units and
+  at least the supplier's minimum order.
+- **Supplier:** the preferred supplier of the product, or the only one;
+  otherwise the buyer chooses. Draft orders are created one per supplier at
+  the supplier's last known price. Lines without a supplier or a known price
+  are skipped and listed, never priced by guess. Suggestions are always
+  recomputed on the server when orders are created.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -298,7 +316,7 @@ development and test data).
 | Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)     |
 | Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                     | M2                    |
 | Q-12 | Should counting and approving a stock count require two different people (segregation of duties)? Currently allowed to be the same user.                                | M8 (pilot)            |
-| Q-13 | Product categories: flat list or hierarchy, and are they needed for reporting in the pilot?                                                                             | M4                    |
+| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                  | M3                    |
 | Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                          | —                     |
 | Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                          | POS3                  |
 | Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline? | POS1                  |

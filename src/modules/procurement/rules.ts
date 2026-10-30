@@ -109,3 +109,41 @@ export function supplierPerformance(input: PerformanceInput): Performance {
     priceVariance: input.receipts.reduce((a, r) => a.plus(r.priceVariance), new Decimal(0)),
   };
 }
+
+export interface ReorderInput {
+  /** All in the product's base unit. */
+  minBase: Decimal;
+  maxBase: Decimal;
+  /** Usable stock: available, not expired, not on recall hold. */
+  availableBase: Decimal;
+  /** Still to arrive on open orders (draft, pending, approved, partly received). */
+  onOrderBase: Decimal;
+  /** Base units in one purchase unit (e.g. 30 for a case of 30 eggs). */
+  basePerPurchaseUnit: Decimal;
+  /** Supplier's minimum order, in purchase units. */
+  minOrderPurchaseUnits: Decimal | null;
+}
+
+/**
+ * Suggested order for a reorder rule (par level): when available plus
+ * on-order stock is at or below the minimum, order up to the maximum, in
+ * whole purchase units (rounded up), and at least the supplier's minimum.
+ * Returns null when nothing needs ordering.
+ */
+export function suggestReorder(
+  input: ReorderInput,
+): { purchaseUnits: Decimal; base: Decimal; projectedBase: Decimal } | null {
+  if (!input.basePerPurchaseUnit.gt(0)) throw new RangeError("Unit factor must be positive");
+  const projected = input.availableBase.plus(input.onOrderBase);
+  if (projected.greaterThan(input.minBase)) return null;
+  const need = input.maxBase.minus(projected);
+  if (!need.gt(0)) return null;
+  let units = need.dividedBy(input.basePerPurchaseUnit).toDecimalPlaces(0, Decimal.ROUND_UP);
+  if (input.minOrderPurchaseUnits && units.lessThan(input.minOrderPurchaseUnits))
+    units = input.minOrderPurchaseUnits;
+  return {
+    purchaseUnits: units,
+    base: roundQuantity(units.times(input.basePerPurchaseUnit)),
+    projectedBase: projected,
+  };
+}

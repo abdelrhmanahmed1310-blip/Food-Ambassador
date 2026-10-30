@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { decimalString } from "@/lib/decimal";
 import {
+  codeSchema,
   idempotencyKeySchema,
   optionalText,
+  optionalUuidSchema,
   requiredText,
   uuidSchema,
 } from "@/modules/shared/schemas";
@@ -44,6 +46,7 @@ export const productSchema = z.object({
   lotTracking: z.enum(LOT_TRACKING, { error: "invalidOption" }).default("NONE"),
   shelfLifeDays: optionalPositiveInt,
   storageRequirement: z.enum(STORAGE_ZONES, { error: "invalidOption" }).default("AMBIENT"),
+  categoryId: optionalUuidSchema,
 });
 export const createProductSchema = productSchema.extend({ idempotencyKey: idempotencyKeySchema });
 export type ProductInput = z.input<typeof productSchema>;
@@ -84,4 +87,10 @@ export const barcodeSchema = z.object({
     .optional()
     .transform((v) => (v ? v : undefined))
     .pipe(uuidSchema.optional()),
+});
+
+export const categorySchema = z.object({
+  code: codeSchema,
+  name: requiredText(120),
+  nameAr: optionalText(120),
 });

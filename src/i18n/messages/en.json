@@ -87,7 +87,9 @@
     "suppliers": "Suppliers",
     "purchaseOrders": "Purchase orders",
     "receipts": "Goods receipts",
-    "purchasingSettings": "Purchasing"
+    "purchasingSettings": "Purchasing",
+    "categories": "Categories",
+    "reorder": "Reorder"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -231,7 +233,10 @@
     "LOT_EXPIRED_ON_RECEIPT": "These goods expired on {expiresOn} and cannot be accepted. Reject them instead.",
     "RECEIPT_REVERSE_IN_PURCHASING": "Goods receipts are reversed from the receipt page in Purchasing.",
     "RECEIPT_ALREADY_REVERSED": "This receipt was already reversed.",
-    "RECEIPT_ORDER_CLOSED": "The order is closed. Correct the stock with an adjustment instead."
+    "RECEIPT_ORDER_CLOSED": "The order is closed. Correct the stock with an adjustment instead.",
+    "CATEGORY_ARCHIVED": "The category is archived. Restore it or choose another.",
+    "REORDER_MAX_BELOW_MIN": "The maximum must not be below the minimum.",
+    "NOTHING_SELECTED": "Select at least one suggestion."
   },
   "notFound": {
     "title": "Page not found",
@@ -442,7 +447,8 @@
       "stock_count": "Stock count",
       "supplier": "Supplier",
       "purchase_order": "Purchase order",
-      "goods_receipt": "Goods receipt"
+      "goods_receipt": "Goods receipt",
+      "category": "Category"
     }
   },
   "invite": {
@@ -537,7 +543,16 @@
       "CODE128": "Code 128",
       "QR": "QR code",
       "INTERNAL": "Internal"
-    }
+    },
+    "category": "Category",
+    "allCategories": "All categories",
+    "categoriesTitle": "Categories",
+    "categoriesHint": "Group products for lists, reports and reorder planning.",
+    "noCategories": "No categories yet.",
+    "newCategory": "New category",
+    "categoryCode": "Code",
+    "categoryName": "Name",
+    "categoryArchiveHint": "Archived categories cannot be assigned to products; products keep them until changed."
   },
   "import": {
     "title": "Import",
@@ -783,7 +798,9 @@
     "priceVarianceHint": "Charged minus ordered price × accepted quantity.",
     "notMeasured": "Not enough data",
     "viewOrders": "Purchase orders",
-    "newOrder": "New purchase order"
+    "newOrder": "New purchase order",
+    "priceHistory": "Price history",
+    "noPriceHistory": "No receipts from this supplier yet."
   },
   "purchasing": {
     "ordersTitle": "Purchase orders",
@@ -882,6 +899,31 @@
     "approvalThreshold": "Approval limit",
     "approvalThresholdHint": "Orders above this total, in {currency}, need approval by someone other than their author. Leave empty for no approval step.",
     "tolerance": "Over-receipt tolerance (%)",
-    "toleranceHint": "How much more than ordered may be accepted on a line. 0 = never more than ordered."
+    "toleranceHint": "How much more than ordered may be accepted on a line. 0 = never more than ordered.",
+    "print": "Print"
+  },
+  "reorder": {
+    "title": "Reorder",
+    "hint": "Reorder levels per warehouse. When usable stock plus open orders reaches the minimum, an order up to the maximum is suggested.",
+    "noRules": "No reorder levels for this warehouse yet.",
+    "noRulesHint": "Add a minimum and maximum for the products you keep in stock here.",
+    "select": "Order",
+    "available": "Usable stock",
+    "onOrder": "On order",
+    "minMax": "Min – max",
+    "suggested": "Suggested",
+    "enough": "Enough stock",
+    "addRule": "Add or update a reorder level",
+    "min": "Minimum",
+    "max": "Maximum",
+    "createOrders": "Create draft orders",
+    "createOrdersHint": "One draft order per supplier for the ticked lines, at the supplier's last price. Review and submit them as usual.",
+    "ordersCreated": "{count, plural, =0 {No orders created.} one {Created draft order:} other {Created # draft orders:}} {numbers}",
+    "skipped": "Skipped (no supplier or no known price): {skus}.",
+    "reasons": {
+      "NO_SUPPLIER": "No supplier",
+      "NO_PRICE": "No known price",
+      "OK": "OK"
+    }
   }
 }

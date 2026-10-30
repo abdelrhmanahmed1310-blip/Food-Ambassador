@@ -1,16 +1,37 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-29 (Milestone 3b — suppliers, purchase orders, receiving)
+Last updated: 2026-10-30 (Milestone 3c, part 1 — categories, reorder, price history, PO print)
 
 ## Summary
 
-| Milestone                    | Status                                                                         |
-| ---------------------------- | ------------------------------------------------------------------------------ |
-| M0 Repository & architecture | ✅ Complete                                                                    |
-| M1 Application foundation    | ✅ Complete                                                                    |
-| M2 Inventory MVP             | ✅ Complete                                                                    |
-| M3 Procurement & receiving   | 🔄 In progress — M3a valuation ✅, **M3b purchasing & receiving ✅**, M3c next |
-| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                       |
+| Milestone                    | Status                                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| M0 Repository & architecture | ✅ Complete                                                                                                                                |
+| M1 Application foundation    | ✅ Complete                                                                                                                                |
+| M2 Inventory MVP             | ✅ Complete                                                                                                                                |
+| M3 Procurement & receiving   | 🔄 In progress — M3a ✅, M3b ✅, **M3c part 1 ✅** (categories, reorder, price history, PO print); transit, landed cost, requisitions next |
+| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                                   |
+
+## M3c part 1 — Categories, reorder levels, price history, PO print (delivered)
+
+Rules: DECISIONS.md ADR-025 (default for Q-13).
+
+| Area                          | What works                                                                                                                                                                     | Where                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Categories                    | Flat list (code, EN/AR name), assign on product create/edit, filter and column in the product list, archive/restore                                                            | `src/modules/catalog/categories.ts`, `/catalog/categories`  |
+| Reorder levels                | Min/max per product × warehouse, entered in any convertible unit, stored in the base unit                                                                                      | `src/modules/procurement/reorder.ts`, `/purchasing/reorder` |
+| Suggestions                   | Usable stock (expired and recall-held excluded) + open orders vs. minimum; order up to maximum in whole purchase units, supplier minimum respected; preferred or only supplier | `suggestReorder` (pure, unit-tested)                        |
+| Draft orders from suggestions | One draft per supplier at the last known price, recomputed on the server; unpriced or supplier-less lines skipped and named                                                    | `createOrdersFromPlan`                                      |
+| Price history                 | Prices charged on posted receipts (with the ordered price) on the supplier page                                                                                                | `getSupplier`                                               |
+| Printable PO                  | Print button; navigation and actions hidden in print                                                                                                                           | order page                                                  |
+
+Checks: `pnpm check` pass (unit 19 files, 126 tests); `pnpm test:integration`
+12 files, 126 tests pass (8 new: categories, reorder levels, suggestions,
+draft orders, price history, scope, other tenant); `pnpm test:e2e` 20 tests
+pass (new: category → product → supplier price → reorder level → draft order).
+
+Found and fixed: the result message of "Create draft orders" disappeared
+because the form was removed once nothing was left to suggest; it now stays.
 
 ## M3b — Suppliers, purchase orders, receiving (delivered)
 

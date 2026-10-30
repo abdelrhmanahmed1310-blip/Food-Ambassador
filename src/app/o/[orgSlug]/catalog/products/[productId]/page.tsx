@@ -15,11 +15,18 @@ import {
 } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
 import { hasPermission } from "@/modules/access/authorize";
+import { listCategories } from "@/modules/catalog/categories";
 import { getProduct, listUnits } from "@/modules/catalog/service";
 import { productStockSummary } from "@/modules/inventory/queries";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
-import { productName, quantityFormatter, unitOptions } from "@/server/inventory-view";
+import {
+  categoryName,
+  categoryOptions,
+  productName,
+  quantityFormatter,
+  unitOptions,
+} from "@/server/inventory-view";
 import {
   addBarcodeAction,
   addConversionAction,
@@ -36,11 +43,12 @@ export default async function ProductPage({
   if (!isUuid(productId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const product = await notFoundOnAppError(getProduct(ctx, productId));
-  const [t, locale, units, fmt] = await Promise.all([
+  const [t, locale, units, fmt, categories] = await Promise.all([
     getTranslations(),
     getLocale(),
     listUnits(ctx),
     quantityFormatter(),
+    listCategories(ctx),
   ]);
   const stock = hasPermission(ctx.grants, "inventory.view")
     ? await productStockSummary(ctx, productId)
@@ -73,6 +81,13 @@ export default async function ProductPage({
             <ProductForm
               action={updateProductAction.bind(null, orgSlug, productId)}
               units={unitOptions(units, locale)}
+              categories={categoryOptions(
+                // Keep the current category selectable even if it was archived since.
+                product.category && !categories.some((c) => c.id === product.category!.id)
+                  ? [...categories, product.category]
+                  : categories,
+                locale,
+              )}
               submitLabel={t("common.save")}
               locked={product.hasHistory}
               defaults={{
@@ -84,6 +99,7 @@ export default async function ProductPage({
                 lotTracking: product.lotTracking,
                 shelfLifeDays: product.shelfLifeDays?.toString() ?? "",
                 storageRequirement: product.storageRequirement,
+                categoryId: product.categoryId ?? "",
               }}
             />
           </Card>
@@ -92,6 +108,10 @@ export default async function ProductPage({
             <DescriptionList
               items={[
                 { label: t("catalog.type"), value: t(`catalog.types.${product.type}`) },
+                {
+                  label: t("catalog.category"),
+                  value: product.category ? categoryName(product.category, locale) : "—",
+                },
                 { label: t("catalog.baseUnit"), value: product.baseUom.code },
                 {
                   label: t("catalog.lotTracking"),

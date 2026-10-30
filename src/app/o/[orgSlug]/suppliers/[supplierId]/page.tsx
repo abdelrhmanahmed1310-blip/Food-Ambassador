@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { SupplierForm, SupplierProductForm } from "@/components/procurement/forms";
 import {
@@ -40,13 +41,14 @@ export default async function SupplierPage({
   const { orgSlug, supplierId } = await params;
   if (!isUuid(supplierId)) notFound();
   const ctx = await requireTenant(orgSlug);
-  const { supplier, products, performance } = await notFoundOnAppError(
+  const { supplier, products, performance, priceHistory } = await notFoundOnAppError(
     getSupplier(ctx, supplierId),
   );
   const canManage = hasPermission(ctx.grants, "suppliers.manage");
-  const [t, locale, fmt, money] = await Promise.all([
+  const [t, locale, format, fmt, money] = await Promise.all([
     getTranslations(),
     getLocale(),
+    getFormatter(),
     quantityFormatter(),
     moneyFormatter(ctx.baseCurrency),
   ]);
@@ -186,6 +188,62 @@ export default async function SupplierPage({
               />
             </div>
           ) : null}
+        </Card>
+
+        <Card title={t("suppliers.priceHistory")}>
+          {priceHistory.length === 0 ? (
+            <p className="text-muted text-sm">{t("suppliers.noPriceHistory")}</p>
+          ) : (
+            <Table label={t("suppliers.priceHistory")}>
+              <thead>
+                <tr>
+                  <Th>{t("purchasing.receivedAt")}</Th>
+                  <Th>{t("purchasing.product")}</Th>
+                  <Th>{t("purchasing.accepted")}</Th>
+                  <Th>{t("purchasing.chargedPrice")}</Th>
+                  <Th>{t("purchasing.orderedPrice")}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {priceHistory.map((h) => (
+                  <tr key={h.id}>
+                    <Td className="whitespace-nowrap">
+                      <Link
+                        href={`/o/${orgSlug}/purchasing/receipts/${h.receipt.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {format.dateTime(h.receipt.receivedAt, {
+                          dateStyle: "medium",
+                          timeZone: ctx.timeZone,
+                        })}
+                      </Link>
+                    </Td>
+                    <Td>
+                      {productName(h.product, locale)}
+                      <span className="ltr-value text-muted block font-mono text-xs">
+                        {h.product.sku}
+                      </span>
+                    </Td>
+                    <Td className="tabular-nums">
+                      <span className="ltr-value whitespace-nowrap">
+                        {fmt(h.acceptedQuantity)} {h.uom.code}
+                      </span>
+                    </Td>
+                    <Td className="tabular-nums">
+                      <span className="ltr-value whitespace-nowrap">
+                        {money.unitCost(h.unitPrice)} / {h.uom.code}
+                      </span>
+                    </Td>
+                    <Td className="tabular-nums">
+                      <span className="ltr-value whitespace-nowrap">
+                        {money.unitCost(h.orderedUnitPrice)}
+                      </span>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
         </Card>
 
         {canManage ? (

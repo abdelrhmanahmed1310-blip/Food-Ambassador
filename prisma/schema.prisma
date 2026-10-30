@@ -152,6 +152,8 @@ model Organization {
   purchaseOrderLines  PurchaseOrderLine[]
   goodsReceipts       GoodsReceipt[]
   goodsReceiptLines   GoodsReceiptLine[]
+  productCategories   ProductCategory[]
+  reorderRules        ReorderRule[]
 
   @@map("organizations")
 }
@@ -355,6 +357,7 @@ model Warehouse {
   revaluations    StockRevaluation[]
   purchaseOrders  PurchaseOrder[]
   goodsReceipts   GoodsReceipt[]
+  reorderRules    ReorderRule[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -496,6 +499,8 @@ model Product {
   lotTracking        LotTracking     @default(NONE) @map("lot_tracking")
   shelfLifeDays      Int?            @map("shelf_life_days")
   storageRequirement TemperatureZone @default(AMBIENT) @map("storage_requirement")
+  /// Optional grouping for lists, reports and reorder planning (flat list, Q-13 default).
+  categoryId         String?         @map("category_id") @db.Uuid
   archivedAt         DateTime?       @map("archived_at") @db.Timestamptz(3)
   createdByUserId    String          @map("created_by_user_id") @db.Uuid
   updatedByUserId    String          @map("updated_by_user_id") @db.Uuid
@@ -504,6 +509,7 @@ model Product {
 
   organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   baseUom            UnitOfMeasure          @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
+  category           ProductCategory?       @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
   barcodes           ProductBarcode[]
   conversions        ProductUomConversion[]
   lots               InventoryLot[]
@@ -515,9 +521,11 @@ model Product {
   supplierProducts   SupplierProduct[]
   purchaseOrderLines PurchaseOrderLine[]
   goodsReceiptLines  GoodsReceiptLine[]
+  reorderRules       ReorderRule[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
+  @@index([organizationId, categoryId])
   @@map("products")
 }
 
@@ -1124,4 +1132,46 @@ model GoodsReceiptLine {
   @@index([organizationId, receiptId])
   @@index([organizationId, purchaseOrderLineId])
   @@map("goods_receipt_lines")
+}
+
+// ─── Catalog categories and reorder planning (Milestone 3c) ───
+
+/// Flat product category list per organization.
+model ProductCategory {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?   @map("name_ar")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products     Product[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("product_categories")
+}
+
+/// Reorder level (par level) of a product in a warehouse, in the product's base unit.
+/// When available + on-order stock falls to the minimum, an order up to the maximum is suggested.
+model ReorderRule {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  warehouseId     String   @map("warehouse_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  minQuantityBase Decimal  @map("min_quantity_base") @db.Decimal(20, 6)
+  maxQuantityBase Decimal  @map("max_quantity_base") @db.Decimal(20, 6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, warehouseId, productId])
+  @@map("reorder_rules")
 }

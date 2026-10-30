@@ -590,8 +590,18 @@ closed orders, capped at 100 % per order), rejection rate (rejected ÷
 received), price variance (Σ (charged − ordered) × accepted). Rates are
 null when there is nothing to measure.
 
-**Not yet built (M3c):** purchase requisitions, landed cost allocation,
-in-transit transfers (ADR-016), par levels, categories, PO print/email.
+### Categories and reorder levels (Milestone 3c — implemented, ADR-025)
+
+Migration `20261030090000_m3_reorder_categories`.
+
+- **product_categories**: `code` (UQ per org), `name`, `name_ar`,
+  `archived_at`. **products.category_id** (nullable, composite tenant FK).
+- **reorder_rules**: UQ (org, warehouse, product); `min_quantity_base`,
+  `max_quantity_base` (CK min ≥ 0, max > 0, max ≥ min). Suggestions are
+  computed (`suggestReorder` in `procurement/rules.ts`), never stored.
+
+**Not yet built (rest of M3c):** purchase requisitions, landed cost
+allocation, in-transit transfers (ADR-016), PO email (Q-10).
 
 ## 6. Recipes and food cost (Milestone 4)
 
