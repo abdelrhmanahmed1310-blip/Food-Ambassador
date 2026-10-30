@@ -165,6 +165,8 @@ model Organization {
   recipeIngredients   RecipeIngredient[]
   standardCosts       ProductStandardCost[]
   recipeSnapshots     RecipeCostSnapshot[]
+  recipePrices        RecipePrice[]
+  recipeSettings      RecipeSettings?
 
   @@map("organizations")
 }
@@ -1472,20 +1474,23 @@ enum RecipeSnapshotReason {
 
 /// Stable identity of a recipe; its content lives in versions.
 model Recipe {
-  id             String     @id @default(uuid(7)) @db.Uuid
-  organizationId String     @map("organization_id") @db.Uuid
-  code           String
-  name           String
-  nameAr         String?    @map("name_ar")
-  type           RecipeType
-  description    String?
-  archivedAt     DateTime?  @map("archived_at") @db.Timestamptz(3)
-  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                     String     @id @default(uuid(7)) @db.Uuid
+  organizationId         String     @map("organization_id") @db.Uuid
+  code                   String
+  name                   String
+  nameAr                 String?    @map("name_ar")
+  type                   RecipeType
+  description            String?
+  archivedAt             DateTime?  @map("archived_at") @db.Timestamptz(3)
+  /// Overrides the organization's target food cost for this recipe (fraction).
+  targetFoodCostFraction Decimal?   @map("target_food_cost_fraction") @db.Decimal(7, 6)
+  createdAt              DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   versions     RecipeVersion[]
   usedIn       RecipeIngredient[] @relation("SubRecipe")
+  prices       RecipePrice[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1505,6 +1510,8 @@ model RecipeVersion {
   /// Portions one batch serves; required for dishes.
   portions          Decimal?            @db.Decimal(20, 6)
   note              String?
+  /// Preparation method shown on the recipe card.
+  method            String?
   createdByUserId   String              @map("created_by_user_id") @db.Uuid
   activatedAt       DateTime?           @map("activated_at") @db.Timestamptz(3)
   activatedByUserId String?             @map("activated_by_user_id") @db.Uuid
@@ -1599,4 +1606,35 @@ model RecipeCostSnapshot {
   @@unique([organizationId, id])
   @@index([organizationId, versionId, calculatedAt(sort: Desc)])
   @@map("recipe_cost_snapshots")
+}
+
+/// Selling price of a dish (base currency, excluding VAT until M7) from a date. Append-only.
+model RecipePrice {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  recipeId        String   @map("recipe_id") @db.Uuid
+  price           Decimal  @db.Decimal(19, 4)
+  effectiveFrom   DateTime @map("effective_from") @db.Date
+  note            String?
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recipe       Recipe       @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, recipeId, effectiveFrom])
+  @@map("recipe_prices")
+}
+
+/// Organization-wide recipe settings (ADR-032).
+model RecipeSettings {
+  organizationId         String   @id @map("organization_id") @db.Uuid
+  /// Target food cost as a fraction of the selling price; null = no target set.
+  targetFoodCostFraction Decimal? @map("target_food_cost_fraction") @db.Decimal(7, 6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("recipe_settings")
 }

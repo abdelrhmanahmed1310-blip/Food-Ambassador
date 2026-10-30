@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ActionState } from "@/components/forms/action-state";
-import { ActionForm, SelectField, TextField } from "@/components/forms/fields";
+import { ActionForm, CheckboxGroup, SelectField, TextField } from "@/components/forms/fields";
 
 type Option = { value: string; label: string };
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -127,7 +127,13 @@ export function VersionForm({
 }: {
   action: Action;
   units: Option[];
-  defaults: { yieldQuantity: string; yieldUomId: string; portions?: string; note?: string };
+  defaults: {
+    yieldQuantity: string;
+    yieldUomId: string;
+    portions?: string;
+    note?: string;
+    method?: string;
+  };
 }) {
   const t = useTranslations();
   return (
@@ -140,6 +146,20 @@ export function VersionForm({
             label={t("common.note")}
             defaultValue={defaults.note}
             optionalLabel={t("common.optional")}
+          />
+        </div>
+        <div className="sm:col-span-3">
+          <label className="block text-sm font-medium" htmlFor="recipe-method">
+            {t("recipes.method")}{" "}
+            <span className="text-muted font-normal">({t("common.optional")})</span>
+          </label>
+          <textarea
+            id="recipe-method"
+            name="method"
+            rows={6}
+            maxLength={5000}
+            defaultValue={defaults.method}
+            className="border-border bg-surface mt-1 w-full rounded-md border px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -241,6 +261,129 @@ export function StandardCostForm({
         />
         <TextField name="note" label={t("common.note")} optionalLabel={t("common.optional")} />
       </div>
+    </ActionForm>
+  );
+}
+
+export function RecipePriceForm({
+  action,
+  currency,
+  today,
+}: {
+  action: Action;
+  currency: string;
+  today: string;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("recipes.addPrice")}
+      pendingLabel={t("common.saving")}
+      submitVariant="secondary"
+      idempotent
+    >
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField
+          name="price"
+          label={`${t("recipes.sellingPrice")} (${currency})`}
+          hint={t("recipes.priceHint")}
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+        <TextField
+          name="effectiveFrom"
+          type="date"
+          label={t("recipes.effectiveFrom")}
+          defaultValue={today}
+          required
+        />
+        <TextField name="note" label={t("common.note")} optionalLabel={t("common.optional")} />
+      </div>
+    </ActionForm>
+  );
+}
+
+export function TargetForm({
+  action,
+  label,
+  hint,
+  defaultValue,
+}: {
+  action: Action;
+  label: string;
+  hint: string;
+  defaultValue?: string;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("common.save")}
+      pendingLabel={t("common.saving")}
+      submitVariant="secondary"
+    >
+      <TextField
+        name="targetPercent"
+        label={label}
+        hint={hint}
+        defaultValue={defaultValue}
+        inputMode="decimal"
+        dir="ltr"
+        optionalLabel={t("common.optional")}
+      />
+    </ActionForm>
+  );
+}
+
+export function BulkReplaceForm({
+  action,
+  fromProductId,
+  products,
+  recipes,
+}: {
+  action: Action;
+  fromProductId: string;
+  products: Option[];
+  recipes: Array<{ value: string; label: string; hint?: string }>;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("recipes.replace")}
+      pendingLabel={t("common.saving")}
+    >
+      <input type="hidden" name="fromProductId" value={fromProductId} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SelectField
+          name="toProductId"
+          label={t("recipes.replaceWith")}
+          options={products}
+          placeholder={t("common.select")}
+          required
+        />
+        <TextField
+          name="factor"
+          label={t("recipes.quantityFactor")}
+          hint={t("recipes.quantityFactorHint")}
+          defaultValue="1"
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+      </div>
+      <CheckboxGroup
+        name="recipeId"
+        legend={t("recipes.recipesToChange")}
+        options={recipes}
+        defaultValues={recipes.map((r) => r.value)}
+      />
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="activate" />
+        {t("recipes.activateNow")}
+      </label>
     </ActionForm>
   );
 }

@@ -50,6 +50,8 @@ export interface CostWorld {
   products: ReadonlyMap<string, ProductInfo>;
   /** Active version of each PREPARATION that may be used as a sub-recipe. */
   activeVersions: ReadonlyMap<string, VersionInput>;
+  /** What-if unit costs per product (price simulator); they win over every source. */
+  overrides?: ReadonlyMap<string, Decimal>;
 }
 
 export type MissingReason = "NO_COST" | "INCOMPATIBLE_UNITS" | "NO_ACTIVE_VERSION" | "CYCLE";
@@ -68,7 +70,7 @@ export interface LineCost {
   costedQuantity: string | null;
   costedUnit: string | null;
   unitCost: string | null;
-  source: CostPolicy | "SUB_RECIPE" | null;
+  source: CostPolicy | "SUB_RECIPE" | "SIMULATED" | null;
   sourceRef: string | null;
   cost: string | null;
   missing: MissingReason | null;
@@ -152,6 +154,19 @@ export function costVersion(
         continue;
       }
       const at = { costedQuantity: qty.toFixed(), costedUnit: product.base.code };
+      const simulated = world.overrides?.get(product.id);
+      if (simulated) {
+        const cost = roundMoney(qty.times(simulated));
+        total = total.plus(cost);
+        lines.push({
+          ...base,
+          ...at,
+          unitCost: simulated.toFixed(),
+          source: "SIMULATED",
+          cost: cost.toFixed(),
+        });
+        continue;
+      }
       const found = sourceOrder(policy)
         .map((p) => [p, product.costs[p]] as const)
         .find(([, c]) => c !== undefined);
@@ -236,4 +251,11 @@ export function createsCycle(
     stack.push(...(uses.get(current) ?? []));
   }
   return false;
+}
+
+/** Does this cost (including its sub-recipes) use the product? */
+export function usesProduct(cost: VersionCost, productId: string): boolean {
+  return cost.lines.some(
+    (l) => l.productId === productId || (l.sub ? usesProduct(l.sub, productId) : false),
+  );
 }

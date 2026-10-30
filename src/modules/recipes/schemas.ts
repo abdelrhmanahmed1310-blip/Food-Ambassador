@@ -41,7 +41,7 @@ export const createRecipeSchema = recipeSchema
       ctx.addIssue({ code: "custom", path: ["portions"], message: "required" });
   });
 
-export const versionSchema = z.object(yieldFields);
+export const versionSchema = z.object({ ...yieldFields, method: optionalText(5000) });
 
 /** `item` is "product:<id>" or "recipe:<id>"; waste is entered in percent (0 ≤ w < 100). */
 export const ingredientSchema = z
@@ -87,4 +87,45 @@ export const standardCostSchema = z.object({
     ),
   note: optionalText(200),
   idempotencyKey: idempotencyKeySchema,
+});
+
+const percent = (v: string) => toDecimal(v).dividedBy(100).toFixed();
+/** Target food cost in percent (0 < p < 100); blank clears it. */
+const targetPercent = z
+  .string()
+  .optional()
+  .transform(blank)
+  .pipe(decimalString({ maxScale: 2, min: "0.01", max: "99.99" }).optional())
+  .transform((v) => (v === undefined ? null : percent(v)));
+
+export const targetSchema = z.object({ targetPercent });
+
+export const recipePriceSchema = z.object({
+  price: decimalString({ maxScale: 4, min: "0.0001" }),
+  effectiveFrom: z
+    .string({ error: "required" })
+    .trim()
+    .refine(
+      (v) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v),
+      { error: "invalidDate" },
+    ),
+  note: optionalText(200),
+  idempotencyKey: idempotencyKeySchema,
+});
+
+export const simulationSchema = z.object({
+  productId: uuidSchema,
+  unitCost: decimalString({ maxScale: 6, min: "0" }),
+});
+
+export const bulkReplaceSchema = z.object({
+  fromProductId: uuidSchema,
+  toProductId: uuidSchema,
+  /** New quantity = old quantity × factor, in the same unit. */
+  factor: decimalString({ maxScale: 6, min: "0.000001" }),
+  activate: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
 });

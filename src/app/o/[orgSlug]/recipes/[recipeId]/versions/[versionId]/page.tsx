@@ -85,6 +85,12 @@ export default async function RecipeVersionPage({
             <Badge tone={STATUS_TONE[version.status]}>
               {t(`recipes.statuses.${version.status}`)}
             </Badge>
+            <Link
+              href={`${base}/versions/${version.id}/card`}
+              className="text-primary text-sm hover:underline"
+            >
+              {t("recipes.card")}
+            </Link>
             <Link href={base} className="text-primary text-sm hover:underline">
               {t("recipes.allVersions")}
             </Link>
@@ -129,6 +135,12 @@ export default async function RecipeVersionPage({
             ]}
           />
         </Card>
+
+        {version.method && !editing ? (
+          <Card title={t("recipes.method")}>
+            <p className="text-sm whitespace-pre-line">{version.method}</p>
+          </Card>
+        ) : null}
 
         <Card title={t("recipes.ingredients")}>
           {version.ingredients.length === 0 ? (
@@ -319,6 +331,7 @@ export default async function RecipeVersionPage({
                   yieldUomId: version.yieldUom.id,
                   portions: version.portions?.toFixed(),
                   note: version.note ?? undefined,
+                  method: version.method ?? undefined,
                 }}
               />
             </Card>

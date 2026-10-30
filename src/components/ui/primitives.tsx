@@ -65,13 +65,14 @@ export function Badge({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "success" | "muted" | "warning";
+  tone?: "neutral" | "success" | "muted" | "warning" | "danger";
 }) {
   const tones = {
     neutral: "bg-surface-muted text-foreground",
     success: "bg-success-surface text-success",
     muted: "bg-surface-muted text-muted",
     warning: "bg-warning-surface text-foreground",
+    danger: "bg-danger-surface text-danger",
   };
   return (
     <span

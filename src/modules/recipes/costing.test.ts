@@ -6,6 +6,7 @@ import {
   createsCycle,
   grossQuantity,
   sourceOrder,
+  usesProduct,
   type CostWorld,
   type ProductInfo,
   type VersionInput,
@@ -195,5 +196,23 @@ describe("recipe costing", () => {
     expect(createsCycle("c", "a", uses)).toBe(true);
     expect(createsCycle("a", "c", uses)).toBe(false);
     expect(createsCycle("a", "a", uses)).toBe(true);
+  });
+
+  it("applies what-if costs over every source and finds products in sub-recipes", () => {
+    const pasta: VersionInput = {
+      id: "pasta",
+      recipeId: "pasta",
+      recipeCode: "PASTA",
+      yieldQuantity: d("1"),
+      yieldUom: each,
+      portions: d("1"),
+      ingredients: [ing("p1", "1", kg, { subRecipeId: "sauce" })],
+    };
+    const c = costVersion(pasta, world({ overrides: new Map([["tomato", d("30")]]) }), "AVERAGE");
+    // Sauce: 3 kg × 30 + 8 = 98 for 2 kg → 49 per kg.
+    expect(c.lines[0].sub?.lines[0]).toMatchObject({ source: "SIMULATED", cost: "90" });
+    expect(c.totalCost).toBe("49");
+    expect(usesProduct(c, "tomato")).toBe(true);
+    expect(usesProduct(c, "egg")).toBe(false);
   });
 });

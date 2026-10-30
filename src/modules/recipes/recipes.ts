@@ -368,6 +368,7 @@ export async function updateVersion(ctx: TenantContext, versionId: string, rawIn
         yieldUomId: parsed.data.yieldUomId,
         portions: parsed.data.portions ?? null,
         note: parsed.data.note ?? null,
+        method: parsed.data.method ?? null,
       },
     });
     await audit(tx, ctx, recipe, "version_updated", {
@@ -484,93 +485,98 @@ export async function removeIngredient(
  */
 export async function activateVersion(ctx: TenantContext, versionId: string) {
   assertPermission(ctx.grants, "recipes.manage");
-  return withTenantTx(ctx.organizationId, async (tx) => {
-    await lockRecipeGraph(tx, ctx);
-    const { recipe, version } = await lockDraft(tx, ctx, versionId);
-    if (recipe.archivedAt) throw businessRuleViolation("RECIPE_ARCHIVED", "The recipe is archived");
-    requireYield(recipe.type, version.portions?.toString());
-    const ingredients = await tx.recipeIngredient.findMany({
-      where: { organizationId: ctx.organizationId, versionId: version.id },
-      select: { subRecipeId: true },
-    });
-    if (ingredients.length === 0)
-      throw businessRuleViolation("RECIPE_HAS_NO_INGREDIENTS", "Add at least one ingredient first");
-    const subs = ingredients.flatMap((i) => (i.subRecipeId ? [i.subRecipeId] : []));
-    const uses = await activeUses(tx, ctx);
-    uses.set(recipe.id, subs);
-    if (subs.some((s) => createsCycle(recipe.id, s, uses)))
-      throw businessRuleViolation("RECIPE_CYCLE", "A recipe cannot contain itself");
-    const now = new Date();
-    const previous = recipe.versions.find((v) => v.status === "ACTIVE");
-    if (previous)
-      await tx.recipeVersion.update({
-        where: { id: previous.id },
-        data: { status: "RETIRED", retiredAt: now },
-      });
-    await tx.recipeVersion.update({
-      where: { id: version.id },
-      data: { status: "ACTIVE", activatedAt: now, activatedByUserId: ctx.userId },
-    });
-    const snapshot = await snapshotInTx(tx, ctx, version.id, {
-      reason: "ACTIVATION",
-      policy: "AVERAGE",
-      warehouseId: undefined,
-    });
-    await audit(tx, ctx, recipe, "version_activated", {
-      versionNo: version.versionNo,
-      retiredVersionNo: previous?.versionNo ?? null,
-      snapshotId: snapshot.id,
-    });
-    return { snapshotId: snapshot.id };
+  return withTenantTx(ctx.organizationId, (tx) => activateInTx(tx, ctx, versionId));
+}
+
+export async function activateInTx(tx: Tx, ctx: TenantContext, versionId: string) {
+  await lockRecipeGraph(tx, ctx);
+  const { recipe, version } = await lockDraft(tx, ctx, versionId);
+  if (recipe.archivedAt) throw businessRuleViolation("RECIPE_ARCHIVED", "The recipe is archived");
+  requireYield(recipe.type, version.portions?.toString());
+  const ingredients = await tx.recipeIngredient.findMany({
+    where: { organizationId: ctx.organizationId, versionId: version.id },
+    select: { subRecipeId: true },
   });
+  if (ingredients.length === 0)
+    throw businessRuleViolation("RECIPE_HAS_NO_INGREDIENTS", "Add at least one ingredient first");
+  const subs = ingredients.flatMap((i) => (i.subRecipeId ? [i.subRecipeId] : []));
+  const uses = await activeUses(tx, ctx);
+  uses.set(recipe.id, subs);
+  if (subs.some((s) => createsCycle(recipe.id, s, uses)))
+    throw businessRuleViolation("RECIPE_CYCLE", "A recipe cannot contain itself");
+  const now = new Date();
+  const previous = recipe.versions.find((v) => v.status === "ACTIVE");
+  if (previous)
+    await tx.recipeVersion.update({
+      where: { id: previous.id },
+      data: { status: "RETIRED", retiredAt: now },
+    });
+  await tx.recipeVersion.update({
+    where: { id: version.id },
+    data: { status: "ACTIVE", activatedAt: now, activatedByUserId: ctx.userId },
+  });
+  const snapshot = await snapshotInTx(tx, ctx, version.id, {
+    reason: "ACTIVATION",
+    policy: "AVERAGE",
+    warehouseId: undefined,
+  });
+  await audit(tx, ctx, recipe, "version_activated", {
+    versionNo: version.versionNo,
+    retiredVersionNo: previous?.versionNo ?? null,
+    snapshotId: snapshot.id,
+  });
+  return { snapshotId: snapshot.id };
 }
 
 /** Start a new draft from the active (or latest) version, copying its ingredients. */
 export async function createDraftVersion(ctx: TenantContext, recipeId: string) {
   assertPermission(ctx.grants, "recipes.manage");
-  return withTenantTx(ctx.organizationId, async (tx) => {
-    const recipe = await lockRecipe(tx, ctx, recipeId);
-    if (recipe.archivedAt) throw businessRuleViolation("RECIPE_ARCHIVED", "The recipe is archived");
-    if (recipe.versions.some((v) => v.status === "DRAFT"))
-      throw businessRuleViolation("RECIPE_HAS_DRAFT", "Finish or discard the current draft first");
-    const from =
-      recipe.versions.find((v) => v.status === "ACTIVE") ??
-      recipe.versions[recipe.versions.length - 1];
-    const versionNo = recipe.versions[recipe.versions.length - 1].versionNo + 1;
-    const draft = await tx.recipeVersion.create({
-      data: {
-        organizationId: ctx.organizationId,
-        recipeId: recipe.id,
-        versionNo,
-        yieldQuantity: from.yieldQuantity,
-        yieldUomId: from.yieldUomId,
-        portions: from.portions,
-        note: from.note,
-        createdByUserId: ctx.userId,
-      },
-      select: { id: true },
-    });
-    const lines = await tx.recipeIngredient.findMany({
-      where: { organizationId: ctx.organizationId, versionId: from.id },
-      orderBy: { lineNo: "asc" },
-    });
-    if (lines.length > 0)
-      await tx.recipeIngredient.createMany({
-        data: lines.map((l) => ({
-          organizationId: ctx.organizationId,
-          versionId: draft.id,
-          lineNo: l.lineNo,
-          productId: l.productId,
-          subRecipeId: l.subRecipeId,
-          quantity: l.quantity,
-          uomId: l.uomId,
-          wasteFraction: l.wasteFraction,
-          note: l.note,
-        })),
-      });
-    await audit(tx, ctx, recipe, "version_created", { versionNo, from: from.versionNo });
-    return { id: draft.id, versionNo };
+  return withTenantTx(ctx.organizationId, (tx) => createDraftInTx(tx, ctx, recipeId));
+}
+
+export async function createDraftInTx(tx: Tx, ctx: TenantContext, recipeId: string) {
+  const recipe = await lockRecipe(tx, ctx, recipeId);
+  if (recipe.archivedAt) throw businessRuleViolation("RECIPE_ARCHIVED", "The recipe is archived");
+  if (recipe.versions.some((v) => v.status === "DRAFT"))
+    throw businessRuleViolation("RECIPE_HAS_DRAFT", "Finish or discard the current draft first");
+  const from =
+    recipe.versions.find((v) => v.status === "ACTIVE") ??
+    recipe.versions[recipe.versions.length - 1];
+  const versionNo = recipe.versions[recipe.versions.length - 1].versionNo + 1;
+  const draft = await tx.recipeVersion.create({
+    data: {
+      organizationId: ctx.organizationId,
+      recipeId: recipe.id,
+      versionNo,
+      yieldQuantity: from.yieldQuantity,
+      yieldUomId: from.yieldUomId,
+      portions: from.portions,
+      note: from.note,
+      method: from.method,
+      createdByUserId: ctx.userId,
+    },
+    select: { id: true },
   });
+  const lines = await tx.recipeIngredient.findMany({
+    where: { organizationId: ctx.organizationId, versionId: from.id },
+    orderBy: { lineNo: "asc" },
+  });
+  if (lines.length > 0)
+    await tx.recipeIngredient.createMany({
+      data: lines.map((l) => ({
+        organizationId: ctx.organizationId,
+        versionId: draft.id,
+        lineNo: l.lineNo,
+        productId: l.productId,
+        subRecipeId: l.subRecipeId,
+        quantity: l.quantity,
+        uomId: l.uomId,
+        wasteFraction: l.wasteFraction,
+        note: l.note,
+      })),
+    });
+  await audit(tx, ctx, recipe, "version_created", { versionNo, from: from.versionNo });
+  return { id: draft.id, versionNo };
 }
 
 export async function discardDraft(ctx: TenantContext, versionId: string) {

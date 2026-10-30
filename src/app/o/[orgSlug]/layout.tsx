@@ -60,6 +60,13 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   const kitchen: NavSection = { title: t("recipesSection"), items: [] };
   if (hasPermission(ctx.grants, "recipes.view"))
     kitchen.items.push({ href: `${base}/recipes`, label: t("recipes") });
+  if (hasPermission(ctx.grants, "recipes.costs.view"))
+    kitchen.items.push(
+      { href: `${base}/recipes/food-cost`, label: t("foodCost") },
+      { href: `${base}/recipes/simulator`, label: t("priceSimulator") },
+    );
+  if (hasPermission(ctx.grants, "recipes.manage"))
+    kitchen.items.push({ href: `${base}/recipes/replace`, label: t("replaceIngredient") });
   const catalog: NavSection = { title: t("catalogSection"), items: [] };
   if (hasPermission(ctx.grants, "catalog.view")) {
     catalog.items.push(

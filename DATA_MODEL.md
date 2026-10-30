@@ -674,7 +674,14 @@ Implemented in M4a (migration `20261031090000_m4_recipes`, ADR-030/031).
   `cost_per_yield_unit`, `missing_count`, `breakdown` (JSON lines with
   decimal strings, source and reference; sub-recipes nested). Append-only.
 
-Not yet: selling prices and food-cost % (M4b).
+M4b (migration `20261031150000_m4_pricing`, ADR-032):
+
+- **recipe_prices**: recipe, `price` > 0 (base currency, excl. VAT),
+  `effective_from` (UQ per recipe), note, creator. Append-only.
+- **recipe_settings**: one row per organization,
+  `target_food_cost_fraction` (null = no target; CK 0 < t < 1).
+- **recipes.target_food_cost_fraction** (optional override, same CK);
+  **recipe_versions.method** (text; covered by the version guard trigger).
 
 ## 7. Nutrition and allergens (Milestone 5)
 

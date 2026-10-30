@@ -132,7 +132,7 @@ async function loadWorld(
   tx: Tx,
   ctx: TenantContext,
   versionId: string,
-  options: { warehouseId?: string; asOf: string },
+  options: { warehouseId?: string; asOf: string; overrides?: ReadonlyMap<string, Decimal> },
 ): Promise<{ root: VersionInput; world: CostWorld }> {
   const units = await loadUnits(tx, ctx, true);
   const [root] = await versionInputs(tx, ctx, [versionId], units);
@@ -183,6 +183,7 @@ async function loadWorld(
   return {
     root,
     world: {
+      overrides: options.overrides,
       activeVersions,
       products: new Map(
         products.map((p) => [
@@ -428,4 +429,29 @@ export async function costWarehouseOptions(ctx: TenantContext) {
       orderBy: { code: "asc" },
     }),
   );
+}
+
+/** Cost several versions in one transaction (food-cost report, simulator). */
+export async function costVersionsInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  versionIds: string[],
+  options: {
+    policy: CostPolicy;
+    warehouseId?: string;
+    overrides?: ReadonlyMap<string, Decimal>;
+  },
+) {
+  const warehouseId = await warehouseFor(tx, ctx, options.warehouseId);
+  const asOf = businessDate(ctx.timeZone);
+  const result = new Map<string, VersionCost>();
+  for (const id of versionIds) {
+    const { root, world } = await loadWorld(tx, ctx, id, {
+      warehouseId,
+      asOf,
+      overrides: options.overrides,
+    });
+    result.set(id, costVersion(root, world, options.policy));
+  }
+  return result;
 }

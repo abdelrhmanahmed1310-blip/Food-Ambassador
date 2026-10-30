@@ -6,12 +6,21 @@ import { RecipeHeaderForm } from "@/components/recipes/forms";
 import { Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
 import { listSnapshots } from "@/modules/recipes/costs";
+import { businessDate } from "@/modules/inventory/rules";
+import { listRecipePrices } from "@/modules/recipes/menu";
+import { RecipePriceForm, TargetForm } from "@/components/recipes/forms";
 import { getRecipe } from "@/modules/recipes/recipes";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import { moneyFormatter, quantityFormatter } from "@/server/inventory-view";
 import { hasPermission } from "@/modules/access/authorize";
-import { createDraftVersionAction, setRecipeArchivedAction, updateRecipeAction } from "../actions";
+import {
+  addRecipePriceAction,
+  createDraftVersionAction,
+  setRecipeArchivedAction,
+  setRecipeTargetAction,
+  updateRecipeAction,
+} from "../actions";
 
 const STATUS_TONE = { ACTIVE: "success", DRAFT: "neutral", RETIRED: "muted" } as const;
 
@@ -29,6 +38,7 @@ export default async function RecipePage({ params }: PageProps<"/o/[orgSlug]/rec
     moneyFormatter(ctx.baseCurrency),
     costs ? listSnapshots(ctx, recipe.id) : Promise.resolve([]),
   ]);
+  const prices = recipe.type === "DISH" ? await listRecipePrices(ctx, recipe.id) : [];
   const base = `/o/${orgSlug}/recipes/${recipe.id}`;
   const dt = (d: Date) =>
     format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone });
@@ -91,6 +101,56 @@ export default async function RecipePage({ params }: PageProps<"/o/[orgSlug]/rec
             </tbody>
           </Table>
         </Card>
+
+        {recipe.type === "DISH" ? (
+          <Card title={t("recipes.sellingPrices")}>
+            {prices.length === 0 ? (
+              <p className="text-muted mb-4 text-sm">{t("recipes.noPrices")}</p>
+            ) : (
+              <Table label={t("recipes.sellingPrices")}>
+                <thead>
+                  <tr>
+                    <Th>{t("recipes.effectiveFrom")}</Th>
+                    <Th>{t("recipes.sellingPrice")}</Th>
+                    <Th>{t("common.note")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {prices.map((p) => (
+                    <tr key={p.id}>
+                      <Td className="whitespace-nowrap">
+                        {p.effectiveFrom.toISOString().slice(0, 10)}
+                      </Td>
+                      <Td className="tabular-nums">
+                        <span className="ltr-value whitespace-nowrap">{money.money(p.price)}</span>
+                      </Td>
+                      <Td>{p.note ?? "—"}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            {recipe.can.edit ? (
+              <div className="mt-4 grid gap-6 lg:grid-cols-2">
+                <RecipePriceForm
+                  action={addRecipePriceAction.bind(null, orgSlug, recipe.id)}
+                  currency={ctx.baseCurrency}
+                  today={businessDate(ctx.timeZone)}
+                />
+                <TargetForm
+                  action={setRecipeTargetAction.bind(null, orgSlug, recipe.id)}
+                  label={t("recipes.recipeTarget")}
+                  hint={t("recipes.recipeTargetHint")}
+                  defaultValue={
+                    recipe.targetFoodCostFraction
+                      ? recipe.targetFoodCostFraction.times(100).toFixed()
+                      : undefined
+                  }
+                />
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
 
         {costs ? (
           <Card title={t("recipes.costHistory")}>

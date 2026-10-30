@@ -24,7 +24,7 @@ export const MONEY_SCALE = 4;
 
 export type DecimalInput = Decimal | string | number | bigint;
 
-const DECIMAL_PATTERN = /^-?\d+(\.\d+)?$/;
+export const DECIMAL_PATTERN = /^-?\d+(\.\d+)?$/;
 
 /**
  * Convert to Decimal. Numbers are accepted only when they are safe integers,

@@ -1,8 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import type { ActionState } from "@/components/forms/action-state";
 import { addStandardCost, saveSnapshot } from "@/modules/recipes/costs";
+import {
+  addRecipePrice,
+  bulkReplaceIngredient,
+  setRecipeTarget,
+  updateRecipeSettings,
+} from "@/modules/recipes/menu";
 import {
   activateVersion,
   addIngredient,
@@ -14,7 +21,7 @@ import {
   updateRecipe,
   updateVersion,
 } from "@/modules/recipes/recipes";
-import { formValues } from "@/server/actions/handle";
+import { formList, formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
 
 export async function createRecipeAction(
@@ -147,5 +154,57 @@ export async function addStandardCostAction(
 ): Promise<ActionState> {
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await addStandardCost(ctx, productId, formValues(formData));
+  });
+}
+
+export async function addRecipePriceAction(
+  orgSlug: string,
+  recipeId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await addRecipePrice(ctx, recipeId, formValues(formData));
+  });
+}
+
+export async function setRecipeTargetAction(
+  orgSlug: string,
+  recipeId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    setRecipeTarget(ctx, recipeId, formValues(formData)),
+  );
+}
+
+export async function updateRecipeSettingsAction(
+  orgSlug: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    updateRecipeSettings(ctx, formValues(formData)),
+  );
+}
+
+export async function bulkReplaceAction(
+  orgSlug: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("recipes");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    const { done, skipped } = await bulkReplaceIngredient(
+      ctx,
+      formList(formData, "recipeId"),
+      formValues(formData),
+    );
+    const parts = [
+      t("replaced", { count: done.length, codes: done.map((d) => d.code).join(", ") }),
+    ];
+    for (const s of skipped) parts.push(t(`replaceSkipped.${s.reason}`, { code: s.code }));
+    return { message: parts.join(" ") };
   });
 }

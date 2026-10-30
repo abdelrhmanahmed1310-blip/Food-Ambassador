@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (Milestone 4a — recipes, versions, costing)
+Last updated: 2026-10-31 (Milestone 4 complete — M4b menu pricing and tools)
 
 ## Summary
 
@@ -10,8 +10,40 @@ Last updated: 2026-10-31 (Milestone 4a — recipes, versions, costing)
 | M1 Application foundation    | ✅ Complete                                                                                                                         |
 | M2 Inventory MVP             | ✅ Complete                                                                                                                         |
 | M3 Procurement & receiving   | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
-| M4 Recipes & food cost       | 🔄 In progress — **M4a ✅** (recipes, versions, cost sources, snapshots); M4b next                                                  |
+| M4 Recipes & food cost       | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card   |
 | M5 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                            |
+
+## M4b — Menu pricing and recipe tools (delivered; M4 complete)
+
+Rules: DECISIONS.md ADR-032.
+
+| Area             | What works                                                                                                                                | Where                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Selling prices   | Per dish, excl. VAT, effective date, history; today's price used                                                                          | `src/modules/recipes/menu.ts`         |
+| Targets          | Organization target food cost % and per-dish override; no invented default                                                                | `/recipes/food-cost`, recipe page     |
+| Food cost report | Every active dish: cost per portion, price, food cost %, target, margin, price for target, status (above target, incomplete, no price, …) | `foodCostReport`, `pricing.ts`        |
+| Price simulator  | What-if cost for one product → before/after for every dish using it (also via preparations); nothing stored                               | `simulatePrice`, `/recipes/simulator` |
+| Bulk replacement | Product A → B (× factor) in selected recipes as new versions, optionally activated; skips reported (open draft, not used, unit)           | `bulkReplaceIngredient`               |
+| Recipe card      | Printable card with yield, net and gross quantities, method; costs only on request and with permission                                    | `/recipes/…/card`                     |
+| Screens          | Kitchen menu: Recipes, Food cost, Price simulator, Replace ingredient; EN/AR                                                              | `src/app/o/[orgSlug]/recipes/`        |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 21 files / 147 tests — new:
+food cost %, price for target, status rules incl. never judging incomplete
+costs, simulated costs through sub-recipes; build); `pnpm test:integration`
+17 files / 149 tests pass (6 new: price history and today's price, target
+classification with per-dish override, simulator storing nothing, bulk
+replacement with activation and every skip reason, method locked with the
+version, permissions and other tenants); `pnpm test:e2e` 25 tests pass (new:
+standard cost → dish 10.00 with method → card → price 25 → target 30 % → above
+target, 33.34 suggested → simulator 15.00 → replace with activation → 20.00).
+
+Found and fixed: after a successful replacement the page no longer listed
+the recipe, so the form — and its result message — disappeared; the form
+now stays mounted.
+
+Limitations: one price per dish (branch/channel prices with POS1); prices
+exclude VAT until M7; the simulator changes one product at a time; no
+popularity data yet for menu engineering (needs sales, M7/M8).
 
 ## M4a — Recipes, versions and food cost (delivered)
 

@@ -93,7 +93,10 @@
     "shipments": "Shipments",
     "requisitions": "Requisitions",
     "recipesSection": "Kitchen",
-    "recipes": "Recipes"
+    "recipes": "Recipes",
+    "foodCost": "Food cost",
+    "priceSimulator": "Price simulator",
+    "replaceIngredient": "Replace ingredient"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -264,7 +267,9 @@
     "RECIPE_ARCHIVED": "The recipe is archived.",
     "RECIPE_HAS_NO_INGREDIENTS": "Add at least one ingredient before activating.",
     "RECIPE_HAS_DRAFT": "Finish or discard the current draft first.",
-    "RECIPE_NEEDS_VERSION": "The first version cannot be discarded; archive the recipe instead."
+    "RECIPE_NEEDS_VERSION": "The first version cannot be discarded; archive the recipe instead.",
+    "RECIPE_NOT_DISH": "Only dishes have selling prices.",
+    "REPLACE_SAME_PRODUCT": "Choose a different product to replace it with."
   },
   "notFound": {
     "title": "Page not found",
@@ -1144,7 +1149,8 @@
       "AVERAGE": "Stock average",
       "LAST_PURCHASE": "Last purchase",
       "STANDARD": "Standard cost",
-      "SUB_RECIPE": "Sub-recipe"
+      "SUB_RECIPE": "Sub-recipe",
+      "SIMULATED": "Simulated"
     },
     "missing": {
       "NO_COST": "No cost known",
@@ -1177,6 +1183,63 @@
     "effectiveFrom": "Effective from",
     "addStandardCost": "Add standard cost",
     "standardCostHint": "A cost you set for recipe costing, used from its date onwards. History is kept.",
-    "noStandardCosts": "No standard cost set."
+    "noStandardCosts": "No standard cost set.",
+    "activateNow": "Activate the new versions now (otherwise they stay as drafts to review)",
+    "addPrice": "Add price",
+    "card": "Recipe card",
+    "change": "Change",
+    "costNow": "Cost per portion now",
+    "costSimulated": "Simulated cost per portion",
+    "findRecipes": "Find recipes",
+    "foodCostTitle": "Food cost",
+    "foodCostHint": "Every active dish: cost per portion, selling price, food cost %, margin and the price that meets the target. Dishes with missing costs are never compared with the target.",
+    "foodCostPercent": "Food cost %",
+    "hasDraftSkip": "Has an open draft — will be skipped",
+    "hideCosts": "Hide costs",
+    "margin": "Margin",
+    "method": "Method",
+    "newUnitCost": "New cost per base unit ({currency})",
+    "noActiveDishes": "No active dishes yet.",
+    "noDishesUse": "No active dish uses this product.",
+    "noMethod": "No method written.",
+    "noPrices": "No selling price set.",
+    "noTarget": "Not set",
+    "notUsedAnywhere": "No active recipe uses this product.",
+    "orgTarget": "Target food cost %",
+    "orgTargetHint": "For all dishes unless a dish has its own. Leave empty for no target.",
+    "priceForTarget": "Price for target",
+    "priceHint": "Excluding VAT.",
+    "print": "Print",
+    "quantityFactor": "Quantity factor",
+    "quantityFactorHint": "New quantity = old quantity × factor, in the same unit (1 = same amount).",
+    "recipeTarget": "Target food cost % for this dish",
+    "recipeTargetHint": "Leave empty to use the organization's target.",
+    "recipesToChange": "Recipes to change",
+    "replace": "Replace",
+    "replaceHint": "Swap a product for another in the active version of several recipes. Each gets a new version; nothing changes in versions already in use.",
+    "replaceProduct": "Product to replace",
+    "replaceTitle": "Replace an ingredient",
+    "replaceWith": "Replace with",
+    "replaced": "{count, plural, =0 {No recipe changed.} one {1 recipe changed:} other {# recipes changed:}} {codes}",
+    "sellingPrice": "Selling price",
+    "sellingPrices": "Selling prices",
+    "showCosts": "Show costs",
+    "simulate": "Simulate",
+    "simulationNote": "What if {product} cost {cost}? Nothing is saved; stock values are not touched.",
+    "simulatorHint": "See how a change in one ingredient's cost affects every dish that uses it, also through preparations.",
+    "simulatorTitle": "Price simulator",
+    "target": "Target",
+    "foodCostStatuses": {
+      "OK": "Within target",
+      "ABOVE_TARGET": "Above target",
+      "INCOMPLETE": "Cost incomplete",
+      "NO_PRICE": "No price",
+      "NO_TARGET": "No target"
+    },
+    "replaceSkipped": {
+      "HAS_DRAFT": "{code} skipped: it has an open draft.",
+      "NOT_USED": "{code} skipped: it does not use the product.",
+      "INCOMPATIBLE_UNITS": "{code} skipped: its unit does not convert for the new product."
+    }
   }
 }

@@ -411,6 +411,31 @@ documents stay scoped. Found by a scoped-user integration test.
   change. One is stored on activation (stock average, organization-wide);
   more can be saved by hand. Snapshots are append-only.
 
+### ADR-032 Selling prices, food cost targets and menu tools — Accepted (M4b)
+
+- **Selling price** per dish in the base currency, **excluding VAT** until
+  tax handling (M7), with an effective date; append-only history; the price
+  in effect today (organization time zone) is used. One price per dish for
+  now; branch and channel prices come with the POS (POS1).
+- **Target food cost** (cost ÷ price) for the organization, optionally
+  overridden per dish (0 < target < 100 %). There is no default target: until
+  one is set, dishes show "no target" instead of an invented threshold.
+- **Status per dish:** INCOMPLETE when any ingredient has no cost (never
+  compared with the target — it would look better than it is), else
+  NO_PRICE, else NO_TARGET, else ABOVE_TARGET when cost ÷ price > target,
+  else OK (exactly at target is within it). Price for target = cost ÷
+  target, rounded up to 0.01.
+- **Price simulator:** a what-if unit cost for one product is applied to
+  every active dish that uses it, also through sub-recipes; the result is
+  shown before/after and nothing is stored or posted.
+- **Bulk replacement:** replaces a product with another in the active
+  version of selected recipes by creating a new version each (quantity ×
+  factor, same unit); recipes with an open draft, not using the product, or
+  whose unit does not convert for the new product are skipped and reported.
+  The new versions stay drafts or are activated at once (with snapshots).
+- **Method** text belongs to the version and is locked with it; the recipe
+  card shows costs only to users with `recipes.costs.view` who ask for them.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
