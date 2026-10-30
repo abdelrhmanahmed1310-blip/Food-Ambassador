@@ -33,6 +33,9 @@ export const PERMISSIONS = [
   "purchasing.approve",
   "purchasing.receive",
   "purchasing.request",
+  "recipes.view",
+  "recipes.manage",
+  "recipes.costs.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -69,6 +72,7 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
 export const ORGANIZATION_READ_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "catalog.view",
   "suppliers.view",
+  "recipes.view",
 ]);
 
 export function isPermission(value: string): value is Permission {
@@ -138,6 +142,9 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.approve",
       "purchasing.receive",
       "purchasing.request",
+      "recipes.view",
+      "recipes.manage",
+      "recipes.costs.view",
     ],
     organizationScopeOnly: false,
   },
@@ -156,6 +163,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.manage",
       "purchasing.receive",
       "purchasing.request",
+      "recipes.view",
+      "recipes.costs.view",
     ],
     organizationScopeOnly: false,
   },
@@ -173,6 +182,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.view",
       "purchasing.receive",
       "purchasing.request",
+      "recipes.view",
     ],
     organizationScopeOnly: false,
   },
@@ -187,6 +197,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "inventory.quarantine.release",
       "suppliers.view",
       "purchasing.view",
+      "recipes.view",
     ],
     organizationScopeOnly: false,
   },
@@ -203,6 +214,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "suppliers.view",
       "purchasing.view",
       "purchasing.approve",
+      "recipes.view",
+      "recipes.costs.view",
     ],
     organizationScopeOnly: false,
   },
@@ -228,6 +241,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.manage",
       "purchasing.receive",
       "purchasing.request",
+      "recipes.view",
     ],
     organizationScopeOnly: false,
   },
@@ -241,6 +255,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "inventory.valuation.view",
       "suppliers.view",
       "purchasing.view",
+      "recipes.view",
+      "recipes.costs.view",
     ],
     organizationScopeOnly: false,
   },

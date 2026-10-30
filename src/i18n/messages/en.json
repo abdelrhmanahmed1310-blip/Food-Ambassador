@@ -91,7 +91,9 @@
     "categories": "Categories",
     "reorder": "Reorder",
     "shipments": "Shipments",
-    "requisitions": "Requisitions"
+    "requisitions": "Requisitions",
+    "recipesSection": "Kitchen",
+    "recipes": "Recipes"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -252,7 +254,17 @@
     "CANNOT_REVERSE_LANDED_COST": "A landed cost cannot be reversed. Correct the cost with a revaluation.",
     "REQUISITION_STATUS": "This is not possible in the requisition's current status.",
     "REQUISITION_HAS_NO_LINES": "Add at least one line before submitting.",
-    "REQUISITION_LINE_ORDERED": "This line is already on a purchase order."
+    "REQUISITION_LINE_ORDERED": "This line is already on a purchase order.",
+    "RECIPE_VERSION_NOT_DRAFT": "Only a draft version can be changed. Start a new version.",
+    "DISH_NEEDS_PORTIONS": "A dish needs the number of portions.",
+    "YIELD_UNIT_NOT_FIXED": "Use a unit of fixed size (kg, l, each…) for the yield.",
+    "RECIPE_IN_USE": "Other recipes use this one. Remove it from them first.",
+    "SUB_RECIPE_NOT_USABLE": "Only preparations that are not archived can be used as sub-recipes.",
+    "RECIPE_CYCLE": "A recipe cannot contain itself, directly or through other recipes.",
+    "RECIPE_ARCHIVED": "The recipe is archived.",
+    "RECIPE_HAS_NO_INGREDIENTS": "Add at least one ingredient before activating.",
+    "RECIPE_HAS_DRAFT": "Finish or discard the current draft first.",
+    "RECIPE_NEEDS_VERSION": "The first version cannot be discarded; archive the recipe instead."
   },
   "notFound": {
     "title": "Page not found",
@@ -437,7 +449,10 @@
       "purchasing.manage": "Create, edit, submit, close and cancel purchase orders; reverse receipts",
       "purchasing.approve": "Approve purchase orders",
       "purchasing.receive": "Receive deliveries",
-      "purchasing.request": "Request purchases for a branch (requisitions)"
+      "purchasing.request": "Request purchases for a branch (requisitions)",
+      "recipes.view": "View recipes",
+      "recipes.manage": "Create and change recipes and standard costs",
+      "recipes.costs.view": "View recipe costs and cost history"
     }
   },
   "audit": {
@@ -467,7 +482,8 @@
       "goods_receipt": "Goods receipt",
       "category": "Category",
       "shipment": "Shipment",
-      "requisition": "Requisition"
+      "requisition": "Requisition",
+      "recipe": "Recipe"
     }
   },
   "invite": {
@@ -1056,5 +1072,111 @@
       "CLOSED": "Closed",
       "CANCELLED": "Cancelled"
     }
+  },
+  "recipes": {
+    "title": "Recipes",
+    "hint": "Dishes and preparations with versions, yields, waste and costs from real stock and purchase prices.",
+    "new": "New recipe",
+    "newTitle": "New recipe",
+    "newHint": "Version 1 is created as a draft; add ingredients, then activate it.",
+    "empty": "No recipes yet.",
+    "code": "Code",
+    "name": "Name (English)",
+    "nameAr": "Name (Arabic)",
+    "type": "Type",
+    "description": "Description",
+    "types": {
+      "DISH": "Dish",
+      "PREPARATION": "Preparation"
+    },
+    "statuses": {
+      "DRAFT": "Draft",
+      "ACTIVE": "Active",
+      "RETIRED": "Retired"
+    },
+    "activeVersion": "Active version",
+    "draftOpen": "Draft open",
+    "versionNo": "Version {no}",
+    "version": "Version",
+    "versions": "Versions",
+    "yield": "Yield",
+    "yieldQuantity": "Yield quantity",
+    "yieldUnit": "Yield unit",
+    "yieldHint": "What one batch makes, after cooking.",
+    "portions": "Portions",
+    "portionsHint": "How many portions one batch serves. Required for dishes.",
+    "portionsCount": "{count} portions",
+    "ingredients": "Ingredients",
+    "ingredient": "Ingredient",
+    "noIngredients": "No ingredients yet.",
+    "addIngredient": "Add ingredient",
+    "netQuantity": "Net quantity",
+    "wastePercent": "Waste %",
+    "wasteHint": "Trim or preparation loss; the gross amount is net ÷ (1 − waste).",
+    "grossQuantity": "Gross quantity",
+    "netWithWaste": "{net} net, {waste} % waste",
+    "activatedAt": "Activated",
+    "activatedBy": "Activated by",
+    "allVersions": "All versions",
+    "lockedHint": "This version is locked. To change the recipe, start a new version.",
+    "editVersion": "Yield and portions",
+    "activate": "Activate version",
+    "activateHint": "Activating makes this the version in use, retires the previous one and stores its cost.",
+    "confirmActivate": "Activate this version? It can no longer be changed afterwards.",
+    "discardDraft": "Discard draft",
+    "confirmDiscard": "Discard this draft version?",
+    "newVersion": "New version",
+    "details": "Details",
+    "confirmArchive": "Archive this recipe?",
+    "usedIn": "Used in",
+    "liveCost": "Cost now",
+    "policy": "Cost source",
+    "averageFrom": "Average cost from",
+    "wholeOrganization": "Whole organization",
+    "recalculate": "Calculate",
+    "policyHint": "The chosen source is tried first, then the others. Each line shows the source actually used; lines without any cost are flagged and left out of the totals.",
+    "policies": {
+      "AVERAGE": "Stock average cost",
+      "LAST_PURCHASE": "Last purchase price",
+      "STANDARD": "Standard cost"
+    },
+    "sources": {
+      "AVERAGE": "Stock average",
+      "LAST_PURCHASE": "Last purchase",
+      "STANDARD": "Standard cost",
+      "SUB_RECIPE": "Sub-recipe"
+    },
+    "missing": {
+      "NO_COST": "No cost known",
+      "INCOMPATIBLE_UNITS": "Unit does not convert",
+      "NO_ACTIVE_VERSION": "No active version",
+      "CYCLE": "Contains itself"
+    },
+    "totalCost": "Total cost",
+    "costPerPortion": "Cost per portion",
+    "costPerYieldUnit": "Cost per yield unit",
+    "unitCost": "Unit cost",
+    "source": "Source",
+    "cost": "Cost",
+    "breakdown": "Cost breakdown",
+    "incomplete": "{count, plural, one {# ingredient has} other {# ingredients have}} no cost; the totals leave them out.",
+    "missingCount": "{count} without cost",
+    "saveSnapshot": "Save to cost history",
+    "costHistory": "Cost history",
+    "noSnapshots": "No stored costs yet.",
+    "snapshotTitle": "{code} · version {no} — stored cost",
+    "snapshotHint": "Stored exactly as calculated at the time; later price changes do not alter it.",
+    "snapshotReason": "Stored because",
+    "snapshotReasons": {
+      "ACTIVATION": "Version activated",
+      "MANUAL": "Saved by hand"
+    },
+    "asOf": "Standard costs as of",
+    "standardCosts": "Standard costs",
+    "standardCost": "Standard cost",
+    "effectiveFrom": "Effective from",
+    "addStandardCost": "Add standard cost",
+    "standardCostHint": "A cost you set for recipe costing, used from its date onwards. History is kept.",
+    "noStandardCosts": "No standard cost set."
   }
 }

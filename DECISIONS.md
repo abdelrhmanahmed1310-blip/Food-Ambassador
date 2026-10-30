@@ -366,6 +366,51 @@ documents stay scoped. Found by a scoped-user integration test.
   or received order keeps it.
 - Requisitions do not count as "on order" for reorder suggestions (ADR-025).
 
+### ADR-030 Recipes and versions — Accepted (M4a)
+
+- A **recipe** has a code, English/Arabic name and a type: **DISH** (served,
+  costed per portion; portions required) or **PREPARATION** (sauce, dough,
+  stock; usable as a sub-recipe, costed per yield unit).
+- Content lives in numbered **versions**: DRAFT → ACTIVE → RETIRED. At most
+  one active and one draft per recipe (partial unique indexes). Only drafts
+  change — enforced in the service and by database triggers. Activating
+  retires the previous version and stores a cost snapshot. A new draft
+  copies the active (or latest) version; a draft other than version 1 can be
+  discarded.
+- A version's **yield** is a quantity in a unit of fixed size (kg, l, each…);
+  cooking loss is part of the yield. Each **ingredient** is a product or a
+  preparation, with a net quantity in any unit that converts (product
+  conversions for products; fixed-size units of the same dimension for
+  sub-recipes) and a **waste fraction** (trim loss): gross = net ÷ (1 − w).
+- **Sub-recipes** resolve to their active version at costing time. A recipe
+  can never contain itself directly or through others: checked when adding a
+  sub-recipe and again on activation, under an organization-wide lock.
+  Recipes used by active or draft versions cannot be archived.
+- Permissions: `recipes.view` (organization-wide even from scoped roles,
+  like ADR-027), `recipes.manage`, `recipes.costs.view`.
+
+### ADR-031 Recipe cost sources and snapshots — Accepted (M4a, extends ADR-021)
+
+- Three sources per product, per base unit:
+  1. **AVERAGE** — stock value ÷ quantity over stock on hand that has a
+     known cost (ADR-021), in one warehouse or the whole organization;
+  2. **LAST_PURCHASE** — price on the latest posted goods receipt (landed
+     cost not included);
+  3. **STANDARD** — a manual cost with an effective date (append-only
+     history; the latest effective on the calculation date applies).
+- The user picks a source; it is tried first, then the others in the order
+  above. Each line records the source actually used. A line with no cost in
+  any source is reported as missing and left out of the totals — never
+  estimated. Unit mismatches and missing sub-recipe versions are reported the
+  same way.
+- Line cost = gross quantity in the base (or yield) unit × unit cost, at
+  money scale; a version's cost per yield unit (6 dp) feeds its parents.
+- **Snapshots** store the totals in NUMERIC columns and the complete
+  line-by-line breakdown (decimal strings, sources and references), the
+  policy, warehouse and date, so a past cost is reproducible after prices
+  change. One is stored on activation (stock average, organization-wide);
+  more can be saved by hand. Snapshots are append-only.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

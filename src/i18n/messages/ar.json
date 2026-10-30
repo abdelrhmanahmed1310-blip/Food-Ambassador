@@ -91,7 +91,9 @@
     "categories": "الفئات",
     "reorder": "إعادة الطلب",
     "shipments": "الشحنات",
-    "requisitions": "طلبات الشراء"
+    "requisitions": "طلبات الشراء",
+    "recipesSection": "المطبخ",
+    "recipes": "الوصفات"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -252,7 +254,17 @@
     "CANNOT_REVERSE_LANDED_COST": "لا يمكن عكس التكلفة الإضافية. صحّح التكلفة بإعادة تقييم.",
     "REQUISITION_STATUS": "لا يمكن تنفيذ ذلك في الحالة الحالية لطلب الشراء.",
     "REQUISITION_HAS_NO_LINES": "أضف بندًا واحدًا على الأقل قبل الإرسال.",
-    "REQUISITION_LINE_ORDERED": "هذا البند موجود بالفعل في أمر شراء."
+    "REQUISITION_LINE_ORDERED": "هذا البند موجود بالفعل في أمر شراء.",
+    "RECIPE_VERSION_NOT_DRAFT": "لا يمكن تعديل إلا إصدار المسودة. ابدأ إصدارًا جديدًا.",
+    "DISH_NEEDS_PORTIONS": "يحتاج الطبق إلى عدد الحصص.",
+    "YIELD_UNIT_NOT_FIXED": "استخدم وحدة ثابتة الحجم (كجم، لتر، قطعة…) للمردود.",
+    "RECIPE_IN_USE": "وصفات أخرى تستخدم هذه الوصفة. أزلها منها أولًا.",
+    "SUB_RECIPE_NOT_USABLE": "لا يمكن استخدام إلا التحضيرات غير المؤرشفة كوصفات فرعية.",
+    "RECIPE_CYCLE": "لا يمكن أن تحتوي الوصفة نفسها، مباشرة أو عبر وصفات أخرى.",
+    "RECIPE_ARCHIVED": "الوصفة مؤرشفة.",
+    "RECIPE_HAS_NO_INGREDIENTS": "أضف مكوّنًا واحدًا على الأقل قبل التفعيل.",
+    "RECIPE_HAS_DRAFT": "أنهِ المسودة الحالية أو احذفها أولًا.",
+    "RECIPE_NEEDS_VERSION": "لا يمكن حذف الإصدار الأول؛ أرشف الوصفة بدلًا من ذلك."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -437,7 +449,10 @@
       "purchasing.manage": "إنشاء أوامر الشراء وتعديلها وتقديمها وإغلاقها وإلغاؤها، وعكس الاستلامات",
       "purchasing.approve": "اعتماد أوامر الشراء",
       "purchasing.receive": "استلام الشحنات",
-      "purchasing.request": "طلب مشتريات لفرع (طلبات الشراء)"
+      "purchasing.request": "طلب مشتريات لفرع (طلبات الشراء)",
+      "recipes.view": "عرض الوصفات",
+      "recipes.manage": "إنشاء الوصفات وتعديلها والتكاليف المعيارية",
+      "recipes.costs.view": "عرض تكاليف الوصفات وسجلها"
     }
   },
   "audit": {
@@ -467,7 +482,8 @@
       "goods_receipt": "استلام بضائع",
       "category": "فئة",
       "shipment": "شحنة",
-      "requisition": "طلب شراء"
+      "requisition": "طلب شراء",
+      "recipe": "وصفة"
     }
   },
   "invite": {
@@ -1056,5 +1072,111 @@
       "CLOSED": "مغلق",
       "CANCELLED": "ملغى"
     }
+  },
+  "recipes": {
+    "title": "الوصفات",
+    "hint": "الأطباق والتحضيرات بإصداراتها ومردودها والهدر والتكلفة من أسعار المخزون والشراء الفعلية.",
+    "new": "وصفة جديدة",
+    "newTitle": "وصفة جديدة",
+    "newHint": "يُنشأ الإصدار 1 كمسودة؛ أضف المكونات ثم فعّله.",
+    "empty": "لا توجد وصفات بعد.",
+    "code": "الرمز",
+    "name": "الاسم (بالإنجليزية)",
+    "nameAr": "الاسم (بالعربية)",
+    "type": "النوع",
+    "description": "الوصف",
+    "types": {
+      "DISH": "طبق",
+      "PREPARATION": "تحضير"
+    },
+    "statuses": {
+      "DRAFT": "مسودة",
+      "ACTIVE": "فعّال",
+      "RETIRED": "متقاعد"
+    },
+    "activeVersion": "الإصدار الفعّال",
+    "draftOpen": "مسودة مفتوحة",
+    "versionNo": "الإصدار {no}",
+    "version": "الإصدار",
+    "versions": "الإصدارات",
+    "yield": "المردود",
+    "yieldQuantity": "كمية المردود",
+    "yieldUnit": "وحدة المردود",
+    "yieldHint": "ما تنتجه الدفعة الواحدة بعد الطهي.",
+    "portions": "الحصص",
+    "portionsHint": "عدد الحصص التي تكفيها الدفعة. مطلوب للأطباق.",
+    "portionsCount": "{count} حصص",
+    "ingredients": "المكونات",
+    "ingredient": "المكوّن",
+    "noIngredients": "لا توجد مكونات بعد.",
+    "addIngredient": "إضافة مكوّن",
+    "netQuantity": "الكمية الصافية",
+    "wastePercent": "الهدر %",
+    "wasteHint": "فاقد التنظيف أو التحضير؛ الكمية الإجمالية = الصافية ÷ (1 − الهدر).",
+    "grossQuantity": "الكمية الإجمالية",
+    "netWithWaste": "{net} صافٍ، هدر {waste} %",
+    "activatedAt": "فُعّل",
+    "activatedBy": "فعّله",
+    "allVersions": "كل الإصدارات",
+    "lockedHint": "هذا الإصدار مقفل. لتغيير الوصفة ابدأ إصدارًا جديدًا.",
+    "editVersion": "المردود والحصص",
+    "activate": "تفعيل الإصدار",
+    "activateHint": "التفعيل يجعل هذا الإصدار المستخدم، ويُقاعد السابق، ويحفظ تكلفته.",
+    "confirmActivate": "هل تريد تفعيل هذا الإصدار؟ لا يمكن تعديله بعد ذلك.",
+    "discardDraft": "حذف المسودة",
+    "confirmDiscard": "هل تريد حذف هذه المسودة؟",
+    "newVersion": "إصدار جديد",
+    "details": "التفاصيل",
+    "confirmArchive": "هل تريد أرشفة هذه الوصفة؟",
+    "usedIn": "مستخدمة في",
+    "liveCost": "التكلفة الآن",
+    "policy": "مصدر التكلفة",
+    "averageFrom": "متوسط التكلفة من",
+    "wholeOrganization": "المؤسسة كلها",
+    "recalculate": "احسب",
+    "policyHint": "يُجرَّب المصدر المختار أولًا ثم المصادر الأخرى. يظهر لكل بند المصدر المستخدم فعلًا؛ والبنود بلا تكلفة تُعلَّم وتُستبعد من الإجماليات.",
+    "policies": {
+      "AVERAGE": "متوسط تكلفة المخزون",
+      "LAST_PURCHASE": "آخر سعر شراء",
+      "STANDARD": "التكلفة المعيارية"
+    },
+    "sources": {
+      "AVERAGE": "متوسط المخزون",
+      "LAST_PURCHASE": "آخر شراء",
+      "STANDARD": "تكلفة معيارية",
+      "SUB_RECIPE": "وصفة فرعية"
+    },
+    "missing": {
+      "NO_COST": "لا توجد تكلفة معروفة",
+      "INCOMPATIBLE_UNITS": "الوحدة لا تتحول",
+      "NO_ACTIVE_VERSION": "لا يوجد إصدار فعّال",
+      "CYCLE": "تحتوي نفسها"
+    },
+    "totalCost": "إجمالي التكلفة",
+    "costPerPortion": "تكلفة الحصة",
+    "costPerYieldUnit": "تكلفة وحدة المردود",
+    "unitCost": "تكلفة الوحدة",
+    "source": "المصدر",
+    "cost": "التكلفة",
+    "breakdown": "تفصيل التكلفة",
+    "incomplete": "{count, plural, zero {لا مكونات} one {مكوّن واحد} two {مكوّنان} few {# مكونات} many {# مكوّنًا} other {# مكوّن}} بلا تكلفة؛ الإجماليات تستبعدها.",
+    "missingCount": "{count} بلا تكلفة",
+    "saveSnapshot": "حفظ في سجل التكلفة",
+    "costHistory": "سجل التكلفة",
+    "noSnapshots": "لا توجد تكاليف محفوظة بعد.",
+    "snapshotTitle": "{code} · الإصدار {no} — تكلفة محفوظة",
+    "snapshotHint": "محفوظة كما حُسبت وقتها؛ تغيّر الأسعار لاحقًا لا يغيّرها.",
+    "snapshotReason": "سبب الحفظ",
+    "snapshotReasons": {
+      "ACTIVATION": "تفعيل الإصدار",
+      "MANUAL": "حفظ يدوي"
+    },
+    "asOf": "التكاليف المعيارية بتاريخ",
+    "standardCosts": "التكاليف المعيارية",
+    "standardCost": "التكلفة المعيارية",
+    "effectiveFrom": "سارية من",
+    "addStandardCost": "إضافة تكلفة معيارية",
+    "standardCostHint": "تكلفة تحددها لحساب الوصفات، تُستخدم من تاريخها فصاعدًا. يُحتفظ بالسجل.",
+    "noStandardCosts": "لا توجد تكلفة معيارية."
   }
 }

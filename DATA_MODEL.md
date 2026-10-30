@@ -653,17 +653,28 @@ Migration `20261030180000_m3_requisitions` (also grants `purchasing.request`).
 
 ## 6. Recipes and food cost (Milestone 4)
 
-- **recipes** (stable identity) / **recipe_versions** (immutable once
-  `ACTIVE`): yield quantity + uom, portion size, effective_from, status
-  `DRAFT → ACTIVE → RETIRED`.
-- **recipe_ingredients**: version, product _or_ sub-recipe (CK exactly one),
-  quantity + uom, waste % (fraction), optional flag.
-  Cycle detection prevents a recipe containing itself transitively.
-- **product_cost_records**: product, cost per base unit, `source`
-  (`RECEIPT` | `MANUAL` | `AVERAGE` …), `effective_at`, source reference.
-- **recipe_cost_snapshots**: version, calculated_at, cost source policy,
-  total cost, cost per portion, and per-ingredient breakdown (JSON with source
-  record IDs) so every number is reproducible.
+Implemented in M4a (migration `20261031090000_m4_recipes`, ADR-030/031).
+
+- **recipes**: `code` (UQ per org), `name`, `name_ar`, `type` (DISH |
+  PREPARATION), `description`, `archived_at`.
+- **recipe_versions**: `version_no` (UQ per recipe), `status` (DRAFT |
+  ACTIVE | RETIRED; partial UQ: one ACTIVE, one DRAFT per recipe),
+  `yield_quantity` > 0 + `yield_uom_id`, `portions`, `note`, creator,
+  activation and retirement. Trigger `recipe_version_guard`: non-drafts can
+  only move ACTIVE → RETIRED with unchanged content, and cannot be deleted.
+- **recipe_ingredients**: version (cascade with a deleted draft), `line_no`,
+  `product_id` XOR `sub_recipe_id` (CK), `quantity` > 0, `uom_id`,
+  `waste_fraction` in [0, 1), `note`. Trigger: changes only while the
+  version is a draft.
+- **product_standard_costs**: product, `unit_cost` ≥ 0 per base unit,
+  `effective_from` (UQ per product), note, creator. Append-only.
+- **recipe_cost_snapshots**: version, `reason` (ACTIVATION | MANUAL),
+  `policy` (AVERAGE | LAST_PURCHASE | STANDARD), `warehouse_id` (null =
+  organization), `as_of`, `total_cost`, `cost_per_portion`,
+  `cost_per_yield_unit`, `missing_count`, `breakdown` (JSON lines with
+  decimal strings, source and reference; sub-recipes nested). Append-only.
+
+Not yet: selling prices and food-cost % (M4b).
 
 ## 7. Nutrition and allergens (Milestone 5)
 

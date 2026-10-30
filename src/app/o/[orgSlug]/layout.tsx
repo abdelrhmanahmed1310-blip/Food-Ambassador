@@ -57,6 +57,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/purchasing/reorder`, label: t("reorder") },
     );
   }
+  const kitchen: NavSection = { title: t("recipesSection"), items: [] };
+  if (hasPermission(ctx.grants, "recipes.view"))
+    kitchen.items.push({ href: `${base}/recipes`, label: t("recipes") });
   const catalog: NavSection = { title: t("catalogSection"), items: [] };
   if (hasPermission(ctx.grants, "catalog.view")) {
     catalog.items.push(
@@ -82,7 +85,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
-  const sections = [main, inventory, purchasing, catalog, settings].filter(
+  const sections = [main, inventory, purchasing, kitchen, catalog, settings].filter(
     (section) => section.items.length > 0,
   );
 

@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-30 (Milestone 3 complete — M3c part 4, purchase requisitions)
+Last updated: 2026-10-31 (Milestone 4a — recipes, versions, costing)
 
 ## Summary
 
@@ -10,7 +10,40 @@ Last updated: 2026-10-30 (Milestone 3 complete — M3c part 4, purchase requisit
 | M1 Application foundation    | ✅ Complete                                                                                                                         |
 | M2 Inventory MVP             | ✅ Complete                                                                                                                         |
 | M3 Procurement & receiving   | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
-| M4 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                            |
+| M4 Recipes & food cost       | 🔄 In progress — **M4a ✅** (recipes, versions, cost sources, snapshots); M4b next                                                  |
+| M5 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                            |
+
+## M4a — Recipes, versions and food cost (delivered)
+
+Rules: DECISIONS.md ADR-030 and ADR-031.
+
+| Area           | What works                                                                                                                                          | Where                                  |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Recipes        | Dishes (per portion) and preparations (per yield unit), EN/AR names, search and filters, archive (refused while used)                               | `src/modules/recipes/recipes.ts`       |
+| Versions       | Draft → active → retired; one active and one draft; new version copies ingredients; discard drafts; active versions locked by DB triggers           | `recipes.ts`, migration `…_m4_recipes` |
+| Ingredients    | Product or sub-recipe, net quantity in any convertible unit, waste % (gross = net ÷ (1 − waste)); cycles refused on add and on activation           | `addIngredient`, `createsCycle`        |
+| Cost sources   | Stock average (organization or one warehouse), last purchase price, standard cost by date; chosen source first, others as fallback, source per line | `costs.ts`, `costing.ts` (pure)        |
+| Missing costs  | Lines without any cost, with units that do not convert or sub-recipes without an active version are flagged and excluded — never estimated          | `costVersion`                          |
+| Snapshots      | Stored on activation and on demand with the full breakdown; history per recipe; stored values never change when prices do                           | `snapshotInTx`, `/recipes/snapshots/…` |
+| Standard costs | Per product with effective date, history on the product page                                                                                        | product page                           |
+| Access         | `recipes.view`, `recipes.manage`, `recipes.costs.view` (data migration); costs hidden without the permission; other tenants see nothing             | `permissions.ts`                       |
+| Screens        | Recipes list, new recipe, recipe (versions, cost history, used in), version (ingredients, yield, live cost with source/warehouse, activate), EN/AR  | `/recipes`                             |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 20 files / 144 tests — 7 new
+for the costing engine: waste, source order, sub-recipes, portions, missing
+costs, cycles; build); `pnpm test:integration` 16 files / 143 tests pass (7
+new: preparation with waste and snapshot, DB triggers refusing changes to an
+active version, warehouse vs organization average, dish through a
+sub-recipe with last purchase price and a missing cost, recalculation after
+revaluation with unchanged snapshots, versions and drafts, cycles and other
+refusals, standard cost history, permissions and other tenants);
+`pnpm test:e2e` 24 tests pass (new: standard cost → stock → sauce with waste
+68.00 → activate and lock → pasta 4.25 per portion → cost history).
+
+Limitations: no selling prices or food-cost % yet (M4b); landed cost is not
+part of the last purchase price; one cost per product × source (no supplier
+choice); nutrition and allergens come in M5; stock is not yet consumed by
+recipes (M7 sales, production later).
 
 ## M3c part 4 — Purchase requisitions (delivered; M3 complete)
 

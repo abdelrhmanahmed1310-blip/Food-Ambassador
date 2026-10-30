@@ -18,11 +18,16 @@ import { hasPermission } from "@/modules/access/authorize";
 import { listCategories } from "@/modules/catalog/categories";
 import { getProduct, listUnits } from "@/modules/catalog/service";
 import { productStockSummary } from "@/modules/inventory/queries";
+import { businessDate } from "@/modules/inventory/rules";
+import { listStandardCosts } from "@/modules/recipes/costs";
+import { StandardCostForm } from "@/components/recipes/forms";
+import { addStandardCostAction } from "../../../recipes/actions";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import {
   categoryName,
   categoryOptions,
+  moneyFormatter,
   productName,
   quantityFormatter,
   unitOptions,
@@ -54,6 +59,11 @@ export default async function ProductPage({
     ? await productStockSummary(ctx, productId)
     : null;
   const canManage = hasPermission(ctx.grants, "catalog.manage");
+  const costsVisible = hasPermission(ctx.grants, "recipes.costs.view");
+  const [standardCosts, money] = costsVisible
+    ? await Promise.all([listStandardCosts(ctx, productId), moneyFormatter(ctx.baseCurrency)])
+    : [[], null];
+  const canSetCost = costsVisible && hasPermission(ctx.grants, "recipes.manage");
   const otherUnits = units.filter((u) => u.id !== product.baseUomId);
 
   return (
@@ -161,6 +171,50 @@ export default async function ProductPage({
                 </tbody>
               </Table>
             )}
+          </Card>
+        ) : null}
+
+        {costsVisible && money ? (
+          <Card title={t("recipes.standardCosts")}>
+            <p className="text-muted mb-3 text-sm">{t("recipes.standardCostHint")}</p>
+            {standardCosts.length === 0 ? (
+              <p className="text-muted mb-4 text-sm">{t("recipes.noStandardCosts")}</p>
+            ) : (
+              <Table label={t("recipes.standardCosts")}>
+                <thead>
+                  <tr>
+                    <Th>{t("recipes.effectiveFrom")}</Th>
+                    <Th>{t("recipes.standardCost")}</Th>
+                    <Th>{t("common.note")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standardCosts.map((c) => (
+                    <tr key={c.id}>
+                      <Td className="whitespace-nowrap">
+                        {c.effectiveFrom.toISOString().slice(0, 10)}
+                      </Td>
+                      <Td className="tabular-nums">
+                        <span className="ltr-value whitespace-nowrap">
+                          {money.unitCost(c.unitCost)} / {product.baseUom.code}
+                        </span>
+                      </Td>
+                      <Td>{c.note ?? "—"}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            {canSetCost ? (
+              <div className="mt-4">
+                <StandardCostForm
+                  action={addStandardCostAction.bind(null, orgSlug, product.id)}
+                  currency={ctx.baseCurrency}
+                  baseUnit={product.baseUom.code}
+                  today={businessDate(ctx.timeZone)}
+                />
+              </div>
+            ) : null}
           </Card>
         ) : null}
 

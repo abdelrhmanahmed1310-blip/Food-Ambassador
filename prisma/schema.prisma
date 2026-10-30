@@ -160,6 +160,11 @@ model Organization {
   landedCostLines     LandedCostLine[]
   requisitions        PurchaseRequisition[]
   requisitionLines    PurchaseRequisitionLine[]
+  recipes             Recipe[]
+  recipeVersions      RecipeVersion[]
+  recipeIngredients   RecipeIngredient[]
+  standardCosts       ProductStandardCost[]
+  recipeSnapshots     RecipeCostSnapshot[]
 
   @@map("organizations")
 }
@@ -369,6 +374,7 @@ model Warehouse {
   landedCosts     LandedCost[]
   landedCostLines LandedCostLine[]
   requisitions    PurchaseRequisition[]
+  recipeSnapshots RecipeCostSnapshot[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -483,6 +489,8 @@ model UnitOfMeasure {
   goodsReceiptLines  GoodsReceiptLine[]
   shipmentLines      StockShipmentLine[]
   requisitionLines   PurchaseRequisitionLine[]
+  recipeIngredients  RecipeIngredient[]
+  recipeYields       RecipeVersion[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
   @@unique([organizationId, code], map: "units_of_measure_code_key")
@@ -539,6 +547,8 @@ model Product {
   reorderRules       ReorderRule[]
   shipmentLines      StockShipmentLine[]
   requisitionLines   PurchaseRequisitionLine[]
+  recipeIngredients  RecipeIngredient[]
+  standardCosts      ProductStandardCost[]
   landedCostLines    LandedCostLine[]
 
   @@unique([organizationId, id])
@@ -1432,4 +1442,161 @@ model PurchaseRequisitionLine {
   @@unique([organizationId, requisitionId, productId])
   @@unique([organizationId, purchaseOrderLineId])
   @@map("purchase_requisition_lines")
+}
+
+// ─── Recipes and food cost (Milestone 4, ADR-030 / ADR-031) ───
+
+enum RecipeType {
+  /// Sold or served; costed per portion.
+  DISH
+  /// Batch preparation (sauce, dough, stock) used as a sub-recipe; costed per yield unit.
+  PREPARATION
+}
+
+enum RecipeVersionStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+enum RecipeCostPolicy {
+  AVERAGE
+  LAST_PURCHASE
+  STANDARD
+}
+
+enum RecipeSnapshotReason {
+  ACTIVATION
+  MANUAL
+}
+
+/// Stable identity of a recipe; its content lives in versions.
+model Recipe {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?    @map("name_ar")
+  type           RecipeType
+  description    String?
+  archivedAt     DateTime?  @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  versions     RecipeVersion[]
+  usedIn       RecipeIngredient[] @relation("SubRecipe")
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("recipes")
+}
+
+/// One version of a recipe. Only DRAFT versions can change (enforced by triggers).
+model RecipeVersion {
+  id                String              @id @default(uuid(7)) @db.Uuid
+  organizationId    String              @map("organization_id") @db.Uuid
+  recipeId          String              @map("recipe_id") @db.Uuid
+  versionNo         Int                 @map("version_no")
+  status            RecipeVersionStatus @default(DRAFT)
+  /// What one batch makes, e.g. 5 kg of sauce or 10 each (portions).
+  yieldQuantity     Decimal             @map("yield_quantity") @db.Decimal(20, 6)
+  yieldUomId        String              @map("yield_uom_id") @db.Uuid
+  /// Portions one batch serves; required for dishes.
+  portions          Decimal?            @db.Decimal(20, 6)
+  note              String?
+  createdByUserId   String              @map("created_by_user_id") @db.Uuid
+  activatedAt       DateTime?           @map("activated_at") @db.Timestamptz(3)
+  activatedByUserId String?             @map("activated_by_user_id") @db.Uuid
+  retiredAt         DateTime?           @map("retired_at") @db.Timestamptz(3)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recipe       Recipe               @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+  yieldUom     UnitOfMeasure        @relation(fields: [yieldUomId], references: [id], onDelete: Restrict)
+  ingredients  RecipeIngredient[]
+  snapshots    RecipeCostSnapshot[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, recipeId, versionNo])
+  @@index([organizationId, recipeId, status])
+  @@map("recipe_versions")
+}
+
+/// An ingredient line: exactly one of product or sub-recipe (a PREPARATION).
+model RecipeIngredient {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  versionId      String  @map("version_id") @db.Uuid
+  lineNo         Int     @map("line_no")
+  productId      String? @map("product_id") @db.Uuid
+  subRecipeId    String? @map("sub_recipe_id") @db.Uuid
+  /// Net quantity used, in uom_id.
+  quantity       Decimal @db.Decimal(20, 6)
+  uomId          String  @map("uom_id") @db.Uuid
+  /// Trim/prep loss as a fraction (0.1 = 10 %); gross = net ÷ (1 − waste).
+  wasteFraction  Decimal @default(0) @map("waste_fraction") @db.Decimal(7, 6)
+  note           String?
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  version      RecipeVersion @relation(fields: [organizationId, versionId], references: [organizationId, id], onDelete: Cascade)
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  subRecipe    Recipe?       @relation("SubRecipe", fields: [organizationId, subRecipeId], references: [organizationId, id], onDelete: Restrict)
+  uom          UnitOfMeasure @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, versionId, lineNo])
+  @@index([organizationId, productId])
+  @@index([organizationId, subRecipeId])
+  @@map("recipe_ingredients")
+}
+
+/// Manually set cost per base unit with the date it applies from. Append-only.
+model ProductStandardCost {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  unitCost        Decimal  @map("unit_cost") @db.Decimal(20, 6)
+  effectiveFrom   DateTime @map("effective_from") @db.Date
+  note            String?
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, productId, effectiveFrom])
+  @@map("product_standard_costs")
+}
+
+/// A stored cost calculation of a version, reproducible from its breakdown. Append-only.
+model RecipeCostSnapshot {
+  id                 String               @id @default(uuid(7)) @db.Uuid
+  organizationId     String               @map("organization_id") @db.Uuid
+  versionId          String               @map("version_id") @db.Uuid
+  reason             RecipeSnapshotReason
+  policy             RecipeCostPolicy
+  /// Average costs from this warehouse; null = organization-wide.
+  warehouseId        String?              @map("warehouse_id") @db.Uuid
+  /// Date standard costs were taken at.
+  asOf               DateTime             @map("as_of") @db.Date
+  totalCost          Decimal              @map("total_cost") @db.Decimal(19, 4)
+  costPerPortion     Decimal?             @map("cost_per_portion") @db.Decimal(19, 4)
+  costPerYieldUnit   Decimal              @map("cost_per_yield_unit") @db.Decimal(20, 6)
+  /// Ingredients without any known cost; the totals exclude them.
+  missingCount       Int                  @map("missing_count")
+  /// Per-ingredient lines (decimal strings) with the cost source used.
+  breakdown          Json
+  calculatedByUserId String               @map("calculated_by_user_id") @db.Uuid
+  calculatedAt       DateTime             @default(now()) @map("calculated_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  version      RecipeVersion @relation(fields: [organizationId, versionId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse?    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, versionId, calculatedAt(sort: Desc)])
+  @@map("recipe_cost_snapshots")
 }

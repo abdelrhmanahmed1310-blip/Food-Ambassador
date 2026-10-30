@@ -46,6 +46,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ inventory/            # posting engine (only ledger + valuation writer), operations, counts, queries, CSV,
 │  │  │                        #   valuation.ts (pure moving-average rules), valuation-queries.ts (stock value reports)
 │  │  ├─ procurement/          # suppliers, requisitions, purchase orders + approval, receiving, landed cost, reorder, supplier performance (rules.ts pure)
+│  │  ├─ recipes/              # recipes, versions, ingredients, standard costs, cost snapshots (costing.ts pure)
 │  │  ├─ members/              # memberships, invitations, role grants, last-owner rule
 │  │  ├─ organizations/        # organization onboarding, settings, overview counts
 │  │  ├─ sites/                # branches, warehouses, storage locations
