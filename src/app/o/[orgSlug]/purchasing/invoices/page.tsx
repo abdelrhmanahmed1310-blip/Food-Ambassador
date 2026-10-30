@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { InvoiceStatusBadge, MatchBadge } from "@/components/invoices/badges";
+import { InvoiceStatusBadge, MatchBadge, PaymentStatusBadge } from "@/components/invoices/badges";
 import { EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/styles";
 import { hasPermission } from "@/modules/access/authorize";
@@ -66,6 +66,7 @@ export default async function InvoicesPage({
               <Th>{t("tax.gross")}</Th>
               <Th>{t("invoices.match")}</Th>
               <Th>{t("common.status")}</Th>
+              <Th>{t("payables.payment")}</Th>
             </tr>
           </thead>
           <tbody>
@@ -101,6 +102,9 @@ export default async function InvoicesPage({
                 </Td>
                 <Td>
                   <InvoiceStatusBadge status={inv.status} />
+                </Td>
+                <Td>
+                  {inv.paymentStatus ? <PaymentStatusBadge status={inv.paymentStatus} /> : "—"}
                 </Td>
               </tr>
             ))}

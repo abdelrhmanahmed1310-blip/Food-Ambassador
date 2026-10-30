@@ -10,6 +10,7 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
+import { paymentStatus } from "./payables-rules";
 import { dueDateFor, invoiceMatchStatus, matchGoodsLine, totalMatches } from "./rules";
 import {
   chargeLineSchema,
@@ -47,7 +48,7 @@ async function audit(
 }
 
 /** Serialize invoicing per supplier so receipt quantities are not invoiced twice concurrently. */
-async function lockSupplier(tx: Tx, ctx: TenantContext, supplierId: string) {
+export async function lockSupplier(tx: Tx, ctx: TenantContext, supplierId: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invoices:${ctx.organizationId}:${supplierId}`}))`;
 }
 
@@ -495,6 +496,11 @@ export async function cancelInvoice(ctx: TenantContext, invoiceId: string, rawIn
     const inv = await lockInvoice(tx, ctx, invoiceId);
     if (inv.status === "CANCELLED")
       throw businessRuleViolation("INVOICE_NOT_DRAFT", "Already cancelled", { status: inv.status });
+    if ((await settledAmounts(tx, ctx, [inv.id])).get(inv.id)?.gt(0))
+      throw businessRuleViolation(
+        "INVOICE_HAS_SETTLEMENTS",
+        "Payments or credit notes are applied; void them first",
+      );
     await tx.supplierInvoice.update({
       where: { id: inv.id },
       data: {
@@ -509,6 +515,29 @@ export async function cancelInvoice(ctx: TenantContext, invoiceId: string, rawIn
 }
 
 // ─── Queries ───
+
+/** Amount of each invoice covered by payments and credit notes that are not voided (optionally dated up to `asOf`). */
+export async function settledAmounts(
+  tx: Tx,
+  ctx: TenantContext,
+  invoiceIds: string[],
+  asOf?: string,
+) {
+  if (invoiceIds.length === 0) return new Map<string, Decimal>();
+  const rows = await tx.settlementAllocation.groupBy({
+    by: ["invoiceId"],
+    where: {
+      organizationId: ctx.organizationId,
+      invoiceId: { in: invoiceIds },
+      settlement: {
+        status: "POSTED",
+        ...(asOf ? { date: { lte: new Date(`${asOf}T00:00:00Z`) } } : {}),
+      },
+    },
+    _sum: { amount: true },
+  });
+  return new Map(rows.map((r) => [r.invoiceId, dec(r._sum.amount ?? 0)]));
+}
 
 /** Posted receipt lines of a supplier with quantity still to invoice (on any invoice, drafts included). */
 export async function uninvoicedReceiptLines(ctx: TenantContext, supplierId: string) {
@@ -552,8 +581,8 @@ export async function listInvoices(
   filters: { status?: "DRAFT" | "POSTED" | "CANCELLED"; supplierId?: string } = {},
 ) {
   assertPermission(ctx.grants, "invoices.view");
-  return withTenantTx(ctx.organizationId, (tx) =>
-    tx.supplierInvoice.findMany({
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const invoices = await tx.supplierInvoice.findMany({
       where: {
         organizationId: ctx.organizationId,
         ...(filters.status ? { status: filters.status } : {}),
@@ -562,8 +591,21 @@ export async function listInvoices(
       include: { supplier: { select: { code: true, name: true, nameAr: true } } },
       orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
       take: 200,
-    }),
-  );
+    });
+    const settled = await settledAmounts(
+      tx,
+      ctx,
+      invoices.filter((i) => i.status === "POSTED").map((i) => i.id),
+    );
+    return invoices.map((i) => {
+      const paid = settled.get(i.id) ?? new Decimal(0);
+      return {
+        ...i,
+        settled: paid,
+        paymentStatus: i.status === "POSTED" ? paymentStatus(dec(i.grossAmount), paid) : null,
+      };
+    });
+  });
 }
 
 export async function getInvoice(ctx: TenantContext, invoiceId: string) {
@@ -601,8 +643,20 @@ export async function getInvoice(ctx: TenantContext, invoiceId: string) {
     const decimals = currencyDecimals(ctx.baseCurrency);
     const manage = hasPermission(ctx.grants, "invoices.manage");
     const draft = inv.status === "DRAFT";
+    const settled = (await settledAmounts(tx, ctx, [inv.id])).get(inv.id) ?? new Decimal(0);
+    const allocations = await tx.settlementAllocation.findMany({
+      where: { organizationId: ctx.organizationId, invoiceId: inv.id },
+      include: {
+        settlement: { select: { id: true, number: true, kind: true, date: true, status: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
     return {
       ...inv,
+      settled,
+      open: Decimal.max(dec(inv.grossAmount).minus(settled), 0),
+      paymentStatus: inv.status === "POSTED" ? paymentStatus(dec(inv.grossAmount), settled) : null,
+      allocations,
       totalOk: totalMatches(dec(inv.printedGross), dec(inv.grossAmount), decimals),
       names: {
         createdBy: name(inv.createdByUserId),
@@ -623,14 +677,15 @@ export async function getInvoice(ctx: TenantContext, invoiceId: string) {
           draft &&
           inv.lines.length > 0 &&
           (inv.matchStatus === "MATCHED" || !!inv.exceptionApprovedAt),
-        cancel: manage && inv.status !== "CANCELLED",
+        cancel: manage && inv.status !== "CANCELLED" && settled.isZero(),
       },
     };
   });
 }
 
 /**
- * Input VAT on posted supplier invoices by invoice date, per code and rate.
+ * Input VAT on posted supplier invoices by invoice date, less posted credit
+ * notes by their date, per code and rate.
  * `reclaimable` is false when the organization is not VAT registered — the
  * VAT is then part of the cost. An estimate for review, not a return.
  */
@@ -652,6 +707,21 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
       _sum: { netAmount: true, taxAmount: true, grossAmount: true },
       _count: { _all: true },
     });
+    // Supplier credit notes in the period reduce the input VAT (ADR-039).
+    const credits = await tx.supplierSettlement.groupBy({
+      by: ["taxCodeId", "taxRate"],
+      where: {
+        organizationId: ctx.organizationId,
+        kind: "CREDIT_NOTE",
+        status: "POSTED",
+        date: {
+          gte: new Date(`${period.from}T00:00:00Z`),
+          lte: new Date(`${period.to}T00:00:00Z`),
+        },
+      },
+      _sum: { netAmount: true, taxAmount: true, amount: true },
+      _count: { _all: true },
+    });
     const codes = await tx.taxCode.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, code: true, name: true, nameAr: true, category: true },
@@ -659,15 +729,61 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
     const settings = await tx.taxSettings.findUnique({
       where: { organizationId: ctx.organizationId },
     });
+    const merged = new Map<
+      string,
+      {
+        taxCodeId: string | null;
+        rate: Decimal | null;
+        lines: number;
+        credits: number;
+        net: Decimal;
+        tax: Decimal;
+        gross: Decimal;
+      }
+    >();
+    const keyOf = (codeId: string | null, rate: { toString(): string } | null) =>
+      `${codeId ?? ""}|${rate === null ? "" : dec(rate).toFixed()}`;
+    const entry = (codeId: string | null, rate: { toString(): string } | null) => {
+      const key = keyOf(codeId, rate);
+      let e = merged.get(key);
+      if (!e) {
+        e = {
+          taxCodeId: codeId,
+          rate: rate === null ? null : dec(rate),
+          lines: 0,
+          credits: 0,
+          net: new Decimal(0),
+          tax: new Decimal(0),
+          gross: new Decimal(0),
+        };
+        merged.set(key, e);
+      }
+      return e;
+    };
+    for (const r of rows) {
+      const e = entry(r.taxCodeId, r.taxRate);
+      e.lines += r._count._all;
+      e.net = e.net.plus(dec(r._sum.netAmount ?? 0));
+      e.tax = e.tax.plus(dec(r._sum.taxAmount ?? 0));
+      e.gross = e.gross.plus(dec(r._sum.grossAmount ?? 0));
+    }
+    for (const c of credits) {
+      const e = entry(c.taxCodeId, c.taxRate);
+      e.credits += c._count._all;
+      e.net = e.net.minus(dec(c._sum.netAmount ?? 0));
+      e.tax = e.tax.minus(dec(c._sum.taxAmount ?? 0));
+      e.gross = e.gross.minus(dec(c._sum.amount ?? 0));
+    }
     return {
       reclaimable: settings?.vatRegistered ?? false,
-      rows: rows.map((r) => ({
+      rows: [...merged.values()].map((r) => ({
         code: codes.find((c) => c.id === r.taxCodeId) ?? null,
-        rate: r.taxRate,
-        lines: r._count._all,
-        net: r._sum.netAmount,
-        tax: r._sum.taxAmount,
-        gross: r._sum.grossAmount,
+        rate: r.rate,
+        lines: r.lines,
+        credits: r.credits,
+        net: r.net,
+        tax: r.tax,
+        gross: r.gross,
       })),
     };
   });

@@ -38,24 +38,24 @@ M4 Recipes ─► POS1 Core ─► POS2 Floor & kitchen ─► POS4 Tax e-invoic
 
 A market goes live on the POS only after its e-invoicing work (POS4) passes.
 
-| #    | Milestone                   | Depends on                       | Status                      |
-| ---- | --------------------------- | -------------------------------- | --------------------------- |
-| M0   | Repository & architecture   | —                                | **Complete**                |
-| M1   | Application foundation      | M0                               | **Complete**                |
-| M2   | Inventory MVP               | M1                               | **Complete**                |
-| M3   | Procurement & receiving     | M2                               | **Complete**                |
-| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete**                |
-| M5   | Nutrition & allergens       | M4                               | Not started                 |
-| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                |
-| M7   | Sales & financial workflows | M3, M4                           | In progress (M7a, M7b done) |
-| M8   | Analytics & pilot readiness | M2–M7                            | Not started                 |
-| M9   | Central kitchen & B2B       | M4, M6                           | Proposed                    |
-| M10  | Integrations                | M7                               | Proposed                    |
-| POS1 | Core                        | M4                               | Planned                     |
-| POS2 | Floor & kitchen             | POS1                             | Planned                     |
-| POS3 | Payments                    | POS1, Q-15                       | Planned                     |
-| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                     |
-| POS5 | Customer channels           | POS1–POS4                        | Planned                     |
+| #    | Milestone                   | Depends on                       | Status       |
+| ---- | --------------------------- | -------------------------------- | ------------ |
+| M0   | Repository & architecture   | —                                | **Complete** |
+| M1   | Application foundation      | M0                               | **Complete** |
+| M2   | Inventory MVP               | M1                               | **Complete** |
+| M3   | Procurement & receiving     | M2                               | **Complete** |
+| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete** |
+| M5   | Nutrition & allergens       | M4                               | Not started  |
+| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete** |
+| M7   | Sales & financial workflows | M3, M4                           | Complete     |
+| M8   | Analytics & pilot readiness | M2–M7                            | Not started  |
+| M9   | Central kitchen & B2B       | M4, M6                           | Proposed     |
+| M10  | Integrations                | M7                               | Proposed     |
+| POS1 | Core                        | M4                               | Planned      |
+| POS2 | Floor & kitchen             | POS1                             | Planned      |
+| POS3 | Payments                    | POS1, Q-15                       | Planned      |
+| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned      |
+| POS5 | Customer channels           | POS1–POS4                        | Planned      |
 
 ---
 
@@ -279,8 +279,11 @@ open received quantity, printed total checked, exceptions approved by a
 second person, VAT per line at the invoice date, input VAT in the VAT
 summary.
 
-**M7c — next:** supplier balances (invoices − settlements), payments and
-credit notes, aging, accounting export files.
+**M7c — Payables ✅ (ADR-039):** payments and supplier credit notes
+applied to invoices (per invoice or earliest due first, rest on account),
+void with reason, supplier balances and aging on any date, statements,
+credit notes in input VAT, documents and journal CSV export with the
+organization's own account codes.
 
 ## M8 — Analytics and pilot readiness
 
@@ -365,7 +368,7 @@ Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`
 | ✅  | Supplier item price history                                            | M3c       | done       |
 | P2  | Stock count templates                                                  | M3        | —          |
 | P2  | Margin alerts, price simulator, bulk ingredient replace                | M4        | recipes    |
-| P2  | Credit notes for short/rejected deliveries                             | M7        | invoices   |
+| ✅  | Credit notes for short/rejected deliveries (ADR-039)                   | M7c       | done       |
 | P3  | Installable PWA with offline counting; native apps                     | backlog   | —          |
 
 ## Top risks

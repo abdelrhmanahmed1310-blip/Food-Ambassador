@@ -623,6 +623,48 @@ documents stay scoped. Found by a scoped-user integration test.
   `invoices.manage` are organization-wide permissions (admin, operations
   manager and finance manage; procurement and analyst view).
 
+### ADR-039 Supplier payables: payments, credit notes, balances, export — Accepted (M7c)
+
+- **Settlements** are payments (`PAY-`, method: bank transfer, cash,
+  cheque, card, other; reference) and supplier credit notes (`SCN-`, the
+  supplier's credit note number — unique per supplier unless voided — net
+  amount, VAT code and a reason). A credit note's VAT is computed like an
+  invoice line at the rate on its date. Amounts may not have more decimals
+  than the currency. Recording needs `payments.manage` (admin, finance) —
+  separate from entering invoices, so the person who enters an invoice need
+  not be able to pay it.
+- **Allocation:** a settlement is applied to posted invoices of the same
+  supplier, by amounts per invoice or **earliest due first** (then invoice
+  number). An invoice cannot receive more than is open; a settlement cannot
+  apply more than it has. What is not applied stays **on account** and can
+  be applied later. Allocations are insert-only.
+- **Fixed once recorded:** a settlement is never edited; it can only be
+  **voided** with a reason (database trigger), which reopens the invoices
+  it paid. A posted invoice with payments or credits applied cannot be
+  cancelled until they are voided.
+- **Balance** per supplier on a date = posted invoices dated up to then −
+  payments and credit notes dated up to then. **Aging** buckets the open
+  amount of each invoice by days past its due date (invoice date if none):
+  not yet due, 1–30, 31–60, 61–90, over 90. Voiding counts from the moment
+  it happens: a voided document is excluded from every date.
+- **Statement** per supplier and period: opening balance, invoices,
+  payments and credit notes with running balance, open invoices, and
+  settlements not yet applied.
+- **Input VAT** (amends ADR-038): credit notes reduce input VAT in the
+  period of their date, per code and rate.
+- **Accounting export** (CSV, per period, `invoices.view`):
+  - documents — one row per invoice and VAT rate, credit note and payment,
+    with supplier VAT number and reference; amounts at the currency's
+    decimals.
+  - journal — balanced debit/credit lines using the organization's **own
+    account codes** (payables, purchases, input VAT, bank/cash), entered in
+    purchasing settings; nothing is assumed, and the export is refused until
+    they are set. Invoice: Dr purchases (net), Dr input VAT, Cr payables;
+    without VAT registration the VAT is part of purchases. Credit note: the
+    reverse. Payment: Dr payables, Cr bank.
+  - Files are generic; no ERP or bank integration is claimed (Q-06 open).
+    A re-export reflects voids since the last one.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

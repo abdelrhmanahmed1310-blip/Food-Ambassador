@@ -787,8 +787,18 @@ change only while the invoice is a draft (trigger). The match is stored on
 the lines; there is no separate match table.
 `procurement_settings.invoice_price_tolerance` (fraction 0–1).
 
-- Planned for M7c: **supplier_settlements** (payments, credit notes) and supplier balance
-  derived from invoices − settlements.
+**Payables** (migration `20261104090000_m7_payables`, ADR-039):
+**supplier_settlements** (`PAY-` / `SCN-` number UQ, kind PAYMENT |
+CREDIT_NOTE, supplier, date, `amount` gross > 0; payments: `method` (CK
+present only for payments); credit notes: net, VAT, code and rate (CK
+amount = net + VAT), `supplier_document_no` — partial UQ per supplier
+among credit notes not voided; reference, note; status POSTED | VOIDED (CK
+with `voided_at`); a trigger allows no change except voiding) and
+**settlement_allocations** (settlement → posted invoice of the same
+supplier, checked by trigger; amount > 0; insert-only). Balances, aging and
+statements are queries; there is no balance table.
+**accounting_settings** (one per organization: payables, purchases, input
+VAT and payments account codes, all optional text).
 
 ## 10. Platform tables
 

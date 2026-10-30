@@ -22,3 +22,9 @@ export async function LineMatchBadge({
   const tone = match === "MATCHED" ? "success" : match === "NOT_APPLICABLE" ? "muted" : "warning";
   return <Badge tone={tone}>{t(match)}</Badge>;
 }
+
+export async function PaymentStatusBadge({ status }: { status: "OPEN" | "PARTLY_PAID" | "PAID" }) {
+  const t = await getTranslations("payables.paymentStatuses");
+  const tone = status === "PAID" ? "success" : status === "PARTLY_PAID" ? "warning" : "neutral";
+  return <Badge tone={tone}>{t(status)}</Badge>;
+}

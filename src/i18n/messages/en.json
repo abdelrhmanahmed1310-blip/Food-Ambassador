@@ -108,7 +108,8 @@
     "sales": "Sales",
     "vatSummary": "VAT summary",
     "taxSettings": "VAT",
-    "supplierInvoices": "Supplier invoices"
+    "supplierInvoices": "Supplier invoices",
+    "payables": "Supplier balances"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -188,7 +189,9 @@
     "nothingSelected": "Select at least one line.",
     "limitRequired": "Set at least one limit.",
     "maxBelowMin": "The maximum must not be below the minimum.",
-    "notForYesNo": "Yes/no items have no range."
+    "notForYesNo": "Yes/no items have no range.",
+    "invalidAccountCode": "Use letters, digits, spaces, dots, dashes or slashes (up to 40).",
+    "invalidPeriod": "The end date is before the start date."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -211,7 +214,8 @@
     "countLineExists": "This item is already on the count.",
     "fileAlreadyImported": "This file was already imported.",
     "productAlreadyOnOrder": "This product is already on the order. Change that line instead.",
-    "invoiceNumberTaken": "This supplier invoice number is already entered for this supplier."
+    "invoiceNumberTaken": "This supplier invoice number is already entered for this supplier.",
+    "creditNoteNumberTaken": "This credit note number is already entered for this supplier."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -316,7 +320,16 @@
     "INVOICE_HAS_NO_LINES": "Add at least one line first.",
     "INVOICE_EXCEPTION_NOT_APPROVED": "The invoice does not match. Another person must approve the differences first.",
     "NO_TAX_RATE": "VAT code {code} has no rate on the invoice date.",
-    "UNKNOWN_TAX_CODE": "Choose a VAT code that exists."
+    "UNKNOWN_TAX_CODE": "Choose a VAT code that exists.",
+    "AMOUNT_TOO_PRECISE": "Use at most {decimals} decimals for this currency.",
+    "INVOICE_NOT_OPEN": "Choose a posted invoice of this supplier.",
+    "ALLOCATION_EXCEEDS_INVOICE": "Only {open} is open on invoice {number}.",
+    "ALLOCATION_EXCEEDS_SETTLEMENT": "The amounts applied exceed what is available ({available}).",
+    "SETTLEMENT_VOIDED": "This payment or credit note was voided.",
+    "SETTLEMENT_FULLY_APPLIED": "This payment or credit note is fully applied.",
+    "NOTHING_TO_ALLOCATE": "Enter an amount for at least one invoice, or apply to the earliest due first.",
+    "INVOICE_HAS_SETTLEMENTS": "Payments or credit notes are applied to this invoice; void them first.",
+    "ACCOUNTS_NOT_SET": "Set the account codes in purchasing settings before exporting a journal."
   },
   "notFound": {
     "title": "Page not found",
@@ -513,7 +526,8 @@
       "sales.view": "View sales imports",
       "sales.import": "Import sales and reverse imports",
       "invoices.view": "View supplier invoices",
-      "invoices.manage": "Enter, approve and post supplier invoices"
+      "invoices.manage": "Enter, approve and post supplier invoices",
+      "payments.manage": "Record supplier payments and credit notes"
     }
   },
   "audit": {
@@ -1689,6 +1703,94 @@
       "QUANTITY_VARIANCE": "More than received",
       "PRICE_AND_QUANTITY": "Price and quantity differ",
       "NOT_APPLICABLE": "Charge"
+    }
+  },
+  "payables": {
+    "title": "Supplier balances",
+    "hint": "What is owed to each supplier: posted invoices less payments and credit notes, with open invoices aged by due date.",
+    "asOf": "As of",
+    "none": "No posted supplier invoices or payments yet.",
+    "balance": "Balance",
+    "total": "Total",
+    "unapplied": "On account",
+    "agingNote": "Aging uses each open invoice's due date (its invoice date when it has none). A negative balance means the supplier owes you; voided documents never count.",
+    "aging": {
+      "CURRENT": "Not yet due",
+      "D1_30": "1–30 days",
+      "D31_60": "31–60 days",
+      "D61_90": "61–90 days",
+      "D90_PLUS": "Over 90 days"
+    },
+    "exportTitle": "Accounting export",
+    "exportHint": "CSV files of posted invoices, credit notes and payments dated in the period, for your accounting system. Nothing is sent from here.",
+    "exportDocuments": "Download documents (CSV)",
+    "exportJournal": "Download journal (CSV)",
+    "journalNeedsAccounts": "Set your account codes in purchasing settings to export a journal.",
+    "statement": "Statement",
+    "statementHint": "Invoices, payments and credit notes with running balance.",
+    "openingBalance": "Opening balance",
+    "closingBalance": "Closing balance",
+    "noEntries": "No documents in this period.",
+    "date": "Date",
+    "document": "Document",
+    "reference": "Reference",
+    "charge": "Invoiced",
+    "credit": "Paid / credited",
+    "openInvoices": "Open invoices",
+    "noOpenInvoices": "No open invoices.",
+    "settled": "Paid / credited",
+    "open": "Open",
+    "onAccount": "Not yet applied to an invoice",
+    "unappliedAmount": "{amount} not applied",
+    "recordPayment": "Record payment",
+    "recordCreditNote": "Record credit note",
+    "amountIn": "Amount ({currency})",
+    "netIn": "Net amount before VAT ({currency})",
+    "method": "Method",
+    "creditNoteNo": "Supplier credit note no.",
+    "creditReason": "Reason",
+    "applyTo": "Apply to invoices",
+    "autoAllocate": "Apply to the earliest due invoices first (ignores the amounts below)",
+    "openAmount": "Open: {amount}",
+    "dueOn": "due {date}",
+    "apply": "Apply",
+    "amount": "Amount",
+    "applied": "Applied",
+    "allocations": "Applied to invoices",
+    "noAllocations": "Not applied to any invoice yet.",
+    "applyRest": "Apply the rest",
+    "void": "Void",
+    "voidHint": "Voiding reopens the invoices it was applied to. It cannot be undone; record a new document instead.",
+    "voidedBy": "Voided by",
+    "voidedBecause": "Voided: {reason}",
+    "payment": "Payment",
+    "paymentsAndCredits": "Payments and credit notes",
+    "accountsTitle": "Account codes for the journal export",
+    "accountsHint": "Your own chart of accounts codes. The journal export uses them as entered; nothing is assumed.",
+    "accountPayables": "Supplier payables (accounts payable)",
+    "accountPurchases": "Purchases / stock received",
+    "accountInputVat": "Input VAT (reclaimable)",
+    "accountPayments": "Bank / cash for payments",
+    "kinds": {
+      "INVOICE": "Invoice",
+      "PAYMENT": "Payment",
+      "CREDIT_NOTE": "Credit note"
+    },
+    "methods": {
+      "BANK_TRANSFER": "Bank transfer",
+      "CASH": "Cash",
+      "CHEQUE": "Cheque",
+      "CARD": "Card",
+      "OTHER": "Other"
+    },
+    "statuses": {
+      "POSTED": "Recorded",
+      "VOIDED": "Voided"
+    },
+    "paymentStatuses": {
+      "OPEN": "Unpaid",
+      "PARTLY_PAID": "Partly paid",
+      "PAID": "Paid"
     }
   }
 }

@@ -2,7 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
-import { InvoiceStatusBadge, LineMatchBadge, MatchBadge } from "@/components/invoices/badges";
+import {
+  InvoiceStatusBadge,
+  LineMatchBadge,
+  MatchBadge,
+  PaymentStatusBadge,
+} from "@/components/invoices/badges";
 import {
   ChargeLineForm,
   GoodsLineForm,
@@ -82,6 +87,7 @@ export default async function InvoicePage({
         actions={
           <span className="flex gap-2">
             {inv.status !== "CANCELLED" ? <MatchBadge status={inv.matchStatus} /> : null}
+            {inv.paymentStatus ? <PaymentStatusBadge status={inv.paymentStatus} /> : null}
             <InvoiceStatusBadge status={inv.status} />
           </span>
         }
@@ -130,6 +136,15 @@ export default async function InvoicePage({
               { label: t("tax.net"), value: amount(inv.netAmount) },
               { label: t("tax.vat"), value: amount(inv.taxAmount) },
               { label: t("tax.gross"), value: amount(inv.grossAmount) },
+              ...(inv.status === "POSTED"
+                ? [
+                    { label: t("payables.settled"), value: amount(inv.settled) },
+                    {
+                      label: t("payables.open"),
+                      value: <span data-testid="invoice-open">{amount(inv.open)}</span>,
+                    },
+                  ]
+                : []),
               { label: t("purchasing.createdBy"), value: who(inv.names.createdBy, inv.createdAt) },
               ...(inv.exceptionApprovedAt
                 ? [
@@ -247,6 +262,28 @@ export default async function InvoicePage({
             </Table>
           )}
         </Card>
+
+        {inv.allocations.length > 0 ? (
+          <Card title={t("payables.paymentsAndCredits")}>
+            <ul className="space-y-1 text-sm">
+              {inv.allocations.map((a) => (
+                <li
+                  key={a.id}
+                  className={a.settlement.status === "VOIDED" ? "text-muted line-through" : ""}
+                >
+                  <Link
+                    href={`/o/${orgSlug}/purchasing/payables/settlements/${a.settlement.id}`}
+                    className="ltr-value text-primary font-mono text-xs hover:underline"
+                  >
+                    {a.settlement.number}
+                  </Link>{" "}
+                  · {t(`payables.kinds.${a.settlement.kind}`)} ·{" "}
+                  <span className="ltr-value">{day(a.settlement.date)}</span> · {amount(a.amount)}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
 
         {inv.can.edit ? (
           <>

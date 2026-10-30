@@ -122,70 +122,73 @@ model Organization {
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships          OrganizationMembership[]
-  roles                Role[]
-  rolePermissions      RolePermission[]
-  membershipRoles      MembershipRole[]
-  invitations          Invitation[]
-  branches             Branch[]
-  warehouses           Warehouse[]
-  locations            StorageLocation[]
-  auditEvents          AuditEvent[]
-  idempotencyKeys      IdempotencyKey[]
-  units                UnitOfMeasure[]
-  products             Product[]
-  barcodes             ProductBarcode[]
-  conversions          ProductUomConversion[]
-  lots                 InventoryLot[]
-  documents            InventoryDocument[]
-  ledgerEntries        InventoryLedgerEntry[]
-  balances             StockBalance[]
-  stockCounts          StockCount[]
-  stockCountLines      StockCountLine[]
-  sequences            DocumentSequence[]
-  valuations           StockValuation[]
-  revaluations         StockRevaluation[]
-  suppliers            Supplier[]
-  supplierProducts     SupplierProduct[]
-  procurementSettings  ProcurementSettings?
-  purchaseOrders       PurchaseOrder[]
-  purchaseOrderLines   PurchaseOrderLine[]
-  goodsReceipts        GoodsReceipt[]
-  goodsReceiptLines    GoodsReceiptLine[]
-  productCategories    ProductCategory[]
-  reorderRules         ReorderRule[]
-  stockShipments       StockShipment[]
-  stockShipmentLines   StockShipmentLine[]
-  landedCosts          LandedCost[]
-  landedCostLines      LandedCostLine[]
-  requisitions         PurchaseRequisition[]
-  requisitionLines     PurchaseRequisitionLine[]
-  recipes              Recipe[]
-  recipeVersions       RecipeVersion[]
-  recipeIngredients    RecipeIngredient[]
-  standardCosts        ProductStandardCost[]
-  recipeSnapshots      RecipeCostSnapshot[]
-  recipePrices         RecipePrice[]
-  recipeSettings       RecipeSettings?
-  recalls              Recall[]
-  recallLots           RecallLot[]
-  recallStock          RecallStock[]
-  recallDocuments      RecallDocument[]
-  safetyCheckpoints    SafetyCheckpoint[]
-  safetyRecords        FoodSafetyRecord[]
-  checklistTemplates   ChecklistTemplate[]
-  checklistItems       ChecklistItem[]
-  checklistRuns        ChecklistRun[]
-  checklistAnswers     ChecklistAnswer[]
-  nonConformances      NonConformance[]
-  correctiveActions    CorrectiveAction[]
-  salesImports         SalesImport[]
-  salesLines           SalesLine[]
-  taxCodes             TaxCode[]
-  taxRates             TaxRate[]
-  taxSettings          TaxSettings?
-  supplierInvoices     SupplierInvoice[]
-  supplierInvoiceLines SupplierInvoiceLine[]
+  memberships           OrganizationMembership[]
+  roles                 Role[]
+  rolePermissions       RolePermission[]
+  membershipRoles       MembershipRole[]
+  invitations           Invitation[]
+  branches              Branch[]
+  warehouses            Warehouse[]
+  locations             StorageLocation[]
+  auditEvents           AuditEvent[]
+  idempotencyKeys       IdempotencyKey[]
+  units                 UnitOfMeasure[]
+  products              Product[]
+  barcodes              ProductBarcode[]
+  conversions           ProductUomConversion[]
+  lots                  InventoryLot[]
+  documents             InventoryDocument[]
+  ledgerEntries         InventoryLedgerEntry[]
+  balances              StockBalance[]
+  stockCounts           StockCount[]
+  stockCountLines       StockCountLine[]
+  sequences             DocumentSequence[]
+  valuations            StockValuation[]
+  revaluations          StockRevaluation[]
+  suppliers             Supplier[]
+  supplierProducts      SupplierProduct[]
+  procurementSettings   ProcurementSettings?
+  purchaseOrders        PurchaseOrder[]
+  purchaseOrderLines    PurchaseOrderLine[]
+  goodsReceipts         GoodsReceipt[]
+  goodsReceiptLines     GoodsReceiptLine[]
+  productCategories     ProductCategory[]
+  reorderRules          ReorderRule[]
+  stockShipments        StockShipment[]
+  stockShipmentLines    StockShipmentLine[]
+  landedCosts           LandedCost[]
+  landedCostLines       LandedCostLine[]
+  requisitions          PurchaseRequisition[]
+  requisitionLines      PurchaseRequisitionLine[]
+  recipes               Recipe[]
+  recipeVersions        RecipeVersion[]
+  recipeIngredients     RecipeIngredient[]
+  standardCosts         ProductStandardCost[]
+  recipeSnapshots       RecipeCostSnapshot[]
+  recipePrices          RecipePrice[]
+  recipeSettings        RecipeSettings?
+  recalls               Recall[]
+  recallLots            RecallLot[]
+  recallStock           RecallStock[]
+  recallDocuments       RecallDocument[]
+  safetyCheckpoints     SafetyCheckpoint[]
+  safetyRecords         FoodSafetyRecord[]
+  checklistTemplates    ChecklistTemplate[]
+  checklistItems        ChecklistItem[]
+  checklistRuns         ChecklistRun[]
+  checklistAnswers      ChecklistAnswer[]
+  nonConformances       NonConformance[]
+  correctiveActions     CorrectiveAction[]
+  salesImports          SalesImport[]
+  salesLines            SalesLine[]
+  taxCodes              TaxCode[]
+  taxRates              TaxRate[]
+  taxSettings           TaxSettings?
+  supplierInvoices      SupplierInvoice[]
+  supplierInvoiceLines  SupplierInvoiceLine[]
+  supplierSettlements   SupplierSettlement[]
+  settlementAllocations SettlementAllocation[]
+  accountingSettings    AccountingSettings?
 
   @@map("organizations")
 }
@@ -1003,11 +1006,12 @@ model Supplier {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   products       SupplierProduct[]
   purchaseOrders PurchaseOrder[]
   receipts       GoodsReceipt[]
   invoices       SupplierInvoice[]
+  settlements    SupplierSettlement[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -2158,6 +2162,7 @@ model TaxCode {
   salesDefaultFor    TaxSettings[]         @relation("DefaultSalesTax")
   invoiceLines       SupplierInvoiceLine[]
   purchaseDefaultFor TaxSettings[]         @relation("DefaultPurchaseTax")
+  settlements        SupplierSettlement[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -2260,9 +2265,10 @@ model SupplierInvoice {
   cancelReason          String?               @map("cancel_reason")
   updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  supplier     Supplier              @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier               @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
   lines        SupplierInvoiceLine[]
+  allocations  SettlementAllocation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -2312,4 +2318,96 @@ model SupplierInvoiceLine {
   @@unique([organizationId, invoiceId, lineNo])
   @@index([organizationId, receiptLineId])
   @@map("supplier_invoice_lines")
+}
+
+// ─── Payables (Milestone 7c, ADR-039) ───
+
+enum SettlementKind {
+  PAYMENT
+  CREDIT_NOTE
+}
+
+enum SettlementStatus {
+  POSTED
+  VOIDED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  CARD
+  OTHER
+}
+
+/// A payment to a supplier or a credit note from one; reduces the supplier balance.
+model SupplierSettlement {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  number             String
+  kind               SettlementKind
+  supplierId         String           @map("supplier_id") @db.Uuid
+  date               DateTime         @db.Date
+  /// Total incl. VAT.
+  amount             Decimal          @db.Decimal(19, 4)
+  /// Credit notes only: net and VAT.
+  netAmount          Decimal?         @map("net_amount") @db.Decimal(19, 4)
+  taxAmount          Decimal          @default(0) @map("tax_amount") @db.Decimal(19, 4)
+  taxCodeId          String?          @map("tax_code_id") @db.Uuid
+  taxRate            Decimal?         @map("tax_rate") @db.Decimal(9, 6)
+  /// Payments only.
+  method             PaymentMethod?
+  reference          String?
+  /// Credit notes only: the supplier's own document number.
+  supplierDocumentNo String?          @map("supplier_document_no")
+  note               String?
+  status             SettlementStatus @default(POSTED)
+  createdByUserId    String           @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  voidedAt           DateTime?        @map("voided_at") @db.Timestamptz(3)
+  voidedByUserId     String?          @map("voided_by_user_id") @db.Uuid
+  voidReason         String?          @map("void_reason")
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier               @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  taxCode      TaxCode?               @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+  allocations  SettlementAllocation[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, supplierId, date])
+  @@map("supplier_settlements")
+}
+
+/// Part of a settlement applied to a posted invoice.
+model SettlementAllocation {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  settlementId    String   @map("settlement_id") @db.Uuid
+  invoiceId       String   @map("invoice_id") @db.Uuid
+  amount          Decimal  @db.Decimal(19, 4)
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  settlement   SupplierSettlement @relation(fields: [organizationId, settlementId], references: [organizationId, id], onDelete: Restrict)
+  invoice      SupplierInvoice    @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, invoiceId])
+  @@index([organizationId, settlementId])
+  @@map("settlement_allocations")
+}
+
+/// The organization's own account codes for the journal export; never invented.
+model AccountingSettings {
+  organizationId   String   @id @map("organization_id") @db.Uuid
+  payablesAccount  String?  @map("payables_account")
+  purchasesAccount String?  @map("purchases_account")
+  inputVatAccount  String?  @map("input_vat_account")
+  paymentsAccount  String?  @map("payments_account")
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("accounting_settings")
 }

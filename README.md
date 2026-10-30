@@ -4,7 +4,7 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, point of sale, sales/invoice workflows and analytics.
 
-> **Status:** Milestones 0–4 and 6 complete, M7 in progress — on top of the M1
+> **Status:** Milestones 0–4, 6 and 7 complete — on top of the M1
 > foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
@@ -24,8 +24,9 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > verified by a second person. Milestone 7 adds sales import from CSV that
 > uses up stock through recipes (first-expiring lots first, cost of sales)
 > and a VAT setup for Saudi Arabia, Egypt and the GCC (dated rates, VAT per
-> sale line, net prices in food cost) and supplier invoices matched
-> against orders and receipts, with input VAT. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> sale line, net prices in food cost), supplier invoices matched against
+> orders and receipts with input VAT, and payables: payments, credit notes,
+> supplier balances and aging, statements and accounting export files. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

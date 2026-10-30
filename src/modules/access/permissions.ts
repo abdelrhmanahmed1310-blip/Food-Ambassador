@@ -45,6 +45,7 @@ export const PERMISSIONS = [
   "sales.import",
   "invoices.view",
   "invoices.manage",
+  "payments.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -252,6 +253,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "sales.view",
       "invoices.view",
       "invoices.manage",
+      "payments.manage",
     ],
     organizationScopeOnly: false,
   },

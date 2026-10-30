@@ -1,19 +1,57 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (M7b supplier invoices with 3-way match and input VAT)
+Last updated: 2026-11-04 (M7c supplier payables; Milestone 7 complete)
 
 ## Summary
 
-| Milestone                     | Status                                                                                                                                                       |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| M0 Repository & architecture  | ✅ Complete                                                                                                                                                  |
-| M1 Application foundation     | ✅ Complete                                                                                                                                                  |
-| M2 Inventory MVP              | ✅ Complete                                                                                                                                                  |
-| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                          |
-| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                            |
-| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                 |
-| M7 Sales & finance            | 🔄 In progress — M7a ✅ (sales import, recipe consumption), VAT setup ✅ (KSA, Egypt, GCC), **M7b ✅** (supplier invoices, 3-way match, input VAT); M7c next |
-| M5, M8 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                                                     |
+| Milestone                     | Status                                                                                                                                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                    |
+| M1 Application foundation     | ✅ Complete                                                                                                                                                                                    |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                    |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                            |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                              |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                   |
+| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export) |
+| M5, M8 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+
+## M7c — Supplier payables (delivered)
+
+Rules: DECISIONS.md ADR-039.
+
+| Area         | What works                                                                                                                             | Where                                |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Payments     | `PAY-` with method and reference; applied per invoice or earliest due first; rest on account, applied later; amounts in currency units | `src/modules/invoices/payables.ts`   |
+| Credit notes | `SCN-` with supplier number (unique per supplier), net + VAT at the rate on its date, reason; applied like payments                    | `recordCreditNote`                   |
+| Void         | With a reason; reopens the invoices; settlements otherwise unchangeable (trigger); paid invoices cannot be cancelled                   | `voidSettlement`                     |
+| Balances     | Per supplier on any date, aging (not due, 1–30, 31–60, 61–90, 90+ days past due), on-account amounts, totals                           | `/purchasing/payables`               |
+| Statement    | Opening balance, documents with running balance, open invoices, unapplied settlements; record payment / credit note                    | `/purchasing/payables/[supplierId]`  |
+| Input VAT    | Credit notes reduce input VAT in their period                                                                                          | `inputVatSummary`                    |
+| Export       | Documents CSV (per VAT rate) and balanced journal CSV with the organization's own account codes (purchasing settings)                  | `src/modules/invoices/accounting.ts` |
+| Invoices     | Paid / partly paid / unpaid status, settled and open amounts, payments and credits listed                                              | `/purchasing/invoices`               |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 28 files / 172 tests — 5
+new: aging days and buckets incl. leap years, payment status, earliest-due
+allocation with remainder, journal lines with and without VAT registration
+and for credit notes and payments, always balanced; build);
+`pnpm test:integration` 23 files / 179 tests pass (4 new: explicit and
+oldest-first payments, on-account remainder applied later, over-allocation
+refused, another supplier's invoice refused, too many decimals refused,
+balances and aging on two dates, statement running balance, a paid invoice
+cannot be cancelled, void reopens; credit note VAT, duplicate number,
+zero-rated credit, input VAT net of credits, idempotent retry; documents
+export, journal refused without accounts, formula-like account code
+refused, balanced journal with VAT split; permissions — operations manager
+and procurement cannot pay, read-only balances — other tenants, and a
+settlement cannot be edited in the database); `pnpm test:e2e` 31 tests
+pass (new: invoice of 300 → payment over-applied refused → 120 applied →
+partly paid with 180 open → balance 180 → account codes → journal CSV).
+
+Limitations: one currency (Q-05); no bank file import or reconciliation;
+no payment approvals or scheduled payment runs; no supplier advances
+before an invoice beyond "on account"; the journal format is generic CSV
+(target ERP formats wait for Q-06); invoice price differences are still
+not posted to stock value.
 
 ## M7b — Supplier invoices with 3-way match (delivered)
 
@@ -50,7 +88,7 @@ edited), inviting double entry; open quantity now counts every invoice that
 is not cancelled.
 
 Limitations: invoices do not change stock value (price differences are
-reported only); no credit notes, payments or supplier balances yet (M7c);
+reported only); payments and credit notes came with M7c;
 base currency only; no PDF/e-invoice import (ZATCA / ETA XML) — entered by
 hand; one approval level for exceptions.
 
