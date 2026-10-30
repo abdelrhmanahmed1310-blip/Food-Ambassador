@@ -24,7 +24,8 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > verified by a second person. Milestone 7 adds sales import from CSV that
 > uses up stock through recipes (first-expiring lots first, cost of sales)
 > and a VAT setup for Saudi Arabia, Egypt and the GCC (dated rates, VAT per
-> sale line, net prices in food cost). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> sale line, net prices in food cost) and supplier invoices matched
+> against orders and receipts, with input VAT. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

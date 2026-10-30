@@ -12,6 +12,8 @@ export interface ProcurementRules {
   approvalThreshold: Decimal | null;
   /** Fraction 0–1. */
   overReceiptTolerance: Decimal;
+  /** Fraction 0–1 an invoice price may differ from the order price. */
+  invoicePriceTolerance: Decimal;
 }
 
 /** Defaults until an organization changes them (ADR-023): no approval step, 0 % tolerance. */
@@ -23,6 +25,7 @@ export async function loadRules(tx: Tx, ctx: TenantContext): Promise<Procurement
     approvalThreshold:
       row?.approvalThreshold == null ? null : new Decimal(row.approvalThreshold.toString()),
     overReceiptTolerance: new Decimal(row?.overReceiptTolerance.toString() ?? "0"),
+    invoicePriceTolerance: new Decimal(row?.invoicePriceTolerance.toString() ?? "0"),
   };
 }
 
@@ -39,12 +42,20 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
   const overReceiptTolerance = toDecimal(parsed.data.overReceiptTolerancePercent)
     .dividedBy(100)
     .toFixed();
+  const invoicePriceTolerance = toDecimal(parsed.data.invoicePriceTolerancePercent)
+    .dividedBy(100)
+    .toFixed();
   await withTenantTx(ctx.organizationId, async (tx) => {
     const before = await loadRules(tx, ctx);
     await tx.procurementSettings.upsert({
       where: { organizationId: ctx.organizationId },
-      create: { organizationId: ctx.organizationId, approvalThreshold, overReceiptTolerance },
-      update: { approvalThreshold, overReceiptTolerance },
+      create: {
+        organizationId: ctx.organizationId,
+        approvalThreshold,
+        overReceiptTolerance,
+        invoicePriceTolerance,
+      },
+      update: { approvalThreshold, overReceiptTolerance, invoicePriceTolerance },
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "procurement.settings_updated",
@@ -58,6 +69,10 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
         overReceiptTolerance: {
           from: before.overReceiptTolerance.toFixed(),
           to: overReceiptTolerance,
+        },
+        invoicePriceTolerance: {
+          from: before.invoicePriceTolerance.toFixed(),
+          to: invoicePriceTolerance,
         },
       },
     });

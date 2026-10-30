@@ -47,6 +47,10 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  │                        #   valuation.ts (pure moving-average rules), valuation-queries.ts (stock value reports)
 │  │  ├─ procurement/          # suppliers, requisitions, purchase orders + approval, receiving, landed cost, reorder, supplier performance (rules.ts pure)
 │  │  ├─ recipes/              # recipes, versions, ingredients, standard costs, cost snapshots (costing.ts pure)
+│  │  ├─ invoices/             # supplier invoices, 3-way match, exception approval, input VAT (rules.ts pure)
+│  │  ├─ sales/                # sales import, recipe explosion, consumption
+│  │  ├─ tax/                  # VAT presets, codes and dated rates, VAT calculation (rules.ts pure), VAT summary
+│  │  ├─ foodsafety/  traceability/  # food safety records, checklists, NCs; lot trace and recalls
 │  │  ├─ members/              # memberships, invitations, role grants, last-owner rule
 │  │  ├─ organizations/        # organization onboarding, settings, overview counts
 │  │  ├─ sites/                # branches, warehouses, storage locations

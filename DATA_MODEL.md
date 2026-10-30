@@ -771,9 +771,23 @@ ZERO_RATED | EXEMPT | OUT_OF_SCOPE); **tax_rates** (code, `rate` fraction in
 `recipe_prices.includes_tax`, `sales_lines.tax_code_id / tax_rate /
 tax_amount / gross_amount` and `sales_imports.tax_amount / gross_amount`.
 
-- **supplier_invoices / lines**, **invoice_matches** (PO line ↔ receipt line ↔
-  invoice line, with quantity/price variances and tolerances),
-  **supplier_settlements** (payments, credit notes) and supplier balance
+**Supplier invoices** (migration `20261103090000_m7_supplier_invoices`,
+ADR-038): **supplier_invoices** (`PI-` number UQ, supplier,
+`supplier_invoice_no` — partial UQ per supplier where status ≠ CANCELLED —
+invoice and due date (CK due ≥ invoice), status DRAFT | POSTED | CANCELLED
+(CK with posted/cancelled timestamps), `printed_gross`, computed net / tax /
+gross, `match_status` MATCHED | EXCEPTION, exception approval (CK approver ≠
+creator) with note, cancel reason) and **supplier_invoice_lines** (line no
+UQ per invoice, kind GOODS | CHARGE; goods lines CK-require receipt line,
+product, unit and `quantity_base` > 0 and keep the PO line, order and
+received unit price; quantity, unit price, tax code and rate, net + tax =
+gross (CK), `match` MATCHED | PRICE_VARIANCE | QUANTITY_VARIANCE |
+PRICE_AND_QUANTITY | NOT_APPLICABLE, quantity and price variance). Lines
+change only while the invoice is a draft (trigger). The match is stored on
+the lines; there is no separate match table.
+`procurement_settings.invoice_price_tolerance` (fraction 0–1).
+
+- Planned for M7c: **supplier_settlements** (payments, credit notes) and supplier balance
   derived from invoices − settlements.
 
 ## 10. Platform tables

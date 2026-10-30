@@ -1,19 +1,58 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (VAT setup for Saudi Arabia, Egypt and the GCC)
+Last updated: 2026-11-03 (M7b supplier invoices with 3-way match and input VAT)
 
 ## Summary
 
-| Milestone                     | Status                                                                                                                              |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture  | ✅ Complete                                                                                                                         |
-| M1 Application foundation     | ✅ Complete                                                                                                                         |
-| M2 Inventory MVP              | ✅ Complete                                                                                                                         |
-| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
-| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card   |
-| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                        |
-| M7 Sales & finance            | 🔄 In progress — M7a ✅ (sales import, recipe consumption), **VAT setup ✅** (KSA, Egypt, GCC); supplier invoices next              |
-| M5, M8 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                            |
+| Milestone                     | Status                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                                                  |
+| M1 Application foundation     | ✅ Complete                                                                                                                                                  |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                                                  |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                          |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                            |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                 |
+| M7 Sales & finance            | 🔄 In progress — M7a ✅ (sales import, recipe consumption), VAT setup ✅ (KSA, Egypt, GCC), **M7b ✅** (supplier invoices, 3-way match, input VAT); M7c next |
+| M5, M8 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                                                     |
+
+## M7b — Supplier invoices with 3-way match (delivered)
+
+Rules: DECISIONS.md ADR-038.
+
+| Area       | What works                                                                                                                                       | Where                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| Invoice    | `PI-` number, supplier invoice no. (unique per supplier unless cancelled), invoice/due date (from payment terms), total as printed               | `src/modules/invoices/service.ts`   |
+| Lines      | Goods from posted receipt lines of the supplier (defaults: open quantity, price charged on receiving); charges with net amount                   | `addGoodsLine`, `addChargeLine`     |
+| Match      | Price vs order price within the tolerance (purchasing settings), quantity vs received and not yet invoiced (drafts count), printed total = lines | `rules.ts` (pure, unit-tested)      |
+| Exceptions | Approved with a note by another person; any change clears the approval; posting refused without it                                               | `approveException`, `postInvoice`   |
+| VAT        | Per line at the rate on the invoice date (product, override or default purchase code); invoice date locked while there are lines                 | `loadTaxContextInTx` + `taxFromNet` |
+| Input VAT  | Posted invoices by invoice date per code and rate; marked not reclaimable when not VAT registered; output − input shown as an estimate           | `/sales/vat`                        |
+| Screens    | Invoices list with status filter, new invoice, detail (lines with match, received-to-invoice, charges, header, approve, post, cancel); EN/AR     | `/purchasing/invoices`              |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 27 files / 167 tests — new:
+goods line match with tolerance and over-invoicing, total check per
+currency unit, due date from terms, invoice status; build);
+`pnpm test:integration` 22 files / 175 tests pass (5 new: matched invoice
+with VAT, total mismatch then corrected and posted, duplicate supplier
+number refused but allowed for another supplier, a draft line removes the
+quantity from what is open; price variance needing a second person,
+approval cleared by a change, over-invoicing across invoices, cancel and
+re-use of the number; other supplier's and reversed receipts refused, date
+locked with lines, due date before invoice date; 5 % rate for a 2020
+invoice and the input VAT summary; permissions and other tenants);
+`pnpm test:e2e` 30 tests pass (new: Egypt preset → order, receive 10 kg at
+10 → invoice with a wrong total flagged → corrected → posted → input VAT
+14.00 at 14 %, marked not reclaimable).
+
+Found and fixed: the invoice page left a receipt line on offer after it was
+fully put on the same draft (the open quantity ignored the invoice being
+edited), inviting double entry; open quantity now counts every invoice that
+is not cancelled.
+
+Limitations: invoices do not change stock value (price differences are
+reported only); no credit notes, payments or supplier balances yet (M7c);
+base currency only; no PDF/e-invoice import (ZATCA / ETA XML) — entered by
+hand; one approval level for exceptions.
 
 ## VAT setup — Saudi Arabia, Egypt, GCC (delivered)
 
@@ -47,8 +86,8 @@ checkbox field now keeps the user's choice — also used for "activate now"
 in bulk replacement and the line selection when ordering a requisition.
 
 Limitations: no e-invoicing (ZATCA Fatoora phases, Egypt ETA e-invoice /
-e-receipt — POS4); input VAT and VAT returns need supplier invoices (M7b)
-and are not filed from here; the VAT country is not tied to the base
+e-receipt — POS4); input VAT comes from supplier invoices (M7b); VAT
+returns are not filed from here; the VAT country is not tied to the base
 currency; special regimes (e.g. tourism, free zones) are left to the
 organization's own codes.
 

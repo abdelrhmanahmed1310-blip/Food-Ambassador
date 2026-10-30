@@ -122,68 +122,70 @@ model Organization {
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships         OrganizationMembership[]
-  roles               Role[]
-  rolePermissions     RolePermission[]
-  membershipRoles     MembershipRole[]
-  invitations         Invitation[]
-  branches            Branch[]
-  warehouses          Warehouse[]
-  locations           StorageLocation[]
-  auditEvents         AuditEvent[]
-  idempotencyKeys     IdempotencyKey[]
-  units               UnitOfMeasure[]
-  products            Product[]
-  barcodes            ProductBarcode[]
-  conversions         ProductUomConversion[]
-  lots                InventoryLot[]
-  documents           InventoryDocument[]
-  ledgerEntries       InventoryLedgerEntry[]
-  balances            StockBalance[]
-  stockCounts         StockCount[]
-  stockCountLines     StockCountLine[]
-  sequences           DocumentSequence[]
-  valuations          StockValuation[]
-  revaluations        StockRevaluation[]
-  suppliers           Supplier[]
-  supplierProducts    SupplierProduct[]
-  procurementSettings ProcurementSettings?
-  purchaseOrders      PurchaseOrder[]
-  purchaseOrderLines  PurchaseOrderLine[]
-  goodsReceipts       GoodsReceipt[]
-  goodsReceiptLines   GoodsReceiptLine[]
-  productCategories   ProductCategory[]
-  reorderRules        ReorderRule[]
-  stockShipments      StockShipment[]
-  stockShipmentLines  StockShipmentLine[]
-  landedCosts         LandedCost[]
-  landedCostLines     LandedCostLine[]
-  requisitions        PurchaseRequisition[]
-  requisitionLines    PurchaseRequisitionLine[]
-  recipes             Recipe[]
-  recipeVersions      RecipeVersion[]
-  recipeIngredients   RecipeIngredient[]
-  standardCosts       ProductStandardCost[]
-  recipeSnapshots     RecipeCostSnapshot[]
-  recipePrices        RecipePrice[]
-  recipeSettings      RecipeSettings?
-  recalls             Recall[]
-  recallLots          RecallLot[]
-  recallStock         RecallStock[]
-  recallDocuments     RecallDocument[]
-  safetyCheckpoints   SafetyCheckpoint[]
-  safetyRecords       FoodSafetyRecord[]
-  checklistTemplates  ChecklistTemplate[]
-  checklistItems      ChecklistItem[]
-  checklistRuns       ChecklistRun[]
-  checklistAnswers    ChecklistAnswer[]
-  nonConformances     NonConformance[]
-  correctiveActions   CorrectiveAction[]
-  salesImports        SalesImport[]
-  salesLines          SalesLine[]
-  taxCodes            TaxCode[]
-  taxRates            TaxRate[]
-  taxSettings         TaxSettings?
+  memberships          OrganizationMembership[]
+  roles                Role[]
+  rolePermissions      RolePermission[]
+  membershipRoles      MembershipRole[]
+  invitations          Invitation[]
+  branches             Branch[]
+  warehouses           Warehouse[]
+  locations            StorageLocation[]
+  auditEvents          AuditEvent[]
+  idempotencyKeys      IdempotencyKey[]
+  units                UnitOfMeasure[]
+  products             Product[]
+  barcodes             ProductBarcode[]
+  conversions          ProductUomConversion[]
+  lots                 InventoryLot[]
+  documents            InventoryDocument[]
+  ledgerEntries        InventoryLedgerEntry[]
+  balances             StockBalance[]
+  stockCounts          StockCount[]
+  stockCountLines      StockCountLine[]
+  sequences            DocumentSequence[]
+  valuations           StockValuation[]
+  revaluations         StockRevaluation[]
+  suppliers            Supplier[]
+  supplierProducts     SupplierProduct[]
+  procurementSettings  ProcurementSettings?
+  purchaseOrders       PurchaseOrder[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  goodsReceipts        GoodsReceipt[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  productCategories    ProductCategory[]
+  reorderRules         ReorderRule[]
+  stockShipments       StockShipment[]
+  stockShipmentLines   StockShipmentLine[]
+  landedCosts          LandedCost[]
+  landedCostLines      LandedCostLine[]
+  requisitions         PurchaseRequisition[]
+  requisitionLines     PurchaseRequisitionLine[]
+  recipes              Recipe[]
+  recipeVersions       RecipeVersion[]
+  recipeIngredients    RecipeIngredient[]
+  standardCosts        ProductStandardCost[]
+  recipeSnapshots      RecipeCostSnapshot[]
+  recipePrices         RecipePrice[]
+  recipeSettings       RecipeSettings?
+  recalls              Recall[]
+  recallLots           RecallLot[]
+  recallStock          RecallStock[]
+  recallDocuments      RecallDocument[]
+  safetyCheckpoints    SafetyCheckpoint[]
+  safetyRecords        FoodSafetyRecord[]
+  checklistTemplates   ChecklistTemplate[]
+  checklistItems       ChecklistItem[]
+  checklistRuns        ChecklistRun[]
+  checklistAnswers     ChecklistAnswer[]
+  nonConformances      NonConformance[]
+  correctiveActions    CorrectiveAction[]
+  salesImports         SalesImport[]
+  salesLines           SalesLine[]
+  taxCodes             TaxCode[]
+  taxRates             TaxRate[]
+  taxSettings          TaxSettings?
+  supplierInvoices     SupplierInvoice[]
+  supplierInvoiceLines SupplierInvoiceLine[]
 
   @@map("organizations")
 }
@@ -516,6 +518,7 @@ model UnitOfMeasure {
   requisitionLines   PurchaseRequisitionLine[]
   recipeIngredients  RecipeIngredient[]
   recipeYields       RecipeVersion[]
+  invoiceLines       SupplierInvoiceLine[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
   @@unique([organizationId, code], map: "units_of_measure_code_key")
@@ -579,6 +582,7 @@ model Product {
   recipeIngredients  RecipeIngredient[]
   standardCosts      ProductStandardCost[]
   salesLines         SalesLine[]
+  invoiceLines       SupplierInvoiceLine[]
   landedCostLines    LandedCostLine[]
 
   @@unique([organizationId, id])
@@ -1003,6 +1007,7 @@ model Supplier {
   products       SupplierProduct[]
   purchaseOrders PurchaseOrder[]
   receipts       GoodsReceipt[]
+  invoices       SupplierInvoice[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1040,12 +1045,14 @@ model SupplierProduct {
 
 /// Purchasing rules of one organization (DECISIONS.md ADR-023).
 model ProcurementSettings {
-  organizationId       String   @id @map("organization_id") @db.Uuid
+  organizationId        String   @id @map("organization_id") @db.Uuid
   /// Orders above this total need approval by another user; null = no approval step.
-  approvalThreshold    Decimal? @map("approval_threshold") @db.Decimal(19, 4)
+  approvalThreshold     Decimal? @map("approval_threshold") @db.Decimal(19, 4)
   /// Fraction 0–1 by which accepted quantity may exceed the ordered quantity.
-  overReceiptTolerance Decimal  @default(0) @map("over_receipt_tolerance") @db.Decimal(9, 6)
-  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  overReceiptTolerance  Decimal  @default(0) @map("over_receipt_tolerance") @db.Decimal(9, 6)
+  /// Fraction 0–1 by which an invoice unit price may differ from the order price (ADR-038).
+  invoicePriceTolerance Decimal  @default(0) @map("invoice_price_tolerance") @db.Decimal(9, 6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
@@ -1123,6 +1130,7 @@ model PurchaseOrderLine {
   uom             UnitOfMeasure            @relation(fields: [uomId], references: [id], onDelete: Restrict)
   receiptLines    GoodsReceiptLine[]
   requisitionLine PurchaseRequisitionLine?
+  invoiceLines    SupplierInvoiceLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, purchaseOrderId, lineNo])
@@ -1197,13 +1205,14 @@ model GoodsReceiptLine {
   orderedUnitPrice     Decimal  @map("ordered_unit_price") @db.Decimal(20, 6)
   temperatureCelsius   Decimal? @map("temperature_celsius") @db.Decimal(5, 1)
 
-  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  receipt           GoodsReceipt      @relation(fields: [organizationId, receiptId], references: [organizationId, id], onDelete: Restrict)
-  purchaseOrderLine PurchaseOrderLine @relation(fields: [organizationId, purchaseOrderLineId], references: [organizationId, id], onDelete: Restrict)
-  product           Product           @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
-  uom               UnitOfMeasure     @relation(fields: [uomId], references: [id], onDelete: Restrict)
-  lot               InventoryLot?     @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  organization      Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  receipt           GoodsReceipt          @relation(fields: [organizationId, receiptId], references: [organizationId, id], onDelete: Restrict)
+  purchaseOrderLine PurchaseOrderLine     @relation(fields: [organizationId, purchaseOrderLineId], references: [organizationId, id], onDelete: Restrict)
+  product           Product               @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom               UnitOfMeasure         @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  lot               InventoryLot?         @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
   landedCostLines   LandedCostLine[]
+  invoiceLines      SupplierInvoiceLine[]
 
   @@unique([organizationId, id])
   @@index([organizationId, receiptId])
@@ -2141,13 +2150,14 @@ model TaxCode {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization       Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   rates              TaxRate[]
-  recipes            Recipe[]      @relation("RecipeTaxCode")
-  purchaseProducts   Product[]     @relation("ProductPurchaseTaxCode")
+  recipes            Recipe[]              @relation("RecipeTaxCode")
+  purchaseProducts   Product[]             @relation("ProductPurchaseTaxCode")
   salesLines         SalesLine[]
-  salesDefaultFor    TaxSettings[] @relation("DefaultSalesTax")
-  purchaseDefaultFor TaxSettings[] @relation("DefaultPurchaseTax")
+  salesDefaultFor    TaxSettings[]         @relation("DefaultSalesTax")
+  invoiceLines       SupplierInvoiceLine[]
+  purchaseDefaultFor TaxSettings[]         @relation("DefaultPurchaseTax")
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -2192,4 +2202,114 @@ model TaxSettings {
   defaultPurchaseTaxCode TaxCode?     @relation("DefaultPurchaseTax", fields: [organizationId, defaultPurchaseTaxCodeId], references: [organizationId, id], onDelete: Restrict)
 
   @@map("tax_settings")
+}
+
+// ─── Supplier invoices and 3-way match (Milestone 7b, ADR-038) ───
+
+enum SupplierInvoiceStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum InvoiceMatchStatus {
+  MATCHED
+  EXCEPTION
+}
+
+enum InvoiceLineKind {
+  GOODS
+  CHARGE
+}
+
+enum InvoiceLineMatch {
+  MATCHED
+  PRICE_VARIANCE
+  QUANTITY_VARIANCE
+  PRICE_AND_QUANTITY
+  /// Charge lines (no order or receipt to match).
+  NOT_APPLICABLE
+}
+
+model SupplierInvoice {
+  id                    String                @id @default(uuid(7)) @db.Uuid
+  organizationId        String                @map("organization_id") @db.Uuid
+  number                String
+  supplierId            String                @map("supplier_id") @db.Uuid
+  /// The supplier's own invoice number.
+  supplierInvoiceNo     String                @map("supplier_invoice_no")
+  invoiceDate           DateTime              @map("invoice_date") @db.Date
+  dueDate               DateTime?             @map("due_date") @db.Date
+  status                SupplierInvoiceStatus @default(DRAFT)
+  /// Total incl. VAT as printed on the supplier's document, checked against the lines.
+  printedGross          Decimal               @map("printed_gross") @db.Decimal(19, 4)
+  netAmount             Decimal               @default(0) @map("net_amount") @db.Decimal(19, 4)
+  taxAmount             Decimal               @default(0) @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount           Decimal               @default(0) @map("gross_amount") @db.Decimal(19, 4)
+  matchStatus           InvoiceMatchStatus    @default(MATCHED) @map("match_status")
+  note                  String?
+  createdByUserId       String                @map("created_by_user_id") @db.Uuid
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  exceptionApprovedAt   DateTime?             @map("exception_approved_at") @db.Timestamptz(3)
+  exceptionApprovedById String?               @map("exception_approved_by_id") @db.Uuid
+  exceptionNote         String?               @map("exception_note")
+  postedAt              DateTime?             @map("posted_at") @db.Timestamptz(3)
+  postedByUserId        String?               @map("posted_by_user_id") @db.Uuid
+  cancelledAt           DateTime?             @map("cancelled_at") @db.Timestamptz(3)
+  cancelledByUserId     String?               @map("cancelled_by_user_id") @db.Uuid
+  cancelReason          String?               @map("cancel_reason")
+  updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier              @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  lines        SupplierInvoiceLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, supplierId, invoiceDate])
+  @@index([organizationId, status])
+  @@map("supplier_invoices")
+}
+
+model SupplierInvoiceLine {
+  id                  String           @id @default(uuid(7)) @db.Uuid
+  organizationId      String           @map("organization_id") @db.Uuid
+  invoiceId           String           @map("invoice_id") @db.Uuid
+  lineNo              Int              @map("line_no")
+  kind                InvoiceLineKind
+  receiptLineId       String?          @map("receipt_line_id") @db.Uuid
+  purchaseOrderLineId String?          @map("purchase_order_line_id") @db.Uuid
+  productId           String?          @map("product_id") @db.Uuid
+  description         String
+  /// Goods: in the order line's unit.
+  uomId               String?          @map("uom_id") @db.Uuid
+  quantity            Decimal          @db.Decimal(20, 6)
+  quantityBase        Decimal?         @map("quantity_base") @db.Decimal(20, 6)
+  unitPrice           Decimal          @map("unit_price") @db.Decimal(20, 6)
+  /// Prices to match against (per uom_id): the order and the receipt.
+  orderedUnitPrice    Decimal?         @map("ordered_unit_price") @db.Decimal(20, 6)
+  receivedUnitPrice   Decimal?         @map("received_unit_price") @db.Decimal(20, 6)
+  taxCodeId           String?          @map("tax_code_id") @db.Uuid
+  taxRate             Decimal?         @map("tax_rate") @db.Decimal(7, 6)
+  netAmount           Decimal          @map("net_amount") @db.Decimal(19, 4)
+  taxAmount           Decimal          @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount         Decimal          @map("gross_amount") @db.Decimal(19, 4)
+  match               InvoiceLineMatch @default(NOT_APPLICABLE)
+  /// Invoiced quantity beyond what was received and not yet invoiced (base unit).
+  quantityVariance    Decimal?         @map("quantity_variance") @db.Decimal(20, 6)
+  /// (Invoice − order unit price) × quantity.
+  priceVariance       Decimal?         @map("price_variance") @db.Decimal(19, 4)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invoice           SupplierInvoice    @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Cascade)
+  receiptLine       GoodsReceiptLine?  @relation(fields: [organizationId, receiptLineId], references: [organizationId, id], onDelete: Restrict)
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [organizationId, purchaseOrderLineId], references: [organizationId, id], onDelete: Restrict)
+  product           Product?           @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom               UnitOfMeasure?     @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  taxCode           TaxCode?           @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, invoiceId, lineNo])
+  @@index([organizationId, receiptLineId])
+  @@map("supplier_invoice_lines")
 }

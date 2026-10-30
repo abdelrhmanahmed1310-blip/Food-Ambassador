@@ -106,8 +106,9 @@
     "nonConformances": "Non-conformances",
     "checkpoints": "Monitoring points",
     "sales": "Sales",
-    "vatSummary": "VAT on sales",
-    "taxSettings": "VAT"
+    "vatSummary": "VAT summary",
+    "taxSettings": "VAT",
+    "supplierInvoices": "Supplier invoices"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -209,7 +210,8 @@
     "alreadyReversed": "This document was already reversed.",
     "countLineExists": "This item is already on the count.",
     "fileAlreadyImported": "This file was already imported.",
-    "productAlreadyOnOrder": "This product is already on the order. Change that line instead."
+    "productAlreadyOnOrder": "This product is already on the order. Change that line instead.",
+    "invoiceNumberTaken": "This supplier invoice number is already entered for this supplier."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -303,7 +305,18 @@
     "VAT_NUMBER_REQUIRED": "Enter the VAT registration number.",
     "INVALID_VAT_NUMBER": "The VAT number does not have the expected format for this country.",
     "DEFAULT_TAX_CODE_REQUIRED": "Choose the default sales VAT code.",
-    "NON_STANDARD_RATE_MUST_BE_ZERO": "Zero-rated, exempt and out-of-scope codes have a 0 % rate."
+    "NON_STANDARD_RATE_MUST_BE_ZERO": "Zero-rated, exempt and out-of-scope codes have a 0 % rate.",
+    "INVOICE_NOT_DRAFT": "Only draft invoices can be changed.",
+    "DUE_BEFORE_INVOICE": "The due date is before the invoice date.",
+    "INVOICE_DATE_LOCKED": "Remove the lines before changing the invoice date; VAT rates depend on it.",
+    "RECEIPT_OTHER_SUPPLIER": "This receipt is from another supplier.",
+    "RECEIPT_LINE_NOT_ACCEPTED": "Nothing was accepted on this receipt line.",
+    "INVOICE_NO_EXCEPTION": "The invoice matches; there is nothing to approve.",
+    "INVOICE_SELF_APPROVAL": "You entered this invoice, so someone else must approve its differences.",
+    "INVOICE_HAS_NO_LINES": "Add at least one line first.",
+    "INVOICE_EXCEPTION_NOT_APPROVED": "The invoice does not match. Another person must approve the differences first.",
+    "NO_TAX_RATE": "VAT code {code} has no rate on the invoice date.",
+    "UNKNOWN_TAX_CODE": "Choose a VAT code that exists."
   },
   "notFound": {
     "title": "Page not found",
@@ -498,7 +511,9 @@
       "foodsafety.record": "Record readings and checks, complete checklists, raise non-conformances",
       "foodsafety.manage": "Manage monitoring points, checklists and corrective actions",
       "sales.view": "View sales imports",
-      "sales.import": "Import sales and reverse imports"
+      "sales.import": "Import sales and reverse imports",
+      "invoices.view": "View supplier invoices",
+      "invoices.manage": "Enter, approve and post supplier invoices"
     }
   },
   "audit": {
@@ -1588,15 +1603,92 @@
     "useDefault": "Organization default",
     "netOfVat": "{amount} excl. VAT",
     "noRateForPrice": "No VAT rate for today — net price unknown",
-    "summaryTitle": "VAT on sales",
-    "summaryHint": "Output VAT from imported sales, by code and rate, for a period.",
-    "summaryNote": "Output VAT only, from imported sales. Input VAT from supplier invoices comes with invoice capture (M7b). This summary does not replace your VAT return.",
+    "summaryTitle": "VAT summary",
+    "summaryHint": "Output VAT from imported sales and input VAT from posted supplier invoices, by code and rate, for a period.",
+    "summaryNote": "An estimate for review from the sales and invoices recorded here; it does not replace your VAT return.",
     "from": "From",
     "to": "To",
     "net": "Net",
     "vat": "VAT",
     "gross": "Gross",
     "noSales": "No sales in this period.",
-    "notTaxed": "No VAT applied"
+    "notTaxed": "No VAT applied",
+    "outputVat": "Output VAT (sales)",
+    "inputVat": "Input VAT (supplier invoices)",
+    "inputNotReclaimable": "The organization is not VAT registered, so this VAT is part of the cost and is not reclaimable.",
+    "noInvoices": "No posted supplier invoices in this period.",
+    "netEstimate": "Output VAT {output} minus input VAT {input} = {net} (estimate)."
+  },
+  "invoices": {
+    "title": "Supplier invoices",
+    "hint": "Invoices matched against what was ordered and received (3-way match), with input VAT.",
+    "new": "New supplier invoice",
+    "newHint": "Enter the invoice header as printed, then add the received goods and charges it covers.",
+    "create": "Create invoice",
+    "all": "All",
+    "none": "No supplier invoices yet.",
+    "supplierInvoiceNo": "Supplier invoice no.",
+    "supplierVat": "Supplier VAT number",
+    "invoiceDate": "Invoice date",
+    "dueDate": "Due date",
+    "dueDateHint": "Empty = invoice date plus the supplier's payment terms.",
+    "printedGross": "Total on the invoice",
+    "printedGrossHint": "Including VAT, in {currency}, exactly as printed.",
+    "header": "Invoice header",
+    "lines": "Invoice lines",
+    "noLines": "No lines yet.",
+    "description": "Description",
+    "invoicePrice": "Invoice unit price",
+    "orderPrice": "Order price",
+    "netAmount": "Net amount",
+    "vatCode": "VAT code",
+    "defaultVat": "Default purchase VAT",
+    "match": "Match",
+    "priceVariance": "Price difference",
+    "quantityVariance": "Over received",
+    "receivedToInvoice": "Received, not yet invoiced",
+    "receivedToInvoiceHint": "Posted receipts from this supplier. Quantity defaults to what is still open and price to what was charged on receiving.",
+    "nothingToInvoice": "Nothing received from this supplier is waiting to be invoiced.",
+    "openQuantity": "open {quantity} {unit}",
+    "partlyOnThis": "partly on this invoice",
+    "quantityIn": "Quantity ({unit})",
+    "addLine": "Add to invoice",
+    "charges": "Charges",
+    "chargesHint": "Delivery, packaging or other charges on the invoice that are not received goods.",
+    "chargeDescription": "Charge",
+    "addCharge": "Add charge",
+    "totalMismatch": "The invoice total {printed} does not equal the lines {computed}.",
+    "exceptionNeedsApproval": "The invoice does not match the order or receipt. Someone other than who entered it must approve the differences before posting.",
+    "exceptionApproved": "The differences were approved. Any change to the lines needs a new approval.",
+    "approve": "Approve differences",
+    "approveHint": "Confirm the price, quantity or total differences were checked with the supplier.",
+    "approvalNote": "Approval note",
+    "approvedBy": "Differences approved by",
+    "post": "Post invoice",
+    "postHint": "Posting records the invoice and its input VAT. It does not change stock or its value.",
+    "confirmPost": "Post this invoice? It can then only be cancelled.",
+    "postedBy": "Posted by",
+    "cancel": "Cancel invoice",
+    "cancelReason": "Reason",
+    "cancelledBy": "Cancelled by",
+    "cancelledBecause": "Cancelled: {reason}",
+    "priceTolerance": "Invoice price tolerance (%)",
+    "priceToleranceHint": "How far an invoice price may differ from the order price and still match.",
+    "statuses": {
+      "DRAFT": "Draft",
+      "POSTED": "Posted",
+      "CANCELLED": "Cancelled"
+    },
+    "matchStatuses": {
+      "MATCHED": "Matched",
+      "EXCEPTION": "Exception"
+    },
+    "lineMatches": {
+      "MATCHED": "Matched",
+      "PRICE_VARIANCE": "Price differs",
+      "QUANTITY_VARIANCE": "More than received",
+      "PRICE_AND_QUANTITY": "Price and quantity differ",
+      "NOT_APPLICABLE": "Charge"
+    }
   }
 }

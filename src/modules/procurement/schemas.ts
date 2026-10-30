@@ -76,6 +76,12 @@ export const settingsSchema = z.object({
     .optional()
     .transform((v) => blank(v) ?? "0")
     .pipe(decimalString({ maxScale: 4, min: "0", max: "100" })),
+  /** Percent, 0–100: how far an invoice price may differ from the order price (ADR-038). */
+  invoicePriceTolerancePercent: z
+    .string()
+    .optional()
+    .transform((v) => blank(v) ?? "0")
+    .pipe(decimalString({ maxScale: 4, min: "0", max: "100" })),
 });
 
 export const orderHeaderSchema = z.object({

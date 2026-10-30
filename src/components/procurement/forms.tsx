@@ -366,7 +366,11 @@ export function ProcurementSettingsForm({
 }: {
   action: Action;
   currency: string;
-  defaults: { approvalThreshold: string; overReceiptTolerancePercent: string };
+  defaults: {
+    approvalThreshold: string;
+    overReceiptTolerancePercent: string;
+    invoicePriceTolerancePercent: string;
+  };
 }) {
   const t = useTranslations();
   return (
@@ -386,6 +390,14 @@ export function ProcurementSettingsForm({
           label={t("purchasing.tolerance")}
           hint={t("purchasing.toleranceHint")}
           defaultValue={defaults.overReceiptTolerancePercent}
+          inputMode="decimal"
+          dir="ltr"
+        />
+        <TextField
+          name="invoicePriceTolerancePercent"
+          label={t("invoices.priceTolerance")}
+          hint={t("invoices.priceToleranceHint")}
+          defaultValue={defaults.invoicePriceTolerancePercent}
           inputMode="decimal"
           dir="ltr"
         />

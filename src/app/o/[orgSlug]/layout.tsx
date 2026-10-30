@@ -57,6 +57,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/purchasing/reorder`, label: t("reorder") },
     );
   }
+  if (hasPermission(ctx.grants, "invoices.view"))
+    purchasing.items.push({ href: `${base}/purchasing/invoices`, label: t("supplierInvoices") });
   const kitchen: NavSection = { title: t("recipesSection"), items: [] };
   if (hasPermission(ctx.grants, "recipes.view"))
     kitchen.items.push({ href: `${base}/recipes`, label: t("recipes") });

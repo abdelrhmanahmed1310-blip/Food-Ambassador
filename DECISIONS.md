@@ -572,9 +572,56 @@ documents stay scoped. Found by a scoped-user integration test.
   is stored as including VAT; food cost % and margin always use the net
   price at today's rate of the dish's code.
 - **VAT summary:** output VAT from imported sales by code and rate for a
-  period — not a VAT return. Input VAT comes with supplier invoices (M7b);
+  period — not a VAT return. Input VAT from supplier invoices: ADR-038;
   ZATCA Fatoora and Egypt ETA e-invoicing/e-receipts remain POS4.
 - Changing the setup needs `org.settings.manage`.
+
+### ADR-038 Supplier invoices with a 3-way match — Accepted (M7b)
+
+- **Invoice** (`PI-` number): supplier, the supplier's own invoice number
+  (unique per supplier among invoices that are not cancelled), invoice
+  date, due date (defaults to invoice date + the supplier's payment terms)
+  and the **total as printed**. DRAFT → POSTED, or CANCELLED with a reason.
+  Base currency only (Q-05 default).
+- **Goods lines** come only from **posted receipt lines of the same
+  supplier** — quantity in the receipt's unit, invoice unit price. The
+  order price and the price charged on receiving are copied onto the line.
+  **Charge lines** (delivery, packaging …) have a description and a net
+  amount.
+- **Match per goods line:**
+  - quantity: what is still open on the receipt line = accepted quantity −
+    everything on other invoices that are not cancelled (drafts included,
+    so two drafts cannot both claim the same delivery). More than open =
+    QUANTITY_VARIANCE.
+  - price: |invoice price − order price| ≤ order price × tolerance =
+    matched, else PRICE_VARIANCE. The tolerance is set in purchasing
+    settings (default 0 %). The price difference (invoice − order) ×
+    quantity is shown for every line.
+  - **Total:** the printed total must equal the sum of the line totals,
+    rounded to the currency's minor unit.
+  - Any variance or a total that does not match makes the invoice an
+    **EXCEPTION**; everything is recomputed whenever lines or the header
+    change.
+- **Exceptions** are approved with a note by **someone other than who
+  entered the invoice** (`invoices.manage`); any later change to lines or
+  total clears the approval. Posting needs at least one line and, for an
+  exception, an approval.
+- **VAT per line:** the product's purchase VAT code, an override, or the
+  organization's default purchase code, at the rate in force on the
+  **invoice date**; computed from net and rounded per line like sales
+  (ADR-037). The invoice date cannot change while there are lines, so rates
+  stay consistent. Lines store code, rate, net, VAT and gross.
+- **Input VAT** in the VAT summary: posted invoices by invoice date, per
+  code and rate; reclaimable only when the organization is VAT registered
+  (otherwise shown as part of the cost). With both sides the page shows
+  output − input as an estimate — not a VAT return.
+- **Stock is not touched:** invoices do not change stock or its value.
+  Price differences are reported only; charging them to stock (like landed
+  cost, ADR-028) is a later decision.
+- Invoicing is serialized per supplier (advisory lock) so concurrent
+  entries cannot over-invoice a receipt line. `invoices.view` /
+  `invoices.manage` are organization-wide permissions (admin, operations
+  manager and finance manage; procurement and analyst view).
 
 ---
 

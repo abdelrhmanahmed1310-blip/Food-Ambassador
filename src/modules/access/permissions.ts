@@ -43,6 +43,8 @@ export const PERMISSIONS = [
   "foodsafety.manage",
   "sales.view",
   "sales.import",
+  "invoices.view",
+  "invoices.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -164,6 +166,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "foodsafety.manage",
       "sales.view",
       "sales.import",
+      "invoices.view",
+      "invoices.manage",
     ],
     organizationScopeOnly: false,
   },
@@ -185,6 +189,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "recipes.view",
       "recipes.costs.view",
       "traceability.view",
+      "invoices.view",
     ],
     organizationScopeOnly: false,
   },
@@ -245,6 +250,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "recipes.view",
       "recipes.costs.view",
       "sales.view",
+      "invoices.view",
+      "invoices.manage",
     ],
     organizationScopeOnly: false,
   },
@@ -295,6 +302,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "traceability.view",
       "foodsafety.view",
       "sales.view",
+      "invoices.view",
     ],
     organizationScopeOnly: false,
   },

@@ -313,25 +313,40 @@ export async function loadTaxContextInTx(tx: Tx, ctx: TenantContext) {
   const byId = new Map(codes.map((c) => [c.id, c]));
   const byCode = new Map(codes.map((c) => [c.code, c]));
   const active = Boolean(settings?.vatRegistered && settings.defaultSalesTaxCodeId);
+  const rateFor = (code: (typeof codes)[number], date: string) => {
+    const rate = rateOn(
+      code.rates.map((r) => ({
+        rate: dec(r.rate),
+        effectiveFrom: r.effectiveFrom.toISOString().slice(0, 10),
+      })),
+      date,
+    );
+    if (rate === null)
+      return { ok: false as const, problem: "noTaxRate" as const, code: code.code };
+    return { ok: true as const, codeId: code.id, code: code.code, category: code.category, rate };
+  };
   return {
     active,
+    registered: settings?.vatRegistered ?? false,
     pricesIncludeTax: settings?.pricesIncludeTax ?? false,
     byCode,
+    /**
+     * Code and rate on a supplier invoice dated `date`: VAT the supplier
+     * charged, whether or not it can be reclaimed. Null when no purchase VAT
+     * code is set up (e.g. a country without VAT).
+     */
+    resolvePurchase(codeId: string | null | undefined, date: string) {
+      const code = byId.get(codeId ?? settings?.defaultPurchaseTaxCodeId ?? "");
+      if (!code)
+        return codeId ? { ok: false as const, problem: "noTaxCode" as const, code: "" } : null;
+      return rateFor(code, date);
+    },
     /** Code and rate for a sale on `date`; null when VAT does not apply (not registered). */
     resolve(codeId: string | null | undefined, date: string) {
       if (!active) return null;
       const code = byId.get(codeId ?? (settings?.defaultSalesTaxCodeId as string));
       if (!code) return { ok: false as const, problem: "noTaxCode" as const, code: "" };
-      const rate = rateOn(
-        code.rates.map((r) => ({
-          rate: dec(r.rate),
-          effectiveFrom: r.effectiveFrom.toISOString().slice(0, 10),
-        })),
-        date,
-      );
-      if (rate === null)
-        return { ok: false as const, problem: "noTaxRate" as const, code: code.code };
-      return { ok: true as const, codeId: code.id, code: code.code, category: code.category, rate };
+      return rateFor(code, date);
     },
   };
 }

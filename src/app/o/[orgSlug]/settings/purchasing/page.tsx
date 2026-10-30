@@ -24,6 +24,7 @@ export default async function PurchasingSettingsPage({
           defaults={{
             approvalThreshold: rules.approvalThreshold?.toFixed() ?? "",
             overReceiptTolerancePercent: rules.overReceiptTolerance.times(100).toFixed(),
+            invoicePriceTolerancePercent: rules.invoicePriceTolerance.times(100).toFixed(),
           }}
         />
       </Card>
