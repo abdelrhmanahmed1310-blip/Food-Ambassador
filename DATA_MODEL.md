@@ -698,6 +698,21 @@ M4b (migration `20261031150000_m4_pricing`, ADR-032):
 - **label_versions**: calculated, then `PENDING_REVIEW → APPROVED` by a user
   with `labels.approve`; only approved labels can be exported.
 
+Implemented in M5a (migration `20261105090000_m5_nutrition_allergens`,
+ADR-040): the allergen catalogue is a code list (14 codes, CK) rather than a
+table; **allergen_declarations** (product, allergen, status CONTAINS |
+MAY_CONTAIN | FREE_FROM | UNKNOWN, source, reference, declared/verified by
+and at, `superseded_at`; partial UQ one current per product × allergen; CK
+FREE_FROM ⇒ reference and source ≠ DATABASE; CK verifier ≠ declarer;
+trigger: only verification and superseding may change);
+**nutrition_profiles** (product, basis PER_100G | PER_100ML, ten nullable
+nutrients, source, reference, verification, `superseded_at`; partial UQ one
+current per product; plausibility CKs; same trigger); **recipe_labels**
+(recipe, version, `label_no`, status PENDING_REVIEW | APPROVED | REJECTED |
+SUPERSEDED, `content` JSON snapshot, `inputs_hash`, reviewer ≠ author;
+partial UQs one pending and one approved per recipe; trigger allows only
+PENDING → APPROVED | REJECTED and APPROVED → SUPERSEDED).
+
 ## 8. Food safety and traceability (Milestone 6)
 
 - **food_safety_records**: type (temperature, hygiene, cleaning, pest control),

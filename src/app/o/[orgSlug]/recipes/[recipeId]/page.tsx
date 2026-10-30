@@ -57,6 +57,14 @@ export default async function RecipePage({ params }: PageProps<"/o/[orgSlug]/rec
         actions={
           <>
             {recipe.archivedAt ? <Badge tone="muted">{t("common.archived")}</Badge> : null}
+            {hasPermission(ctx.grants, "nutrition.view") ? (
+              <Link
+                href={`/o/${orgSlug}/recipes/${recipe.id}/nutrition`}
+                className="text-primary text-sm hover:underline"
+              >
+                {t("nutrition.nutritionAndAllergens")}
+              </Link>
+            ) : null}
             {recipe.can.newVersion ? (
               <ConfirmActionButton
                 action={createDraftVersionAction.bind(null, orgSlug, recipe.id)}

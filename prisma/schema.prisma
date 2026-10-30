@@ -189,6 +189,9 @@ model Organization {
   supplierSettlements   SupplierSettlement[]
   settlementAllocations SettlementAllocation[]
   accountingSettings    AccountingSettings?
+  allergenDeclarations  AllergenDeclaration[]
+  nutritionProfiles     NutritionProfile[]
+  recipeLabels          RecipeLabel[]
 
   @@map("organizations")
 }
@@ -564,29 +567,31 @@ model Product {
   /// Purchase tax code for supplier invoices; null = the organization's default.
   purchaseTaxCodeId String? @map("purchase_tax_code_id") @db.Uuid
 
-  organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  purchaseTaxCode    TaxCode?                  @relation("ProductPurchaseTaxCode", fields: [organizationId, purchaseTaxCodeId], references: [organizationId, id], onDelete: Restrict)
-  baseUom            UnitOfMeasure             @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
-  category           ProductCategory?          @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
-  barcodes           ProductBarcode[]
-  conversions        ProductUomConversion[]
-  lots               InventoryLot[]
-  ledgerEntries      InventoryLedgerEntry[]
-  balances           StockBalance[]
-  countLines         StockCountLine[]
-  valuations         StockValuation[]
-  revaluations       StockRevaluation[]
-  supplierProducts   SupplierProduct[]
-  purchaseOrderLines PurchaseOrderLine[]
-  goodsReceiptLines  GoodsReceiptLine[]
-  reorderRules       ReorderRule[]
-  shipmentLines      StockShipmentLine[]
-  requisitionLines   PurchaseRequisitionLine[]
-  recipeIngredients  RecipeIngredient[]
-  standardCosts      ProductStandardCost[]
-  salesLines         SalesLine[]
-  invoiceLines       SupplierInvoiceLine[]
-  landedCostLines    LandedCostLine[]
+  organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  purchaseTaxCode      TaxCode?                  @relation("ProductPurchaseTaxCode", fields: [organizationId, purchaseTaxCodeId], references: [organizationId, id], onDelete: Restrict)
+  baseUom              UnitOfMeasure             @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
+  category             ProductCategory?          @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  barcodes             ProductBarcode[]
+  conversions          ProductUomConversion[]
+  lots                 InventoryLot[]
+  ledgerEntries        InventoryLedgerEntry[]
+  balances             StockBalance[]
+  countLines           StockCountLine[]
+  valuations           StockValuation[]
+  revaluations         StockRevaluation[]
+  supplierProducts     SupplierProduct[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  reorderRules         ReorderRule[]
+  shipmentLines        StockShipmentLine[]
+  requisitionLines     PurchaseRequisitionLine[]
+  recipeIngredients    RecipeIngredient[]
+  standardCosts        ProductStandardCost[]
+  salesLines           SalesLine[]
+  invoiceLines         SupplierInvoiceLine[]
+  landedCostLines      LandedCostLine[]
+  allergenDeclarations AllergenDeclaration[]
+  nutritionProfiles    NutritionProfile[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -1540,6 +1545,7 @@ model Recipe {
   versions     RecipeVersion[]
   usedIn       RecipeIngredient[] @relation("SubRecipe")
   prices       RecipePrice[]
+  labels       RecipeLabel[]
   taxCode      TaxCode?           @relation("RecipeTaxCode", fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
   salesLines   SalesLine[]
 
@@ -1576,6 +1582,7 @@ model RecipeVersion {
   ingredients  RecipeIngredient[]
   snapshots    RecipeCostSnapshot[]
   salesLines   SalesLine[]
+  labels       RecipeLabel[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, recipeId, versionNo])
@@ -2410,4 +2417,121 @@ model AccountingSettings {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   @@map("accounting_settings")
+}
+
+// ─── Nutrition and allergens (Milestone 5a, ADR-040) ───
+
+enum AllergenStatus {
+  CONTAINS
+  MAY_CONTAIN
+  FREE_FROM
+  UNKNOWN
+}
+
+enum NutritionSource {
+  SUPPLIER_SPEC
+  LAB
+  DATABASE
+  MANUAL
+}
+
+enum NutritionBasis {
+  PER_100G
+  PER_100ML
+}
+
+enum LabelStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+/// What is known about one allergen in one product. Append-only: a new
+/// declaration supersedes the current one. No current row = UNKNOWN.
+model AllergenDeclaration {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  productId        String          @map("product_id") @db.Uuid
+  /// Code from src/modules/nutrition/allergens.ts (CK in SQL).
+  allergen         String
+  status           AllergenStatus
+  source           NutritionSource
+  /// Specification, lab report or database record the statement comes from.
+  reference        String?
+  note             String?
+  declaredByUserId String          @map("declared_by_user_id") @db.Uuid
+  declaredAt       DateTime        @default(now()) @map("declared_at") @db.Timestamptz(3)
+  verifiedByUserId String?         @map("verified_by_user_id") @db.Uuid
+  verifiedAt       DateTime?       @map("verified_at") @db.Timestamptz(3)
+  supersededAt     DateTime?       @map("superseded_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, productId, allergen])
+  @@map("allergen_declarations")
+}
+
+/// Nutrition values per 100 g or 100 ml; NULL = not known. Append-only like declarations.
+model NutritionProfile {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  productId        String          @map("product_id") @db.Uuid
+  basis            NutritionBasis
+  energyKcal       Decimal?        @map("energy_kcal") @db.Decimal(12, 4)
+  energyKj         Decimal?        @map("energy_kj") @db.Decimal(12, 4)
+  fat              Decimal?        @db.Decimal(12, 4)
+  saturatedFat     Decimal?        @map("saturated_fat") @db.Decimal(12, 4)
+  carbohydrate     Decimal?        @db.Decimal(12, 4)
+  sugars           Decimal?        @db.Decimal(12, 4)
+  fibre            Decimal?        @db.Decimal(12, 4)
+  protein          Decimal?        @db.Decimal(12, 4)
+  salt             Decimal?        @db.Decimal(12, 4)
+  sodium           Decimal?        @db.Decimal(12, 4)
+  source           NutritionSource
+  reference        String?
+  note             String?
+  createdByUserId  String          @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  verifiedByUserId String?         @map("verified_by_user_id") @db.Uuid
+  verifiedAt       DateTime?       @map("verified_at") @db.Timestamptz(3)
+  supersededAt     DateTime?       @map("superseded_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, productId])
+  @@map("nutrition_profiles")
+}
+
+/// A calculated label for a recipe version, reviewed by a second person.
+model RecipeLabel {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  organizationId   String      @map("organization_id") @db.Uuid
+  recipeId         String      @map("recipe_id") @db.Uuid
+  versionId        String      @map("version_id") @db.Uuid
+  labelNo          Int         @map("label_no")
+  status           LabelStatus @default(PENDING_REVIEW)
+  /// The calculated label (nutrition, allergens, ingredient list) as shown for review.
+  content          Json
+  /// Hash of the inputs; a different current hash means the data changed since.
+  inputsHash       String      @map("inputs_hash")
+  createdByUserId  String      @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  reviewedByUserId String?     @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt       DateTime?   @map("reviewed_at") @db.Timestamptz(3)
+  reviewNote       String?     @map("review_note")
+  supersededAt     DateTime?   @map("superseded_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recipe       Recipe        @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+  version      RecipeVersion @relation(fields: [organizationId, versionId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, recipeId, labelNo])
+  @@index([organizationId, recipeId, status])
+  @@map("recipe_labels")
 }

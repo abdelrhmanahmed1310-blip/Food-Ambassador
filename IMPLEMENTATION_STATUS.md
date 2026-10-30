@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (M7c supplier payables; Milestone 7 complete)
+Last updated: 2026-11-05 (M5a nutrition, allergens and labels)
 
 ## Summary
 
@@ -13,7 +13,44 @@ Last updated: 2026-11-04 (M7c supplier payables; Milestone 7 complete)
 | M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                              |
 | M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                   |
 | M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export) |
-| M5, M8 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+| M5 Nutrition & allergens      | 🔄 In progress — **M5a ✅** (allergens, nutrition values, recipe roll-up, matrix, approved labels); M5b library imports next                                                                   |
+| M8 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+
+## M5a — Nutrition, allergens and labels (delivered)
+
+Rules: DECISIONS.md ADR-040.
+
+| Area            | What works                                                                                                                             | Where                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Allergens       | 14 allergens (EU Annex II; Codex 8 marked) per product: contains / may contain / free from / unknown, source, reference, history       | `src/modules/nutrition/service.ts`                            |
+| Free from       | Needs a reference, never from a food database, counts only after a second person verifies                                              | `declareAllergens`, `verifyAllergenDeclarations`              |
+| Nutrition       | Per 100 g or 100 ml, ten nutrients each optional, source and reference, plausibility checks, history, second-person verification       | `recordNutritionProfile`                                      |
+| Recipe roll-up  | Through active sub-recipes with net (eaten) quantities; per nutrient unknown unless every ingredient has it; per portion and per 100 g | `rules.ts` (pure, unit-tested)                                |
+| Labels          | Generated only from complete verified data; review by another person; stale data blocks approval; only approved labels print           | `/recipes/labels/[labelId]`                                   |
+| Allergen matrix | Every active recipe × 14 allergens, printable                                                                                          | `/recipes/allergens`                                          |
+| Screens         | Product and recipe "Nutrition and allergens" pages; EN/AR                                                                              | `/catalog/products/[id]/nutrition`, `/recipes/[id]/nutrition` |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 29 files / 179 tests — 7
+new: basis amount per base unit through product conversions, per-nutrient
+roll-up with missing and unverified products, incomplete recipes, allergen
+roll-up precedence and verified free-from, products reached through
+sub-recipes, label rounding, net explosion without waste; build);
+`pnpm test:integration` 24 files / 184 tests pass (5 new: nothing known
+without data; profile and free-from validation; roll-up through a
+sub-recipe with waste excluded, second-person verification, weight needed
+for the ingredient list, matrix; label generation, self-review refused,
+rejection needs a reason, approval, stale label after new values, change
+after generation blocks approval, supersede history; permissions, other
+tenants, statements not editable in the database); `pnpm test:e2e` 32 tests
+pass (new: chef enters values (saturates > fat refused) and statements
+(free from without reference refused), dish shows 1,200 kcal and unknown
+allergens, quality lead verifies, label generated as a draft, approved by
+the quality lead, printable, matrix shows sesame).
+
+Limitations: no food library yet (M5b); cooking losses and retention
+factors are not modelled (per 100 g uses the yield weight entered); no
+market-specific label layouts (Q-02); no front-of-pack schemes (e.g.
+Nutri-Score); labels are not yet pushed to a POS or printer.
 
 ## M7c — Supplier payables (delivered)
 

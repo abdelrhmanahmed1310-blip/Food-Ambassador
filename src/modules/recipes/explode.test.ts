@@ -76,6 +76,14 @@ describe("recipe explosion", () => {
     expect(plain(r.usage)).toEqual({ tomato: "1.875", oil: "0.0625", egg: "5" });
   });
 
+  it("can count quantities as eaten, without trim waste", () => {
+    // 1 batch: 2.4 kg tomatoes net (not 3 kg bought), 0.1 l oil.
+    expect(plain(explodeRecipe(sauce, world, d("2"), false, { net: true }).usage)).toEqual({
+      tomato: "2.4",
+      oil: "0.1",
+    });
+  });
+
   it("sells preparations by their yield unit", () => {
     expect(plain(explodeRecipe(sauce, world, d("1"), false).usage)).toEqual({
       tomato: "1.5",

@@ -21,12 +21,16 @@ export function explodeRecipe(
   world: Pick<CostWorld, "products" | "activeVersions">,
   quantity: Decimal,
   asPortions: boolean,
+  /** `net`: quantities as eaten, without trim waste (nutrition, ADR-040). */
+  options: { net?: boolean } = {},
 ): { usage: Map<string, Decimal>; problems: ExplodeProblem[] } {
   const usage = new Map<string, Decimal>();
   const problems: ExplodeProblem[] = [];
   const walk = (v: VersionInput, batches: Decimal, path: readonly string[]) => {
     for (const ing of v.ingredients) {
-      const gross = grossQuantity(ing.quantity, ing.wasteFraction).times(batches);
+      const gross = (
+        options.net ? ing.quantity : grossQuantity(ing.quantity, ing.wasteFraction)
+      ).times(batches);
       if (ing.productId) {
         const product = world.products.get(ing.productId);
         if (!product) throw new Error(`Product ${ing.productId} was not loaded`);

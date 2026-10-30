@@ -26,7 +26,11 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > and a VAT setup for Saudi Arabia, Egypt and the GCC (dated rates, VAT per
 > sale line, net prices in food cost), supplier invoices matched against
 > orders and receipts with input VAT, and payables: payments, credit notes,
-> supplier balances and aging, statements and accounting export files. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> supplier balances and aging, statements and accounting export files.
+> Milestone 5 (in progress) adds nutrition values and the 14 allergens per
+> product with second-person verification, recipe nutrition and allergens
+> through sub-recipes, an allergen matrix and labels approved by a second
+> person. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

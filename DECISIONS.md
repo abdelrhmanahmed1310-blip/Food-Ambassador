@@ -665,6 +665,54 @@ documents stay scoped. Found by a scoped-user integration test.
   - Files are generic; no ERP or bank integration is claimed (Q-06 open).
     A re-export reflects voids since the last one.
 
+### ADR-040 Nutrition, allergens and labels — Accepted (M5a)
+
+- **Nothing is inferred** (A-09). A nutrient left empty is unknown; an
+  allergen with no statement is UNKNOWN, never "free from".
+- **Allergens tracked:** the 14 of EU Regulation 1169/2011 Annex II for
+  every product; the 8 categories of Codex CXS 1-1985 §4.2.1.4 (the basis of
+  most Gulf and Egyptian rules) are marked. Which list a market's label must
+  use stays open (Q-02); tracking all 14 never hides one.
+- **Statements** per product and allergen: CONTAINS, MAY_CONTAIN
+  (cross-contact), FREE_FROM, or back to UNKNOWN, with source (supplier
+  specification, lab, food database, manual), reference and note.
+  Append-only: a new statement supersedes the current one (history kept,
+  database trigger). **FREE_FROM needs a reference, can never come from a
+  food database, and counts only after a second person verifies it**
+  (`nutrition.manage`, not the author). CONTAINS and MAY_CONTAIN count at
+  once, verified or not.
+- **Nutrition profiles** per product, per 100 g or 100 ml: energy kcal/kJ,
+  fat, saturates, carbohydrate, sugars, fibre, protein, salt, sodium (g),
+  each nullable. Plausibility checks (saturates ≤ fat, sugars ≤
+  carbohydrate, ≤ 100 g per 100 g). Supplier specifications and lab
+  results need a reference. Append-only and verified by a second person,
+  like statements. No value is derived from another (e.g. salt from
+  sodium).
+- **Recipe roll-up** over the active version and its active sub-recipes,
+  with **net quantities as eaten** (trim waste excluded). A product counts
+  in its profile's basis through its base unit or a product conversion
+  (e.g. 1 each = 50 g); otherwise it is missing. Per nutrient: unknown
+  unless every ingredient has it. Per portion; per 100 g/ml of the finished
+  recipe only when its yield is a weight or volume (cooking losses are not
+  modelled). A recipe part that cannot be expanded makes every value
+  unknown and removes every "free from". Allergens: any CONTAINS →
+  contains; else any MAY_CONTAIN → may contain; else FREE_FROM only if
+  every ingredient has a verified FREE_FROM; else unknown.
+- **Labels** are snapshots of the calculation (values rounded after the EU
+  2012 tolerance guidance, exact values kept; ingredient list by edible
+  weight; contains / may contain). Generation is refused until: the recipe
+  expands fully, energy, fat, saturates, carbohydrate, sugars, protein and
+  salt are known, no allergen is unknown, every profile is verified, there
+  are portions or a weight/volume yield, and every ingredient has a weight.
+  A label waits for review by someone with `labels.approve` other than its
+  author; approval is refused if the data changed since (hash of versions,
+  profiles and statements). One pending and one approved label per recipe;
+  approving replaces the previous one. Only approved, unchanged labels print.
+  The layout is generic; market label rules remain Q-02.
+- **Allergen matrix:** every active recipe against the 14 allergens.
+- Permissions: `nutrition.view`, `nutrition.manage`, `labels.approve`
+  (quality and operations managers approve).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

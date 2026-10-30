@@ -74,6 +74,14 @@ export default async function ProductPage({
         actions={
           <>
             {product.archivedAt ? <Badge tone="muted">{t("common.archived")}</Badge> : null}
+            {hasPermission(ctx.grants, "nutrition.view") ? (
+              <LinkButton
+                href={`/o/${orgSlug}/catalog/products/${productId}/nutrition`}
+                variant="secondary"
+              >
+                {t("nutrition.nutritionAndAllergens")}
+              </LinkButton>
+            ) : null}
             {stock ? (
               <LinkButton
                 href={`/o/${orgSlug}/inventory/stock?productId=${productId}`}
