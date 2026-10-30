@@ -436,6 +436,44 @@ documents stay scoped. Found by a scoped-user integration test.
 - **Method** text belongs to the version and is locked with it; the recipe
   card shows costs only to users with `recipes.costs.view` who ask for them.
 
+### ADR-033 Lot traceability from recorded facts — Accepted (M6a)
+
+- A trace is built only from what was recorded: ledger entries of the lot,
+  goods receipt lines (supplier, order, delivery note, temperature) and
+  shipments. Nothing is inferred to fill holes.
+- **Backward:** the receipts that brought the lot in, with supplier contact.
+  **Forward:** current stock by warehouse, location and status, shipments,
+  and every movement in time order. Totals: brought in, left the business
+  (write-offs, consumption, returns), on hand.
+- **Gaps are reported explicitly:** stock that entered without a supplier
+  (opening balance, positive adjustment or count) and outbound use of the
+  same product without a lot in a warehouse where the lot was present.
+  Until sales and production consume stock (M7), the trace states that
+  consumption is not recorded.
+- `traceability.view` is organization-wide (a lot crosses branches); scoped
+  roles do not get it.
+
+### ADR-034 Recalls — Accepted (M6a)
+
+- A recall (`RCL-` number) has a title, reason and scope of lots — chosen
+  by search or "all lots received from a supplier (and product)".
+- **DRAFT is a simulation:** the page shows the affected stock by place and
+  status, quantities in transit, suppliers and receipts; nothing changes.
+- **Activation** (`recalls.manage`, all warehouses regardless of the user's
+  scope): the lots get **recall hold**, the stock at that moment is stored,
+  and AVAILABLE and QUARANTINE stock moves to **ON_HOLD** through status
+  change documents (one per warehouse, linked to the recall). Recall-held
+  lots cannot be transferred, dispatched or released; shipments in transit
+  arrive ON_HOLD.
+- **Closing:** DISPOSED writes off the ON_HOLD stock of the lots (reason
+  RECALLED, documents linked) and keeps the hold; RELEASED lifts the recall
+  hold (unless another live recall holds the lot) and leaves the stock
+  ON_HOLD for a person with release permission to free after checking — a
+  recall never releases stock to use automatically. A draft can be
+  cancelled. Every step is audited; the report is printable.
+- The application role may update only `inventory_lots.recall_hold`; lots
+  stay otherwise immutable.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

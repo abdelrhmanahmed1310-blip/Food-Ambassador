@@ -67,6 +67,12 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     );
   if (hasPermission(ctx.grants, "recipes.manage"))
     kitchen.items.push({ href: `${base}/recipes/replace`, label: t("replaceIngredient") });
+  const safety: NavSection = { title: t("safetySection"), items: [] };
+  if (hasPermission(ctx.grants, "traceability.view"))
+    safety.items.push(
+      { href: `${base}/traceability`, label: t("traceability") },
+      { href: `${base}/recalls`, label: t("recalls") },
+    );
   const catalog: NavSection = { title: t("catalogSection"), items: [] };
   if (hasPermission(ctx.grants, "catalog.view")) {
     catalog.items.push(
@@ -92,7 +98,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
-  const sections = [main, inventory, purchasing, kitchen, catalog, settings].filter(
+  const sections = [main, inventory, purchasing, kitchen, safety, catalog, settings].filter(
     (section) => section.items.length > 0,
   );
 

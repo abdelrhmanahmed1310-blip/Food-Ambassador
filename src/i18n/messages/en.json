@@ -96,7 +96,10 @@
     "recipes": "Recipes",
     "foodCost": "Food cost",
     "priceSimulator": "Price simulator",
-    "replaceIngredient": "Replace ingredient"
+    "replaceIngredient": "Replace ingredient",
+    "safetySection": "Food safety",
+    "traceability": "Traceability",
+    "recalls": "Recalls"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -269,7 +272,9 @@
     "RECIPE_HAS_DRAFT": "Finish or discard the current draft first.",
     "RECIPE_NEEDS_VERSION": "The first version cannot be discarded; archive the recipe instead.",
     "RECIPE_NOT_DISH": "Only dishes have selling prices.",
-    "REPLACE_SAME_PRODUCT": "Choose a different product to replace it with."
+    "REPLACE_SAME_PRODUCT": "Choose a different product to replace it with.",
+    "RECALL_STATUS": "This is not possible in the recall's current status.",
+    "RECALL_HAS_NO_LOTS": "Add at least one lot before activating."
   },
   "notFound": {
     "title": "Page not found",
@@ -457,7 +462,9 @@
       "purchasing.request": "Request purchases for a branch (requisitions)",
       "recipes.view": "View recipes",
       "recipes.manage": "Create and change recipes and standard costs",
-      "recipes.costs.view": "View recipe costs and cost history"
+      "recipes.costs.view": "View recipe costs and cost history",
+      "traceability.view": "Trace lots across the organization and view recalls",
+      "recalls.manage": "Create, activate and close recalls"
     }
   },
   "audit": {
@@ -488,7 +495,8 @@
       "category": "Category",
       "shipment": "Shipment",
       "requisition": "Requisition",
-      "recipe": "Recipe"
+      "recipe": "Recipe",
+      "recall": "Recall"
     }
   },
   "invite": {
@@ -1241,5 +1249,81 @@
       "NOT_USED": "{code} skipped: it does not use the product.",
       "INCOMPATIBLE_UNITS": "{code} skipped: its unit does not convert for the new product."
     }
+  },
+  "trace": {
+    "title": "Traceability",
+    "hint": "Follow a lot back to its supplier and forward to every place it went, from recorded movements only. Gaps are listed, not hidden.",
+    "searchLabel": "Lot code or product",
+    "noLots": "No lots found.",
+    "firstReceived": "First received",
+    "recallHold": "Recall hold",
+    "startRecall": "Start a recall",
+    "received": "Brought in",
+    "leftBusiness": "Left the business (written off, used)",
+    "onHand": "On hand now",
+    "gapsTitle": "Gaps in the trace",
+    "gaps": {
+      "ORIGIN_WITHOUT_SUPPLIER": "{quantity} entered in {warehouse} without a supplier (opening balance or adjustment).",
+      "UNLOTTED_USAGE": "{quantity} of this product was used in {warehouse} without a lot number — it may have been this lot."
+    },
+    "consumptionNote": "Sales and production do not yet consume stock (they come with sales, M7); stock leaving through them cannot be traced yet.",
+    "backward": "Where it came from",
+    "noReceipts": "No goods receipt recorded for this lot.",
+    "forward": "Where it went",
+    "stockNow": "Stock now",
+    "noStock": "None on hand.",
+    "movements": "All movements"
+  },
+  "recalls": {
+    "title": "Recalls",
+    "hint": "Find every unit of the affected lots, hold them everywhere at once, and record what was done.",
+    "new": "New recall",
+    "newTitle": "New recall",
+    "newHint": "A new recall is a draft: add lots and review the impact before going live.",
+    "empty": "No recalls yet.",
+    "recallTitle": "Title",
+    "reason": "Reason",
+    "reasonHint": "E.g. the supplier's notice, the hazard and its source.",
+    "lots": "Lots",
+    "activatedAt": "Live since",
+    "closedAt": "Closed",
+    "statuses": {
+      "DRAFT": "Draft (simulation)",
+      "ACTIVE": "Live",
+      "CLOSED": "Closed"
+    },
+    "outcomes": {
+      "DISPOSED": "Disposed",
+      "RELEASED": "Released"
+    },
+    "outcome": "Outcome",
+    "simulationHint": "Simulation — nothing is held yet.",
+    "simulationBanner": "This is a simulation. Activating the recall puts these lots on recall hold and moves their available and quarantined stock to On hold in every warehouse.",
+    "suppliers": "Suppliers",
+    "noSupplier": "No supplier recorded for these lots.",
+    "scope": "Lots in scope",
+    "writtenOff": "Written off",
+    "addLots": "Add selected lots",
+    "foundLots": "Lots found",
+    "addSupplierLots": "Add all lots from this supplier",
+    "allProducts": "All products",
+    "affectedNow": "Affected stock now",
+    "stockNow": "Stock of these lots now",
+    "inTransitNote": "Stock in transit will arrive on hold.",
+    "stockAtActivation": "Stock when the recall went live",
+    "documents": "Stock documents",
+    "documentKinds": {
+      "HOLD": "Put on hold",
+      "DISPOSAL": "Written off"
+    },
+    "activate": "Activate recall",
+    "activateHint": "Puts the lots on recall hold and moves their usable stock to On hold, in every warehouse.",
+    "confirmActivate": "Activate this recall now? Stock is put on hold in every warehouse.",
+    "close": "Close recall",
+    "closeNote": "What was done",
+    "closeHint": "Disposed writes off the held stock. Released lifts the recall hold; the stock stays on hold until someone releases it after checking.",
+    "cancel": "Cancel draft",
+    "confirmCancel": "Cancel this draft recall?",
+    "printReport": "Print report"
   }
 }

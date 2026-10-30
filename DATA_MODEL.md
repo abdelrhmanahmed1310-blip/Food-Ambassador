@@ -716,6 +716,21 @@ M4b (migration `20261031150000_m4_pricing`, ADR-032):
   location, actions taken; a live recall sets `recall_hold` and moves stock to
   `ON_HOLD` via ledger entries.
 
+Implemented in M6a (migrations `20261101090000_m6_recalls`,
+`…_m6_lot_recall_hold_grant`, ADR-033/034):
+
+- **recalls**: `number` (`RCL-`), `title`, `reason`, `status` (DRAFT |
+  ACTIVE | CLOSED), `outcome` (DISPOSED | RELEASED; CK: set only for
+  closed recalls that were live), actors and times, `close_note`.
+- **recall_lots**: recall × lot (UQ), product for the composite lot FK.
+- **recall_stock**: stock of the lots at activation by warehouse, location
+  and status (append-only).
+- **recall_documents**: stock documents posted by the recall, kind HOLD |
+  DISPOSAL (append-only; UQ document).
+- Traces are queries over `inventory_ledger_entries`, `goods_receipt_lines`
+  and `stock_shipment_lines`; no trace tables. Production lot links come
+  with production (not yet planned in a milestone).
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

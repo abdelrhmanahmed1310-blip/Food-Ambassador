@@ -4,7 +4,7 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, point of sale, sales/invoice workflows and analytics.
 
-> **Status:** Milestones 0–4 complete — on top of the M1
+> **Status:** Milestones 0–4 complete, M6 in progress — on top of the M1
 > foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
@@ -17,7 +17,9 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > cost (M4): recipes and sub-recipes with versions, waste, yields and costs
 > from stock averages, purchase prices or standard costs with stored cost
 > history; selling prices, food cost targets and report, price simulator,
-> bulk ingredient replacement and printable recipe cards. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> bulk ingredient replacement and printable recipe cards. Milestone 6 adds
+> lot traceability with gap reporting and recalls (simulation, live hold in
+> every warehouse, disposal or release). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

@@ -167,6 +167,10 @@ model Organization {
   recipeSnapshots     RecipeCostSnapshot[]
   recipePrices        RecipePrice[]
   recipeSettings      RecipeSettings?
+  recalls             Recall[]
+  recallLots          RecallLot[]
+  recallStock         RecallStock[]
+  recallDocuments     RecallDocument[]
 
   @@map("organizations")
 }
@@ -377,6 +381,7 @@ model Warehouse {
   landedCostLines LandedCostLine[]
   requisitions    PurchaseRequisition[]
   recipeSnapshots RecipeCostSnapshot[]
+  recallStock     RecallStock[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -629,6 +634,8 @@ model InventoryLot {
   countLines    StockCountLine[]
   receiptLines  GoodsReceiptLine[]
   shipmentLines StockShipmentLine[]
+  recallLots    RecallLot[]
+  recallStock   RecallStock[]
 
   @@unique([organizationId, id])
   /// Lets ledger rows prove their lot belongs to their product.
@@ -721,6 +728,7 @@ model InventoryDocument {
   shipmentReceipt  StockShipment?         @relation("ShipmentReceipt")
   shipmentCancel   StockShipment?         @relation("ShipmentCancel")
   landedCost       LandedCost?            @relation("LandedCostDocument")
+  recallDocument   RecallDocument?
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1637,4 +1645,113 @@ model RecipeSettings {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   @@map("recipe_settings")
+}
+
+// ─── Traceability and recalls (Milestone 6, ADR-033 / ADR-034) ───
+
+enum RecallStatus {
+  /// Scope being prepared; every view of it is a simulation.
+  DRAFT
+  /// Live: lots on recall hold, stock moved to ON_HOLD.
+  ACTIVE
+  CLOSED
+}
+
+enum RecallOutcome {
+  /// Held stock written off.
+  DISPOSED
+  /// Recall hold lifted; stock stays ON_HOLD until released by hand.
+  RELEASED
+}
+
+model Recall {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  organizationId    String         @map("organization_id") @db.Uuid
+  number            String
+  title             String
+  reason            String
+  status            RecallStatus   @default(DRAFT)
+  outcome           RecallOutcome?
+  createdByUserId   String         @map("created_by_user_id") @db.Uuid
+  activatedAt       DateTime?      @map("activated_at") @db.Timestamptz(3)
+  activatedByUserId String?        @map("activated_by_user_id") @db.Uuid
+  closedAt          DateTime?      @map("closed_at") @db.Timestamptz(3)
+  closedByUserId    String?        @map("closed_by_user_id") @db.Uuid
+  closeNote         String?        @map("close_note")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  lots         RecallLot[]
+  stock        RecallStock[]
+  documents    RecallDocument[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@map("recalls")
+}
+
+/// A lot in a recall's scope.
+model RecallLot {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  recallId       String   @map("recall_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  lotId          String   @map("lot_id") @db.Uuid
+  addedAt        DateTime @default(now()) @map("added_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recall       Recall       @relation(fields: [organizationId, recallId], references: [organizationId, id], onDelete: Cascade)
+  lot          InventoryLot @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, recallId, lotId])
+  @@index([organizationId, lotId])
+  @@map("recall_lots")
+}
+
+/// Stock of the recalled lots at activation, by place and status. Append-only.
+model RecallStock {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  recallId       String      @map("recall_id") @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  lotId          String      @map("lot_id") @db.Uuid
+  warehouseId    String      @map("warehouse_id") @db.Uuid
+  locationId     String?     @map("location_id") @db.Uuid
+  stockStatus    StockStatus @map("stock_status")
+  quantity       Decimal     @db.Decimal(20, 6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recall       Recall       @relation(fields: [organizationId, recallId], references: [organizationId, id], onDelete: Restrict)
+  lot          InventoryLot @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, recallId])
+  @@map("recall_stock")
+}
+
+enum RecallDocumentKind {
+  HOLD
+  DISPOSAL
+}
+
+/// Stock documents a recall posted (holds on activation, write-offs on disposal).
+model RecallDocument {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  recallId       String             @map("recall_id") @db.Uuid
+  documentId     String             @map("document_id") @db.Uuid
+  kind           RecallDocumentKind
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recall       Recall            @relation(fields: [organizationId, recallId], references: [organizationId, id], onDelete: Restrict)
+  document     InventoryDocument @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, documentId])
+  @@index([organizationId, recallId])
+  @@map("recall_documents")
 }

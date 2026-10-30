@@ -326,6 +326,18 @@ export async function receiveShipment(ctx: TenantContext, shipmentId: string, ra
       assertActive(to);
       const toLocation = await loadLocation(tx, ctx, to.id, input.toLocationId, true);
       const byLine = new Map(input.lines.map((l, i) => [l.lineId, { ...l, index: i }]));
+      const recalled = new Set(
+        (
+          await tx.inventoryLot.findMany({
+            where: {
+              organizationId: ctx.organizationId,
+              id: { in: shipment.lines.flatMap((l) => (l.lotId ? [l.lotId] : [])) },
+              recallHold: true,
+            },
+            select: { id: true },
+          })
+        ).map((l) => l.id),
+      );
       const lines: PostingLine[] = [];
       const updates: Array<{ id: string; received: Decimal; reason: string | null }> = [];
       for (const l of shipment.lines) {
@@ -380,7 +392,8 @@ export async function receiveShipment(ctx: TenantContext, shipmentId: string, ra
               movementType: "TRANSFER_IN",
               warehouseId: to.id,
               locationId: toLocation,
-              stockStatus: "AVAILABLE",
+              // A lot recalled while on the way arrives on hold (ADR-034).
+              stockStatus: recalled.has(l.lotId ?? "") ? "ON_HOLD" : "AVAILABLE",
               quantityDelta: received,
               enteredQuantity: receivedEntered,
               postingKey: `shipment:${l.id}:receive:in`,

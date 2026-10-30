@@ -1,17 +1,52 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (Milestone 4 complete — M4b menu pricing and tools)
+Last updated: 2026-11-01 (Milestone 6a — traceability and recalls)
 
 ## Summary
 
-| Milestone                    | Status                                                                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture | ✅ Complete                                                                                                                         |
-| M1 Application foundation    | ✅ Complete                                                                                                                         |
-| M2 Inventory MVP             | ✅ Complete                                                                                                                         |
-| M3 Procurement & receiving   | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
-| M4 Recipes & food cost       | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card   |
-| M5 – M10, POS1 – POS5        | Not started (POS in scope since ADR-022)                                                                                            |
+| Milestone                     | Status                                                                                                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                         |
+| M1 Application foundation     | ✅ Complete                                                                                                                         |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                         |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions) |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card   |
+| M6 Food safety & traceability | 🔄 In progress — **M6a ✅** (traceability, recalls); M6b food safety records next                                                   |
+| M5, M7 – M10, POS1 – POS5     | Not started (POS in scope since ADR-022)                                                                                            |
+
+## M6a — Lot traceability and recalls (delivered)
+
+Rules: DECISIONS.md ADR-033 and ADR-034.
+
+| Area         | What works                                                                                                                                 | Where                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| Lot search   | By lot code, SKU or product name; recall hold shown                                                                                        | `src/modules/traceability/trace.ts`      |
+| Trace        | Back to receipts (supplier and contact, PO, GRN, delivery note, temperature); forward to stock by place and status, shipments, all moves   | `traceLot`, `/traceability/lots/[lotId]` |
+| Gaps         | Origins without a supplier and usage of the product without a lot where the lot was, listed explicitly; consumption not yet recorded noted | `summarizeTrace` (pure, unit-tested)     |
+| Recall scope | Lots by search, or all lots received from a supplier (and product)                                                                         | `recalls.ts`, recall page                |
+| Simulation   | Draft recall shows affected stock by place and status, in transit, suppliers; changes nothing                                              | `getRecall`                              |
+| Going live   | Recall hold on the lots, stock snapshot, AVAILABLE/QUARANTINE → ON_HOLD in every warehouse via linked documents; shipments arrive on hold  | `activateRecall`, `recall-postings.ts`   |
+| Closing      | Disposed (write-off of held stock) or released (hold lifted, stock stays on hold); drafts can be cancelled; printable report               | `closeRecall`, `cancelRecall`            |
+| Access       | `traceability.view`, `recalls.manage` (data migration); other tenants see nothing                                                          | `permissions.ts`                         |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 22 files / 151 tests — 4 new
+for trace classification and gaps; build); `pnpm test:integration` 18 files /
+155 tests pass (6 new: trace back to supplier and forward to MAIN, kitchen and
+in-transit stock; gap for an opening-balance lot; search by code, product
+and supplier; recall simulation → live hold in two warehouses → recalled
+lot refused for transfer → shipment arrives on hold → disposal; release
+leaving stock on hold; wrong states, permissions and other tenants; ledger
+and valuations reconcile afterwards); `pnpm test:e2e` 26 tests pass (new:
+receipt with lot → trace to Delta Mills → recall draft simulation → live,
+on hold → disposed, 0 kg on hand).
+
+Found and fixed: the application role could not update lots at all, so
+activating a recall failed; it may now update only `recall_hold`. Goods in
+transit during a recall would have arrived as available (though blocked by
+the hold); they now arrive on hold.
+
+Limitations: no production yet, so no input → output lot links; sales do
+not consume stock until M7; no customer notification list (needs sales).
 
 ## M4b — Menu pricing and recipe tools (delivered; M4 complete)
 
