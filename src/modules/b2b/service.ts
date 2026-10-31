@@ -1,4 +1,5 @@
 import "server-only";
+import { emitEvent } from "@/modules/integrations/service";
 import { z } from "zod";
 import { isCalendarDate } from "@/lib/dates";
 import { Decimal, decimalString, toDecimal } from "@/lib/decimal";
@@ -637,6 +638,15 @@ export async function invoiceDelivery(ctx: TenantContext, deliveryId: string, ra
       });
       await tx.salesInvoiceLine.createMany({
         data: lines.map((l) => ({ ...l, invoiceId: inv.id })),
+      });
+      await emitEvent(tx, ctx, "sales_invoice.issued", inv.id, {
+        invoiceId: inv.id,
+        number: inv.number,
+        customerId: d.order.customerId,
+        invoiceDate,
+        net: sum("netAmount").toFixed(),
+        tax: sum("taxAmount").toFixed(),
+        gross: sum("grossAmount").toFixed(),
       });
       await audit(tx, ctx, "sales_invoice", inv, "posted", {
         delivery: d.number,

@@ -23,7 +23,8 @@
     "library:import": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import-library.ts",
     "db:backup": "bash scripts/backup.sh",
     "db:restore": "bash scripts/restore.sh",
-    "db:verify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/verify-integrity.ts"
+    "db:verify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/verify-integrity.ts",
+    "integrations:deliver": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/deliver-webhooks.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

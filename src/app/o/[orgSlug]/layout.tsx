@@ -131,6 +131,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
+  if (hasPermission(ctx.grants, "integrations.manage"))
+    settings.items.push({ href: `${base}/settings/integrations`, label: t("integrations") });
   const b2b: NavSection = { title: t("b2bSection"), items: [] };
   if (hasPermission(ctx.grants, "b2b.view"))
     b2b.items.push(

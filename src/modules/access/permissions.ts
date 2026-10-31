@@ -53,6 +53,7 @@ export const PERMISSIONS = [
   "production.manage",
   "b2b.view",
   "b2b.manage",
+  "integrations.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

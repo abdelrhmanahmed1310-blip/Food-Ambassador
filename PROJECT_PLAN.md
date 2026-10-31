@@ -50,7 +50,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M7   | Sales & financial workflows | M3, M4                           | Complete                                   |
 | M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)              |
 | M9   | Central kitchen & B2B       | M4, M6                           | Complete                                   |
-| M10  | Integrations                | M7                               | Proposed                                   |
+| M10  | Integrations                | M7                               | Framework complete (connectors open)       |
 | POS1 | Core                        | M4                               | Planned                                    |
 | POS2 | Floor & kitchen             | POS1                             | Planned                                    |
 | POS3 | Payments                    | POS1, Q-15                       | Planned                                    |
@@ -346,10 +346,14 @@ from the central kitchen by FEFO-picked shipments; B2B customers, sales
 orders, deliveries at cost, sales invoices with output VAT and margin,
 receipts, customer balances and aging.
 
-## M10 — Integrations (proposed)
+## M10 — Integrations
 
-Connector framework (encrypted credentials, webhook verification, idempotent
-sync, retries, audit), then one connector at a time: POS sales, accounting
+**M10a — Framework ✅ (ADR-048, docs/INTEGRATIONS.md):** connectors with
+encrypted secrets shown once, signed inbound sales webhook through the sales
+import with idempotency keys and a request log, outbound signed event
+webhooks via a transactional outbox with retries and SSRF protection.
+
+Next, one connector at a time: POS sales, accounting
 bills (e.g. Xero), PO delivery by WhatsApp Business, invoice OCR with
 mandatory human confirmation. A connector is listed as available only after
 testing against the provider's real sandbox.

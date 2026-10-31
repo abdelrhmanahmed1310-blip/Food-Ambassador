@@ -121,7 +121,8 @@
     "salesOrders": "Sales orders",
     "salesInvoices": "Sales invoices",
     "customerBalances": "Customer balances",
-    "customers": "Customers"
+    "customers": "Customers",
+    "integrations": "Integrations"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -386,7 +387,10 @@
     "DELIVERY_INVOICED": "Cancel the invoice before reversing the delivery.",
     "SALES_INVOICE_CANCELLED": "This invoice is already cancelled.",
     "SALES_INVOICE_HAS_RECEIPTS": "Receipts are applied to this invoice; void them first.",
-    "DELIVERY_REVERSE_IN_SALES": "Reverse customer deliveries from the delivery."
+    "DELIVERY_REVERSE_IN_SALES": "Reverse customer deliveries from the delivery.",
+    "WEBHOOK_URL_NOT_ALLOWED": "This address cannot be called. Use a public HTTPS address (no user name or password) that resolves to a public IP.",
+    "CONNECTOR_CREATOR_LACKS_ACCESS": "You cannot import sales into this warehouse, so a connector you create cannot either.",
+    "DELIVERY_ALREADY_SENT": "This event was already delivered."
   },
   "notFound": {
     "title": "Page not found",
@@ -591,7 +595,8 @@
       "production.view": "View production",
       "production.manage": "Plan and record production",
       "b2b.view": "View B2B customers, orders and invoices",
-      "b2b.manage": "Manage B2B customers, orders, deliveries, invoices and receipts"
+      "b2b.manage": "Manage B2B customers, orders, deliveries, invoices and receipts",
+      "integrations.manage": "Set up integrations (webhooks and connectors)"
     }
   },
   "audit": {
@@ -2254,5 +2259,64 @@
     "balances": "Customer balances",
     "balancesHint": "What each B2B customer owes, with open invoices aged by due date.",
     "outputVat": "Output VAT (B2B invoices)"
+  },
+  "integrations": {
+    "title": "Integrations",
+    "intro": "Connect a POS or other system by signed webhooks: send sales in, or receive events when orders are approved, goods received and invoices issued. Secrets are stored encrypted and shown only once.",
+    "newConnector": "New connector",
+    "create": "Create connector",
+    "kind": "Type",
+    "name": "Name",
+    "warehouse": "Warehouse for imported sales",
+    "url": "Webhook URL",
+    "urlHint": "Public HTTPS address. Private and local addresses are refused.",
+    "events": "Events to send",
+    "endpoint": "Endpoint URL",
+    "signingSecret": "Signing secret",
+    "copy": "Copy",
+    "copied": "Copied",
+    "secretOnce": "Copy the secret now: it is stored encrypted and will not be shown again. Rotate it if it is lost.",
+    "openConnector": "Open connector",
+    "empty": "No connectors yet.",
+    "secret": "Secret",
+    "created": "Created",
+    "rotated": "Secret rotated",
+    "status": "Status",
+    "back": "All connectors",
+    "enable": "Enable",
+    "disable": "Disable",
+    "disableConfirm": "Disable this connector? Inbound requests will be refused and pending deliveries will stop.",
+    "rotate": "Rotate secret",
+    "rotateConfirm": "Rotate the secret? The old one stops working immediately.",
+    "inboundEvents": "Received requests",
+    "noEvents": "No requests received yet.",
+    "received": "Received",
+    "idempotencyKey": "Idempotency key",
+    "outcome": "Outcome",
+    "deliveries": "Deliveries",
+    "noDeliveries": "No events queued yet.",
+    "event": "Event",
+    "attempts": "Attempts",
+    "lastResult": "Last result",
+    "nextAttempt": "Next attempt",
+    "retry": "Retry",
+    "kinds": {
+      "INBOUND_SALES_WEBHOOK": "Inbound sales webhook",
+      "OUTBOUND_WEBHOOK": "Outbound event webhook"
+    },
+    "statuses": {
+      "ACTIVE": "Active",
+      "DISABLED": "Disabled"
+    },
+    "eventStatuses": {
+      "ACCEPTED": "Accepted",
+      "REJECTED": "Rejected",
+      "DUPLICATE": "Duplicate"
+    },
+    "deliveryStatuses": {
+      "PENDING": "Pending",
+      "DELIVERED": "Delivered",
+      "FAILED": "Failed"
+    }
   }
 }

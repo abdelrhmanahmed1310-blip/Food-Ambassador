@@ -13,6 +13,19 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
   // Read by proxy.ts (see src/lib/client-ip.ts); validated here so misconfiguration fails fast.
   TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
+  // Encrypts connector secrets (32 bytes, base64). Optional: derived from AUTH_SECRET when unset (ADR-048).
+  INTEGRATION_ENCRYPTION_KEY: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || Buffer.from(v, "base64").length === 32,
+      "INTEGRATION_ENCRYPTION_KEY must be 32 bytes, base64",
+    ),
+  // Allow outbound webhooks to http:// and private addresses (tests and local development only).
+  INTEGRATIONS_ALLOW_PRIVATE_URLS: z
+    .enum(["0", "1"])
+    .default("0")
+    .transform((v) => v === "1"),
 });
 
 export type Env = z.infer<typeof envSchema>;

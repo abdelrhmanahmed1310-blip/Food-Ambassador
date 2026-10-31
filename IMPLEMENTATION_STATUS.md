@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (M9b kitchen fulfilment and B2B; Milestone 9 complete)
+Last updated: 2026-10-31 (M10a integration framework)
 
 ## Summary
 
@@ -16,7 +16,47 @@ Last updated: 2026-10-31 (M9b kitchen fulfilment and B2B; Milestone 9 complete)
 | M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                            |
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
-| M10, POS1 – POS5              | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
+| POS1 – POS5                   | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## M10a — Integration framework (delivered)
+
+Rules: DECISIONS.md ADR-048; guide: docs/INTEGRATIONS.md.
+
+| Area       | What works                                                                                                                           | Where                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| Connectors | Create (owner/admin), secret shown once and stored encrypted, rotate, enable/disable; request log and delivery list per connector    | `/settings/integrations`, `integrations/service` |
+| Inbound    | `POST /api/integrations/inbound/<id>`: HMAC + 5-minute window, Idempotency-Key, rate limit; sales import as the creator; 4xx reasons | route handler, `handleInboundSales`              |
+| Outbound   | `purchase_order.approved`, `goods_receipt.posted`, `sales_invoice.issued` queued in the same transaction; signed POST; 5 retries     | `emitEvent`, `pnpm integrations:deliver`         |
+| Safety     | https only, private addresses refused on save and at connect time (DNS rebinding), no redirects, ids and totals only in payloads     | `integrations/http.ts`, `crypto.ts`              |
+
+Checks: `pnpm check` pass (unit 33 files / 192 tests, 6 new: encryption,
+signatures, retry schedule, URL rules; connect-time address guard and no
+redirects against a local server; build); `pnpm test:integration` 32 files /
+214 tests pass (11 new: secret stored only encrypted and absent from lists
+and audit; validation and refused addresses; owner/admin only, other
+tenants see nothing; inbound unknown id, wrong/stale/missing signature,
+missing key and bad body all refused and logged with no stock change;
+signed sales imported once, repeated key returns the first result; import
+errors 422; disabled connector 403; rotated secret replaces the old; removed
+creator 403; PO approval queues a signed event delivered to a local
+receiver and verified; six attempts with backoff then FAILED, manual retry
+delivers; goods receipt event; nothing queued when disabled);
+`pnpm test:e2e` 37 tests pass (new: create inbound connector, secret shown
+once, signed request imports sales, bad signature 401, repeat flagged
+duplicate, request log, stock 10 → 7).
+
+Found and fixed: the first version checked the outbound address before
+sending but let the HTTP client resolve DNS again, and a pooled keep-alive
+socket skipped even the connect-time check; the new unit test caught the
+second. Now checked on the dialled IP with no connection reuse. My own
+encryption unit test was flaky (its "tampering" sometimes changed nothing);
+it now always flips a real byte.
+
+Limitations: no named third-party connector (POS brands, Xero, WhatsApp,
+OCR) — none is claimed until tested against its sandbox; inbound accepts
+our format only; the worker is a separate process you schedule; no payload
+versioning yet.
 
 ## M9b — Kitchen fulfilment and B2B sales (delivered)
 

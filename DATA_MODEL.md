@@ -853,7 +853,30 @@ statements are queries; there is no balance table.
 **accounting_settings** (one per organization: payables, purchases, input
 VAT and payments account codes, all optional text).
 
-## 10. Platform tables
+## 10. Integrations (Milestone 10, ADR-048)
+
+Migration `20261110090000_m10_integrations`; all three tables have
+row-level security.
+
+- **connectors**: kind INBOUND_SALES_WEBHOOK | OUTBOUND_WEBHOOK, name,
+  status ACTIVE | DISABLED, `config` JSON (inbound: `warehouseId`; outbound:
+  `url`, `events[]`), `public_id` (UQ, random, the inbound URL path),
+  `secret_sealed` (AES-256-GCM `v1.iv.tag.ct`), `secret_hint` (last 4),
+  `created_by_user_id` (the identity inbound requests act as),
+  `secret_rotated_at`. The app role may select, insert and update; not
+  delete.
+- **integration_events** (insert-only): connector, `idempotency_key?`,
+  status ACCEPTED | REJECTED | DUPLICATE, `outcome` JSON (import id and
+  counts, or the error), `body_sha256`, `body_bytes`, `received_at`. Partial
+  UQ (connector, idempotency_key) WHERE status = ACCEPTED. The body itself is
+  not stored (the sales import keeps the posted lines).
+- **outbound_deliveries** (the outbox): connector, `event_type`,
+  `event_key` (`<type>:<entity id>`, UQ per organization + connector),
+  `payload` JSON, status PENDING | DELIVERED | FAILED, `attempts` ≥ 0,
+  `next_attempt_at` (also the claim lease), `last_status_code`,
+  `last_error`, `delivered_at` (CK present only when DELIVERED).
+
+## 11. Platform tables
 
 - **audit_events** (append-only, implemented M1): `organization_id`,
   `actor_user_id?` (null = system), `action` (e.g. `member.role_granted`),

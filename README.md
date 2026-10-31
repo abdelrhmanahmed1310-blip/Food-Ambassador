@@ -117,6 +117,7 @@ role `CREATEROLE` for the first run (ADR-013). A local superuser works as is.
 | `pnpm db:restore <dump> <url>` | Restore into an empty database, then verify                                              |
 | `pnpm db:verify`               | Integrity check: RLS, balances and values vs. ledger, migrations                         |
 | `pnpm library:import …`        | Import a full food-database download into one organization's ingredient library (below)  |
+| `pnpm integrations:deliver`    | Send due outbound webhooks once (`--watch` to loop); see docs/INTEGRATIONS.md            |
 
 Integration and E2E tests create uniquely named data and never reset the
 database, so they can be re-run against the same test database.
@@ -142,15 +143,17 @@ attribution, and share-alike applies to a database you publish from it),
 
 See [.env.example](.env.example). Never commit `.env` files or real secrets.
 
-| Variable             | Required | Description                                                                                         |
-| -------------------- | -------- | --------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`       | yes      | PostgreSQL connection for the app and the Prisma CLI                                                |
-| `AUTH_SECRET`        | yes      | 32+ character secret for session signing                                                            |
-| `APP_URL`            | prod     | Public base URL (default `http://localhost:3000`); used for auth origin checks and invitation links |
-| `TRUSTED_PROXY_HOPS` | no       | Reverse proxies in front of the app (default `1`; `0` if exposed directly) — see ADR-014            |
-| `TEST_DATABASE_URL`  | tests    | Separate database for integration/E2E tests                                                         |
-| `LOG_LEVEL`          | no       | `fatal` · `error` · `warn` · `info` (default) · `debug`                                             |
-| `SEED_PASSWORD`      | no       | Password for seeded demo users                                                                      |
+| Variable                          | Required | Description                                                                                         |
+| --------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                    | yes      | PostgreSQL connection for the app and the Prisma CLI                                                |
+| `AUTH_SECRET`                     | yes      | 32+ character secret for session signing                                                            |
+| `APP_URL`                         | prod     | Public base URL (default `http://localhost:3000`); used for auth origin checks and invitation links |
+| `TRUSTED_PROXY_HOPS`              | no       | Reverse proxies in front of the app (default `1`; `0` if exposed directly) — see ADR-014            |
+| `TEST_DATABASE_URL`               | tests    | Separate database for integration/E2E tests                                                         |
+| `LOG_LEVEL`                       | no       | `fatal` · `error` · `warn` · `info` (default) · `debug`                                             |
+| `SEED_PASSWORD`                   | no       | Password for seeded demo users                                                                      |
+| `INTEGRATION_ENCRYPTION_KEY`      | prod     | 32 random bytes, base64; encrypts connector secrets (derived from `AUTH_SECRET` if unset)           |
+| `INTEGRATIONS_ALLOW_PRIVATE_URLS` | no       | `1` lets outbound webhooks call http and private addresses — development only (default `0`)         |
 
 ## Deployment
 

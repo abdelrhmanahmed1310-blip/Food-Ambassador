@@ -1,4 +1,5 @@
 import "server-only";
+import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { uuidv7 } from "@/lib/uuid";
@@ -275,6 +276,13 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
           rejectedLines: lines.filter((l) => l.rejected.gt(0)).length,
           orderStatus: status,
         },
+      });
+      await emitEvent(tx, ctx, "goods_receipt.posted", receiptId, {
+        receiptId,
+        number,
+        orderId: order.id,
+        orderNumber: order.number,
+        lines: lines.length,
       });
       return { id: receiptId, number, orderStatus: status };
     },

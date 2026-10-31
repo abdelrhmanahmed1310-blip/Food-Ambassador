@@ -1,4 +1,5 @@
 import "server-only";
+import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { accessibleScope, assertPermission, hasPermission } from "@/modules/access/authorize";
@@ -547,8 +548,24 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
       threshold: rules.approvalThreshold?.toFixed() ?? null,
       outcome,
     });
+    if (outcome === "AUTO_APPROVED")
+      await emitEvent(tx, ctx, "purchase_order.approved", order.id, orderEvent(order, total));
     return { status: outcome === "AUTO_APPROVED" ? "APPROVED" : "PENDING_APPROVAL" };
   });
+}
+
+/** Outbound webhook payload (ADR-048): identifiers and totals only. */
+function orderEvent(
+  order: { id: string; number: string; supplierId: string; warehouseId: string },
+  total: Decimal,
+) {
+  return {
+    orderId: order.id,
+    number: order.number,
+    supplierId: order.supplierId,
+    warehouseId: order.warehouseId,
+    total: total.toFixed(),
+  };
 }
 
 /** Approve a pending order. The person who created or submitted it cannot approve it. */
@@ -572,6 +589,13 @@ export async function approveOrder(ctx: TenantContext, orderId: string) {
       },
     });
     await audit(tx, ctx, order, "approved", { total: dec(order.totalAmount).toFixed() });
+    await emitEvent(
+      tx,
+      ctx,
+      "purchase_order.approved",
+      order.id,
+      orderEvent(order, dec(order.totalAmount)),
+    );
   });
 }
 

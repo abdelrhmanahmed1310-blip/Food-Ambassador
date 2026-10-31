@@ -888,6 +888,47 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - Not yet: customer credit notes and returns, price lists, credit limits,
   invoicing several deliveries at once, B2B journal export.
 
+### ADR-048 Integration framework: connectors, signed webhooks, outbox — Accepted (M10)
+
+- **Connectors** per organization, managed by owners and admins
+  (`integrations.manage`). Two kinds in our own documented format
+  (docs/INTEGRATIONS.md): an **inbound sales webhook** and an **outbound
+  event webhook**. Named third-party connectors (POS brands, Xero, WhatsApp,
+  OCR) are not built or listed until tested against the provider's real
+  sandbox (ADR-022, PROJECT_PLAN M10).
+- **Secrets**: one per connector, random, shown once; stored AES-256-GCM
+  encrypted with `INTEGRATION_ENCRYPTION_KEY` (or a key derived from
+  `AUTH_SECRET` by HKDF when unset), last four characters as a hint; never in
+  audit records or logs. Rotation replaces it at once.
+- **Signatures**: HMAC-SHA256 over `timestamp.body`, constant-time compare,
+  5-minute window, both directions.
+- **Inbound**: the connector is found by an unguessable public id (the only
+  lookup before the tenant is known); then rate limit (120/min), active
+  check, signature, mandatory Idempotency-Key, body validation. Sales are
+  posted by the existing sales import (no second code path into the
+  ledger) **as the connector's creator with their current permissions**;
+  creating one requires `sales.import` on its warehouse. Every request is
+  logged (`integration_events`: status, outcome, body hash and size, not
+  the body); one ACCEPTED event per key (partial unique index), repeats
+  return the first outcome.
+- **Outbound**: a transactional outbox. `emitEvent` inserts
+  `outbound_deliveries` in the same transaction as the business change
+  (PO approved, goods receipt posted, sales invoice issued), one per
+  subscribed active connector, unique per event, so an event exists exactly
+  when the change committed. A worker (`pnpm integrations:deliver`) claims
+  due rows with a lease (`FOR UPDATE SKIP LOCKED`), POSTs, and retries after
+  1 min, 5 min, 30 min, 2 h, 12 h before FAILED; manual retry keeps the
+  event id. At-least-once: receivers deduplicate on `X-FA-Event-Id`.
+- **SSRF**: https only, no credentials in the URL, no redirects; host
+  addresses in private/loopback/link-local/CGNAT/multicast ranges refused
+  on save and on the IP dialled at send time (custom DNS lookup, no
+  connection reuse), defeating DNS rebinding. A development-only flag
+  allows private http targets.
+- Payloads carry ids, numbers and totals only.
+- Not yet: per-connector event filters beyond type, payload versioning,
+  inbound formats other than ours, a job runner inside the app (the worker
+  is a separate process, ADR-008).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

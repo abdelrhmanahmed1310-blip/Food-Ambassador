@@ -170,8 +170,13 @@ only the privileges it needs — a test enforces RLS on every table with an
 
 ## 8. Background work
 
-None yet. First candidates: idempotency-key cleanup, email delivery (Q-10).
-Plan: PostgreSQL-backed job table + worker process (ADR-008, proposed).
+Outbound webhooks (M10, ADR-048) use a transactional outbox: services call
+`emitEvent(tx, …)` inside their transaction, and `pnpm integrations:deliver`
+(a separate process, run by cron or with `--watch`) claims due rows with a
+lease and sends them. The inbound webhook is a thin route handler
+(`app/api/integrations/inbound/[publicId]`) over `integrations/service.ts`.
+Still to do: idempotency-key cleanup, email delivery (Q-10), a general job
+table (ADR-008, proposed).
 
 ## 9. Testing strategy
 

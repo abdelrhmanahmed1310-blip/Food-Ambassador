@@ -204,6 +204,9 @@ model Organization {
   salesInvoiceLines     SalesInvoiceLine[]
   customerReceipts      CustomerReceipt[]
   receiptAllocations    CustomerReceiptAllocation[]
+  connectors            Connector[]
+  integrationEvents     IntegrationEvent[]
+  outboundDeliveries    OutboundDelivery[]
 
   @@map("organizations")
 }
@@ -2970,4 +2973,99 @@ model CustomerReceiptAllocation {
   @@index([organizationId, invoiceId])
   @@index([organizationId, receiptId])
   @@map("customer_receipt_allocations")
+}
+
+// ─── Integrations (Milestone 10, ADR-048) ───
+
+enum ConnectorKind {
+  INBOUND_SALES_WEBHOOK
+  OUTBOUND_WEBHOOK
+}
+
+enum ConnectorStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum InboundEventStatus {
+  ACCEPTED
+  REJECTED
+  DUPLICATE
+}
+
+enum DeliveryAttemptStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+/// A configured integration. Its secret is stored encrypted and shown once.
+model Connector {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  kind            ConnectorKind
+  name            String
+  status          ConnectorStatus @default(ACTIVE)
+  /// Non-secret settings: inbound — warehouseId; outbound — url, events.
+  config          Json
+  /// Random id in the inbound URL; never the database id.
+  publicId        String          @unique @map("public_id")
+  secretSealed    String          @map("secret_sealed")
+  secretHint      String          @map("secret_hint")
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  secretRotatedAt DateTime?       @map("secret_rotated_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  events       IntegrationEvent[]
+  deliveries   OutboundDelivery[]
+
+  @@unique([organizationId, id])
+  @@map("connectors")
+}
+
+/// Every inbound request to a connector, accepted or not.
+model IntegrationEvent {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  connectorId    String             @map("connector_id") @db.Uuid
+  idempotencyKey String?            @map("idempotency_key")
+  status         InboundEventStatus
+  /// Why it was refused (signature, format, business rule), or the outcome.
+  outcome        Json
+  bodySha256     String             @map("body_sha256")
+  bodyBytes      Int                @map("body_bytes")
+  receivedAt     DateTime           @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  connector    Connector    @relation(fields: [organizationId, connectorId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, connectorId, receivedAt])
+  @@map("integration_events")
+}
+
+/// Transactional outbox: written with the business change, sent by the delivery job.
+model OutboundDelivery {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  connectorId    String                @map("connector_id") @db.Uuid
+  eventType      String                @map("event_type")
+  /// Unique per connector, e.g. "purchase_order.approved:<id>"; sent as the event id.
+  eventKey       String                @map("event_key")
+  payload        Json
+  status         DeliveryAttemptStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  nextAttemptAt  DateTime              @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  lastStatusCode Int?                  @map("last_status_code")
+  lastError      String?               @map("last_error")
+  deliveredAt    DateTime?             @map("delivered_at") @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  connector    Connector    @relation(fields: [organizationId, connectorId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, connectorId, eventKey])
+  @@index([status, nextAttemptAt])
+  @@map("outbound_deliveries")
 }

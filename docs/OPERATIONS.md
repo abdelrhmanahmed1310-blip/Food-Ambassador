@@ -91,3 +91,13 @@ edit balances by hand (AGENTS.md).
 
 See README → Ingredient library downloads (`pnpm library:import`). Large
 imports run in parts and can be re-run safely.
+
+## 7. Webhook worker
+
+Outbound webhooks wait in the outbox until `pnpm integrations:deliver`
+sends them (docs/INTEGRATIONS.md). Run it every minute from the scheduler,
+or as a long-running process with `--watch`; several instances are safe.
+It prints counts only. Set `INTEGRATION_ENCRYPTION_KEY` in production and
+keep it with the other secrets: losing it makes every connector secret
+unreadable (rotate them all after restoring with a new key). Failed
+deliveries are listed on each connector's page and can be retried there.
