@@ -778,6 +778,27 @@ documents stay scoped. Found by a scoped-user integration test.
   vs. counted usage per product beyond the count differences, supplier
   price trends (purchase price history exists per supplier item, M3c).
 
+### ADR-043 "Needs attention" instead of stored notifications — Accepted (M8b)
+
+- What is waiting is **computed when the page is opened** from the current
+  data, so it can never be stale or out of sync, and nothing is stored or
+  sent. (Push or e-mail notifications need an e-mail provider, Q-10, and
+  background jobs, ADR-008.)
+- Items, each shown only to users who can act on it, at their sites:
+  expired stock still available and stock expiring within 7 days
+  (`inventory.view`); quarantine awaiting a decision
+  (`inventory.quarantine.release`); products whose usable stock (available,
+  not expired, not on recall hold) is below the reorder minimum
+  (`purchasing.view`); purchase orders to approve that the user did not
+  submit (`purchasing.approve`); requisitions waiting (`purchasing.manage`);
+  submitted counts (`inventory.count.approve`); invoice exceptions entered
+  by someone else (`invoices.manage`); overdue supplier invoices with the
+  open amount (`invoices.view`); labels and nutrition/allergen data to
+  verify, made by someone else (`labels.approve`, `nutrition.manage`); open
+  non-conformances and overdue corrective actions (`foodsafety.manage`);
+  active recalls (`recalls.manage`).
+- Shown on the overview (first six) and on its own page, most urgent first.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

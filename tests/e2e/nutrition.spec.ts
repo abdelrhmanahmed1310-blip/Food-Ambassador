@@ -122,7 +122,11 @@ test("nutrition and allergens: values, statements, second-person verification, l
   await expect(page.getByTestId("label-blockers")).toContainText("verified");
   await expect(page.getByRole("button", { name: "Generate label" })).toHaveCount(0);
 
-  // Quality verifies.
+  // Quality sees what waits for them on the overview, then verifies.
+  await qa.page.goto(`/o/${slug}`);
+  await expect(qa.page.getByTestId("attention-STATEMENTS_TO_VERIFY")).toContainText(
+    "1 product with nutrition or allergen data to verify",
+  );
   await qa.page.goto(productUrl);
   await confirmClick(qa.page, "Verify these values");
   await expect(qa.page.getByText(/Verified by Quality Lead/).first()).toBeVisible();
@@ -138,7 +142,9 @@ test("nutrition and allergens: values, statements, second-person verification, l
   await expect(page.getByRole("button", { name: "Print" })).toHaveCount(0);
   const labelUrl = page.url();
 
-  await qa.page.goto(labelUrl);
+  await qa.page.goto(`/o/${slug}/attention`);
+  await qa.page.getByTestId("attention-LABELS_TO_REVIEW").getByRole("link").first().click();
+  await expect(qa.page).toHaveURL(labelUrl);
   await qa.page.getByLabel("Decision").selectOption("APPROVE");
   await qa.page.getByRole("button", { name: "Submit review" }).click();
   await expect(qa.page.getByText("Approved", { exact: true })).toBeVisible();

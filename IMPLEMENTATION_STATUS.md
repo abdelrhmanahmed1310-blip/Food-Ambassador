@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-07 (M8a reports)
+Last updated: 2026-11-07 (M8b needs attention)
 
 ## Summary
 
@@ -14,8 +14,32 @@ Last updated: 2026-11-07 (M8a reports)
 | M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                   |
 | M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export) |
 | M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts     |
-| M8 Analytics & pilot          | 🔄 In progress — **M8a ✅** (waste, actual food cost, branch comparison, trends, CSV); M8b attention list and M8c pilot readiness next                                                         |
+| M8 Analytics & pilot          | 🔄 In progress — M8a ✅ (waste, actual food cost, branch comparison, trends, CSV), **M8b ✅** (needs attention); M8c pilot readiness next                                                      |
 | M9 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+
+## M8b — Needs attention (delivered)
+
+Rules: DECISIONS.md ADR-043.
+
+| Area      | What works                                                                                                                                     | Where                     |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Stock     | Expired still available, expiring within 7 days, quarantine waiting, usable stock below the reorder minimum                                    | `analytics/attention.ts`  |
+| Approvals | Purchase orders (not one's own), requisitions, counts, invoice exceptions (not one's own), labels and nutrition data to verify (not one's own) | `attentionItems`          |
+| Money     | Overdue supplier invoices with open amount                                                                                                     | `attentionItems`          |
+| Safety    | Open non-conformances, overdue corrective actions, active recalls                                                                              | `attentionItems`          |
+| Screens   | Overview card (most urgent six) and `/attention`; each item links to where it is handled; EN/AR with plurals                                   | `/o/[slug]`, `/attention` |
+
+Checks: `pnpm check` pass (unit 31 files / 186 tests; build);
+`pnpm test:integration` 27 files / 192 tests pass (2 new: empty for a new
+organization; expiring, quarantine, below minimum and an order to approve,
+ordered by urgency; the buyer does not see their own order or quarantine
+release; another branch's manager sees nothing); `pnpm test:e2e` 34 tests
+pass (nutrition journey extended: the quality lead's overview shows the
+product to verify, and the label to review opens from the attention page).
+
+Limitations: nothing is pushed (no e-mail or push notifications until an
+e-mail provider, Q-10, and background jobs exist); the 7-day expiry window
+is fixed.
 
 ## M8a — Reports (delivered)
 

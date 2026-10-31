@@ -25,7 +25,12 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   ]);
   const base = `/o/${ctx.organizationSlug}`;
 
-  const main: NavSection = { items: [{ href: base, label: t("overview"), exact: true }] };
+  const main: NavSection = {
+    items: [
+      { href: base, label: t("overview"), exact: true },
+      { href: `${base}/attention`, label: t("attention") },
+    ],
+  };
   if (holdsAnyGrant(ctx.grants, "branches.view"))
     main.items.push({ href: `${base}/branches`, label: t("branches") });
   if (holdsAnyGrant(ctx.grants, "warehouses.view"))

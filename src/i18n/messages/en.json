@@ -114,7 +114,8 @@
     "ingredientLibrary": "Ingredient library",
     "reportsSection": "Reports",
     "foodCostReport": "Food cost by branch",
-    "wasteReport": "Waste and differences"
+    "wasteReport": "Waste and differences",
+    "attention": "Needs attention"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -2060,5 +2061,27 @@
     "straddlingHint": "These imports have sales on both sides of the period boundary, so their cost cannot be split by day; choose a period that contains them fully.",
     "trendTitle": "Food cost % by month",
     "trendHint": "Last 12 months, from imports whose sales fall within one month."
+  },
+  "attention": {
+    "title": "Needs attention",
+    "hint": "What is waiting for you now, from the current data at the sites you work with.",
+    "nothing": "Nothing needs your attention right now.",
+    "seeAll": "See all {count}",
+    "items": {
+      "EXPIRED_STOCK": "{count, plural, one {# expired stock item still available} other {# expired stock items still available}}",
+      "EXPIRING_STOCK": "{count, plural, one {# stock item expires within 7 days} other {# stock items expire within 7 days}}",
+      "QUARANTINE": "{count, plural, one {# stock item in quarantine awaits a decision} other {# stock items in quarantine await a decision}}",
+      "BELOW_MINIMUM": "{count, plural, one {# product below its minimum level} other {# products below their minimum level}}",
+      "ORDERS_TO_APPROVE": "{count, plural, one {# purchase order to approve} other {# purchase orders to approve}}",
+      "REQUISITIONS_WAITING": "{count, plural, one {# requisition waiting to be ordered} other {# requisitions waiting to be ordered}}",
+      "COUNTS_TO_POST": "{count, plural, one {# stock count to review and post} other {# stock counts to review and post}}",
+      "INVOICE_EXCEPTIONS": "{count, plural, one {# supplier invoice with differences to approve} other {# supplier invoices with differences to approve}}",
+      "INVOICES_OVERDUE": "{count, plural, one {# supplier invoice overdue} other {# supplier invoices overdue}}",
+      "LABELS_TO_REVIEW": "{count, plural, one {# label to review} other {# labels to review}}",
+      "STATEMENTS_TO_VERIFY": "{count, plural, one {# product with nutrition or allergen data to verify} other {# products with nutrition or allergen data to verify}}",
+      "NC_OPEN": "{count, plural, one {# open non-conformance} other {# open non-conformances}}",
+      "ACTIONS_OVERDUE": "{count, plural, one {# corrective action overdue} other {# corrective actions overdue}}",
+      "RECALLS_ACTIVE": "{count, plural, one {# active recall} other {# active recalls}}"
+    }
   }
 }

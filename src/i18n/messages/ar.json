@@ -114,7 +114,8 @@
     "ingredientLibrary": "مكتبة المكونات",
     "reportsSection": "التقارير",
     "foodCostReport": "تكلفة الطعام حسب الفرع",
-    "wasteReport": "الهدر والفروقات"
+    "wasteReport": "الهدر والفروقات",
+    "attention": "يحتاج إلى انتباه"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -2060,5 +2061,27 @@
     "straddlingHint": "لهذه الاستيرادات مبيعات على جانبي حد الفترة، فلا يمكن تقسيم تكلفتها حسب اليوم؛ اختر فترة تحتويها كاملة.",
     "trendTitle": "نسبة تكلفة الطعام حسب الشهر",
     "trendHint": "آخر 12 شهرًا، من الاستيرادات التي تقع مبيعاتها في شهر واحد."
+  },
+  "attention": {
+    "title": "يحتاج إلى انتباه",
+    "hint": "ما ينتظرك الآن، من البيانات الحالية في المواقع التي تعمل بها.",
+    "nothing": "لا شيء يحتاج انتباهك الآن.",
+    "seeAll": "عرض الكل ({count})",
+    "items": {
+      "EXPIRED_STOCK": "{count, plural, one {صنف مخزون منتهي الصلاحية ما زال متاحًا} other {# أصناف مخزون منتهية الصلاحية ما زالت متاحة}}",
+      "EXPIRING_STOCK": "{count, plural, one {صنف مخزون تنتهي صلاحيته خلال 7 أيام} other {# أصناف مخزون تنتهي صلاحيتها خلال 7 أيام}}",
+      "QUARANTINE": "{count, plural, one {صنف في الحجر بانتظار قرار} other {# أصناف في الحجر بانتظار قرار}}",
+      "BELOW_MINIMUM": "{count, plural, one {منتج تحت الحد الأدنى} other {# منتجات تحت الحد الأدنى}}",
+      "ORDERS_TO_APPROVE": "{count, plural, one {أمر شراء بانتظار اعتمادك} other {# أوامر شراء بانتظار اعتمادك}}",
+      "REQUISITIONS_WAITING": "{count, plural, one {طلب داخلي بانتظار الطلب} other {# طلبات داخلية بانتظار الطلب}}",
+      "COUNTS_TO_POST": "{count, plural, one {جرد بانتظار المراجعة والترحيل} other {# عمليات جرد بانتظار المراجعة والترحيل}}",
+      "INVOICE_EXCEPTIONS": "{count, plural, one {فاتورة مورد بفروقات بانتظار الاعتماد} other {# فواتير موردين بفروقات بانتظار الاعتماد}}",
+      "INVOICES_OVERDUE": "{count, plural, one {فاتورة مورد متأخرة} other {# فواتير موردين متأخرة}}",
+      "LABELS_TO_REVIEW": "{count, plural, one {ملصق للمراجعة} other {# ملصقات للمراجعة}}",
+      "STATEMENTS_TO_VERIFY": "{count, plural, one {منتج ببيانات غذائية أو حساسية للتحقق} other {# منتجات ببيانات غذائية أو حساسية للتحقق}}",
+      "NC_OPEN": "{count, plural, one {عدم مطابقة مفتوح} other {# حالات عدم مطابقة مفتوحة}}",
+      "ACTIONS_OVERDUE": "{count, plural, one {إجراء تصحيحي متأخر} other {# إجراءات تصحيحية متأخرة}}",
+      "RECALLS_ACTIVE": "{count, plural, one {استدعاء نشط} other {# استدعاءات نشطة}}"
+    }
   }
 }

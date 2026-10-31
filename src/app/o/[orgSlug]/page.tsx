@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { AttentionList } from "@/components/reports/attention-list";
 import { Card, PageHeader } from "@/components/ui/primitives";
+import { attentionItems } from "@/modules/analytics/attention";
 import { hasPermission } from "@/modules/access/authorize";
 import { getOverview } from "@/modules/organizations/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
@@ -9,10 +11,12 @@ import { getCurrentUser } from "@/server/auth/session";
 export default async function OverviewPage({ params }: PageProps<"/o/[orgSlug]">) {
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
-  const [t, user, counts] = await Promise.all([
+  const [t, ta, user, counts, attention] = await Promise.all([
     getTranslations("overview"),
+    getTranslations("attention"),
     getCurrentUser(),
     getOverview(ctx),
+    attentionItems(ctx),
   ]);
   const base = `/o/${orgSlug}`;
 
@@ -62,6 +66,19 @@ export default async function OverviewPage({ params }: PageProps<"/o/[orgSlug]">
             <p className="mt-1 text-2xl font-semibold tabular-nums">{s.value}</p>
           </Link>
         ))}
+      </div>
+      <div className="mt-6">
+        <Card title={ta("title")}>
+          <AttentionList items={attention.slice(0, 6)} base={base} currency={ctx.baseCurrency} />
+          {attention.length > 6 ? (
+            <Link
+              href={`${base}/attention`}
+              className="text-primary mt-3 inline-block text-sm hover:underline"
+            >
+              {ta("seeAll", { count: attention.length })}
+            </Link>
+          ) : null}
+        </Card>
       </div>
       {steps.length > 0 ? (
         <div className="mt-6">
