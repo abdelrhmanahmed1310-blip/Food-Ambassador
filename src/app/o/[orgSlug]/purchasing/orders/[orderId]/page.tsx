@@ -21,8 +21,10 @@ import { isUuid } from "@/lib/uuid";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
 import { getOrder, purchasingWarehouseOptions } from "@/modules/procurement/orders";
 import { supplierOptions } from "@/modules/procurement/suppliers";
+import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
+import { fxItems } from "@/server/fx-view";
 import {
   moneyFormatter,
   productName,
@@ -53,8 +55,12 @@ export default async function OrderPage({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(order.currency),
   ]);
+  const fx = await fxItems(ctx.baseCurrency, order, {
+    label: t("fx.totalInBase", { currency: ctx.baseCurrency }),
+    value: order.totalAmountBase,
+  });
   const editing = order.can.edit;
   const [products, units, suppliers, warehouses] = editing
     ? await Promise.all([
@@ -127,6 +133,7 @@ export default async function OrderPage({
                   <span className="ltr-value tabular-nums">{money.money(order.totalAmount)}</span>
                 ),
               },
+              ...fx,
               {
                 label: t("purchasing.createdBy"),
                 value: who(order.names.createdBy, order.createdAt),
@@ -327,8 +334,10 @@ export default async function OrderPage({
                   value: w.id,
                   label: `${w.code} — ${w.name}`,
                 }))}
+                currencies={currencyChoices(ctx.baseCurrency)}
                 submitLabel={t("common.save")}
                 defaults={{
+                  currency: order.currency,
                   supplierId: order.supplierId,
                   warehouseId: order.warehouseId,
                   expectedOn: order.expectedOn?.toISOString().slice(0, 10),

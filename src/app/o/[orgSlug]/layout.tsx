@@ -68,6 +68,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/purchasing/invoices`, label: t("supplierInvoices") },
       { href: `${base}/purchasing/payables`, label: t("payables") },
     );
+  if (hasPermission(ctx.grants, "fx.manage"))
+    purchasing.items.push({ href: `${base}/purchasing/exchange-rates`, label: t("exchangeRates") });
   const kitchen: NavSection = { title: t("recipesSection"), items: [] };
   if (hasPermission(ctx.grants, "recipes.view"))
     kitchen.items.push({ href: `${base}/recipes`, label: t("recipes") });

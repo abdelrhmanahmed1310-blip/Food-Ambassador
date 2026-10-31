@@ -34,8 +34,18 @@ export default async function PayablesPage({
     journalReady(ctx),
   ]);
   const base = `/o/${orgSlug}/purchasing/payables`;
-  const amount = (v: Decimal) => (
-    <span className="ltr-value whitespace-nowrap">{v.isZero() ? "—" : money.money(v)}</span>
+  // Rows are in their own currency (ADR-050); totals in base currency.
+  const formatters = new Map(
+    await Promise.all(
+      [...new Set(balances.rows.map((r) => r.currency))].map(
+        async (c) => [c, await moneyFormatter(c)] as const,
+      ),
+    ),
+  );
+  const amount = (v: Decimal, currency = ctx.baseCurrency) => (
+    <span className="ltr-value whitespace-nowrap">
+      {v.isZero() ? "—" : (formatters.get(currency) ?? money).money(v)}
+    </span>
   );
   const dateInput = (name: string, label: string, value: string) => (
     <label className="text-sm">
@@ -71,43 +81,56 @@ export default async function PayablesPage({
             <thead>
               <tr>
                 <Th>{t("purchasing.supplier")}</Th>
+                <Th>{t("fx.currency")}</Th>
                 <Th>{t("payables.balance")}</Th>
                 {AGING_BUCKETS.map((b) => (
                   <Th key={b}>{t(`payables.aging.${b}`)}</Th>
                 ))}
                 <Th>{t("payables.unapplied")}</Th>
+                <Th>{t("fx.inBase", { currency: ctx.baseCurrency })}</Th>
               </tr>
             </thead>
             <tbody>
               {balances.rows.map((r) => (
-                <tr key={r.supplier.id} data-testid={`balance-${r.supplier.code}`}>
+                <tr
+                  key={`${r.supplier.id}-${r.currency}`}
+                  data-testid={`balance-${r.supplier.code}${r.currency === ctx.baseCurrency ? "" : `-${r.currency}`}`}
+                >
                   <Td>
                     <Link
-                      href={`${base}/${r.supplier.id}`}
+                      href={`${base}/${r.supplier.id}?currency=${r.currency}`}
                       className="text-primary hover:underline"
                     >
                       <span className="ltr-value font-mono text-xs">{r.supplier.code}</span>{" "}
                       <bdi>{(locale === "ar" && r.supplier.nameAr) || r.supplier.name}</bdi>
                     </Link>
                   </Td>
-                  <Td className="font-medium tabular-nums">{amount(r.balance)}</Td>
+                  <Td>
+                    <span className="ltr-value font-mono text-xs">{r.currency}</span>
+                  </Td>
+                  <Td className="font-medium tabular-nums">{amount(r.balance, r.currency)}</Td>
                   {AGING_BUCKETS.map((b) => (
                     <Td key={b} className="tabular-nums">
-                      {amount(r.aging[b])}
+                      {amount(r.aging[b], r.currency)}
                     </Td>
                   ))}
-                  <Td className="tabular-nums">{amount(r.unapplied)}</Td>
+                  <Td className="tabular-nums">{amount(r.unapplied, r.currency)}</Td>
+                  <Td className="tabular-nums">{amount(r.balanceBase)}</Td>
                 </tr>
               ))}
               <tr className="font-medium" data-testid="balance-total">
                 <Td>{t("payables.total")}</Td>
-                <Td className="tabular-nums">{amount(balances.total.balance)}</Td>
+                <Td>
+                  <span className="ltr-value font-mono text-xs">{ctx.baseCurrency}</span>
+                </Td>
+                <Td className="tabular-nums">{amount(balances.total.balanceBase)}</Td>
                 {AGING_BUCKETS.map((b) => (
                   <Td key={b} className="tabular-nums">
                     {amount(balances.total.aging[b])}
                   </Td>
                 ))}
-                <Td className="tabular-nums">{amount(balances.total.unapplied)}</Td>
+                <Td className="tabular-nums">{amount(balances.total.unappliedBase)}</Td>
+                <Td className="tabular-nums">{amount(balances.total.balanceBase)}</Td>
               </tr>
             </tbody>
           </Table>

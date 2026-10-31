@@ -866,7 +866,20 @@ with `voided_at`); a trigger allows no change except voiding) and
 supplier, checked by trigger; amount > 0; insert-only). Balances, aging and
 statements are queries; there is no balance table.
 **accounting_settings** (one per organization: payables, purchases, input
-VAT and payments account codes, all optional text).
+VAT, payments and exchange-difference account codes, all optional text).
+
+**Foreign currencies** (migration `20261113090000_q05_multi_currency`,
+ADR-050): **exchange_rates** (UQ organization, `currency`, `rate_date`;
+`rate` NUMERIC(20,10) > 0 = base units per unit; source MANUAL | CSV;
+updatable — documents copy the rate they use). `suppliers.currency`
+(null = base). `purchase_orders.exchange_rate`, `total_amount_base` (fixed
+at submission). `goods_receipts.currency`, `exchange_rate`, `rate_date`.
+`supplier_invoices.currency`, `exchange_rate`, `rate_date`,
+`net/tax/gross_amount_base` (fixed when posted). `supplier_settlements.currency`,
+`exchange_rate`, `rate_date`, `amount_base`, `tax_amount_base`.
+`settlement_allocations.fx_difference_base` (realised difference, + = loss);
+the allocation trigger also requires the same currency. Existing rows were
+backfilled as base-currency documents at rate 1.
 
 ## 10. Integrations (Milestone 10, ADR-048)
 

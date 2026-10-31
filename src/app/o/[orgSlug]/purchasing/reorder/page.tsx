@@ -9,9 +9,9 @@ import { holdsAnyGrant } from "@/modules/access/authorize";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
 import { purchasingWarehouseOptions } from "@/modules/procurement/orders";
 import { reorderPlan } from "@/modules/procurement/reorder";
+import { moneyIn } from "@/server/fx-view";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import {
-  moneyFormatter,
   productName,
   productOptions,
   quantityFormatter,
@@ -33,17 +33,21 @@ export default async function ReorderPage({
   const sp = await searchParams;
   const ctx = await requireTenant(orgSlug);
   if (!holdsAnyGrant(ctx.grants, "purchasing.view")) notFound();
-  const [t, locale, fmt, money, warehouses] = await Promise.all([
+  const [t, locale, fmt, warehouses] = await Promise.all([
     getTranslations(),
     getLocale(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
     purchasingWarehouseOptions(ctx, "purchasing.view"),
   ]);
   const requested =
     typeof sp.warehouseId === "string" && isUuid(sp.warehouseId) ? sp.warehouseId : undefined;
   const warehouseId = warehouses.find((w) => w.id === requested)?.id ?? warehouses[0]?.id;
   const plan = warehouseId ? await reorderPlan(ctx, warehouseId) : null;
+  // Last prices are in each supplier's currency (ADR-050).
+  const moneyOf = await moneyIn([
+    ctx.baseCurrency,
+    ...(plan?.lines ?? []).map((l) => l.source?.supplier.currency ?? ctx.baseCurrency),
+  ]);
   const [products, units] = plan?.canManage
     ? await Promise.all([listProductOptions(ctx), listUnits(ctx)])
     : [[], []];
@@ -145,7 +149,7 @@ export default async function ReorderPage({
                             ) : l.source?.lastUnitPrice ? (
                               <span className="ltr-value text-muted block text-xs">
                                 ≈{" "}
-                                {money.money(
+                                {moneyOf(l.source.supplier.currency ?? ctx.baseCurrency).money(
                                   l.suggestion.purchaseUnits.times(
                                     l.source.lastUnitPrice.toString(),
                                   ),

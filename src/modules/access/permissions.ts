@@ -54,6 +54,7 @@ export const PERMISSIONS = [
   "b2b.view",
   "b2b.manage",
   "integrations.manage",
+  "fx.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -281,6 +282,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "b2b.manage",
       "invoices.view",
       "invoices.manage",
+      "fx.manage",
       "payments.manage",
     ],
     organizationScopeOnly: false,

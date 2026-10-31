@@ -6,6 +6,7 @@ import { isUuid } from "@/lib/uuid";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import { purchasingWarehouseOptions } from "@/modules/procurement/orders";
 import { supplierOptions } from "@/modules/procurement/suppliers";
+import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { createOrderAction } from "../../actions";
 
@@ -56,6 +57,7 @@ export default async function NewOrderPage({
               label: `${s.code} — ${(locale === "ar" && s.nameAr) || s.name}`,
             }))}
             warehouses={warehouses.map((w) => ({ value: w.id, label: `${w.code} — ${w.name}` }))}
+            currencies={currencyChoices(ctx.baseCurrency)}
             submitLabel={t("common.create")}
             defaults={{
               supplierId,

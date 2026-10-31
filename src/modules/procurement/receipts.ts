@@ -1,4 +1,6 @@
 import "server-only";
+import { rateFor } from "@/modules/fx/service";
+import { unitToBase } from "@/modules/fx/rules";
 import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
@@ -22,6 +24,7 @@ import { canOnWarehouse, lockOrder, warehouseScope } from "./orders";
 import { isReceivable, maxAcceptable, statusFromReceipts } from "./rules";
 import { receiptSchema } from "./schemas";
 import { loadRules } from "./settings";
+import { loadSupplier } from "./suppliers";
 
 export const RECEIPT_PAGE_SIZE = 25;
 const dec = (v: { toString(): string }) => new Decimal(v.toString());
@@ -151,6 +154,8 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
         });
         if (!location) throw notFound("Location");
       }
+      // Prices are in the order's currency; stock is valued in base currency at today's rate (ADR-050).
+      const fx = await rateFor(tx, ctx, order.currency, today);
       const receivedAt = new Date();
       await tx.goodsReceipt.create({
         data: {
@@ -164,6 +169,9 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
           deliveryNoteRef: input.deliveryNoteRef,
           note: input.note,
           receivedAt,
+          currency: order.currency,
+          exchangeRate: fx.rate.toFixed(),
+          rateDate: new Date(`${fx.rateDate}T00:00:00Z`),
           postedByUserId: ctx.userId,
         },
       });
@@ -184,7 +192,7 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
             productId: l.orderLine.productId,
             uomId: l.orderLine.uomId,
             quantity: l.accepted.toFixed(),
-            unitPrice: l.input.unitPrice,
+            unitPrice: unitToBase(toDecimal(l.input.unitPrice), fx.rate).toFixed(),
             lotCode: l.input.lotCode,
             expiresOn: l.input.expiresOn,
             quarantine: l.input.quarantine,
@@ -238,7 +246,10 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
         })),
       );
       await tx.purchaseOrder.update({ where: { id: order.id }, data: { status } });
-      for (const l of acceptedLines) {
+      // The supplier's last price is kept in the supplier's currency only.
+      const supplier = await loadSupplier(tx, ctx, order.supplierId);
+      const samePriceCurrency = (supplier.currency ?? ctx.baseCurrency) === order.currency;
+      for (const l of samePriceCurrency ? acceptedLines : []) {
         const key = {
           organizationId: ctx.organizationId,
           supplierId: order.supplierId,

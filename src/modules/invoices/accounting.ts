@@ -33,6 +33,8 @@ const accountsSchema = z.object({
   purchasesAccount: account,
   inputVatAccount: account,
   paymentsAccount: account,
+  /** Realised exchange gains and losses (ADR-050). */
+  fxDifferenceAccount: account,
 });
 
 const periodSchema = z
@@ -88,6 +90,7 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
       include: {
         supplier: { select: { code: true, name: true, taxId: true } },
         taxCode: { select: { code: true } },
+        allocations: { select: { fxDifferenceBase: true } },
       },
       orderBy: [{ date: "asc" }, { number: "asc" }],
     });
@@ -106,8 +109,9 @@ export async function exportPayablesDocumentsCsv(ctx: TenantContext, rawPeriod: 
   const parsed = periodSchema.safeParse(rawPeriod);
   if (!parsed.success) throw validationFailed(parsed.error);
   const { invoices, settlements } = await documentsIn(ctx, parsed.data);
-  const places = currencyDecimals(ctx.baseCurrency);
-  const money = (v: Decimal) => v.toFixed(places);
+  const basePlaces = currencyDecimals(ctx.baseCurrency);
+  const baseMoney = (v: Decimal) => v.toFixed(basePlaces);
+  const rate = (v: { toString(): string }) => dec(v).toFixed();
   const rows: Array<Array<string | null>> = [];
   for (const inv of invoices) {
     const byRate = new Map<
@@ -129,6 +133,11 @@ export async function exportPayablesDocumentsCsv(ctx: TenantContext, rawPeriod: 
       e.gross = e.gross.plus(dec(l.grossAmount));
       byRate.set(key, e);
     }
+    const places = currencyDecimals(inv.currency);
+    const money = (v: Decimal) => v.toFixed(places);
+    const fx = dec(inv.exchangeRate);
+    const toBase = (v: Decimal) =>
+      baseMoney(v.times(fx).toDecimalPlaces(basePlaces, Decimal.ROUND_HALF_UP));
     for (const e of byRate.values())
       rows.push([
         "INVOICE",
@@ -144,11 +153,18 @@ export async function exportPayablesDocumentsCsv(ctx: TenantContext, rawPeriod: 
         money(e.net),
         money(e.tax),
         money(e.gross),
-        ctx.baseCurrency,
+        inv.currency,
         null,
+        rate(inv.exchangeRate),
+        toBase(e.net),
+        toBase(e.tax),
+        baseMoney(dec(toBase(e.net)).plus(dec(toBase(e.tax)))),
       ]);
   }
-  for (const s of settlements)
+  for (const s of settlements) {
+    const money = (v: Decimal) => v.toFixed(currencyDecimals(s.currency));
+    const fx = dec(s.exchangeRate);
+    const netBase = dec(s.amountBase).minus(dec(s.taxAmountBase));
     rows.push([
       s.kind,
       s.number,
@@ -163,9 +179,14 @@ export async function exportPayablesDocumentsCsv(ctx: TenantContext, rawPeriod: 
       s.netAmount === null ? null : money(dec(s.netAmount)),
       money(dec(s.taxAmount)),
       money(dec(s.amount)),
-      ctx.baseCurrency,
+      s.currency,
       s.method,
+      fx.toFixed(),
+      s.netAmount === null ? null : baseMoney(netBase),
+      baseMoney(dec(s.taxAmountBase)),
+      baseMoney(dec(s.amountBase)),
     ]);
+  }
   return toCsv(
     [
       "document_type",
@@ -183,6 +204,10 @@ export async function exportPayablesDocumentsCsv(ctx: TenantContext, rawPeriod: 
       "gross",
       "currency",
       "payment_method",
+      "exchange_rate",
+      "net_base",
+      "vat_base",
+      "gross_base",
     ],
     rows,
   );
@@ -203,6 +228,13 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
       "ACCOUNTS_NOT_SET",
       "Set the account codes in purchasing settings before exporting a journal",
     );
+  const fxOf = (s: (typeof settlements)[number]) =>
+    s.allocations.reduce((a, x) => a.plus(dec(x.fxDifferenceBase)), new Decimal(0));
+  if (!accounts.fxDifferenceAccount && settlements.some((s) => !fxOf(s).isZero()))
+    throw businessRuleViolation(
+      "ACCOUNTS_NOT_SET",
+      "Set the exchange difference account before exporting a journal with foreign-currency settlements",
+    );
   const codes: Accounts = {
     payables: accounts.payablesAccount,
     purchases: accounts.purchasesAccount,
@@ -218,12 +250,13 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
       number: i.number,
       supplier: i.supplier.code,
       reference: i.supplierInvoiceNo,
+      // The journal is in base currency (ADR-050).
       lines: journalLines(
         {
           kind: "INVOICE",
-          net: dec(i.netAmount),
-          tax: dec(i.taxAmount),
-          gross: dec(i.grossAmount),
+          net: dec(i.netAmountBase),
+          tax: dec(i.taxAmountBase),
+          gross: dec(i.grossAmountBase),
         },
         codes,
         vatRegistered,
@@ -235,19 +268,21 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
       number: s.number,
       supplier: s.supplier.code,
       reference: s.supplierDocumentNo ?? s.reference,
-      lines:
-        s.kind === "PAYMENT"
-          ? journalLines({ kind: "PAYMENT", gross: dec(s.amount) }, codes, vatRegistered)
+      lines: [
+        ...(s.kind === "PAYMENT"
+          ? journalLines({ kind: "PAYMENT", gross: dec(s.amountBase) }, codes, vatRegistered)
           : journalLines(
               {
                 kind: "CREDIT_NOTE",
-                net: dec(s.netAmount ?? 0),
-                tax: dec(s.taxAmount),
-                gross: dec(s.amount),
+                net: dec(s.amountBase).minus(dec(s.taxAmountBase)),
+                tax: dec(s.taxAmountBase),
+                gross: dec(s.amountBase),
               },
               codes,
               vatRegistered,
-            ),
+            )),
+        ...fxLines(fxOf(s), accounts.payablesAccount!, accounts.fxDifferenceAccount ?? ""),
+      ],
     })),
   ].sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   const rows = docs.flatMap((d) =>
@@ -277,6 +312,26 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
     ],
     rows,
   );
+}
+
+/**
+ * Realised exchange difference of a settlement (ADR-050): a loss (more base
+ * currency paid than the invoices were booked at) is debited to the exchange
+ * account against payables; a gain the other way round.
+ */
+function fxLines(diff: Decimal, payables: string, fxAccount: string) {
+  const zero = new Decimal(0);
+  if (diff.isZero()) return [];
+  const amount = diff.abs();
+  return diff.gt(0)
+    ? [
+        { account: fxAccount, debit: amount, credit: zero },
+        { account: payables, debit: zero, credit: amount },
+      ]
+    : [
+        { account: payables, debit: amount, credit: zero },
+        { account: fxAccount, debit: zero, credit: amount },
+      ];
 }
 
 /** Whether the journal export has the account codes it needs (for the export page). */

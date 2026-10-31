@@ -10,6 +10,7 @@ type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 export function InvoiceForm({
   action,
   suppliers,
+  currencies,
   currency,
   defaults,
   submitLabel,
@@ -17,6 +18,8 @@ export function InvoiceForm({
   action: Action;
   /** Omitted when editing: the supplier of an invoice does not change. */
   suppliers?: Option[];
+  /** New invoices only: allowed currencies; "" = the supplier's (ADR-050). */
+  currencies?: string[];
   currency: string;
   defaults?: {
     supplierInvoiceNo: string;
@@ -43,6 +46,17 @@ export function InvoiceForm({
             options={suppliers}
             placeholder={t("common.select")}
             required
+          />
+        ) : null}
+        {currencies ? (
+          <SelectField
+            name="currency"
+            label={t("fx.currency")}
+            options={[
+              { value: "", label: t("fx.supplierCurrency") },
+              ...currencies.map((c) => ({ value: c, label: c })),
+            ]}
+            defaultValue=""
           />
         ) : null}
         <TextField

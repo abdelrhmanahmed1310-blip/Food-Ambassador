@@ -151,6 +151,7 @@ model Organization {
   purchaseOrders         PurchaseOrder[]
   purchaseOrderApprovals PurchaseOrderApproval[]
   approvalLayers         ApprovalLayer[]
+  exchangeRates          ExchangeRate[]
   stockCountApprovals    StockCountApproval[]
   purchaseOrderLines     PurchaseOrderLine[]
   goodsReceipts          GoodsReceipt[]
@@ -1037,6 +1038,30 @@ model StockCountLine {
 // ─── Procurement (Milestone 3b) ───
 
 /// A supplier of one organization.
+enum ExchangeRateSource {
+  MANUAL
+  CSV
+}
+
+/// Base-currency units for one unit of `currency` on `rate_date` (ADR-050).
+/// Documents copy the rate they use, so later corrections never change them.
+model ExchangeRate {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  organizationId  String             @map("organization_id") @db.Uuid
+  currency        String             @db.Char(3)
+  rateDate        DateTime           @map("rate_date") @db.Date
+  rate            Decimal            @db.Decimal(20, 10)
+  source          ExchangeRateSource @default(MANUAL)
+  createdByUserId String             @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, currency, rateDate])
+  @@map("exchange_rates")
+}
+
 model Supplier {
   id               String    @id @default(uuid(7)) @db.Uuid
   organizationId   String    @map("organization_id") @db.Uuid
@@ -1050,6 +1075,8 @@ model Supplier {
   address          String?
   paymentTermsDays Int?      @map("payment_terms_days")
   leadTimeDays     Int?      @map("lead_time_days")
+  /// Default currency of this supplier's documents (ADR-050); null = base currency.
+  currency         String?   @db.Char(3)
   note             String?
   archivedAt       DateTime? @map("archived_at") @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1075,7 +1102,7 @@ model SupplierProduct {
   productId        String    @map("product_id") @db.Uuid
   supplierSku      String?   @map("supplier_sku")
   purchaseUomId    String    @map("purchase_uom_id") @db.Uuid
-  /// Per purchase unit, base currency. Updated from posted receipts.
+  /// Per purchase unit, in the supplier's currency (ADR-050). Updated from posted receipts.
   lastUnitPrice    Decimal?  @map("last_unit_price") @db.Decimal(20, 6)
   lastPriceAt      DateTime? @map("last_price_at") @db.Timestamptz(3)
   leadTimeDays     Int?      @map("lead_time_days")
@@ -1131,6 +1158,9 @@ model PurchaseOrder {
   expectedOn           DateTime?           @map("expected_on") @db.Date
   note                 String?
   totalAmount          Decimal             @default(0) @map("total_amount") @db.Decimal(19, 4)
+  /// Rate (base per unit of `currency`) and base total fixed at submission (ADR-050).
+  exchangeRate         Decimal?            @map("exchange_rate") @db.Decimal(20, 10)
+  totalAmountBase      Decimal?            @map("total_amount_base") @db.Decimal(19, 4)
   createdByUserId      String              @map("created_by_user_id") @db.Uuid
   submittedAt          DateTime?           @map("submitted_at") @db.Timestamptz(3)
   submittedByUserId    String?             @map("submitted_by_user_id") @db.Uuid
@@ -1286,6 +1316,10 @@ model GoodsReceipt {
   deliveryNoteRef     String?            @map("delivery_note_ref")
   note                String?
   receivedAt          DateTime           @map("received_at") @db.Timestamptz(3)
+  /// The order's currency; prices are in it, stock is valued at price × rate (ADR-050).
+  currency            String             @db.Char(3)
+  exchangeRate        Decimal            @default(1) @map("exchange_rate") @db.Decimal(20, 10)
+  rateDate            DateTime?          @map("rate_date") @db.Date
   postedByUserId      String             @map("posted_by_user_id") @db.Uuid
   reversedAt          DateTime?          @map("reversed_at") @db.Timestamptz(3)
   reversedByUserId    String?            @map("reversed_by_user_id") @db.Uuid
@@ -2387,6 +2421,13 @@ model SupplierInvoice {
   netAmount             Decimal               @default(0) @map("net_amount") @db.Decimal(19, 4)
   taxAmount             Decimal               @default(0) @map("tax_amount") @db.Decimal(19, 4)
   grossAmount           Decimal               @default(0) @map("gross_amount") @db.Decimal(19, 4)
+  /// Document currency, the rate on the invoice date and base-currency totals (ADR-050).
+  currency              String                @db.Char(3)
+  exchangeRate          Decimal               @default(1) @map("exchange_rate") @db.Decimal(20, 10)
+  rateDate              DateTime?             @map("rate_date") @db.Date
+  netAmountBase         Decimal               @default(0) @map("net_amount_base") @db.Decimal(19, 4)
+  taxAmountBase         Decimal               @default(0) @map("tax_amount_base") @db.Decimal(19, 4)
+  grossAmountBase       Decimal               @default(0) @map("gross_amount_base") @db.Decimal(19, 4)
   matchStatus           InvoiceMatchStatus    @default(MATCHED) @map("match_status")
   note                  String?
   createdByUserId       String                @map("created_by_user_id") @db.Uuid
@@ -2486,6 +2527,12 @@ model SupplierSettlement {
   date               DateTime         @db.Date
   /// Total incl. VAT.
   amount             Decimal          @db.Decimal(19, 4)
+  /// Document currency, rate on the settlement date, base amounts (ADR-050).
+  currency           String           @db.Char(3)
+  exchangeRate       Decimal          @default(1) @map("exchange_rate") @db.Decimal(20, 10)
+  rateDate           DateTime?        @map("rate_date") @db.Date
+  amountBase         Decimal          @default(0) @map("amount_base") @db.Decimal(19, 4)
+  taxAmountBase      Decimal          @default(0) @map("tax_amount_base") @db.Decimal(19, 4)
   /// Credit notes only: net and VAT.
   netAmount          Decimal?         @map("net_amount") @db.Decimal(19, 4)
   taxAmount          Decimal          @default(0) @map("tax_amount") @db.Decimal(19, 4)
@@ -2517,13 +2564,15 @@ model SupplierSettlement {
 
 /// Part of a settlement applied to a posted invoice.
 model SettlementAllocation {
-  id              String   @id @default(uuid(7)) @db.Uuid
-  organizationId  String   @map("organization_id") @db.Uuid
-  settlementId    String   @map("settlement_id") @db.Uuid
-  invoiceId       String   @map("invoice_id") @db.Uuid
-  amount          Decimal  @db.Decimal(19, 4)
-  createdByUserId String   @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  settlementId     String   @map("settlement_id") @db.Uuid
+  invoiceId        String   @map("invoice_id") @db.Uuid
+  amount           Decimal  @db.Decimal(19, 4)
+  /// Realised exchange difference, base currency: amount × (settlement rate − invoice rate); + = loss.
+  fxDifferenceBase Decimal  @default(0) @map("fx_difference_base") @db.Decimal(19, 4)
+  createdByUserId  String   @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   settlement   SupplierSettlement @relation(fields: [organizationId, settlementId], references: [organizationId, id], onDelete: Restrict)
@@ -2536,12 +2585,14 @@ model SettlementAllocation {
 
 /// The organization's own account codes for the journal export; never invented.
 model AccountingSettings {
-  organizationId   String   @id @map("organization_id") @db.Uuid
-  payablesAccount  String?  @map("payables_account")
-  purchasesAccount String?  @map("purchases_account")
-  inputVatAccount  String?  @map("input_vat_account")
-  paymentsAccount  String?  @map("payments_account")
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organizationId      String   @id @map("organization_id") @db.Uuid
+  payablesAccount     String?  @map("payables_account")
+  purchasesAccount    String?  @map("purchases_account")
+  inputVatAccount     String?  @map("input_vat_account")
+  paymentsAccount     String?  @map("payments_account")
+  /// Realised exchange gains and losses (ADR-050).
+  fxDifferenceAccount String?  @map("fx_difference_account")
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 

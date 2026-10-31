@@ -1,4 +1,5 @@
 import "server-only";
+import { assertDocumentCurrency } from "@/modules/fx/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
 import { assertPermission } from "@/modules/access/authorize";
@@ -24,6 +25,13 @@ function codeConflict(error: unknown): never {
       reason: "codeTaken",
     });
   throw error;
+}
+
+/** Stored as null when it is the base currency (ADR-050). */
+function supplierCurrency(ctx: TenantContext, currency: string | undefined) {
+  if (!currency || currency === ctx.baseCurrency) return null;
+  assertDocumentCurrency(ctx, currency);
+  return currency;
 }
 
 export async function loadSupplier(tx: Tx, ctx: TenantContext, supplierId: string) {
@@ -85,7 +93,7 @@ export async function supplierOptions(ctx: TenantContext) {
   return withTenantTx(ctx.organizationId, (tx) =>
     tx.supplier.findMany({
       where: { organizationId: ctx.organizationId, archivedAt: null },
-      select: { id: true, code: true, name: true, nameAr: true },
+      select: { id: true, code: true, name: true, nameAr: true, currency: true },
       orderBy: { code: "asc" },
       take: 2000,
     }),
@@ -96,7 +104,8 @@ export async function createSupplier(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "suppliers.manage");
   const parsed = createSupplierSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { idempotencyKey, ...input } = parsed.data;
+  const { idempotencyKey, ...raw } = parsed.data;
+  const input = { ...raw, currency: supplierCurrency(ctx, raw.currency) };
   try {
     return await runIdempotent(
       ctx,
@@ -137,12 +146,19 @@ export async function updateSupplier(ctx: TenantContext, supplierId: string, raw
     address: d.address ?? null,
     paymentTermsDays: d.paymentTermsDays ?? null,
     leadTimeDays: d.leadTimeDays ?? null,
+    currency: supplierCurrency(ctx, d.currency),
     note: d.note ?? null,
   };
   try {
     await withTenantTx(ctx.organizationId, async (tx) => {
       const before = await loadSupplier(tx, ctx, supplierId);
       await tx.supplier.update({ where: { id: before.id }, data: input });
+      // Last prices are in the supplier's currency; after a change they are no longer comparable.
+      if ((before.currency ?? null) !== input.currency)
+        await tx.supplierProduct.updateMany({
+          where: { organizationId: ctx.organizationId, supplierId: before.id },
+          data: { lastUnitPrice: null, lastPriceAt: null },
+        });
       const changes = diff(before as unknown as Record<string, unknown>, input);
       if (Object.keys(changes).length > 0)
         await recordAudit(tx, actorOf(ctx), {
@@ -294,6 +310,7 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
         where: { organizationId: ctx.organizationId, supplierId: supplier.id, status: "POSTED" },
         select: {
           receivedAt: true,
+          exchangeRate: true,
           purchaseOrder: { select: { expectedOn: true } },
           warehouse: { select: { branch: { select: { timeZone: true } } } },
           lines: {
@@ -329,7 +346,7 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
           acceptedQuantity: true,
           uom: { select: { code: true } },
           product: { select: { id: true, sku: true, nameEn: true, nameAr: true } },
-          receipt: { select: { id: true, number: true, receivedAt: true } },
+          receipt: { select: { id: true, number: true, receivedAt: true, currency: true } },
         },
         orderBy: { receipt: { receivedAt: "desc" } },
         take: 50,
@@ -365,13 +382,16 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
             (a, l) => a.plus(dec(l.rejectedQuantityBase)),
             new Decimal(0),
           ),
-          priceVariance: r.lines.reduce(
-            (a, l) =>
-              a.plus(
-                dec(l.unitPrice).minus(dec(l.orderedUnitPrice)).times(dec(l.acceptedQuantity)),
-              ),
-            new Decimal(0),
-          ),
+          // In base currency: each receipt at its own rate (ADR-050).
+          priceVariance: r.lines
+            .reduce(
+              (a, l) =>
+                a.plus(
+                  dec(l.unitPrice).minus(dec(l.orderedUnitPrice)).times(dec(l.acceptedQuantity)),
+                ),
+              new Decimal(0),
+            )
+            .times(dec(r.exchangeRate)),
         };
       }),
       finishedOrders: [...byOrder.values()],

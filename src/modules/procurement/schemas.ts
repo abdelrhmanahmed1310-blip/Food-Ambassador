@@ -32,6 +32,13 @@ const dateSchema = z
   .transform(blank)
   .refine((v) => v === undefined || isCalendarDate(v), { error: "invalidDate" });
 
+/** ISO code; whether it is allowed is checked against the organization (fx/service). */
+export const optionalCurrency = z
+  .string()
+  .optional()
+  .transform((v) => blank(v)?.toUpperCase())
+  .refine((v) => v === undefined || /^[A-Z]{3}$/.test(v), { error: "invalidOption" });
+
 const optionalDecimal = (opts: {
   maxScale: number;
   min?: string;
@@ -50,6 +57,8 @@ export const supplierSchema = z.object({
   address: optionalText(300),
   paymentTermsDays: optionalDays,
   leadTimeDays: optionalDays,
+  /** Default document currency (ADR-050); empty = base currency. */
+  currency: optionalCurrency,
   note: optionalText(1000),
 });
 export const createSupplierSchema = supplierSchema.extend({ idempotencyKey: idempotencyKeySchema });
@@ -85,6 +94,8 @@ export const settingsSchema = z.object({
 export const orderHeaderSchema = z.object({
   supplierId: uuidSchema,
   warehouseId: uuidSchema,
+  /** Empty = the supplier's currency (ADR-050). */
+  currency: optionalCurrency,
   expectedOn: dateSchema,
   note: optionalText(1000),
 });

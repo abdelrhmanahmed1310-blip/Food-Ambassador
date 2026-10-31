@@ -133,7 +133,9 @@ async function buildPlan(tx: Tx, ctx: TenantContext, warehouseId: string) {
               lastUnitPrice: true,
               minOrderQuantity: true,
               purchaseUom: { select: { id: true, code: true } },
-              supplier: { select: { id: true, code: true, name: true, nameAr: true } },
+              supplier: {
+                select: { id: true, code: true, name: true, nameAr: true, currency: true },
+              },
             },
           },
         },

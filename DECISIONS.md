@@ -959,6 +959,46 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   only documents whose next step the user may sign.
 - Not covered: delegation/holiday cover, approval of requisitions.
 
+### ADR-050 Foreign-currency purchasing and exchange rates — Accepted (Q-05, Q-11)
+
+- **Decision (Q-05):** purchase orders, receipts, supplier invoices,
+  payments and credit notes may be in **USD, EUR, SAR, EGP, AED, KWD, QAR,
+  BHD or OMR**, or the base currency. **Decision (Q-11):** the base currency
+  stays fixed at creation; everything is also stated and reported in it.
+- **Rates** (`exchange_rates`): base-currency units for one unit of a
+  currency on a date, entered under Purchasing → Exchange rates or pasted as
+  CSV (all rows checked first), by owners, admins and finance (`fx.manage`).
+  A document uses the latest rate on or before its date, at most **7 days**
+  old; otherwise it is refused (no rate is ever guessed). **No live rate
+  feed is connected** or claimed; one can be added as a connector (ADR-048).
+- **Each document keeps its own currency and the rate it used**, so later
+  corrections never change posted documents:
+  - supplier: default currency (null = base); last prices are kept in it;
+  - order: currency (default the supplier's); at submission the rate and
+    base total are fixed, and the **approval limits apply to the base total**
+    (ADR-049);
+  - receipt: the order's currency and the rate on the receipt date; **stock
+    is valued at price × rate** (moving average stays in base, ADR-021).
+    Landed costs stay in base currency;
+  - invoice: currency (default the supplier's), receipt lines only in the
+    same currency, VAT rounded to that currency's unit, **rate and base
+    totals fixed when posted** (invoice date);
+  - payment / credit note: currency (default the supplier's), rate on its
+    date, base amounts; applied only to invoices in the same currency
+    (service and database trigger). Each allocation stores the **realised
+    exchange difference** = amount × (settlement rate − invoice rate)
+    (positive = loss).
+- **Reporting in base currency:** balances per supplier _and currency_ with
+  a base equivalent (open invoices at their rates, unapplied settlements at
+  theirs) and base totals; statements per currency; input VAT summary from
+  base amounts; supplier price variance in base; the documents export
+  carries currency, rate and base columns; the journal is in base currency
+  with exchange differences posted to an exchange-difference account
+  (required once any exists).
+- Not yet: revaluation of open foreign balances at period end (unrealised
+  differences), B2B sales in foreign currencies, landed costs in foreign
+  currencies, a live rate feed.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -978,23 +1018,23 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 
 ## Open questions
 
-| ID   | Question                                                                                                                                                                   | Needed by                 |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                   | M3                        |
-| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.                | M5 (labels), M8 (hosting) |
-| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                                 | M8 (pilot)                |
-| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                               |
-| Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050, being built). |
-| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                    | M7                        |
-| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                   | M1 (nice to know)         |
-| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051, being built).                                                                                   |
-| Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                              |
-| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                   | M2 (before pilot)         |
-| Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).               |
-| Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                    |
-| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                     | M3                        |
-| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                             | —                         |
-| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                             | POS3                      |
-| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline?    | POS1                      |
-| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                              | POS4                      |
-| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                       | POS5                      |
+| ID   | Question                                                                                                                                                                | Needed by                 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                        |
+| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.             | M5 (labels), M8 (hosting) |
+| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)                |
+| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                            |
+| Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050).           |
+| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                        |
+| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)         |
+| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051, being built).                                                                                |
+| Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                           |
+| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)         |
+| Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).            |
+| Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                 |
+| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                  | M3                        |
+| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                          | —                         |
+| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                          | POS3                      |
+| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline? | POS1                      |
+| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                           | POS4                      |
+| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                    | POS5                      |

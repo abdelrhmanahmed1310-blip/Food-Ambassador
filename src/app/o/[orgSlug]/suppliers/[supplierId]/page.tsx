@@ -17,10 +17,12 @@ import {
 import type { Decimal } from "@/lib/decimal";
 import { isUuid } from "@/lib/uuid";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
+import { currencyChoices } from "@/modules/fx/rules";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
 import { getSupplier } from "@/modules/procurement/suppliers";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
+import { moneyIn } from "@/server/fx-view";
 import {
   moneyFormatter,
   productName,
@@ -44,6 +46,12 @@ export default async function SupplierPage({
   const { supplier, products, performance, priceHistory } = await notFoundOnAppError(
     getSupplier(ctx, supplierId),
   );
+  const moneyOf = await moneyIn([
+    supplier.currency ?? ctx.baseCurrency,
+    ctx.baseCurrency,
+    ...priceHistory.map((h) => h.receipt.currency),
+  ]);
+  const supplierMoney = moneyOf(supplier.currency ?? ctx.baseCurrency);
   const canManage = hasPermission(ctx.grants, "suppliers.manage");
   const [t, locale, format, fmt, money] = await Promise.all([
     getTranslations(),
@@ -149,7 +157,7 @@ export default async function SupplierPage({
                     <Td className="tabular-nums">
                       {p.lastUnitPrice ? (
                         <span className="ltr-value">
-                          {money.unitCost(p.lastUnitPrice)} / {p.purchaseUom.code}
+                          {supplierMoney.unitCost(p.lastUnitPrice)} / {p.purchaseUom.code}
                         </span>
                       ) : (
                         "—"
@@ -231,12 +239,12 @@ export default async function SupplierPage({
                     </Td>
                     <Td className="tabular-nums">
                       <span className="ltr-value whitespace-nowrap">
-                        {money.unitCost(h.unitPrice)} / {h.uom.code}
+                        {moneyOf(h.receipt.currency).unitCost(h.unitPrice)} / {h.uom.code}
                       </span>
                     </Td>
                     <Td className="tabular-nums">
                       <span className="ltr-value whitespace-nowrap">
-                        {money.unitCost(h.orderedUnitPrice)}
+                        {moneyOf(h.receipt.currency).unitCost(h.orderedUnitPrice)}
                       </span>
                     </Td>
                   </tr>
@@ -251,6 +259,7 @@ export default async function SupplierPage({
             <SupplierForm
               action={updateSupplierAction.bind(null, orgSlug, supplier.id)}
               submitLabel={t("common.save")}
+              currencies={currencyChoices(ctx.baseCurrency)}
               defaults={{
                 code: supplier.code,
                 name: supplier.name,
@@ -262,6 +271,7 @@ export default async function SupplierPage({
                 address: supplier.address ?? undefined,
                 paymentTermsDays: supplier.paymentTermsDays?.toString(),
                 leadTimeDays: supplier.leadTimeDays?.toString(),
+                currency: supplier.currency ?? ctx.baseCurrency,
                 note: supplier.note ?? undefined,
               }}
             />
@@ -270,6 +280,7 @@ export default async function SupplierPage({
           <Card>
             <DescriptionList
               items={[
+                { label: t("suppliers.currency"), value: supplier.currency ?? ctx.baseCurrency },
                 { label: t("suppliers.contactName"), value: supplier.contactName ?? "—" },
                 { label: t("suppliers.email"), value: supplier.email ?? "—" },
                 { label: t("suppliers.phone"), value: supplier.phone ?? "—" },

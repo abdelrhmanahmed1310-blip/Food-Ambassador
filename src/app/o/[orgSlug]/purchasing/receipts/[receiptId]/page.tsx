@@ -18,6 +18,7 @@ import { isUuid } from "@/lib/uuid";
 import { getReceipt } from "@/modules/procurement/receipts";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
+import { fxItems } from "@/server/fx-view";
 import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
 import { addLandedCostAction, reverseReceiptAction } from "../../actions";
 
@@ -33,8 +34,11 @@ export default async function ReceiptPage({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
+    // Landed costs are in base currency; prices in the receipt's (ADR-050).
     moneyFormatter(ctx.baseCurrency),
   ]);
+  const price = await moneyFormatter(receipt.currency);
+  const fx = await fxItems(ctx.baseCurrency, receipt);
   const dt = (d: Date) =>
     format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone });
   const docLink = (doc: { id: string; number: string } | null) =>
@@ -71,6 +75,7 @@ export default async function ReceiptPage({
         <Card>
           <DescriptionList
             items={[
+              ...fx,
               {
                 label: t("purchasing.ordersTitle"),
                 value: (
@@ -173,11 +178,11 @@ export default async function ReceiptPage({
                   ) : null}
                 </Td>
                 <Td className="tabular-nums">
-                  <span className="ltr-value whitespace-nowrap">{money.unitCost(l.unitPrice)}</span>
+                  <span className="ltr-value whitespace-nowrap">{price.unitCost(l.unitPrice)}</span>
                   {!l.unitPrice.equals(l.orderedUnitPrice) ? (
                     <span className="text-muted block text-xs">
                       {t("purchasing.orderedPrice")}:{" "}
-                      <span className="ltr-value">{money.unitCost(l.orderedUnitPrice)}</span>
+                      <span className="ltr-value">{price.unitCost(l.orderedUnitPrice)}</span>
                     </span>
                   ) : null}
                 </Td>

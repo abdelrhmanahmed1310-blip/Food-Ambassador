@@ -123,7 +123,8 @@
     "customerBalances": "Customer balances",
     "customers": "Customers",
     "integrations": "Integrations",
-    "approvalSettings": "Approvals"
+    "approvalSettings": "Approvals",
+    "exchangeRates": "Exchange rates"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -393,7 +394,12 @@
     "CONNECTOR_CREATOR_LACKS_ACCESS": "You cannot import sales into this warehouse, so a connector you create cannot either.",
     "DELIVERY_ALREADY_SENT": "This event was already delivered.",
     "APPROVAL_ALREADY_SIGNED": "You already approved a step of this order; each step needs a different person.",
-    "APPROVAL_LEVEL_REQUIRED": "This step needs an approver of another level (branch or head office)."
+    "APPROVAL_LEVEL_REQUIRED": "This step needs an approver of another level (branch or head office).",
+    "CURRENCY_NOT_SUPPORTED": "Choose USD, EUR, SAR, EGP, a GCC currency or the base currency.",
+    "NO_EXCHANGE_RATE": "There is no {currency} exchange rate on or before {date}. Add one under Purchasing → Exchange rates.",
+    "EXCHANGE_RATE_STALE": "The latest {currency} rate ({latest}) is more than {days} days before {date}. Add a current rate under Purchasing → Exchange rates.",
+    "BASE_CURRENCY_RATE": "The base currency needs no exchange rate.",
+    "RECEIPT_OTHER_CURRENCY": "This receipt is in {currency}, not in the invoice's currency."
   },
   "notFound": {
     "title": "Page not found",
@@ -599,7 +605,8 @@
       "production.manage": "Plan and record production",
       "b2b.view": "View B2B customers, orders and invoices",
       "b2b.manage": "Manage B2B customers, orders, deliveries, invoices and receipts",
-      "integrations.manage": "Set up integrations (webhooks and connectors)"
+      "integrations.manage": "Set up integrations (webhooks and connectors)",
+      "fx.manage": "Maintain exchange rates"
     }
   },
   "audit": {
@@ -1003,7 +1010,9 @@
     "viewOrders": "Purchase orders",
     "newOrder": "New purchase order",
     "priceHistory": "Price history",
-    "noPriceHistory": "No receipts from this supplier yet."
+    "noPriceHistory": "No receipts from this supplier yet.",
+    "currency": "Currency",
+    "currencyHint": "Default currency of this supplier's orders, invoices and payments."
   },
   "purchasing": {
     "ordersTitle": "Purchase orders",
@@ -1872,7 +1881,8 @@
       "OPEN": "Unpaid",
       "PARTLY_PAID": "Partly paid",
       "PAID": "Paid"
-    }
+    },
+    "accountFxDifference": "Exchange differences account"
   },
   "nutrition": {
     "nutritionAndAllergens": "Nutrition and allergens",
@@ -2349,5 +2359,44 @@
     "reject": "Send back",
     "rejectReason": "Reason for sending back",
     "rejected": "Sent back: {reason}"
+  },
+  "fx": {
+    "currency": "Currency",
+    "inBase": "In {currency}",
+    "rateUsed": "Exchange rate used",
+    "amountInBase": "Amount in {currency}",
+    "totalInBase": "Total in {currency}",
+    "supplierCurrency": "Supplier's currency",
+    "invoiceCurrency": "the invoice's currency",
+    "title": "Exchange rates",
+    "intro": "How many {base} one unit of each currency is worth on a date. Documents use the latest rate on or before their date, if it is at most {days} days old, and keep that rate — correcting a rate later does not change them. No live rate feed is connected: enter rates here or paste a CSV.",
+    "latest": "Latest rates",
+    "rateLabel": "Rate ({base} per unit)",
+    "rateHint": "For example 48.5 means 1 unit = 48.5 {base}.",
+    "rateDate": "Rate date",
+    "noRate": "No rate yet",
+    "addRate": "Add or correct a rate",
+    "saveRate": "Save rate",
+    "importTitle": "Paste rates (CSV)",
+    "import": "Import rates",
+    "csvLabel": "CSV: date, currency, rate",
+    "csvHint": "One row per currency and date. A row for an existing date replaces that rate. Nothing is saved if any row is wrong.",
+    "csvTooLarge": "Paste at most 200 KB at a time.",
+    "importFailed": "No rates were saved. Fix the rows below.",
+    "imported": "{count, plural, one {# rate saved.} other {# rates saved.}}",
+    "importRowError": "Row {row}: {problem}",
+    "importErrors": {
+      "missingColumn": "the columns date, currency and rate are required",
+      "invalidRow": "invalid date, currency or rate",
+      "baseCurrency": "the base currency needs no rate",
+      "empty": "no rows"
+    },
+    "history": "Rate history",
+    "noRates": "No rates entered yet.",
+    "source": "Source",
+    "sources": {
+      "MANUAL": "Entered",
+      "CSV": "CSV import"
+    }
   }
 }

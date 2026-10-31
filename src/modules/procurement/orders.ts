@@ -7,6 +7,7 @@ import {
   type ApprovalLevel,
 } from "@/modules/approvals/rules";
 import { loadLayers } from "@/modules/approvals/service";
+import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
@@ -353,7 +354,14 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
 export async function createDraftOrderInTx(
   tx: Tx,
   ctx: TenantContext,
-  input: { supplierId: string; warehouseId: string; expectedOn?: string; note?: string },
+  input: {
+    supplierId: string;
+    warehouseId: string;
+    expectedOn?: string;
+    note?: string;
+    /** Default: the supplier's currency (ADR-050). */
+    currency?: string;
+  },
 ) {
   const wh = await loadWarehouseRef(tx, ctx, input.warehouseId);
   if (!canOnWarehouse(ctx, "purchasing.view", wh)) throw notFound("Warehouse");
@@ -363,6 +371,8 @@ export async function createDraftOrderInTx(
   const supplier = await loadSupplier(tx, ctx, input.supplierId);
   if (supplier.archivedAt)
     throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
+  const currency = input.currency ?? supplier.currency ?? ctx.baseCurrency;
+  assertDocumentCurrency(ctx, currency);
   const today = businessDate(wh.branch.timeZone ?? ctx.timeZone);
   const number = await nextDocumentNumber(tx, ctx.organizationId, "PO", Number(today.slice(0, 4)));
   const order = await tx.purchaseOrder.create({
@@ -371,14 +381,14 @@ export async function createDraftOrderInTx(
       number,
       supplierId: supplier.id,
       warehouseId: wh.id,
-      currency: ctx.baseCurrency,
+      currency,
       expectedOn: input.expectedOn ? new Date(`${input.expectedOn}T00:00:00Z`) : null,
       note: input.note,
       createdByUserId: ctx.userId,
     },
     select: { id: true, number: true },
   });
-  await audit(tx, ctx, order, "created", { supplierId: supplier.id, warehouseId: wh.id });
+  await audit(tx, ctx, order, "created", { supplierId: supplier.id, warehouseId: wh.id, currency });
   return order;
 }
 
@@ -433,9 +443,11 @@ export async function updateOrderHeader(ctx: TenantContext, orderId: string, raw
       if (supplier.archivedAt)
         throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
     }
+    if (input.currency) assertDocumentCurrency(ctx, input.currency);
     const data = {
       supplierId: input.supplierId,
       warehouseId: input.warehouseId,
+      ...(input.currency ? { currency: input.currency } : {}),
       expectedOn: input.expectedOn ? new Date(`${input.expectedOn}T00:00:00Z`) : null,
       note: input.note ?? null,
     };
@@ -560,7 +572,11 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     if (supplier.archivedAt)
       throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
     const total = dec(order.totalAmount);
-    const chain = chainFor(await loadLayers(tx, ctx, "PURCHASE_ORDER"), total);
+    // Approval limits are in the base currency (ADR-049/050): convert at today's rate.
+    const today = businessDate(order.warehouse.branch.timeZone ?? ctx.timeZone);
+    const fx = await rateFor(tx, ctx, order.currency, today);
+    const totalBase = baseAmount(ctx, total, fx.rate);
+    const chain = chainFor(await loadLayers(tx, ctx, "PURCHASE_ORDER"), totalBase);
     const outcome = chain.length === 0 ? "AUTO_APPROVED" : "NEEDS_APPROVAL";
     const now = new Date();
     await tx.purchaseOrder.update({
@@ -571,6 +587,8 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
         rejectionNote: null,
         approvalRound: { increment: 1 },
         approvalsGiven: 0,
+        exchangeRate: fx.rate.toFixed(),
+        totalAmountBase: totalBase.toFixed(),
         ...(outcome === "AUTO_APPROVED"
           ? {
               status: "APPROVED",
@@ -589,6 +607,8 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     });
     await audit(tx, ctx, order, "submitted", {
       total: total.toFixed(),
+      currency: order.currency,
+      totalBase: totalBase.toFixed(),
       outcome,
       ...(outcome === "AUTO_APPROVED" ? {} : { chain }),
     });

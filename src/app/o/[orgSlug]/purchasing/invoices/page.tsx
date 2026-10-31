@@ -7,7 +7,7 @@ import { buttonClass } from "@/components/ui/styles";
 import { hasPermission } from "@/modules/access/authorize";
 import { listInvoices } from "@/modules/invoices/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyIn } from "@/server/fx-view";
 
 const STATUSES = ["DRAFT", "POSTED", "CANCELLED"] as const;
 
@@ -20,12 +20,12 @@ export default async function InvoicesPage({
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "invoices.view")) notFound();
   const status = STATUSES.find((s) => s === sp.status);
-  const [t, locale, money, invoices] = await Promise.all([
+  const [t, locale, invoices] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
     listInvoices(ctx, { status }),
   ]);
+  const moneyOf = await moneyIn([ctx.baseCurrency, ...invoices.map((i) => i.currency)]);
   const base = `/o/${orgSlug}/purchasing/invoices`;
   return (
     <>
@@ -94,7 +94,7 @@ export default async function InvoicesPage({
                 </Td>
                 <Td className="tabular-nums">
                   <span className="ltr-value whitespace-nowrap">
-                    {money.money(inv.grossAmount)}
+                    {moneyOf(inv.currency).money(inv.grossAmount)}
                   </span>
                 </Td>
                 <Td>

@@ -62,6 +62,7 @@ export function PaymentForm({
       pendingLabel={t("common.saving")}
       idempotent
     >
+      <input type="hidden" name="currency" value={currency} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           name="date"
@@ -118,6 +119,7 @@ export function CreditNoteForm({
       pendingLabel={t("common.saving")}
       idempotent
     >
+      <input type="hidden" name="currency" value={currency} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           name="supplierDocumentNo"
@@ -178,6 +180,7 @@ export function AccountsForm({
     purchasesAccount: string;
     inputVatAccount: string;
     paymentsAccount: string;
+    fxDifferenceAccount: string;
   };
 }) {
   const t = useTranslations();
@@ -191,6 +194,7 @@ export function AccountsForm({
             ["purchasesAccount", "accountPurchases"],
             ["inputVatAccount", "accountInputVat"],
             ["paymentsAccount", "accountPayments"],
+            ["fxDifferenceAccount", "accountFxDifference"],
           ] as const
         ).map(([name, label]) => (
           <TextField

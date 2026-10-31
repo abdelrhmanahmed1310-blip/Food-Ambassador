@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { SupplierForm } from "@/components/procurement/forms";
 import { Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
+import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { createSupplierAction } from "../actions";
 
@@ -18,6 +19,7 @@ export default async function NewSupplierPage({ params }: PageProps<"/o/[orgSlug
         <SupplierForm
           action={createSupplierAction.bind(null, orgSlug)}
           submitLabel={t("common.create")}
+          currencies={currencyChoices(ctx.baseCurrency)}
           idempotent
         />
       </Card>

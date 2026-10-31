@@ -12,7 +12,7 @@ import { PO_STATUSES, type PoStatus } from "@/modules/procurement/rules";
 import { supplierOptions } from "@/modules/procurement/suppliers";
 import { pageSchema } from "@/modules/shared/schemas";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyIn } from "@/server/fx-view";
 
 export default async function OrdersPage({
   params,
@@ -34,15 +34,15 @@ export default async function OrdersPage({
   };
   const page = pageSchema.parse(sp.page);
   const canSeeSuppliers = hasPermission(ctx.grants, "suppliers.view");
-  const [t, locale, format, money, result, suppliers, warehouses] = await Promise.all([
+  const [t, locale, format, result, suppliers, warehouses] = await Promise.all([
     getTranslations(),
     getLocale(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
     listOrders(ctx, { ...filters, page }),
     canSeeSuppliers ? supplierOptions(ctx) : Promise.resolve([]),
     purchasingWarehouseOptions(ctx, "purchasing.view"),
   ]);
+  const moneyOf = await moneyIn([ctx.baseCurrency, ...result.items.map((o) => o.currency)]);
   const base = `/o/${orgSlug}/purchasing/orders`;
   return (
     <>
@@ -163,7 +163,9 @@ export default async function OrdersPage({
                   <OrderStatusBadge status={o.status} />
                 </Td>
                 <Td className="tabular-nums">
-                  <span className="ltr-value whitespace-nowrap">{money.money(o.totalAmount)}</span>
+                  <span className="ltr-value whitespace-nowrap">
+                    {moneyOf(o.currency).money(o.totalAmount)}
+                  </span>
                 </Td>
               </tr>
             ))}

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
@@ -156,7 +157,7 @@ async function recompute(tx: Tx, ctx: TenantContext, invoiceId: string) {
   const net = sum((l) => dec(l.netAmount));
   const tax = sum((l) => dec(l.taxAmount));
   const gross = sum((l) => dec(l.grossAmount));
-  const totalOk = totalMatches(dec(inv.printedGross), gross, currencyDecimals(ctx.baseCurrency));
+  const totalOk = totalMatches(dec(inv.printedGross), gross, currencyDecimals(inv.currency));
   const matchStatus = inv.lines.length === 0 ? "MATCHED" : invoiceMatchStatus(results, totalOk);
   const changed =
     matchStatus !== inv.matchStatus ||
@@ -184,6 +185,8 @@ async function taxFor(
   date: string,
   net: Decimal,
   field: string,
+  /** The invoice's currency: VAT is rounded to its unit (ADR-050). */
+  currency: string,
 ) {
   const taxCtx = await loadTaxContextInTx(tx, ctx);
   const resolved = taxCtx.resolvePurchase(codeId, date);
@@ -197,7 +200,7 @@ async function taxFor(
       },
     );
   if (!resolved) return { taxCodeId: null, taxRate: null, net, tax: new Decimal(0), gross: net };
-  const t = taxFromNet(net, resolved.rate, ctx.baseCurrency);
+  const t = taxFromNet(net, resolved.rate, currency);
   return {
     taxCodeId: resolved.codeId,
     taxRate: resolved.rate.toFixed(),
@@ -220,6 +223,8 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
         where: { organizationId: ctx.organizationId, id: input.supplierId },
       });
       if (!supplier) throw notFound("Supplier");
+      const currency = input.currency ?? supplier.currency ?? ctx.baseCurrency;
+      assertDocumentCurrency(ctx, currency);
       const due = input.dueDate ?? dueDateFor(input.invoiceDate, supplier.paymentTermsDays);
       if (due && due < input.invoiceDate)
         throw businessRuleViolation(
@@ -243,6 +248,7 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
           dueDate: due ? new Date(`${due}T00:00:00Z`) : null,
           printedGross: input.printedGross,
           note: input.note,
+          currency,
           createdByUserId: ctx.userId,
         },
         select: { id: true, number: true },
@@ -250,6 +256,7 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
       await audit(tx, ctx, inv, "created", {
         supplierId: supplier.id,
         supplierInvoiceNo: input.supplierInvoiceNo,
+        currency,
       });
       return inv;
     });
@@ -322,7 +329,7 @@ export async function addGoodsLine(ctx: TenantContext, invoiceId: string, rawInp
     const rl = await tx.goodsReceiptLine.findFirst({
       where: { organizationId: ctx.organizationId, id: input.receiptLineId },
       include: {
-        receipt: { select: { supplierId: true, status: true, number: true } },
+        receipt: { select: { supplierId: true, status: true, number: true, currency: true } },
         purchaseOrderLine: { select: { id: true, unitPrice: true } },
         product: { select: { id: true, sku: true, nameEn: true, purchaseTaxCodeId: true } },
       },
@@ -338,6 +345,12 @@ export async function addGoodsLine(ctx: TenantContext, invoiceId: string, rawInp
       throw businessRuleViolation("RECEIPT_ALREADY_REVERSED", "The receipt was reversed", {
         field: "receiptLineId",
       });
+    if (rl.receipt.currency !== inv.currency)
+      throw businessRuleViolation(
+        "RECEIPT_OTHER_CURRENCY",
+        "The receipt is in another currency than the invoice",
+        { field: "receiptLineId", currency: rl.receipt.currency },
+      );
     const accepted = dec(rl.acceptedQuantity);
     if (!accepted.gt(0))
       throw businessRuleViolation(
@@ -360,6 +373,7 @@ export async function addGoodsLine(ctx: TenantContext, invoiceId: string, rawInp
       day(inv.invoiceDate),
       net,
       "taxCodeId",
+      inv.currency,
     );
     await tx.supplierInvoiceLine.create({
       data: {
@@ -401,7 +415,15 @@ export async function addChargeLine(ctx: TenantContext, invoiceId: string, rawIn
   await withTenantTx(ctx.organizationId, async (tx) => {
     const inv = await lockInvoice(tx, ctx, invoiceId, { draft: true });
     const net = toDecimal(input.netAmount);
-    const t = await taxFor(tx, ctx, input.taxCodeId, day(inv.invoiceDate), net, "taxCodeId");
+    const t = await taxFor(
+      tx,
+      ctx,
+      input.taxCodeId,
+      day(inv.invoiceDate),
+      net,
+      "taxCodeId",
+      inv.currency,
+    );
     await tx.supplierInvoiceLine.create({
       data: {
         organizationId: ctx.organizationId,
@@ -480,11 +502,30 @@ export async function postInvoice(ctx: TenantContext, invoiceId: string) {
         "INVOICE_EXCEPTION_NOT_APPROVED",
         "The invoice does not match; another person must approve the differences first",
       );
+    // Base-currency totals at the rate on the invoice date, fixed now (ADR-050).
+    const fx = await rateFor(tx, ctx, fresh.currency, day(fresh.invoiceDate));
+    const netBase = baseAmount(ctx, dec(fresh.netAmount), fx.rate);
+    const taxBase = baseAmount(ctx, dec(fresh.taxAmount), fx.rate);
     await tx.supplierInvoice.update({
       where: { id: inv.id },
-      data: { status: "POSTED", postedAt: new Date(), postedByUserId: ctx.userId },
+      data: {
+        status: "POSTED",
+        postedAt: new Date(),
+        postedByUserId: ctx.userId,
+        exchangeRate: fx.rate.toFixed(),
+        rateDate: new Date(`${fx.rateDate}T00:00:00Z`),
+        netAmountBase: netBase.toFixed(),
+        taxAmountBase: taxBase.toFixed(),
+        grossAmountBase: netBase.plus(taxBase).toFixed(),
+      },
     });
-    await audit(tx, ctx, inv, "posted", { gross: fresh.grossAmount.toFixed(), matchStatus });
+    await audit(tx, ctx, inv, "posted", {
+      gross: fresh.grossAmount.toFixed(),
+      currency: fresh.currency,
+      rate: fx.rate.toFixed(),
+      grossBase: netBase.plus(taxBase).toFixed(),
+      matchStatus,
+    });
   });
 }
 
@@ -550,7 +591,7 @@ export async function uninvoicedReceiptLines(ctx: TenantContext, supplierId: str
         receipt: { supplierId, status: "POSTED" },
       },
       include: {
-        receipt: { select: { number: true, receivedAt: true } },
+        receipt: { select: { number: true, receivedAt: true, currency: true } },
         product: { select: { sku: true, nameEn: true, nameAr: true } },
         uom: { select: { code: true } },
       },
@@ -640,7 +681,7 @@ export async function getInvoice(ctx: TenantContext, invoiceId: string) {
     });
     const name = (id: string | null) =>
       id ? (users.find((u) => u.id === id)?.name ?? null) : null;
-    const decimals = currencyDecimals(ctx.baseCurrency);
+    const decimals = currencyDecimals(inv.currency);
     const manage = hasPermission(ctx.grants, "invoices.manage");
     const draft = inv.status === "DRAFT";
     const settled = (await settledAmounts(tx, ctx, [inv.id])).get(inv.id) ?? new Decimal(0);
@@ -692,8 +733,8 @@ export async function getInvoice(ctx: TenantContext, invoiceId: string) {
 export async function inputVatSummary(ctx: TenantContext, period: { from: string; to: string }) {
   assertPermission(ctx.grants, "invoices.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const rows = await tx.supplierInvoiceLine.groupBy({
-      by: ["taxCodeId", "taxRate"],
+    // Lines are in their invoice's currency: each is converted at its invoice's rate (ADR-050).
+    const lineRows = await tx.supplierInvoiceLine.findMany({
       where: {
         organizationId: ctx.organizationId,
         invoice: {
@@ -704,8 +745,13 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
           },
         },
       },
-      _sum: { netAmount: true, taxAmount: true, grossAmount: true },
-      _count: { _all: true },
+      select: {
+        taxCodeId: true,
+        taxRate: true,
+        netAmount: true,
+        taxAmount: true,
+        invoice: { select: { exchangeRate: true } },
+      },
     });
     // Supplier credit notes in the period reduce the input VAT (ADR-039).
     const credits = await tx.supplierSettlement.groupBy({
@@ -719,7 +765,7 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
           lte: new Date(`${period.to}T00:00:00Z`),
         },
       },
-      _sum: { netAmount: true, taxAmount: true, amount: true },
+      _sum: { amountBase: true, taxAmountBase: true },
       _count: { _all: true },
     });
     const codes = await tx.taxCode.findMany({
@@ -760,19 +806,24 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
       }
       return e;
     };
-    for (const r of rows) {
+    for (const r of lineRows) {
       const e = entry(r.taxCodeId, r.taxRate);
-      e.lines += r._count._all;
-      e.net = e.net.plus(dec(r._sum.netAmount ?? 0));
-      e.tax = e.tax.plus(dec(r._sum.taxAmount ?? 0));
-      e.gross = e.gross.plus(dec(r._sum.grossAmount ?? 0));
+      const rate = dec(r.invoice.exchangeRate);
+      const net = baseAmount(ctx, dec(r.netAmount), rate);
+      const tax = baseAmount(ctx, dec(r.taxAmount), rate);
+      e.lines += 1;
+      e.net = e.net.plus(net);
+      e.tax = e.tax.plus(tax);
+      e.gross = e.gross.plus(net.plus(tax));
     }
     for (const c of credits) {
       const e = entry(c.taxCodeId, c.taxRate);
+      const gross = dec(c._sum.amountBase ?? 0);
+      const tax = dec(c._sum.taxAmountBase ?? 0);
       e.credits += c._count._all;
-      e.net = e.net.minus(dec(c._sum.netAmount ?? 0));
-      e.tax = e.tax.minus(dec(c._sum.taxAmount ?? 0));
-      e.gross = e.gross.minus(dec(c._sum.amount ?? 0));
+      e.net = e.net.minus(gross.minus(tax));
+      e.tax = e.tax.minus(tax);
+      e.gross = e.gross.minus(gross);
     }
     return {
       reclaimable: settings?.vatRegistered ?? false,
@@ -795,7 +846,7 @@ export async function invoiceFormOptions(ctx: TenantContext) {
   return withTenantTx(ctx.organizationId, async (tx) => ({
     suppliers: await tx.supplier.findMany({
       where: { organizationId: ctx.organizationId, archivedAt: null },
-      select: { id: true, code: true, name: true, nameAr: true },
+      select: { id: true, code: true, name: true, nameAr: true, currency: true },
       orderBy: { code: "asc" },
       take: 2000,
     }),

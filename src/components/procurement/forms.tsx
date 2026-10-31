@@ -58,11 +58,14 @@ function Checkbox({
 export function SupplierForm({
   action,
   submitLabel,
+  currencies,
   defaults = {},
   idempotent = false,
 }: {
   action: Action;
   submitLabel: string;
+  /** Allowed document currencies, base first (ADR-050). */
+  currencies: string[];
   defaults?: Record<string, string | undefined>;
   idempotent?: boolean;
 }) {
@@ -139,6 +142,13 @@ export function SupplierForm({
           inputMode="numeric"
           dir="ltr"
           optionalLabel={opt}
+        />
+        <SelectField
+          name="currency"
+          label={t("suppliers.currency")}
+          hint={t("suppliers.currencyHint")}
+          options={currencies.map((c) => ({ value: c, label: c }))}
+          defaultValue={defaults.currency ?? currencies[0]}
         />
         <TextField
           name="note"
@@ -226,6 +236,7 @@ export function OrderHeaderForm({
   action,
   suppliers,
   warehouses,
+  currencies,
   submitLabel,
   defaults = {},
   idempotent = false,
@@ -233,6 +244,8 @@ export function OrderHeaderForm({
   action: Action;
   suppliers: Option[];
   warehouses: Option[];
+  /** Allowed currencies (ADR-050); "" = the supplier's currency. */
+  currencies: string[];
   submitLabel: string;
   defaults?: Record<string, string | undefined>;
   idempotent?: boolean;
@@ -261,6 +274,15 @@ export function OrderHeaderForm({
           defaultValue={defaults.warehouseId}
           placeholder={t("common.select")}
           required
+        />
+        <SelectField
+          name="currency"
+          label={t("fx.currency")}
+          options={[
+            { value: "", label: t("fx.supplierCurrency") },
+            ...currencies.map((c) => ({ value: c, label: c })),
+          ]}
+          defaultValue={defaults.currency ?? ""}
         />
         <TextField
           name="expectedOn"

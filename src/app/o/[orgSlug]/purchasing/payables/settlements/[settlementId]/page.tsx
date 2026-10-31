@@ -20,6 +20,7 @@ import { hasPermission } from "@/modules/access/authorize";
 import { getSettlement, openInvoicesOf } from "@/modules/invoices/payables";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
+import { fxItems } from "@/server/fx-view";
 import { moneyFormatter } from "@/server/inventory-view";
 import { allocateSettlementAction, voidSettlementAction } from "../../actions";
 
@@ -35,9 +36,15 @@ export default async function SettlementPage({
     getTranslations(),
     getLocale(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
-    canPay && s.unapplied.gt(0) ? openInvoicesOf(ctx, s.supplier.id) : Promise.resolve([]),
+    moneyFormatter(s.currency),
+    canPay && s.unapplied.gt(0)
+      ? openInvoicesOf(ctx, s.supplier.id, s.currency)
+      : Promise.resolve([]),
   ]);
+  const fx = await fxItems(ctx.baseCurrency, s, {
+    label: t("fx.amountInBase", { currency: ctx.baseCurrency }),
+    value: s.amountBase,
+  });
   const amount = (v: Decimal) => (
     <span className="ltr-value whitespace-nowrap">{money.money(v)}</span>
   );
@@ -79,6 +86,7 @@ export default async function SettlementPage({
                 label: t("payables.date"),
                 value: <span className="ltr-value">{s.date.toISOString().slice(0, 10)}</span>,
               },
+              ...fx,
               ...(s.kind === "PAYMENT"
                 ? [
                     {

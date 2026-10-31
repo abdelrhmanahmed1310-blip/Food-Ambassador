@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { InvoiceForm } from "@/components/invoices/forms";
 import { Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
+import { currencyChoices } from "@/modules/fx/rules";
 import { invoiceFormOptions } from "@/modules/invoices/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { createInvoiceAction } from "../actions";
@@ -24,7 +25,8 @@ export default async function NewInvoicePage({
       <Card>
         <InvoiceForm
           action={createInvoiceAction.bind(null, orgSlug)}
-          currency={ctx.baseCurrency}
+          currency={t("fx.invoiceCurrency")}
+          currencies={currencyChoices(ctx.baseCurrency)}
           submitLabel={t("invoices.create")}
           suppliers={options.suppliers.map((s) => ({
             value: s.id,

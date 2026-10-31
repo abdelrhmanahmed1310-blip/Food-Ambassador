@@ -37,12 +37,18 @@ export default async function SupplierStatementPage({
       ? sp.from
       : `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
   const to = typeof sp.to === "string" && isCalendarDate(sp.to) && sp.to >= from ? sp.to : today;
-  const st = await notFoundOnAppError(supplierStatement(ctx, supplierId, { from, to }));
+  const st = await notFoundOnAppError(
+    supplierStatement(ctx, supplierId, {
+      from,
+      to,
+      currency: typeof sp.currency === "string" ? sp.currency : undefined,
+    }),
+  );
   const canPay = hasPermission(ctx.grants, "payments.manage");
   const [t, locale, money, options] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(st.currency),
     canPay && hasPermission(ctx.grants, "invoices.manage")
       ? invoiceFormOptions(ctx)
       : Promise.resolve({ suppliers: [], taxCodes: [] }),
@@ -101,9 +107,24 @@ export default async function SupplierStatementPage({
             {t("common.apply")}
           </button>
         </form>
+        {st.currencies.length > 1 ? (
+          <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("fx.currency")}>
+            {st.currencies.map((c) => (
+              <Link
+                key={c}
+                href={`?from=${from}&to=${to}&currency=${c}`}
+                aria-current={c === st.currency ? "page" : undefined}
+                className={`rounded-md border px-3 py-1 ${c === st.currency ? "border-primary text-primary font-medium" : "border-border"}`}
+              >
+                {c}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
         <Card>
           <DescriptionList
             items={[
+              { label: t("fx.currency"), value: <span className="ltr-value">{st.currency}</span> },
               { label: t("payables.openingBalance"), value: amount(st.opening) },
               {
                 label: t("payables.closingBalance"),
@@ -216,7 +237,7 @@ export default async function SupplierStatementPage({
                   label: t(`payables.methods.${m}`),
                 }))}
                 invoices={openOptions}
-                currency={ctx.baseCurrency}
+                currency={st.currency}
                 today={today}
               />
             </Card>
@@ -225,7 +246,7 @@ export default async function SupplierStatementPage({
                 action={recordCreditNoteAction.bind(null, orgSlug, st.supplier.id)}
                 taxCodes={taxCodes}
                 invoices={openOptions}
-                currency={ctx.baseCurrency}
+                currency={st.currency}
                 today={today}
               />
             </Card>

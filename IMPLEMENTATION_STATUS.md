@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (approval matrix with per-layer limits; Q-09, Q-11, Q-12 decided)
+Last updated: 2026-10-31 (foreign-currency purchasing; approval matrix)
 
 ## Summary
 
@@ -18,6 +18,36 @@ Last updated: 2026-10-31 (approval matrix with per-layer limits; Q-09, Q-11, Q-1
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
 | POS1 – POS5                   | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## Foreign-currency purchasing and exchange rates (delivered)
+
+Rules: DECISIONS.md ADR-050 (Q-05, Q-11).
+
+| Area       | What works                                                                                                                        | Where                              |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Rates      | Enter or paste (CSV) rates per currency and date; latest per currency; history; at most 7 days old when used                      | Purchasing → Exchange rates, `fx/` |
+| Documents  | Supplier default currency; orders, receipts, invoices, payments and credit notes in USD, EUR, SAR, EGP or a GCC currency          | procurement, invoices modules      |
+| Base value | Approval on base total; stock valued at price × rate; invoice and payment base amounts fixed; realised exchange difference stored | `rateFor`, `realisedDifference`    |
+| Reports    | Balances per supplier and currency with base equivalent and base totals; statements per currency; VAT and exports in base         | payables, VAT summary, export      |
+
+Checks: `pnpm check` pass (unit 35 files / 198 tests, 4 new: rate choice
+incl. 7-day limit, conversions and rounding, realised differences,
+allowed currencies; build); `pnpm test:integration` 34 files / 224 tests
+pass (6 new: rates kept per date, all-or-nothing CSV, permission and tenant;
+GBP refused; no rate and stale rate refused; USD order approved by its
+1,225 EGP base total; receipt valued 1,225 EGP; USD invoice at the
+invoice-date rate 48.5 = 1,212.50 EGP; EGP invoice refuses a USD receipt;
+VAT summary in base; balance per currency with base equivalent; USD
+payment at 49 refuses an EGP invoice and records a 12.50 loss; documents
+export with currency, rate and base; journal needs the exchange account and
+balances in EGP with the difference lines); `pnpm test:e2e` 39 tests pass
+(new: rate entered, USD supplier, order with rate and base total, receipt,
+stock value 1,225 EGP). All earlier tests pass unchanged: base-currency
+documents behave as before (rate 1).
+
+Limitations: no period-end revaluation of open foreign balances; landed
+costs and B2B sales stay in base currency; no live rate feed (none is
+connected or claimed).
 
 ## Approval matrix — per-layer limits, purchase orders and stock counts (delivered)
 

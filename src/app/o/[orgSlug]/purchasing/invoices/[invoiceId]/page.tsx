@@ -28,6 +28,7 @@ import { isUuid } from "@/lib/uuid";
 import { getInvoice, invoiceFormOptions, uninvoicedReceiptLines } from "@/modules/invoices/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
+import { fxItems } from "@/server/fx-view";
 import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
 import {
   addChargeLineAction,
@@ -51,11 +52,17 @@ export default async function InvoicePage({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(inv.currency),
   ]);
-  const [open, options] = inv.can.edit
+  const fx = await fxItems(ctx.baseCurrency, inv, {
+    label: t("fx.totalInBase", { currency: ctx.baseCurrency }),
+    value: inv.status === "POSTED" ? inv.grossAmountBase : null,
+  });
+  const [allOpen, options] = inv.can.edit
     ? await Promise.all([uninvoicedReceiptLines(ctx, inv.supplier.id), invoiceFormOptions(ctx)])
     : [[], { suppliers: [], taxCodes: [] }];
+  // Only receipts in the invoice's currency can go on it (ADR-050).
+  const open = allOpen.filter((l) => l.receipt.currency === inv.currency);
   // Receipt lines partly on this invoice are offered for what is still open beyond it.
   const onThis = new Set(inv.lines.map((l) => l.receiptLineId));
   const taxCodes = options.taxCodes.map((c) => ({
@@ -116,6 +123,7 @@ export default async function InvoicePage({
         <Card>
           <DescriptionList
             items={[
+              ...fx,
               {
                 label: t("invoices.supplierInvoiceNo"),
                 value: <span className="ltr-value font-mono">{inv.supplierInvoiceNo}</span>,
@@ -318,7 +326,7 @@ export default async function InvoicePage({
             <Card title={t("invoices.header")}>
               <InvoiceForm
                 action={updateInvoiceAction.bind(null, orgSlug, inv.id)}
-                currency={ctx.baseCurrency}
+                currency={inv.currency}
                 submitLabel={t("common.save")}
                 defaults={{
                   supplierInvoiceNo: inv.supplierInvoiceNo,

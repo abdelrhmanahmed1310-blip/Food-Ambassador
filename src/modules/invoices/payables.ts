@@ -13,6 +13,9 @@ import {
   requiredText,
   uuidSchema,
 } from "@/modules/shared/schemas";
+import { isDocumentCurrency, realisedDifference, toBase } from "@/modules/fx/rules";
+import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import { optionalCurrency } from "@/modules/procurement/schemas";
 import { currencyDecimals, taxFromNet } from "@/modules/tax/rules";
 import { loadTaxContextInTx } from "@/modules/tax/service";
 import type { TenantContext } from "@/modules/tenancy/context";
@@ -70,6 +73,8 @@ export const paymentSchema = allocationsSchema.extend({
   method: z.enum(PAYMENT_METHODS, { error: "invalidOption" }),
   reference: optionalText(80),
   note: optionalText(500),
+  /** Empty = the supplier's currency (ADR-050). */
+  currency: optionalCurrency,
   idempotencyKey: idempotencyKeySchema,
 });
 
@@ -80,18 +85,30 @@ export const creditNoteSchema = allocationsSchema.extend({
   netAmount: decimalString({ maxScale: 4, min: "0.0001" }),
   taxCodeId: optionalUuidSchema,
   note: requiredText(500),
+  currency: optionalCurrency,
   idempotencyKey: idempotencyKeySchema,
 });
 
 const reasonSchema = z.object({ reason: requiredText(500) });
 const asOfSchema = z.string().refine(isCalendarDate, { error: "invalidDate" });
 
-function requireCurrencyUnit(ctx: TenantContext, value: Decimal, field: string) {
-  if (value.decimalPlaces() > currencyDecimals(ctx.baseCurrency))
+function requireCurrencyUnit(currency: string, value: Decimal, field: string) {
+  if (value.decimalPlaces() > currencyDecimals(currency))
     throw businessRuleViolation("AMOUNT_TOO_PRECISE", "More decimals than the currency has", {
       field,
-      decimals: currencyDecimals(ctx.baseCurrency),
+      decimals: currencyDecimals(currency),
     });
+}
+
+/** The settlement's currency: given, else the supplier's, else base (ADR-050). */
+function settlementCurrency(
+  ctx: TenantContext,
+  given: string | undefined,
+  supplier: { currency: string | null },
+) {
+  const currency = given ?? supplier.currency ?? ctx.baseCurrency;
+  assertDocumentCurrency(ctx, currency);
+  return currency;
 }
 
 async function audit(
@@ -109,10 +126,18 @@ async function audit(
   });
 }
 
-/** Posted invoices of a supplier with what is still to settle (gross − allocations of posted settlements). */
-async function openInvoices(tx: Tx, ctx: TenantContext, supplierId: string) {
+/**
+ * Posted invoices of a supplier with what is still to settle (gross −
+ * allocations of posted settlements); only those in `currency` when given.
+ */
+async function openInvoices(tx: Tx, ctx: TenantContext, supplierId: string, currency?: string) {
   const invoices = await tx.supplierInvoice.findMany({
-    where: { organizationId: ctx.organizationId, supplierId, status: "POSTED" },
+    where: {
+      organizationId: ctx.organizationId,
+      supplierId,
+      status: "POSTED",
+      ...(currency ? { currency } : {}),
+    },
     select: {
       id: true,
       number: true,
@@ -120,6 +145,8 @@ async function openInvoices(tx: Tx, ctx: TenantContext, supplierId: string) {
       invoiceDate: true,
       dueDate: true,
       grossAmount: true,
+      currency: true,
+      exchangeRate: true,
     },
     orderBy: [{ invoiceDate: "asc" }, { number: "asc" }],
   });
@@ -161,11 +188,12 @@ async function unappliedOf(
 async function applyAllocations(
   tx: Tx,
   ctx: TenantContext,
-  settlement: { id: string; supplierId: string },
+  settlement: { id: string; supplierId: string; currency: string; exchangeRate: Decimal | string },
   available: Decimal,
   input: { autoAllocate: boolean; allocations: Array<{ invoiceId: string; amount: string }> },
 ) {
-  const open = await openInvoices(tx, ctx, settlement.supplierId);
+  // Only invoices in the settlement's currency can be settled by it (ADR-050).
+  const open = await openInvoices(tx, ctx, settlement.supplierId, settlement.currency);
   let planned: Array<{ invoiceId: string; amount: Decimal }>;
   if (input.autoAllocate) {
     planned = allocateOldestFirst(
@@ -179,7 +207,7 @@ async function applyAllocations(
       const amount = toDecimal(a.amount);
       if (amount.isZero()) continue;
       const field = `allocations.${index}.amount`;
-      requireCurrencyUnit(ctx, amount, field);
+      requireCurrencyUnit(settlement.currency, amount, field);
       const inv = open.find((i) => i.id === a.invoiceId);
       if (!inv)
         throw businessRuleViolation("INVOICE_NOT_OPEN", "Not a posted invoice of this supplier", {
@@ -204,16 +232,26 @@ async function applyAllocations(
         { available: available.toFixed() },
       );
   }
-  for (const p of planned)
+  const baseDecimals = currencyDecimals(ctx.baseCurrency);
+  for (const p of planned) {
+    const inv = open.find((i) => i.id === p.invoiceId)!;
     await tx.settlementAllocation.create({
       data: {
         organizationId: ctx.organizationId,
         settlementId: settlement.id,
         invoiceId: p.invoiceId,
         amount: p.amount.toFixed(),
+        // Realised exchange difference: booked at the invoice rate, settled at this one.
+        fxDifferenceBase: realisedDifference(
+          p.amount,
+          dec(inv.exchangeRate),
+          dec(settlement.exchangeRate),
+          baseDecimals,
+        ).toFixed(),
         createdByUserId: ctx.userId,
       },
     });
+  }
   return planned;
 }
 
@@ -225,7 +263,6 @@ export async function recordPayment(ctx: TenantContext, rawInput: unknown) {
   if (!parsed.success) throw validationFailed(parsed.error);
   const input = parsed.data;
   const amount = toDecimal(input.amount);
-  requireCurrencyUnit(ctx, amount, "amount");
   return runIdempotent(
     ctx,
     {
@@ -236,10 +273,13 @@ export async function recordPayment(ctx: TenantContext, rawInput: unknown) {
     async (tx) => {
       const supplier = await tx.supplier.findFirst({
         where: { organizationId: ctx.organizationId, id: input.supplierId },
-        select: { id: true },
+        select: { id: true, currency: true },
       });
       if (!supplier) throw notFound("Supplier");
+      const currency = settlementCurrency(ctx, input.currency, supplier);
+      requireCurrencyUnit(currency, amount, "amount");
       await lockSupplier(tx, ctx, supplier.id);
+      const fx = await rateFor(tx, ctx, currency, input.date);
       const number = await nextDocumentNumber(
         tx,
         ctx.organizationId,
@@ -254,17 +294,23 @@ export async function recordPayment(ctx: TenantContext, rawInput: unknown) {
           supplierId: supplier.id,
           date: asDate(input.date),
           amount: amount.toFixed(),
+          currency,
+          exchangeRate: fx.rate.toFixed(),
+          rateDate: asDate(fx.rateDate),
+          amountBase: baseAmount(ctx, amount, fx.rate).toFixed(),
           method: input.method,
           reference: input.reference,
           note: input.note,
           createdByUserId: ctx.userId,
         },
-        select: { id: true, number: true, supplierId: true },
+        select: { id: true, number: true, supplierId: true, currency: true, exchangeRate: true },
       });
       const applied = await applyAllocations(tx, ctx, s, amount, input);
       await audit(tx, ctx, s, "payment_recorded", {
         supplierId: supplier.id,
         amount: amount.toFixed(),
+        currency,
+        rate: fx.rate.toFixed(),
         method: input.method,
         allocations: applied.map((a) => ({ invoiceId: a.invoiceId, amount: a.amount.toFixed() })),
       });
@@ -279,7 +325,6 @@ export async function recordCreditNote(ctx: TenantContext, rawInput: unknown) {
   if (!parsed.success) throw validationFailed(parsed.error);
   const input = parsed.data;
   const net = toDecimal(input.netAmount);
-  requireCurrencyUnit(ctx, net, "netAmount");
   try {
     return await runIdempotent(
       ctx,
@@ -291,10 +336,13 @@ export async function recordCreditNote(ctx: TenantContext, rawInput: unknown) {
       async (tx) => {
         const supplier = await tx.supplier.findFirst({
           where: { organizationId: ctx.organizationId, id: input.supplierId },
-          select: { id: true },
+          select: { id: true, currency: true },
         });
         if (!supplier) throw notFound("Supplier");
+        const currency = settlementCurrency(ctx, input.currency, supplier);
+        requireCurrencyUnit(currency, net, "netAmount");
         await lockSupplier(tx, ctx, supplier.id);
+        const fx = await rateFor(tx, ctx, currency, input.date);
         const taxCtx = await loadTaxContextInTx(tx, ctx);
         const resolved = taxCtx.resolvePurchase(input.taxCodeId, input.date);
         if (resolved && !resolved.ok)
@@ -304,7 +352,7 @@ export async function recordCreditNote(ctx: TenantContext, rawInput: unknown) {
             { field: "taxCodeId", code: resolved.code },
           );
         const t = resolved
-          ? taxFromNet(net, resolved.rate, ctx.baseCurrency)
+          ? taxFromNet(net, resolved.rate, currency)
           : { net, tax: zero(), gross: net };
         const number = await nextDocumentNumber(
           tx,
@@ -322,13 +370,18 @@ export async function recordCreditNote(ctx: TenantContext, rawInput: unknown) {
             amount: t.gross.toFixed(),
             netAmount: t.net.toFixed(),
             taxAmount: t.tax.toFixed(),
+            currency,
+            exchangeRate: fx.rate.toFixed(),
+            rateDate: asDate(fx.rateDate),
+            amountBase: baseAmount(ctx, t.gross, fx.rate).toFixed(),
+            taxAmountBase: baseAmount(ctx, t.tax, fx.rate).toFixed(),
             taxCodeId: resolved ? resolved.codeId : null,
             taxRate: resolved ? resolved.rate.toFixed() : null,
             supplierDocumentNo: input.supplierDocumentNo,
             note: input.note,
             createdByUserId: ctx.userId,
           },
-          select: { id: true, number: true, supplierId: true },
+          select: { id: true, number: true, supplierId: true, currency: true, exchangeRate: true },
         });
         const applied = await applyAllocations(tx, ctx, s, t.gross, input);
         await audit(tx, ctx, s, "credit_note_recorded", {
@@ -419,14 +472,19 @@ const emptyAging = (): AgingTotals =>
   Object.fromEntries(AGING_BUCKETS.map((b) => [b, zero()])) as AgingTotals;
 
 /**
- * Balance per supplier on `asOf`: posted invoices dated up to then minus
- * posted payments and credit notes dated up to then; open invoice amounts
- * aged by due date; unapplied settlements shown separately. Voids count as
- * of today (a voided settlement never counts).
+ * Balance per supplier and currency on `asOf` (ADR-050): posted invoices
+ * dated up to then minus posted payments and credit notes dated up to then,
+ * in the documents' currency; open invoice amounts aged by due date;
+ * unapplied settlements shown separately. Each row also has its base-currency
+ * equivalent at the documents' own rates (open invoices at the invoice rate,
+ * unapplied settlements at theirs); totals are in base currency only,
+ * because amounts in different currencies cannot be added. Voids count as of
+ * today (a voided settlement never counts).
  */
 export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
   assertPermission(ctx.grants, "invoices.view");
   const asOf = asOfSchema.parse(rawAsOf);
+  const baseDecimals = currencyDecimals(ctx.baseCurrency);
   return withTenantTx(ctx.organizationId, async (tx) => {
     const invoices = await tx.supplierInvoice.findMany({
       where: {
@@ -434,12 +492,19 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
         status: "POSTED",
         invoiceDate: { lte: asDate(asOf) },
       },
-      select: { id: true, supplierId: true, invoiceDate: true, dueDate: true, grossAmount: true },
+      select: {
+        id: true,
+        supplierId: true,
+        currency: true,
+        exchangeRate: true,
+        invoiceDate: true,
+        dueDate: true,
+        grossAmount: true,
+      },
     });
-    const settlements = await tx.supplierSettlement.groupBy({
-      by: ["supplierId"],
+    const settlements = await tx.supplierSettlement.findMany({
       where: { organizationId: ctx.organizationId, status: "POSTED", date: { lte: asDate(asOf) } },
-      _sum: { amount: true },
+      select: { id: true, supplierId: true, currency: true, exchangeRate: true, amount: true },
     });
     const settled = await settledAmounts(
       tx,
@@ -447,25 +512,42 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
       invoices.map((i) => i.id),
       asOf,
     );
-    const supplierIds = [
-      ...new Set([...invoices.map((i) => i.supplierId), ...settlements.map((s) => s.supplierId)]),
+    // Applied as of asOf, per settlement (to find what is still on account).
+    const applied = new Map(
+      (
+        await tx.settlementAllocation.groupBy({
+          by: ["settlementId"],
+          where: {
+            organizationId: ctx.organizationId,
+            settlementId: { in: settlements.map((x) => x.id) },
+            invoice: { invoiceDate: { lte: asDate(asOf) } },
+          },
+          _sum: { amount: true },
+        })
+      ).map((r) => [r.settlementId, dec(r._sum.amount ?? 0)]),
+    );
+    const keys = [
+      ...new Set([...invoices, ...settlements].map((d) => `${d.supplierId}|${d.currency}`)),
     ];
     const suppliers = await tx.supplier.findMany({
-      where: { organizationId: ctx.organizationId, id: { in: supplierIds } },
+      where: {
+        organizationId: ctx.organizationId,
+        id: { in: [...new Set(keys.map((k) => k.split("|")[0]))] },
+      },
       select: { id: true, code: true, name: true, nameAr: true },
     });
-    const total = {
-      invoiced: zero(),
-      settled: zero(),
-      balance: zero(),
-      unapplied: zero(),
-      aging: emptyAging(),
-    };
-    const rows = suppliers.map((sup) => {
-      const own = invoices.filter((i) => i.supplierId === sup.id);
+    const total = { balanceBase: zero(), unappliedBase: zero(), aging: emptyAging() };
+    const rows = keys.map((key) => {
+      const [supplierId, currency] = key.split("|");
+      const sup = suppliers.find((x) => x.id === supplierId)!;
+      const own = invoices.filter((i) => i.supplierId === supplierId && i.currency === currency);
+      const pays = settlements.filter(
+        (x) => x.supplierId === supplierId && x.currency === currency,
+      );
       const aging = emptyAging();
       let invoiced = zero();
       let openTotal = zero();
+      let balanceBase = zero();
       for (const i of own) {
         const gross = dec(i.grossAmount);
         invoiced = invoiced.plus(gross);
@@ -474,20 +556,39 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
         openTotal = openTotal.plus(open);
         const b = agingBucket(day(i.dueDate ?? i.invoiceDate), asOf);
         aging[b] = aging[b].plus(open);
+        const openBase = toBase(open, dec(i.exchangeRate), baseDecimals);
+        balanceBase = balanceBase.plus(openBase);
+        total.aging[b] = total.aging[b].plus(openBase);
       }
-      const paid = dec(settlements.find((s) => s.supplierId === sup.id)?._sum.amount ?? 0);
+      const paid = pays.reduce((a, x) => a.plus(dec(x.amount)), zero());
+      let unappliedBase = zero();
+      for (const x of pays) {
+        const left = dec(x.amount).minus(applied.get(x.id) ?? 0);
+        if (left.gt(0))
+          unappliedBase = unappliedBase.plus(toBase(left, dec(x.exchangeRate), baseDecimals));
+      }
+      balanceBase = balanceBase.minus(unappliedBase);
       const balance = invoiced.minus(paid);
       // Settled amounts not applied to an invoice (on account).
       const unapplied = Decimal.max(openTotal.minus(balance), 0);
-      total.invoiced = total.invoiced.plus(invoiced);
-      total.settled = total.settled.plus(paid);
-      total.balance = total.balance.plus(balance);
-      total.unapplied = total.unapplied.plus(unapplied);
-      for (const b of AGING_BUCKETS) total.aging[b] = total.aging[b].plus(aging[b]);
-      return { supplier: sup, invoiced, settled: paid, balance, unapplied, aging };
+      total.balanceBase = total.balanceBase.plus(balanceBase);
+      total.unappliedBase = total.unappliedBase.plus(unappliedBase);
+      return {
+        supplier: sup,
+        currency,
+        invoiced,
+        settled: paid,
+        balance,
+        unapplied,
+        aging,
+        balanceBase,
+      };
     });
     rows.sort(
-      (a, b) => b.balance.comparedTo(a.balance) || a.supplier.code.localeCompare(b.supplier.code),
+      (a, b) =>
+        b.balanceBase.comparedTo(a.balanceBase) ||
+        a.supplier.code.localeCompare(b.supplier.code) ||
+        a.currency.localeCompare(b.currency),
     );
     return { asOf, rows, total };
   });
@@ -497,7 +598,7 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
 export async function supplierStatement(
   ctx: TenantContext,
   supplierId: string,
-  period: { from: string; to: string },
+  period: { from: string; to: string; currency?: string },
 ) {
   assertPermission(ctx.grants, "invoices.view");
   const from = asOfSchema.parse(period.from);
@@ -512,9 +613,26 @@ export async function supplierStatement(
         nameAr: true,
         taxId: true,
         paymentTermsDays: true,
+        currency: true,
       },
     });
     if (!supplier) throw notFound("Supplier");
+    // A statement is in one currency (ADR-050): the one asked for, else the supplier's.
+    const currency =
+      period.currency && isDocumentCurrency(period.currency, ctx.baseCurrency)
+        ? period.currency
+        : (supplier.currency ?? ctx.baseCurrency);
+    const currencies = [
+      ...new Set(
+        (
+          await tx.supplierInvoice.findMany({
+            where: { organizationId: ctx.organizationId, supplierId, status: "POSTED" },
+            select: { currency: true },
+            distinct: ["currency"],
+          })
+        ).map((c) => c.currency),
+      ),
+    ];
     const before = { lt: asDate(from) };
     const within = { gte: asDate(from), lte: asDate(to) };
     const [invBefore, setBefore, invoices, settlements] = await Promise.all([
@@ -522,19 +640,27 @@ export async function supplierStatement(
         where: {
           organizationId: ctx.organizationId,
           supplierId,
+          currency,
           status: "POSTED",
           invoiceDate: before,
         },
         _sum: { grossAmount: true },
       }),
       tx.supplierSettlement.aggregate({
-        where: { organizationId: ctx.organizationId, supplierId, status: "POSTED", date: before },
+        where: {
+          organizationId: ctx.organizationId,
+          supplierId,
+          currency,
+          status: "POSTED",
+          date: before,
+        },
         _sum: { amount: true },
       }),
       tx.supplierInvoice.findMany({
         where: {
           organizationId: ctx.organizationId,
           supplierId,
+          currency,
           status: "POSTED",
           invoiceDate: within,
         },
@@ -547,7 +673,13 @@ export async function supplierStatement(
         },
       }),
       tx.supplierSettlement.findMany({
-        where: { organizationId: ctx.organizationId, supplierId, status: "POSTED", date: within },
+        where: {
+          organizationId: ctx.organizationId,
+          supplierId,
+          currency,
+          status: "POSTED",
+          date: within,
+        },
         select: {
           id: true,
           number: true,
@@ -585,9 +717,9 @@ export async function supplierStatement(
       running = running.plus(e.charge).minus(e.credit);
       return { ...e, balance: running };
     });
-    const open = (await openInvoices(tx, ctx, supplierId)).filter((i) => i.open.gt(0));
+    const open = (await openInvoices(tx, ctx, supplierId, currency)).filter((i) => i.open.gt(0));
     const posted = await tx.supplierSettlement.findMany({
-      where: { organizationId: ctx.organizationId, supplierId, status: "POSTED" },
+      where: { organizationId: ctx.organizationId, supplierId, currency, status: "POSTED" },
       select: { id: true, number: true, kind: true, date: true, amount: true },
       orderBy: { date: "asc" },
     });
@@ -596,7 +728,18 @@ export async function supplierStatement(
       const left = await unappliedOf(tx, ctx, s);
       if (left.gt(0)) unapplied.push({ ...s, unapplied: left });
     }
-    return { supplier, from, to, opening, lines, closing: running, open, unapplied };
+    return {
+      supplier,
+      currency,
+      currencies: [...new Set([currency, ...currencies])],
+      from,
+      to,
+      opening,
+      lines,
+      closing: running,
+      open,
+      unapplied,
+    };
   });
 }
 
@@ -631,10 +774,10 @@ export async function getSettlement(ctx: TenantContext, settlementId: string) {
   });
 }
 
-/** Open invoices of a supplier, for allocation forms. */
-export async function openInvoicesOf(ctx: TenantContext, supplierId: string) {
+/** Open invoices of a supplier (in one currency when given), for allocation forms. */
+export async function openInvoicesOf(ctx: TenantContext, supplierId: string, currency?: string) {
   assertPermission(ctx.grants, "invoices.view");
   return withTenantTx(ctx.organizationId, async (tx) =>
-    (await openInvoices(tx, ctx, supplierId)).filter((i) => i.open.gt(0)),
+    (await openInvoices(tx, ctx, supplierId, currency)).filter((i) => i.open.gt(0)),
   );
 }
