@@ -31,7 +31,9 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > second-person verification, recipe nutrition and allergens through
 > sub-recipes, an allergen matrix, labels approved by a second person, and
 > an ingredient library imported from USDA FoodData Central, Open Food Facts
-> and Wikidata. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> and Wikidata. Milestone 8 (in progress) adds reports: waste and stock
+> differences, actual food cost per branch, branch comparison and trends,
+> with CSV downloads. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

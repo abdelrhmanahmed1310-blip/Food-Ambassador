@@ -111,7 +111,10 @@
     "supplierInvoices": "Supplier invoices",
     "payables": "Supplier balances",
     "allergenMatrix": "Allergen matrix",
-    "ingredientLibrary": "Ingredient library"
+    "ingredientLibrary": "Ingredient library",
+    "reportsSection": "Reports",
+    "foodCostReport": "Food cost by branch",
+    "wasteReport": "Waste and differences"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -2021,5 +2024,41 @@
     "conflicts": "Not applied because someone stated otherwise: {allergens}. Check them on the product.",
     "linkedNothing": "Nothing was changed.",
     "fromLibraryRecord": "Copied from a library record"
+  },
+  "reports": {
+    "wasteTitle": "Waste and stock differences",
+    "wasteHint": "Write-offs, adjustments and count differences from the stock ledger, at stock value, by business date.",
+    "allWarehouses": "All warehouses",
+    "costMissing": "Some movements had no known cost; their value is counted as zero.",
+    "someCostMissing": "cost partly unknown",
+    "waste": "Waste",
+    "differences": "Stock differences",
+    "wasteNote": "Write-offs net of reversals.",
+    "differencesNote": "Adjustments and count differences; a negative amount is stock found.",
+    "noLosses": "No waste or stock differences in this period.",
+    "byReason": "By reason",
+    "kind": "Type",
+    "kinds": {
+      "WASTE": "Waste",
+      "DIFFERENCE": "Stock difference"
+    },
+    "reason": "Reason",
+    "value": "Value",
+    "downloadCsv": "Download CSV",
+    "foodCostTitle": "Food cost by branch",
+    "foodCostHint": "Actual food cost from imported sales and the stock they used, with waste and stock differences, per branch.",
+    "foodCostNote": "Cost of sales is the stock value used by each sales import (recipes × quantities sold). An import counts when all its sales dates are in the period; food cost % is shown only when every line has a net amount. Waste and differences are by the date they were posted.",
+    "noSales": "No sales imports in this period.",
+    "branchComparison": "Branch comparison",
+    "branch": "Branch",
+    "imports": "Imports",
+    "netSales": "Net sales",
+    "costOfSales": "Cost of sales",
+    "foodCost": "Food cost %",
+    "costWithLosses": "Incl. waste and differences %",
+    "straddlingTitle": "Imports not counted",
+    "straddlingHint": "These imports have sales on both sides of the period boundary, so their cost cannot be split by day; choose a period that contains them fully.",
+    "trendTitle": "Food cost % by month",
+    "trendHint": "Last 12 months, from imports whose sales fall within one month."
   }
 }

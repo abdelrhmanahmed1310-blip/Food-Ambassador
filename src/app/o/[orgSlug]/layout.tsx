@@ -5,6 +5,7 @@ import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-l
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { listUserOrganizations } from "@/modules/organizations/service";
+import { canSeeReports } from "@/modules/analytics/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { getCurrentUser } from "@/server/auth/session";
 import { signOutAction } from "../../(auth)/actions";
@@ -123,9 +124,21 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
-  const sections = [main, inventory, purchasing, kitchen, safety, catalog, settings].filter(
-    (section) => section.items.length > 0,
-  );
+  const reports: NavSection = { title: t("reportsSection"), items: [] };
+  const visible = canSeeReports(ctx);
+  if (visible.foodCost)
+    reports.items.push({ href: `${base}/reports/food-cost`, label: t("foodCostReport") });
+  if (visible.waste) reports.items.push({ href: `${base}/reports/waste`, label: t("wasteReport") });
+  const sections = [
+    main,
+    inventory,
+    purchasing,
+    kitchen,
+    safety,
+    reports,
+    catalog,
+    settings,
+  ].filter((section) => section.items.length > 0);
 
   return (
     <div className="flex min-h-full flex-1 flex-col">

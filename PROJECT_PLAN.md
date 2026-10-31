@@ -48,7 +48,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M5   | Nutrition & allergens       | M4                               | Complete (live lookup, label layouts open) |
 | M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                               |
 | M7   | Sales & financial workflows | M3, M4                           | Complete                                   |
-| M8   | Analytics & pilot readiness | M2–M7                            | Not started                                |
+| M8   | Analytics & pilot readiness | M2–M7                            | In progress (M8a done)                     |
 | M9   | Central kitchen & B2B       | M4, M6                           | Proposed                                   |
 | M10  | Integrations                | M7                               | Proposed                                   |
 | POS1 | Core                        | M4                               | Planned                                    |
@@ -306,6 +306,16 @@ organization's own account codes.
 Stock/expiry, waste, supplier performance, food cost trends, branch
 comparisons, exports, notifications; backups, restore drill, runbooks,
 security review, pilot onboarding.
+
+**M8a — Reports ✅ (ADR-042):** waste and stock differences at stock value
+by reason, product and warehouse; actual food cost per branch from sales
+imports fully inside the period; branch comparison including losses;
+monthly food cost %; CSV downloads. (Stock/expiry: inventory dashboard, M2;
+supplier performance: M3b.)
+
+**M8b — next:** "needs attention" list (expiring and expired stock, below
+reorder level, approvals waiting). **M8c:** backup and restore drill,
+runbooks, security review, pilot onboarding checklist.
 
 ---
 

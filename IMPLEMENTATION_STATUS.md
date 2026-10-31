@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-06 (M5b ingredient library; Milestone 5 complete)
+Last updated: 2026-11-07 (M8a reports)
 
 ## Summary
 
@@ -14,7 +14,40 @@ Last updated: 2026-11-06 (M5b ingredient library; Milestone 5 complete)
 | M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                   |
 | M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export) |
 | M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts     |
-| M8 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+| M8 Analytics & pilot          | 🔄 In progress — **M8a ✅** (waste, actual food cost, branch comparison, trends, CSV); M8b attention list and M8c pilot readiness next                                                         |
+| M9 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+
+## M8a — Reports (delivered)
+
+Rules: DECISIONS.md ADR-042.
+
+| Area              | What works                                                                                                             | Where                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Waste             | Write-offs net of reversals by reason, product, warehouse, at stock value, by business date; unknown cost flagged      | `/reports/waste`, `analytics/service.ts` |
+| Stock differences | Adjustments and count differences net of reversals (found stock negative)                                              | `/reports/waste`                         |
+| Food cost         | Cost of sales ÷ net sales of imports wholly inside the period; straddling imports listed; % only with every net amount | `/reports/food-cost`                     |
+| Branch comparison | Net sales, cost of sales, food cost %, waste, differences, cost incl. losses %, totals                                 | `/reports/food-cost`                     |
+| Trend             | Food cost % per branch per month, 12 months                                                                            | `/reports/food-cost`                     |
+| CSV               | Waste rows; branch comparison (amounts at the currency's decimals)                                                     | `…/export` routes                        |
+
+Checks: `pnpm check` pass (lint, typecheck, unit 31 files / 186 tests — 3
+new: ratios only with known sales, imports inside vs straddling a period,
+month lists and ranges across a year end and leap February; build);
+`pnpm test:integration` 26 files / 190 tests pass (3 new: waste and
+differences net of a reversed write-off and found stock, warehouse filter,
+CSV, invalid period; food cost per branch, straddling import excluded,
+monthly trend, branch CSV; analyst sees all, branch manager only their
+branch, procurement refused, other tenants empty); `pnpm test:e2e` 34
+tests pass (new: write-off of 12.00, a sale of 10 for 100.00 → food cost
+40 %, 52 % with waste, CSV).
+
+Found and fixed in the tests: the new tests used the UTC date while waste is
+dated in the organization's time zone, which would fail between midnight
+in Cairo and midnight UTC; they now use the business date.
+
+Limitations: no charts (tables only); an import spanning a period boundary
+is not split; no per-product theoretical-vs-actual usage beyond count
+differences; no scheduled e-mailed reports (no e-mail provider, Q-10).
 
 ## M5b — Ingredient library (delivered)
 

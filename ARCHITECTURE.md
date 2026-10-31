@@ -41,6 +41,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │     └─ health/            # liveness + readiness
 │  ├─ modules/
 │  │  ├─ access/               # permission catalogue, role templates, authorize(), roles service
+│  │  ├─ analytics/            # waste, actual food cost, branch comparison reports (rules.ts pure)
 │  │  ├─ audit/                # recordAudit(), audit log queries
 │  │  ├─ catalog/              # units & conversions, products, barcodes (pure rules: units.ts, barcodes.ts)
 │  │  ├─ inventory/            # posting engine (only ledger + valuation writer), operations, counts, queries, CSV,

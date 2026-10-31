@@ -752,6 +752,32 @@ documents stay scoped. Found by a scoped-user integration test.
   published documentation; validate against a real download when one is
   imported.
 
+### ADR-042 Reports: waste, actual food cost and branch comparison — Accepted (M8a)
+
+- **Only recorded data, no estimates or sample figures.** Reports are
+  tables with exact amounts and CSV downloads; a ratio is shown only when
+  both sides are known.
+- **Waste** = write-offs net of their reversals; **stock differences** =
+  manual adjustments and count differences net of reversals (a negative
+  amount is stock found). Both at the ledger's stock value, by business
+  date in the organization's time zone, by reason, product and warehouse.
+  Movements with no known cost count as zero and are flagged.
+- **Actual food cost** = cost of sales of sales imports (the stock value
+  their recipe-based consumption used, ADR-036) ÷ their net sales. An
+  import holds one cost for the whole file, so it counts in a period only
+  when **all** its sales dates fall inside it; imports that straddle the
+  boundary are listed, never split. Food cost % is shown only when every
+  sales line has a net amount.
+- **Branch comparison:** per branch, net sales, cost of sales, food cost %,
+  waste, stock differences, and (cost + waste + differences) ÷ net sales.
+  Monthly food cost % for the last 12 months uses imports within one month.
+- **Access:** values need `inventory.valuation.view`, sales figures
+  `sales.view`, each where the user holds them (a branch manager sees only
+  their branch). No new permission.
+- Not yet: cost per sales line (needed to split a file by day), theoretical
+  vs. counted usage per product beyond the count differences, supplier
+  price trends (purchase price history exists per supplier item, M3c).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
