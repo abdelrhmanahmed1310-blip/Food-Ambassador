@@ -131,6 +131,14 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
+  const b2b: NavSection = { title: t("b2bSection"), items: [] };
+  if (hasPermission(ctx.grants, "b2b.view"))
+    b2b.items.push(
+      { href: `${base}/b2b/orders`, label: t("salesOrders") },
+      { href: `${base}/b2b/invoices`, label: t("salesInvoices") },
+      { href: `${base}/b2b/balances`, label: t("customerBalances") },
+      { href: `${base}/b2b/customers`, label: t("customers") },
+    );
   const reports: NavSection = { title: t("reportsSection"), items: [] };
   const visible = canSeeReports(ctx);
   if (visible.foodCost)
@@ -141,6 +149,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     inventory,
     purchasing,
     kitchen,
+    b2b,
     safety,
     reports,
     catalog,

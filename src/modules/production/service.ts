@@ -687,6 +687,7 @@ export async function productionPlan(ctx: TenantContext, warehouseId: string) {
             organizationId: ctx.organizationId,
             productId,
             purchaseOrderLineId: null,
+            shipmentId: null,
             requisition: { status: { in: ["SUBMITTED", "PARTIALLY_ORDERED"] } },
           },
           _sum: { quantityBase: true },

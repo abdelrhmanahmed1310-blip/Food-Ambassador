@@ -19,10 +19,13 @@ export async function lockRequisitions(tx: Tx, ctx: TenantContext, ids: string[]
 export async function refreshRequisitionStatus(tx: Tx, ctx: TenantContext, requisitionId: string) {
   const req = await tx.purchaseRequisition.findFirstOrThrow({
     where: { organizationId: ctx.organizationId, id: requisitionId },
-    select: { status: true, lines: { select: { purchaseOrderLineId: true } } },
+    select: { status: true, lines: { select: { purchaseOrderLineId: true, shipmentId: true } } },
   });
   if (!["SUBMITTED", "PARTIALLY_ORDERED", "ORDERED"].includes(req.status)) return req.status;
-  const ordered = req.lines.filter((l) => l.purchaseOrderLineId !== null).length;
+  // A line is met by a purchase order or by a shipment from own stock.
+  const ordered = req.lines.filter(
+    (l) => l.purchaseOrderLineId !== null || l.shipmentId !== null,
+  ).length;
   const status = requisitionStatusFromLines(ordered, req.lines.length);
   if (status !== req.status)
     await tx.purchaseRequisition.update({ where: { id: requisitionId }, data: { status } });

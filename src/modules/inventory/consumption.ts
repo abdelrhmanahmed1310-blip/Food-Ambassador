@@ -52,6 +52,7 @@ export async function planConsumptionInTx(
     },
   });
   const picks: Array<{
+    balanceId: string;
     productId: string;
     locationId: string | null;
     lotId: string | null;
@@ -82,6 +83,7 @@ export async function planConsumptionInTx(
     }
     for (const p of plan.picks)
       picks.push({
+        balanceId: p.candidate.balance.id,
         productId,
         locationId: p.candidate.balance.locationId,
         lotId: p.candidate.lotId,

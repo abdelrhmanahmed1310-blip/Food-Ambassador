@@ -21,6 +21,7 @@ import {
   cancelRequisition,
   closeRequisition,
   createRequisition,
+  fulfilRequisitionFromStock,
   orderRequisition,
   rejectRequisition,
   removeRequisitionLine,
@@ -337,5 +338,25 @@ export async function orderRequisitionAction(
       .orderId;
   });
   if (state.ok) redirect(`/o/${orgSlug}/purchasing/orders/${orderId}`);
+  return state;
+}
+
+export async function fulfilRequisitionAction(
+  orgSlug: string,
+  requisitionId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  let shipmentId = "";
+  const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    shipmentId = (
+      await fulfilRequisitionFromStock(ctx, requisitionId, {
+        fromWarehouseId: formData.get("fromWarehouseId"),
+        lineIds: formList(formData, "lineIds"),
+        idempotencyKey: formData.get("idempotencyKey") ?? undefined,
+      })
+    ).shipmentId;
+  });
+  if (state.ok) redirect(`/o/${orgSlug}/inventory/shipments/${shipmentId}`);
   return state;
 }

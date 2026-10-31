@@ -116,7 +116,12 @@
     "foodCostReport": "Food cost by branch",
     "wasteReport": "Waste and differences",
     "attention": "Needs attention",
-    "production": "Production"
+    "production": "Production",
+    "b2bSection": "B2B sales",
+    "salesOrders": "Sales orders",
+    "salesInvoices": "Sales invoices",
+    "customerBalances": "Customer balances",
+    "customers": "Customers"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -227,7 +232,8 @@
     "fileAlreadyImported": "This file was already imported.",
     "productAlreadyOnOrder": "This product is already on the order. Change that line instead.",
     "invoiceNumberTaken": "This supplier invoice number is already entered for this supplier.",
-    "creditNoteNumberTaken": "This credit note number is already entered for this supplier."
+    "creditNoteNumberTaken": "This credit note number is already entered for this supplier.",
+    "deliveryInvoiced": "This delivery is already invoiced."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -367,7 +373,20 @@
     "INSUFFICIENT_STOCK_FOR_PRODUCTION": "Not enough usable stock for: {products}.",
     "OUTPUT_OUTLIVES_INPUT": "The batch cannot be used after {latest}, when an ingredient lot it was made from expires.",
     "PRODUCTION_NOT_COMPLETED": "Only completed batches can be reversed.",
-    "PRODUCTION_REVERSE_IN_PRODUCTION": "Reverse production from the production order."
+    "PRODUCTION_REVERSE_IN_PRODUCTION": "Reverse production from the production order.",
+    "INSUFFICIENT_STOCK_FOR_FULFILMENT": "Not enough usable stock at the source for: {products}.",
+    "SALES_ORDER_NOT_DRAFT": "Only draft orders can change.",
+    "SALES_ORDER_EMPTY": "Add at least one line first.",
+    "SALES_ORDER_HAS_DELIVERIES": "Orders with deliveries cannot be cancelled.",
+    "SALES_ORDER_NOT_OPEN": "Only confirmed orders can be delivered.",
+    "DELIVERY_EXCEEDS_ORDER": "Line {lineNo}: only {open} is still open.",
+    "NOTHING_TO_DELIVER": "Nothing is open to deliver.",
+    "INSUFFICIENT_STOCK_FOR_DELIVERY": "Not enough usable stock for: {products}.",
+    "DELIVERY_REVERSED": "This delivery was reversed.",
+    "DELIVERY_INVOICED": "Cancel the invoice before reversing the delivery.",
+    "SALES_INVOICE_CANCELLED": "This invoice is already cancelled.",
+    "SALES_INVOICE_HAS_RECEIPTS": "Receipts are applied to this invoice; void them first.",
+    "DELIVERY_REVERSE_IN_SALES": "Reverse customer deliveries from the delivery."
   },
   "notFound": {
     "title": "Page not found",
@@ -570,7 +589,9 @@
       "nutrition.manage": "Record nutrition values and allergen statements",
       "labels.approve": "Approve product labels",
       "production.view": "View production",
-      "production.manage": "Plan and record production"
+      "production.manage": "Plan and record production",
+      "b2b.view": "View B2B customers, orders and invoices",
+      "b2b.manage": "Manage B2B customers, orders, deliveries, invoices and receipts"
     }
   },
   "audit": {
@@ -849,7 +870,8 @@
       "ADJUSTMENT": "Adjustment",
       "COUNT_ADJUSTMENT": "Count adjustment",
       "STATUS_CHANGE": "Status change",
-      "REVERSAL": "Reversal"
+      "REVERSAL": "Reversal",
+      "CUSTOMER_DELIVERY": "Customer delivery"
     },
     "documentTypes": {
       "OPENING_BALANCE": "Opening balance",
@@ -865,7 +887,8 @@
       "TRANSIT_RECEIPT": "Transit receipt",
       "LANDED_COST": "Landed cost",
       "CONSUMPTION": "Sales consumption",
-      "PRODUCTION": "Production"
+      "PRODUCTION": "Production",
+      "CUSTOMER_DELIVERY": "Customer delivery"
     },
     "reasons": {
       "DATA_CORRECTION": "Data correction",
@@ -1199,7 +1222,13 @@
       "REJECTED": "Rejected",
       "CLOSED": "Closed",
       "CANCELLED": "Cancelled"
-    }
+    },
+    "fulfil": "Create shipment",
+    "fulfilFrom": "Send from",
+    "linesToFulfil": "Lines to send",
+    "fromStock": "From own stock:",
+    "fulfilTitle": "Fulfil from own stock",
+    "fulfilHint": "Send these lines from another warehouse (for example the central kitchen) instead of ordering them: usable stock there is picked first-expiring-first into a draft shipment to this branch. Cancelling the shipment opens the lines again."
   },
   "recipes": {
     "title": "Recipes",
@@ -2094,7 +2123,8 @@
       "STATEMENTS_TO_VERIFY": "{count, plural, one {# product with nutrition or allergen data to verify} other {# products with nutrition or allergen data to verify}}",
       "NC_OPEN": "{count, plural, one {# open non-conformance} other {# open non-conformances}}",
       "ACTIONS_OVERDUE": "{count, plural, one {# corrective action overdue} other {# corrective actions overdue}}",
-      "RECALLS_ACTIVE": "{count, plural, one {# active recall} other {# active recalls}}"
+      "RECALLS_ACTIVE": "{count, plural, one {# active recall} other {# active recalls}}",
+      "CUSTOMER_INVOICES_OVERDUE": "{count, plural, one {# customer invoice overdue} other {# customer invoices overdue}}"
     }
   },
   "production": {
@@ -2158,5 +2188,71 @@
     "madeFrom": "Made from",
     "usedIn": "Used in batches",
     "noLot": "no lot recorded (gap)"
+  },
+  "b2b": {
+    "customers": "Customers",
+    "customersHint": "B2B customers: hotels, caterers, other businesses you sell to.",
+    "noCustomers": "No customers yet.",
+    "addCustomer": "Add customer",
+    "code": "Code",
+    "name": "Name",
+    "nameAr": "Arabic name",
+    "vatNumber": "VAT number",
+    "paymentTerms": "Payment terms (days)",
+    "email": "Email",
+    "customer": "Customer",
+    "customerHint": "Open invoices and receipts.",
+    "received": "Received",
+    "receipts": "Receipts",
+    "noReceipts": "No receipts yet.",
+    "recordReceipt": "Record receipt",
+    "applyOldestFirst": "Apply to the earliest due invoices first",
+    "orders": "Sales orders",
+    "ordersHint": "Orders from B2B customers, delivered from your stock.",
+    "newOrder": "New sales order",
+    "noOrders": "No sales orders yet.",
+    "createOrder": "Create order",
+    "shipFrom": "Ship from",
+    "customerRef": "Customer reference",
+    "requestedOn": "Requested for",
+    "statuses": {
+      "DRAFT": "Draft",
+      "CONFIRMED": "Confirmed",
+      "PARTIALLY_DELIVERED": "Partly delivered",
+      "DELIVERED": "Delivered",
+      "CANCELLED": "Cancelled"
+    },
+    "orderNet": "Order value (net)",
+    "lines": "Lines",
+    "netPrice": "Net price",
+    "defaultSalesVat": "Default sales VAT",
+    "addLine": "Add line",
+    "delivered": "Delivered",
+    "confirm": "Confirm order",
+    "confirmQuestion": "Confirm this order? Lines can no longer change.",
+    "deliver": "Deliver",
+    "deliverHint": "Quantities in the product's stock unit; usable stock is taken first-expiring-first. Nothing is delivered if any line is short.",
+    "deliveries": "Deliveries",
+    "costOfGoods": "Cost of goods",
+    "invoice": "Invoice",
+    "reverseDelivery": "Reverse delivery",
+    "cancelOrder": "Cancel order",
+    "invoices": "Sales invoices",
+    "invoicesHint": "Invoices for B2B deliveries, with output VAT.",
+    "noInvoices": "No sales invoices yet.",
+    "invoiceStatuses": {
+      "POSTED": "Issued",
+      "CANCELLED": "Cancelled"
+    },
+    "invoiceTitle": "Invoice",
+    "taxInvoiceTitle": "Tax invoice",
+    "billTo": "Bill to",
+    "delivery": "Delivery",
+    "notEInvoice": "Printable invoice. It is not a ZATCA or ETA e-invoice; electronic invoicing comes with POS4.",
+    "internal": "Internal",
+    "margin": "Gross margin",
+    "balances": "Customer balances",
+    "balancesHint": "What each B2B customer owes, with open invoices aged by due date.",
+    "outputVat": "Output VAT (B2B invoices)"
   }
 }

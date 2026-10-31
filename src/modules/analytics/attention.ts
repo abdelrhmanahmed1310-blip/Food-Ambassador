@@ -29,7 +29,8 @@ export type AttentionKey =
   | "STATEMENTS_TO_VERIFY"
   | "NC_OPEN"
   | "ACTIONS_OVERDUE"
-  | "RECALLS_ACTIVE";
+  | "RECALLS_ACTIVE"
+  | "CUSTOMER_INVOICES_OVERDUE";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -328,6 +329,42 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
           },
         }),
         href: "/food-safety/non-conformances",
+      });
+    }
+
+    if (hasPermission(ctx.grants, "b2b.view")) {
+      const due = await tx.salesInvoice.findMany({
+        where: { organizationId: org, status: "POSTED", dueDate: { lt: todayDate } },
+        select: { id: true, grossAmount: true },
+      });
+      const got = new Map(
+        (
+          await tx.customerReceiptAllocation.groupBy({
+            by: ["invoiceId"],
+            where: {
+              organizationId: org,
+              invoiceId: { in: due.map((d) => d.id) },
+              receipt: { status: "POSTED" },
+            },
+            _sum: { amount: true },
+          })
+        ).map((r) => [r.invoiceId, new Decimal(r._sum.amount?.toString() ?? "0")]),
+      );
+      let count = 0;
+      let amount = new Decimal(0);
+      for (const d of due) {
+        const open = new Decimal(d.grossAmount.toString()).minus(got.get(d.id) ?? 0);
+        if (open.gt(0)) {
+          count += 1;
+          amount = amount.plus(open);
+        }
+      }
+      push({
+        key: "CUSTOMER_INVOICES_OVERDUE",
+        tone: "warning",
+        count,
+        amount,
+        href: "/b2b/balances",
       });
     }
 

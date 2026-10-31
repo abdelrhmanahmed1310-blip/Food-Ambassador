@@ -4,6 +4,7 @@ import { Alert, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components
 import { isCalendarDate } from "@/lib/dates";
 import { Decimal } from "@/lib/decimal";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
+import { b2bOutputVat } from "@/modules/b2b/service";
 import { inputVatSummary } from "@/modules/invoices/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { vatSummary } from "@/modules/tax/service";
@@ -19,22 +20,24 @@ export default async function VatSummaryPage({
   const ctx = await requireTenant(orgSlug);
   const canSales = holdsAnyGrant(ctx.grants, "sales.view");
   const canInvoices = hasPermission(ctx.grants, "invoices.view");
-  if (!canSales && !canInvoices) notFound();
+  const canB2b = hasPermission(ctx.grants, "b2b.view");
+  if (!canSales && !canInvoices && !canB2b) notFound();
   const today = businessDate(ctx.timeZone);
   const from =
     typeof sp.from === "string" && isCalendarDate(sp.from) ? sp.from : `${today.slice(0, 7)}-01`;
   const to = typeof sp.to === "string" && isCalendarDate(sp.to) ? sp.to : today;
   const period = { from, to: to < from ? from : to };
-  const [t, locale, money, rows, input] = await Promise.all([
+  const [t, locale, money, rows, input, b2b] = await Promise.all([
     getTranslations(),
     getLocale(),
     moneyFormatter(ctx.baseCurrency),
     canSales ? vatSummary(ctx, period) : Promise.resolve(null),
     canInvoices ? inputVatSummary(ctx, period) : Promise.resolve(null),
+    canB2b ? b2bOutputVat(ctx, period) : Promise.resolve(null),
   ]);
   const total = (list: Array<{ tax: { toString(): string } | null }>) =>
     list.reduce((a, r) => a.plus(r.tax?.toString() ?? "0"), new Decimal(0));
-  const outputVat = rows ? total(rows) : null;
+  const outputVat = rows || b2b ? total([...(rows ?? []), ...(b2b ?? [])]) : null;
   const inputVat = input?.reclaimable ? total(input.rows) : null;
   type Row = {
     code: { code: string; name: string; nameAr: string | null } | null;
@@ -131,6 +134,12 @@ export default async function VatSummaryPage({
             ) : (
               vatTable(rows, t("tax.outputVat"), "vat")
             )}
+          </section>
+        ) : null}
+        {b2b && b2b.length > 0 ? (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">{t("b2b.outputVat")}</h2>
+            {vatTable(b2b, t("b2b.outputVat"), "vat-b2b")}
           </section>
         ) : null}
         {input ? (

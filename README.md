@@ -4,7 +4,7 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, point of sale, sales/invoice workflows and analytics.
 
-> **Status:** Milestones 0–8 complete — on top of the M1
+> **Status:** Milestones 0–9 complete — on top of the M1
 > foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
@@ -37,10 +37,11 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > integrity check, runbooks and a security review
 > ([docs/OPERATIONS.md](docs/OPERATIONS.md),
 > [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md),
-> [docs/PILOT_ONBOARDING.md](docs/PILOT_ONBOARDING.md)). Milestone 9 (in
-> progress) adds central kitchen production: batches that consume
+> [docs/PILOT_ONBOARDING.md](docs/PILOT_ONBOARDING.md)). Milestone 9 adds central kitchen production: batches that consume
 > ingredients first-expiring-first and enter stock as lots at their exact
-> value, with lot genealogy and a production plan from branch requests. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> value, with lot genealogy and a production plan from branch requests,
+> branch requests fulfilled from the kitchen, and B2B sales: customers,
+> orders, deliveries at cost, invoices with VAT, receipts and balances. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

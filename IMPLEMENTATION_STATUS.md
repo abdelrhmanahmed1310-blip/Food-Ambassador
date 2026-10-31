@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (M9a central kitchen production)
+Last updated: 2026-10-31 (M9b kitchen fulfilment and B2B; Milestone 9 complete)
 
 ## Summary
 
@@ -15,8 +15,43 @@ Last updated: 2026-10-31 (M9a central kitchen production)
 | M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                        |
 | M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                            |
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
-| M9 Central kitchen & B2B      | 🔄 In progress — **M9a ✅** production orders, plan, genealogy; M9b branch fulfilment and B2B next                                                                                                                    |
+| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10, POS1 – POS5              | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## M9b — Kitchen fulfilment and B2B sales (delivered)
+
+Rules: DECISIONS.md ADR-046, ADR-047.
+
+| Area         | What works                                                                                                                             | Where                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Fulfilment   | Requisition lines sent from another warehouse: FEFO picks into a draft shipment; requisition partly/fully met; shipment cancel reopens | requisition page, `fulfilRequisitionFromStock` |
+| Customers    | Code, names, VAT number, payment terms; account with open invoices and receipts                                                        | `/b2b/customers`                               |
+| Sales orders | Draft lines (net price, VAT code), confirm, partial deliveries, cancel without deliveries                                              | `/b2b/orders`, `b2b/service.ts`                |
+| Deliveries   | FEFO from the order's warehouse, CUSTOMER_DELIVERY document, cost of goods per line; reversal while not invoiced                       | `deliverSalesOrder`, `reverseDelivery`         |
+| Invoices     | One per delivery, VAT per line at the invoice date, due date, margin; fixed once issued; printable (not an e-invoice)                  | `/b2b/invoices/[id]`                           |
+| Receivables  | Receipts oldest first, void; balances and aging; overdue invoices in "needs attention"; output VAT in the VAT summary                  | `b2b/receivables.ts`, `/b2b/balances`          |
+
+Checks: `pnpm check` pass (unit 31 files / 186 tests; build);
+`pnpm test:integration` 31 files / 203 tests pass (5 new: kitchen
+fulfilment FEFO across lots, order and double fulfilment refused, shipment
+cancel reopens, dispatch; short source, same place, rights and tenants;
+B2B order → partial FEFO delivery at cost → invoice 300 + 15 % VAT due in 30
+days with margin 120 → duplicate invoice refused → full delivery → receipt
+oldest first → balance and aging on two dates → void, cancel, reverse with
+stock back; short delivery refused; invoice not editable in the database;
+permissions and tenants; ledger and valuations reconcile);
+`pnpm test:e2e` 36 tests pass (new: customer, order 8 kg at 40, delivered
+at 120 cost, invoice 320 with margin 200, receipt 100, balance 220).
+
+Found and fixed: the permission-sync unit test could not read permission
+names containing digits (`b2b.view`), so it would have silently skipped
+them; its pattern now accepts digits. My own check on sales orders
+rejected cancelled drafts; corrected in a follow-up migration before
+commit.
+
+Limitations: no customer credit notes or returns, price lists or credit
+limits; one invoice per delivery; no B2B lines in the accounting journal
+export yet; printed invoices are not ZATCA/ETA e-invoices (POS4).
 
 ## M9a — Central kitchen production (delivered)
 

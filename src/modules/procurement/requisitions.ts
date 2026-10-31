@@ -1,12 +1,17 @@
 import "server-only";
+import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
 import { assertPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { findProduct, quantityInBaseUnit } from "@/modules/catalog/service";
+import { planConsumptionInTx } from "@/modules/inventory/consumption";
+import { loadWarehouse } from "@/modules/inventory/context";
 import { nextDocumentNumber } from "@/modules/inventory/posting";
+import { addShipmentLineInTx, createShipmentInTx } from "@/modules/inventory/shipments";
 import { businessDate } from "@/modules/inventory/rules";
 import { runIdempotent } from "@/modules/shared/idempotency";
+import { idempotencyKeySchema, uuidSchema } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
@@ -58,9 +63,12 @@ async function lockRequisition(tx: Tx, ctx: TenantContext, requisitionId: string
 
 function actions(req: {
   status: RequisitionStatus;
-  lines: Array<{ purchaseOrderLineId: string | null }>;
+  lines: Array<{ purchaseOrderLineId: string | null; shipmentId: string | null }>;
 }) {
-  return requisitionActions(req.status, req.lines.filter((l) => l.purchaseOrderLineId).length);
+  return requisitionActions(
+    req.status,
+    req.lines.filter((l) => l.purchaseOrderLineId || l.shipmentId).length,
+  );
 }
 
 function requireStatus(ok: boolean, status: string) {
@@ -290,7 +298,7 @@ export async function orderRequisition(
         const index = input.lines.indexOf(c);
         const line = req.lines.find((l) => l.id === c.lineId);
         if (!line) throw notFound("Requisition line");
-        if (line.purchaseOrderLineId)
+        if (line.purchaseOrderLineId || line.shipmentId)
           throw businessRuleViolation("REQUISITION_LINE_ORDERED", "This line is already ordered", {
             field: `lines.${index}.include`,
           });
@@ -414,6 +422,7 @@ export async function getRequisition(
               },
             },
             uom: { select: { code: true } },
+            shipment: { select: { id: true, number: true, status: true } },
             purchaseOrderLine: {
               select: { purchaseOrder: { select: { id: true, number: true, status: true } } },
             },
@@ -465,4 +474,100 @@ export async function getRequisition(
       },
     };
   });
+}
+
+const fulfilSchema = z.object({
+  fromWarehouseId: uuidSchema,
+  lineIds: z.array(uuidSchema).min(1, { error: "required" }).max(200),
+  idempotencyKey: idempotencyKeySchema,
+});
+
+/**
+ * Meet selected open lines from own stock (central kitchen, ADR-046): usable
+ * stock of the source is picked first-expiring-first into one draft
+ * shipment to the requesting warehouse, and the lines are linked to it.
+ * Needs `purchasing.manage` for the requesting site and
+ * `inventory.transfer` at the source. Nothing is picked if any line is short.
+ */
+export async function fulfilRequisitionFromStock(
+  ctx: TenantContext,
+  requisitionId: string,
+  rawInput: unknown,
+) {
+  const parsed = fulfilSchema.safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const { idempotencyKey, ...input } = parsed.data;
+  return runIdempotent(
+    ctx,
+    { key: idempotencyKey, operation: "requisition.fulfil", input: { requisitionId, ...input } },
+    async (tx) => {
+      const req = await lockRequisition(tx, ctx, requisitionId);
+      assertPermission(ctx.grants, "purchasing.manage", target(req.warehouse));
+      requireStatus(actions(req).order, req.status);
+      if (input.fromWarehouseId === req.warehouse.id)
+        throw businessRuleViolation("TRANSFER_SAME_PLACE", "The stock is already there", {
+          field: "fromWarehouseId",
+        });
+      const lines = input.lineIds.map((id) => {
+        const line = req.lines.find((l) => l.id === id);
+        if (!line) throw notFound("Requisition line");
+        if (line.purchaseOrderLineId || line.shipmentId)
+          throw businessRuleViolation("REQUISITION_LINE_ORDERED", "This line is already ordered");
+        return line;
+      });
+      const source = await loadWarehouse(tx, ctx, input.fromWarehouseId);
+      const usage = new Map<string, Decimal>();
+      for (const l of lines)
+        usage.set(
+          l.productId,
+          (usage.get(l.productId) ?? new Decimal(0)).plus(dec(l.quantityBase)),
+        );
+      const plan = await planConsumptionInTx(tx, ctx, source, usage);
+      if (plan.shortages.length > 0) {
+        const products = await tx.product.findMany({
+          where: {
+            organizationId: ctx.organizationId,
+            id: { in: plan.shortages.map((s) => s.productId) },
+          },
+          select: { id: true, sku: true },
+        });
+        throw businessRuleViolation(
+          "INSUFFICIENT_STOCK_FOR_FULFILMENT",
+          "Not enough usable stock at the source",
+          {
+            products: plan.shortages
+              .map(
+                (s) =>
+                  `${products.find((p) => p.id === s.productId)?.sku}: ${s.available.toFixed()} / ${s.required.toFixed()}`,
+              )
+              .join(", "),
+          },
+        );
+      }
+      const shipment = await createShipmentInTx(tx, ctx, {
+        fromWarehouseId: source.id,
+        toWarehouseId: req.warehouse.id,
+        note: req.number,
+      });
+      for (const p of plan.picks)
+        await addShipmentLineInTx(tx, ctx, shipment.id, {
+          balanceId: p.balanceId,
+          quantity: p.quantity.toFixed(),
+          uomId: p.uomId,
+        });
+      const at = new Date();
+      await tx.purchaseRequisitionLine.updateMany({
+        where: { organizationId: ctx.organizationId, id: { in: lines.map((l) => l.id) } },
+        data: { shipmentId: shipment.id, orderedAt: at },
+      });
+      await refreshRequisitionStatus(tx, ctx, req.id);
+      await recordAudit(tx, actorOf(ctx), {
+        action: "requisition.fulfilled_from_stock",
+        entityType: "purchase_requisition",
+        entityId: req.id,
+        changes: { number: req.number, shipment: shipment.number, lines: lines.length },
+      });
+      return { shipmentId: shipment.id, number: shipment.number };
+    },
+  );
 }

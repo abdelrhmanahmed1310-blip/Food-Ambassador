@@ -51,6 +51,8 @@ export const PERMISSIONS = [
   "labels.approve",
   "production.view",
   "production.manage",
+  "b2b.view",
+  "b2b.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -179,6 +181,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "foodsafety.manage",
       "sales.view",
       "sales.import",
+      "b2b.view",
+      "b2b.manage",
       "invoices.view",
       "invoices.manage",
     ],
@@ -272,6 +276,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "recipes.view",
       "recipes.costs.view",
       "sales.view",
+      "b2b.view",
+      "b2b.manage",
       "invoices.view",
       "invoices.manage",
       "payments.manage",
@@ -330,6 +336,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "traceability.view",
       "foodsafety.view",
       "sales.view",
+      "b2b.view",
       "invoices.view",
     ],
     organizationScopeOnly: false,

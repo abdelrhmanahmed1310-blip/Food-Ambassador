@@ -1,4 +1,5 @@
 import "server-only";
+import { refreshRequisitionStatus } from "@/modules/procurement/requisition-links";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { accessibleScope, hasPermission } from "@/modules/access/authorize";
@@ -115,36 +116,36 @@ export async function createShipment(ctx: TenantContext, rawInput: unknown) {
     throw businessRuleViolation("TRANSFER_SAME_PLACE", "Source and destination are the same", {
       field: "toWarehouseId",
     });
-  return runIdempotent(
-    ctx,
-    { key: idempotencyKey, operation: "shipment.create", input },
-    async (tx) => {
-      const from = await loadWarehouse(tx, ctx, input.fromWarehouseId);
-      assertWarehousePermission(ctx, "inventory.transfer", from);
-      assertActive(from);
-      const to = await loadDestination(tx, ctx, input.toWarehouseId);
-      const number = await nextDocumentNumber(
-        tx,
-        ctx.organizationId,
-        "SHP",
-        yearOf(todayFor(from)),
-      );
-      const shipment = await tx.stockShipment.create({
-        data: {
-          organizationId: ctx.organizationId,
-          number,
-          fromWarehouseId: from.id,
-          toWarehouseId: to.id,
-          expectedOn: input.expectedOn ? new Date(`${input.expectedOn}T00:00:00Z`) : null,
-          note: input.note,
-          createdByUserId: ctx.userId,
-        },
-        select: { id: true, number: true },
-      });
-      await audit(tx, ctx, shipment, "created", { from: from.code, to: to.code });
-      return shipment;
-    },
+  return runIdempotent(ctx, { key: idempotencyKey, operation: "shipment.create", input }, (tx) =>
+    createShipmentInTx(tx, ctx, input),
   );
+}
+
+/** Create a draft shipment inside the caller's transaction (also used for central kitchen fulfilment). */
+export async function createShipmentInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  input: { fromWarehouseId: string; toWarehouseId: string; expectedOn?: string; note?: string },
+) {
+  const from = await loadWarehouse(tx, ctx, input.fromWarehouseId);
+  assertWarehousePermission(ctx, "inventory.transfer", from);
+  assertActive(from);
+  const to = await loadDestination(tx, ctx, input.toWarehouseId);
+  const number = await nextDocumentNumber(tx, ctx.organizationId, "SHP", yearOf(todayFor(from)));
+  const shipment = await tx.stockShipment.create({
+    data: {
+      organizationId: ctx.organizationId,
+      number,
+      fromWarehouseId: from.id,
+      toWarehouseId: to.id,
+      expectedOn: input.expectedOn ? new Date(`${input.expectedOn}T00:00:00Z`) : null,
+      note: input.note,
+      createdByUserId: ctx.userId,
+    },
+    select: { id: true, number: true },
+  });
+  await audit(tx, ctx, shipment, "created", { from: from.code, to: to.code });
+  return shipment;
 }
 
 /** Add usable stock of the source warehouse (one balance bucket) to a draft. */
@@ -152,52 +153,60 @@ export async function addShipmentLine(ctx: TenantContext, shipmentId: string, ra
   const parsed = shipmentLineSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const input = parsed.data;
-  return withTenantTx(ctx.organizationId, async (tx) => {
-    const shipment = await lockShipment(tx, ctx, shipmentId);
-    requireStatus(shipment.status === "DRAFT", shipment.status);
-    const from = await loadWarehouse(tx, ctx, shipment.fromWarehouseId);
-    assertWarehousePermission(ctx, "inventory.transfer", from);
-    const balance = await tx.stockBalance.findFirst({
-      where: {
-        organizationId: ctx.organizationId,
-        id: input.balanceId,
-        warehouseId: from.id,
-        stockStatus: "AVAILABLE",
-      },
-      include: { lot: { select: { expiresOn: true, recallHold: true } } },
-    });
-    if (!balance) throw notFound("Stock");
-    assertUsableLot(balance.lot, todayFor(from));
-    const product = await loadProductForPosting(tx, ctx, balance.productId);
-    const quantityBase = await toBase(tx, ctx, product, input.uomId, input.quantity);
-    const available = dec(balance.onHandQuantity).minus(dec(balance.reservedQuantity));
-    if (quantityBase.greaterThan(available))
-      throw businessRuleViolation("INSUFFICIENT_STOCK", "Not enough available stock", {
-        field: "quantity",
-        available: available.toFixed(),
-      });
-    const lineNo = shipment.lines.reduce((m, l) => Math.max(m, l.lineNo), 0) + 1;
-    const line = await tx.stockShipmentLine.create({
-      data: {
-        organizationId: ctx.organizationId,
-        shipmentId: shipment.id,
-        lineNo,
-        productId: balance.productId,
-        lotId: balance.lotId,
-        fromWarehouseId: from.id,
-        fromLocationId: balance.locationId,
-        uomId: input.uomId,
-        quantity: input.quantity,
-        quantityBase: quantityBase.toFixed(),
-      },
-      select: { id: true },
-    });
-    await audit(tx, ctx, shipment, "line_added", {
-      productId: balance.productId,
-      quantity: quantityBase.toFixed(),
-    });
-    return line;
+  return withTenantTx(ctx.organizationId, (tx) => addShipmentLineInTx(tx, ctx, shipmentId, input));
+}
+
+/** Add one balance bucket of the source to a draft, inside the caller's transaction. */
+export async function addShipmentLineInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  shipmentId: string,
+  input: { balanceId: string; quantity: string; uomId: string },
+) {
+  const shipment = await lockShipment(tx, ctx, shipmentId);
+  requireStatus(shipment.status === "DRAFT", shipment.status);
+  const from = await loadWarehouse(tx, ctx, shipment.fromWarehouseId);
+  assertWarehousePermission(ctx, "inventory.transfer", from);
+  const balance = await tx.stockBalance.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      id: input.balanceId,
+      warehouseId: from.id,
+      stockStatus: "AVAILABLE",
+    },
+    include: { lot: { select: { expiresOn: true, recallHold: true } } },
   });
+  if (!balance) throw notFound("Stock");
+  assertUsableLot(balance.lot, todayFor(from));
+  const product = await loadProductForPosting(tx, ctx, balance.productId);
+  const quantityBase = await toBase(tx, ctx, product, input.uomId, input.quantity);
+  const available = dec(balance.onHandQuantity).minus(dec(balance.reservedQuantity));
+  if (quantityBase.greaterThan(available))
+    throw businessRuleViolation("INSUFFICIENT_STOCK", "Not enough available stock", {
+      field: "quantity",
+      available: available.toFixed(),
+    });
+  const lineNo = shipment.lines.reduce((m, l) => Math.max(m, l.lineNo), 0) + 1;
+  const line = await tx.stockShipmentLine.create({
+    data: {
+      organizationId: ctx.organizationId,
+      shipmentId: shipment.id,
+      lineNo,
+      productId: balance.productId,
+      lotId: balance.lotId,
+      fromWarehouseId: from.id,
+      fromLocationId: balance.locationId,
+      uomId: input.uomId,
+      quantity: input.quantity,
+      quantityBase: quantityBase.toFixed(),
+    },
+    select: { id: true },
+  });
+  await audit(tx, ctx, shipment, "line_added", {
+    productId: balance.productId,
+    quantity: quantityBase.toFixed(),
+  });
+  return line;
 }
 
 export async function removeShipmentLine(ctx: TenantContext, shipmentId: string, lineId: string) {
@@ -470,6 +479,19 @@ export async function cancelShipment(ctx: TenantContext, shipmentId: string, raw
     requireStatus(shipment.status === "DRAFT" || shipment.status === "IN_TRANSIT", shipment.status);
     const from = await loadWarehouse(tx, ctx, shipment.fromWarehouseId);
     assertWarehousePermission(ctx, "inventory.transfer", from);
+    // Branch requests this shipment was meant to fulfil become open again (ADR-046).
+    const released = await tx.purchaseRequisitionLine.findMany({
+      where: { organizationId: ctx.organizationId, shipmentId: shipment.id },
+      select: { requisitionId: true },
+    });
+    if (released.length > 0) {
+      await tx.purchaseRequisitionLine.updateMany({
+        where: { organizationId: ctx.organizationId, shipmentId: shipment.id },
+        data: { shipmentId: null, orderedAt: null },
+      });
+      for (const id of [...new Set(released.map((r) => r.requisitionId))].sort())
+        await refreshRequisitionStatus(tx, ctx, id);
+    }
     let cancelDocumentId: string | null = null;
     if (shipment.status === "IN_TRANSIT") {
       const lines: PostingLine[] = [];

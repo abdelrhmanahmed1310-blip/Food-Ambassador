@@ -782,6 +782,24 @@ lot, cost, PRODUCTION and reversal documents UQ; trigger for transitions).
 `inventory_document_type` gains PRODUCTION (`PRO-`); inputs post as
 CONSUMPTION with reason PRODUCTION, the output as PRODUCTION_OUTPUT.
 
+**Kitchen fulfilment** (migrations `20261108090000_m9_kitchen_fulfilment`,
+`20261108090100_m9_requisition_met`, ADR-046):
+`purchase_requisition_lines.shipment_id` (CK: not with a purchase order
+line; `ordered_at` set when met either way).
+
+**B2B** (migrations `20261109090000_m9_b2b`, `…090100_m9_sales_order_status`,
+ADR-047): **customers** (code UQ, VAT number, payment terms);
+**sales_orders** / **sales_order_lines** (quantity, base quantity, net unit
+price, VAT code, delivered base quantity ≤ ordered); **customer_deliveries**
+(the CUSTOMER_DELIVERY document and its number, cost, reversal) /
+**customer_delivery_lines** (order line, base quantity, cost);
+**sales_invoices** (one per delivery unless cancelled — partial UQ; net +
+VAT = gross; cost for margin; trigger: only cancelling changes it) /
+**sales_invoice_lines** (code, rate, net, VAT, gross); **customer_receipts**
+(void only, trigger) / **customer_receipt_allocations**.
+`inventory_document_type` and `movement_type` gain CUSTOMER_DELIVERY
+(`DN-`).
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

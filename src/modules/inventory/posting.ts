@@ -112,6 +112,7 @@ const NUMBER_PREFIX: Record<InventoryDocumentType, string> = {
   LANDED_COST: "LCA",
   CONSUMPTION: "CON",
   PRODUCTION: "PRO",
+  CUSTOMER_DELIVERY: "DN",
 };
 
 /** Atomically allocate the next number for (organization, series, year). */

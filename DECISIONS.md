@@ -851,6 +851,43 @@ documents stay scoped. Found by a scoped-user integration test.
   rounded up to whole batches.
 - Permissions `production.view` / `production.manage`, scoped to sites.
 
+### ADR-046 Branch requests fulfilled from the central kitchen — Accepted (M9b)
+
+- A submitted requisition line is met **either** by a purchase order line
+  (M3c) **or** by a shipment from own stock (`purchase_requisition_lines.
+shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
+  requesting site, `inventory.transfer` at the source) chooses the source
+  warehouse; usable stock there is picked FEFO into one **draft shipment**
+  to the requesting warehouse — dispatch and receipt then work as any
+  shipment (ADR-026). Nothing is picked if a line is short.
+- The requisition becomes partly or fully ordered either way; cancelling the
+  shipment opens its lines again. The production plan (ADR-045) counts only
+  lines met by neither.
+
+### ADR-047 B2B customers, deliveries, sales invoices and receivables — Accepted (M9b)
+
+- **Customers** (code, names, VAT number, payment terms). **Sales orders**
+  (`SO-`): draft lines at net prices per unit with an optional VAT code (none
+  = the default sales code), confirmed, then delivered in one or more
+  deliveries; cancel only without deliveries.
+- **Deliveries** take usable stock FEFO from the order's warehouse as a
+  CUSTOMER_DELIVERY document (`DN-`, the delivery note number) with a new
+  movement type, so B2B sales stay out of the restaurant food cost and
+  waste reports. Cost of goods is recorded per line. Reversal only from the
+  delivery and only while it has no invoice; generic reversal is refused.
+- **Sales invoices** (`SI-`): one per delivery, at the order prices, VAT per
+  line at the rate on the invoice date when the organization is VAT
+  registered (ADR-037 rounding), due date from the payment terms; gross
+  margin = net − cost of goods. Fixed once issued (trigger); cancel only
+  without receipts. Output VAT appears in the VAT summary. The printout is
+  not an e-invoice (ZATCA / ETA: POS4).
+- **Receipts** (`RCT-`) applied to invoices earliest due first, voidable;
+  customer balances and aging as for suppliers (ADR-039). Overdue customer
+  invoices appear in "needs attention".
+- Organization-level `b2b.view` / `b2b.manage` (B2B is run by head office).
+- Not yet: customer credit notes and returns, price lists, credit limits,
+  invoicing several deliveries at once, B2B journal export.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

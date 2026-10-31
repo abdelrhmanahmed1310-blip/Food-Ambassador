@@ -195,6 +195,15 @@ model Organization {
   referenceFoods        ReferenceFood[]
   referenceImports      ReferenceImport[]
   productionOrders      ProductionOrder[]
+  customers             Customer[]
+  salesOrders           SalesOrder[]
+  salesOrderLines       SalesOrderLine[]
+  customerDeliveries    CustomerDelivery[]
+  customerDeliveryLines CustomerDeliveryLine[]
+  salesInvoices         SalesInvoice[]
+  salesInvoiceLines     SalesInvoiceLine[]
+  customerReceipts      CustomerReceipt[]
+  receiptAllocations    CustomerReceiptAllocation[]
 
   @@map("organizations")
 }
@@ -412,6 +421,7 @@ model Warehouse {
   recallStock      RecallStock[]
   salesImports     SalesImport[]
   productionOrders ProductionOrder[]
+  salesOrders      SalesOrder[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -529,6 +539,7 @@ model UnitOfMeasure {
   recipeIngredients  RecipeIngredient[]
   recipeYields       RecipeVersion[]
   invoiceLines       SupplierInvoiceLine[]
+  salesOrderLines    SalesOrderLine[]
   productionOrders   ProductionOrder[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
@@ -600,6 +611,8 @@ model Product {
   referenceLinks       ReferenceFood[]           @relation("ReferenceLinkedProduct")
   producedBy           Recipe[]                  @relation("RecipeOutput")
   productionOrders     ProductionOrder[]
+  salesOrderLines      SalesOrderLine[]
+  salesInvoiceLines    SalesInvoiceLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -712,6 +725,7 @@ enum MovementType {
   COUNT_ADJUSTMENT
   STATUS_CHANGE
   REVERSAL
+  CUSTOMER_DELIVERY
 }
 
 enum InventoryDocumentType {
@@ -729,6 +743,7 @@ enum InventoryDocumentType {
   LANDED_COST
   CONSUMPTION
   PRODUCTION
+  CUSTOMER_DELIVERY
 }
 
 /// How the unit cost of a ledger entry was determined (ADR-021).
@@ -760,25 +775,27 @@ model InventoryDocument {
   postedAt               DateTime              @default(now()) @map("posted_at") @db.Timestamptz(3)
   postedByUserId         String                @map("posted_by_user_id") @db.Uuid
 
-  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  warehouse          Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
-  destination        Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
-  reverses           InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
-  reversedBy         InventoryDocument?     @relation("DocumentReversal")
-  entries            InventoryLedgerEntry[]
-  stockCount         StockCount?
-  revaluation        StockRevaluation?
-  receipt            GoodsReceipt?          @relation("ReceiptDocument")
-  receiptReversal    GoodsReceipt?          @relation("ReceiptReversal")
-  shipmentDispatch   StockShipment?         @relation("ShipmentDispatch")
-  shipmentReceipt    StockShipment?         @relation("ShipmentReceipt")
-  shipmentCancel     StockShipment?         @relation("ShipmentCancel")
-  landedCost         LandedCost?            @relation("LandedCostDocument")
-  recallDocument     RecallDocument?
-  salesImport        SalesImport?           @relation("SalesConsumption")
-  salesReversal      SalesImport?           @relation("SalesReversal")
-  productionOrder    ProductionOrder?       @relation("ProductionDocument")
-  productionReversal ProductionOrder?       @relation("ProductionReversal")
+  organization             Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse                Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  destination              Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  reverses                 InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
+  reversedBy               InventoryDocument?     @relation("DocumentReversal")
+  entries                  InventoryLedgerEntry[]
+  stockCount               StockCount?
+  revaluation              StockRevaluation?
+  receipt                  GoodsReceipt?          @relation("ReceiptDocument")
+  receiptReversal          GoodsReceipt?          @relation("ReceiptReversal")
+  shipmentDispatch         StockShipment?         @relation("ShipmentDispatch")
+  shipmentReceipt          StockShipment?         @relation("ShipmentReceipt")
+  shipmentCancel           StockShipment?         @relation("ShipmentCancel")
+  landedCost               LandedCost?            @relation("LandedCostDocument")
+  recallDocument           RecallDocument?
+  salesImport              SalesImport?           @relation("SalesConsumption")
+  salesReversal            SalesImport?           @relation("SalesReversal")
+  productionOrder          ProductionOrder?       @relation("ProductionDocument")
+  productionReversal       ProductionOrder?       @relation("ProductionReversal")
+  customerDelivery         CustomerDelivery?      @relation("DeliveryDocument")
+  customerDeliveryReversal CustomerDelivery?      @relation("DeliveryReversal")
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1317,14 +1334,15 @@ model StockShipment {
   createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  from         Warehouse           @relation("ShipmentFrom", fields: [organizationId, fromWarehouseId], references: [organizationId, id], onDelete: Restrict)
-  to           Warehouse           @relation("ShipmentTo", fields: [organizationId, toWarehouseId], references: [organizationId, id], onDelete: Restrict)
-  toLocation   StorageLocation?    @relation(fields: [organizationId, toWarehouseId, toLocationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
-  dispatchDoc  InventoryDocument?  @relation("ShipmentDispatch", fields: [organizationId, dispatchDocumentId], references: [organizationId, id], onDelete: Restrict)
-  receiptDoc   InventoryDocument?  @relation("ShipmentReceipt", fields: [organizationId, receiptDocumentId], references: [organizationId, id], onDelete: Restrict)
-  cancelDoc    InventoryDocument?  @relation("ShipmentCancel", fields: [organizationId, cancelDocumentId], references: [organizationId, id], onDelete: Restrict)
-  lines        StockShipmentLine[]
+  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  from             Warehouse                 @relation("ShipmentFrom", fields: [organizationId, fromWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  to               Warehouse                 @relation("ShipmentTo", fields: [organizationId, toWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  toLocation       StorageLocation?          @relation(fields: [organizationId, toWarehouseId, toLocationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+  dispatchDoc      InventoryDocument?        @relation("ShipmentDispatch", fields: [organizationId, dispatchDocumentId], references: [organizationId, id], onDelete: Restrict)
+  receiptDoc       InventoryDocument?        @relation("ShipmentReceipt", fields: [organizationId, receiptDocumentId], references: [organizationId, id], onDelete: Restrict)
+  cancelDoc        InventoryDocument?        @relation("ShipmentCancel", fields: [organizationId, cancelDocumentId], references: [organizationId, id], onDelete: Restrict)
+  lines            StockShipmentLine[]
+  requisitionLines PurchaseRequisitionLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1495,6 +1513,8 @@ model PurchaseRequisitionLine {
   note                String?
   /// The purchase order line this was ordered on; cleared if that line is removed or its order cancelled.
   purchaseOrderLineId String?   @map("purchase_order_line_id") @db.Uuid
+  /// Or fulfilled from own stock by this shipment (central kitchen, ADR-046).
+  shipmentId          String?   @map("shipment_id") @db.Uuid
   orderedAt           DateTime? @map("ordered_at") @db.Timestamptz(3)
 
   organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -1502,6 +1522,7 @@ model PurchaseRequisitionLine {
   product           Product             @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
   uom               UnitOfMeasure       @relation(fields: [uomId], references: [id], onDelete: Restrict)
   purchaseOrderLine PurchaseOrderLine?  @relation(fields: [organizationId, purchaseOrderLineId], references: [organizationId, id], onDelete: Restrict)
+  shipment          StockShipment?      @relation(fields: [organizationId, shipmentId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, requisitionId, lineNo])
@@ -2187,6 +2208,8 @@ model TaxCode {
   invoiceLines       SupplierInvoiceLine[]
   purchaseDefaultFor TaxSettings[]         @relation("DefaultPurchaseTax")
   settlements        SupplierSettlement[]
+  salesOrderLines    SalesOrderLine[]
+  salesInvoiceLines  SalesInvoiceLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -2697,4 +2720,254 @@ model ProductionOrder {
   @@unique([organizationId, reversalDocumentId])
   @@index([organizationId, warehouseId, status])
   @@map("production_orders")
+}
+
+// ─── B2B customers and sales (Milestone 9b, ADR-047) ───
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  POSTED
+  REVERSED
+}
+
+enum SalesInvoiceStatus {
+  POSTED
+  CANCELLED
+}
+
+model Customer {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  code             String
+  name             String
+  nameAr           String?   @map("name_ar")
+  taxId            String?   @map("tax_id")
+  email            String?
+  phone            String?
+  address          String?
+  paymentTermsDays Int?      @map("payment_terms_days")
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  orders       SalesOrder[]
+  invoices     SalesInvoice[]
+  receipts     CustomerReceipt[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("customers")
+}
+
+model SalesOrder {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  number            String
+  customerId        String           @map("customer_id") @db.Uuid
+  warehouseId       String           @map("warehouse_id") @db.Uuid
+  status            SalesOrderStatus @default(DRAFT)
+  customerRef       String?          @map("customer_ref")
+  requestedOn       DateTime?        @map("requested_on") @db.Date
+  note              String?
+  createdByUserId   String           @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  confirmedAt       DateTime?        @map("confirmed_at") @db.Timestamptz(3)
+  confirmedByUserId String?          @map("confirmed_by_user_id") @db.Uuid
+  cancelledAt       DateTime?        @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason      String?          @map("cancel_reason")
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer     Customer           @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse          @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  lines        SalesOrderLine[]
+  deliveries   CustomerDelivery[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, customerId, status])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id                    String  @id @default(uuid(7)) @db.Uuid
+  organizationId        String  @map("organization_id") @db.Uuid
+  orderId               String  @map("order_id") @db.Uuid
+  lineNo                Int     @map("line_no")
+  productId             String  @map("product_id") @db.Uuid
+  uomId                 String  @map("uom_id") @db.Uuid
+  quantity              Decimal @db.Decimal(20, 6)
+  quantityBase          Decimal @map("quantity_base") @db.Decimal(20, 6)
+  /// Net price per `uomId`.
+  unitPrice             Decimal @map("unit_price") @db.Decimal(20, 6)
+  /// Null = the organization's default sales VAT code.
+  taxCodeId             String? @map("tax_code_id") @db.Uuid
+  deliveredQuantityBase Decimal @default(0) @map("delivered_quantity_base") @db.Decimal(20, 6)
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order         SalesOrder             @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Cascade)
+  product       Product                @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom           UnitOfMeasure          @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  taxCode       TaxCode?               @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+  deliveryLines CustomerDeliveryLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, orderId, lineNo])
+  @@map("sales_order_lines")
+}
+
+/// Goods sent to a customer: one CUSTOMER_DELIVERY stock document.
+model CustomerDelivery {
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  organizationId     String         @map("organization_id") @db.Uuid
+  number             String
+  orderId            String         @map("order_id") @db.Uuid
+  status             DeliveryStatus @default(POSTED)
+  documentId         String         @map("document_id") @db.Uuid
+  reversalDocumentId String?        @map("reversal_document_id") @db.Uuid
+  /// Stock value of what was delivered (cost of goods sold).
+  cost               Decimal        @db.Decimal(19, 4)
+  deliveredAt        DateTime       @default(now()) @map("delivered_at") @db.Timestamptz(3)
+  deliveredByUserId  String         @map("delivered_by_user_id") @db.Uuid
+  reversedAt         DateTime?      @map("reversed_at") @db.Timestamptz(3)
+  reversalReason     String?        @map("reversal_reason")
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        SalesOrder             @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
+  document     InventoryDocument      @relation("DeliveryDocument", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  reversal     InventoryDocument?     @relation("DeliveryReversal", fields: [organizationId, reversalDocumentId], references: [organizationId, id], onDelete: Restrict)
+  lines        CustomerDeliveryLine[]
+  invoices     SalesInvoice[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@unique([organizationId, documentId])
+  @@unique([organizationId, reversalDocumentId])
+  @@map("customer_deliveries")
+}
+
+model CustomerDeliveryLine {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  deliveryId     String  @map("delivery_id") @db.Uuid
+  orderLineId    String  @map("order_line_id") @db.Uuid
+  quantityBase   Decimal @map("quantity_base") @db.Decimal(20, 6)
+  cost           Decimal @db.Decimal(19, 4)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  delivery     CustomerDelivery @relation(fields: [organizationId, deliveryId], references: [organizationId, id], onDelete: Restrict)
+  orderLine    SalesOrderLine   @relation(fields: [organizationId, orderLineId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, deliveryId, orderLineId])
+  @@map("customer_delivery_lines")
+}
+
+model SalesInvoice {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  organizationId    String             @map("organization_id") @db.Uuid
+  number            String
+  customerId        String             @map("customer_id") @db.Uuid
+  deliveryId        String             @map("delivery_id") @db.Uuid
+  invoiceDate       DateTime           @map("invoice_date") @db.Date
+  dueDate           DateTime?          @map("due_date") @db.Date
+  status            SalesInvoiceStatus @default(POSTED)
+  netAmount         Decimal            @map("net_amount") @db.Decimal(19, 4)
+  taxAmount         Decimal            @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount       Decimal            @map("gross_amount") @db.Decimal(19, 4)
+  /// Cost of goods of the delivery, for the margin.
+  cost              Decimal            @db.Decimal(19, 4)
+  createdByUserId   String             @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  cancelledAt       DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  cancelledByUserId String?            @map("cancelled_by_user_id") @db.Uuid
+  cancelReason      String?            @map("cancel_reason")
+
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer     Customer                    @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+  delivery     CustomerDelivery            @relation(fields: [organizationId, deliveryId], references: [organizationId, id], onDelete: Restrict)
+  lines        SalesInvoiceLine[]
+  allocations  CustomerReceiptAllocation[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, customerId, invoiceDate])
+  @@map("sales_invoices")
+}
+
+model SalesInvoiceLine {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  invoiceId      String   @map("invoice_id") @db.Uuid
+  lineNo         Int      @map("line_no")
+  productId      String   @map("product_id") @db.Uuid
+  description    String
+  quantity       Decimal  @db.Decimal(20, 6)
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(20, 6)
+  taxCodeId      String?  @map("tax_code_id") @db.Uuid
+  taxRate        Decimal? @map("tax_rate") @db.Decimal(9, 6)
+  netAmount      Decimal  @map("net_amount") @db.Decimal(19, 4)
+  taxAmount      Decimal  @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount    Decimal  @map("gross_amount") @db.Decimal(19, 4)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invoice      SalesInvoice @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Restrict)
+  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  taxCode      TaxCode?     @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, invoiceId, lineNo])
+  @@map("sales_invoice_lines")
+}
+
+/// Money received from a customer, applied to invoices.
+model CustomerReceipt {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  number          String
+  customerId      String           @map("customer_id") @db.Uuid
+  date            DateTime         @db.Date
+  amount          Decimal          @db.Decimal(19, 4)
+  method          PaymentMethod
+  reference       String?
+  note            String?
+  status          SettlementStatus @default(POSTED)
+  createdByUserId String           @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  voidedAt        DateTime?        @map("voided_at") @db.Timestamptz(3)
+  voidedByUserId  String?          @map("voided_by_user_id") @db.Uuid
+  voidReason      String?          @map("void_reason")
+
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer     Customer                    @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+  allocations  CustomerReceiptAllocation[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, customerId, date])
+  @@map("customer_receipts")
+}
+
+model CustomerReceiptAllocation {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  receiptId       String   @map("receipt_id") @db.Uuid
+  invoiceId       String   @map("invoice_id") @db.Uuid
+  amount          Decimal  @db.Decimal(19, 4)
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  receipt      CustomerReceipt @relation(fields: [organizationId, receiptId], references: [organizationId, id], onDelete: Restrict)
+  invoice      SalesInvoice    @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, invoiceId])
+  @@index([organizationId, receiptId])
+  @@map("customer_receipt_allocations")
 }

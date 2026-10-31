@@ -813,3 +813,40 @@ export function OrderRequisitionForm({
     </ActionForm>
   );
 }
+
+export function FulfilFromStockForm({
+  action,
+  warehouses,
+  lines,
+}: {
+  action: Action;
+  warehouses: Array<{ value: string; label: string }>;
+  lines: Array<{ id: string; label: string }>;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("requisitions.fulfil")}
+      pendingLabel={t("common.saving")}
+      idempotent
+    >
+      <SelectField
+        name="fromWarehouseId"
+        label={t("requisitions.fulfilFrom")}
+        options={warehouses}
+        placeholder={t("common.select")}
+        required
+      />
+      <fieldset className="space-y-2">
+        <legend className="mb-1 text-sm font-medium">{t("requisitions.linesToFulfil")}</legend>
+        {lines.map((l) => (
+          <label key={l.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="lineIds" value={l.id} defaultChecked />
+            <bdi>{l.label}</bdi>
+          </label>
+        ))}
+      </fieldset>
+    </ActionForm>
+  );
+}

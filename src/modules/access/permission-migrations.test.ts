@@ -29,7 +29,7 @@ function migrationGrants(): Set<string> {
     if (!/^\d+_/.test(name)) continue;
     const sql = readFileSync(join(dir, name, "migration.sql"), "utf8");
     if (!sql.includes('INSERT INTO "role_permissions"')) continue;
-    for (const m of sql.matchAll(/\('([a-z_]+)', '([a-z.]+)'\)/g)) grants.add(`${m[1]}:${m[2]}`);
+    for (const m of sql.matchAll(/\('([a-z_]+)', '([a-z0-9.]+)'\)/g)) grants.add(`${m[1]}:${m[2]}`);
   }
   return grants;
 }

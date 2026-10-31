@@ -49,7 +49,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                               |
 | M7   | Sales & financial workflows | M3, M4                           | Complete                                   |
 | M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)              |
-| M9   | Central kitchen & B2B       | M4, M6                           | In progress (M9a done)                     |
+| M9   | Central kitchen & B2B       | M4, M6                           | Complete                                   |
 | M10  | Integrations                | M7                               | Proposed                                   |
 | POS1 | Core                        | M4                               | Planned                                    |
 | POS2 | Floor & kitchen             | POS1                             | Planned                                    |
@@ -341,9 +341,10 @@ yield variance, expiry capped by the ingredients, lot genealogy both ways,
 reversal from the order, and a plan from branch requisitions and reorder
 levels in whole batches.
 
-**M9b — next:** fulfilling branch requisitions from the central kitchen by
-shipment, and B2B customers with sales orders, delivery notes, sales
-invoices (output VAT) and customer balances.
+**M9b — Fulfilment and B2B ✅ (ADR-046, ADR-047):** branch requisitions met
+from the central kitchen by FEFO-picked shipments; B2B customers, sales
+orders, deliveries at cost, sales invoices with output VAT and margin,
+receipts, customer balances and aging.
 
 ## M10 — Integrations (proposed)
 

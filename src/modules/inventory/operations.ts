@@ -658,6 +658,7 @@ export async function reverseDocumentInTx(
     allowReceipt: boolean;
     allowConsumption?: boolean;
     allowProduction?: boolean;
+    allowDelivery?: boolean;
     permission?: Permission;
   },
 ): Promise<PostedDocument> {
@@ -694,6 +695,11 @@ export async function reverseDocumentInTx(
     throw businessRuleViolation(
       "RECEIPT_REVERSE_IN_PURCHASING",
       "Reverse goods receipts from the receipt page",
+    );
+  if (doc.type === "CUSTOMER_DELIVERY" && !options.allowDelivery)
+    throw businessRuleViolation(
+      "DELIVERY_REVERSE_IN_SALES",
+      "Reverse customer deliveries from the delivery",
     );
   if (doc.type === "PRODUCTION" && !options.allowProduction)
     throw businessRuleViolation(

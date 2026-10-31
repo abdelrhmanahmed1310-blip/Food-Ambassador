@@ -4,6 +4,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { OrderStatusBadge, RequisitionStatusBadge } from "@/components/procurement/badges";
 import {
+  FulfilFromStockForm,
   OrderRequisitionForm,
   ReasonForm,
   RequisitionLineForm,
@@ -22,6 +23,7 @@ import { isUuid } from "@/lib/uuid";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
 import { getRequisition } from "@/modules/procurement/requisitions";
 import { supplierOptions } from "@/modules/procurement/suppliers";
+import { warehouseOptions } from "@/modules/inventory/queries";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import {
@@ -34,6 +36,7 @@ import {
   addRequisitionLineAction,
   cancelRequisitionAction,
   closeRequisitionAction,
+  fulfilRequisitionAction,
   orderRequisitionAction,
   rejectRequisitionAction,
   removeRequisitionLineAction,
@@ -62,7 +65,11 @@ export default async function RequisitionPage({
     : [[], []];
   const suppliers = req.can.order ? await supplierOptions(ctx) : [];
   const supplier = suppliers.find((s) => s.id === supplierId);
-  const openLines = req.lines.filter((l) => !l.purchaseOrderLineId);
+  const openLines = req.lines.filter((l) => !l.purchaseOrderLineId && !l.shipmentId);
+  // Own stock elsewhere that could meet the request (central kitchen, ADR-046).
+  const sources = req.can.order
+    ? (await warehouseOptions(ctx, "inventory.transfer")).filter((w) => w.id !== req.warehouse.id)
+    : [];
   const dt = (d: Date | null) =>
     d
       ? format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone })
@@ -151,7 +158,17 @@ export default async function RequisitionPage({
                     </Td>
                     <Td>{l.note ?? "—"}</Td>
                     <Td>
-                      {l.purchaseOrderLine ? (
+                      {l.shipment ? (
+                        <span className="flex flex-wrap items-center gap-2">
+                          {t("requisitions.fromStock")}
+                          <Link
+                            href={`/o/${orgSlug}/inventory/shipments/${l.shipment.id}`}
+                            className="ltr-value text-primary font-mono text-xs hover:underline"
+                          >
+                            {l.shipment.number}
+                          </Link>
+                        </span>
+                      ) : l.purchaseOrderLine ? (
                         <span className="flex flex-wrap items-center gap-2">
                           <Link
                             href={`/o/${orgSlug}/purchasing/orders/${l.purchaseOrderLine.purchaseOrder.id}`}
@@ -244,6 +261,20 @@ export default async function RequisitionPage({
                 }))}
               />
             ) : null}
+          </Card>
+        ) : null}
+
+        {req.can.order && openLines.length > 0 && sources.length > 0 ? (
+          <Card title={t("requisitions.fulfilTitle")}>
+            <p className="text-muted mb-3 text-sm">{t("requisitions.fulfilHint")}</p>
+            <FulfilFromStockForm
+              action={fulfilRequisitionAction.bind(null, orgSlug, req.id)}
+              warehouses={sources.map((w) => ({ value: w.id, label: `${w.code} — ${w.name}` }))}
+              lines={openLines.map((l) => ({
+                id: l.id,
+                label: `${l.product.sku} — ${productName(l.product, locale)} · ${fmt(l.quantity)} ${l.uom.code}`,
+              }))}
+            />
           </Card>
         ) : null}
 

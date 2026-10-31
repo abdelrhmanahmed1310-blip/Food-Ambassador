@@ -116,7 +116,12 @@
     "foodCostReport": "تكلفة الطعام حسب الفرع",
     "wasteReport": "الهدر والفروقات",
     "attention": "يحتاج إلى انتباه",
-    "production": "الإنتاج"
+    "production": "الإنتاج",
+    "b2bSection": "مبيعات الجملة",
+    "salesOrders": "طلبات البيع",
+    "salesInvoices": "فواتير البيع",
+    "customerBalances": "أرصدة العملاء",
+    "customers": "العملاء"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -227,7 +232,8 @@
     "fileAlreadyImported": "تم استيراد هذا الملف من قبل.",
     "productAlreadyOnOrder": "هذا المنتج موجود بالفعل في الأمر. عدّل ذلك السطر بدلًا من ذلك.",
     "invoiceNumberTaken": "رقم فاتورة المورد هذا مُدخل مسبقًا لهذا المورد.",
-    "creditNoteNumberTaken": "رقم الإشعار الدائن هذا مُدخل مسبقًا لهذا المورد."
+    "creditNoteNumberTaken": "رقم الإشعار الدائن هذا مُدخل مسبقًا لهذا المورد.",
+    "deliveryInvoiced": "هذا التسليم مُفوتر مسبقًا."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "قم بأرشفة مستودعات هذا الفرع أولًا.",
@@ -367,7 +373,20 @@
     "INSUFFICIENT_STOCK_FOR_PRODUCTION": "لا يوجد مخزون صالح كافٍ لـ: {products}.",
     "OUTPUT_OUTLIVES_INPUT": "لا يمكن استخدام الدفعة بعد {latest}، حين تنتهي تشغيلة مكوّن صُنعت منها.",
     "PRODUCTION_NOT_COMPLETED": "يمكن عكس الدفعات المكتملة فقط.",
-    "PRODUCTION_REVERSE_IN_PRODUCTION": "اعكس الإنتاج من أمر الإنتاج."
+    "PRODUCTION_REVERSE_IN_PRODUCTION": "اعكس الإنتاج من أمر الإنتاج.",
+    "INSUFFICIENT_STOCK_FOR_FULFILMENT": "لا يوجد مخزون صالح كافٍ في المصدر لـ: {products}.",
+    "SALES_ORDER_NOT_DRAFT": "يمكن تعديل الطلبات المسودة فقط.",
+    "SALES_ORDER_EMPTY": "أضف بندًا واحدًا على الأقل أولًا.",
+    "SALES_ORDER_HAS_DELIVERIES": "لا يمكن إلغاء طلبات لها تسليمات.",
+    "SALES_ORDER_NOT_OPEN": "يمكن تسليم الطلبات المؤكدة فقط.",
+    "DELIVERY_EXCEEDS_ORDER": "البند {lineNo}: المتبقي {open} فقط.",
+    "NOTHING_TO_DELIVER": "لا يوجد شيء متبقٍ للتسليم.",
+    "INSUFFICIENT_STOCK_FOR_DELIVERY": "لا يوجد مخزون صالح كافٍ لـ: {products}.",
+    "DELIVERY_REVERSED": "عُكس هذا التسليم.",
+    "DELIVERY_INVOICED": "ألغِ الفاتورة قبل عكس التسليم.",
+    "SALES_INVOICE_CANCELLED": "هذه الفاتورة ملغاة مسبقًا.",
+    "SALES_INVOICE_HAS_RECEIPTS": "توجد مقبوضات مطبّقة على هذه الفاتورة؛ ألغها أولًا.",
+    "DELIVERY_REVERSE_IN_SALES": "اعكس تسليمات العملاء من التسليم."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -570,7 +589,9 @@
       "nutrition.manage": "تسجيل القيم الغذائية وبيانات مسببات الحساسية",
       "labels.approve": "اعتماد ملصقات المنتجات",
       "production.view": "عرض الإنتاج",
-      "production.manage": "تخطيط الإنتاج وتسجيله"
+      "production.manage": "تخطيط الإنتاج وتسجيله",
+      "b2b.view": "عرض عملاء الجملة وطلباتهم وفواتيرهم",
+      "b2b.manage": "إدارة عملاء الجملة والطلبات والتسليمات والفواتير والمقبوضات"
     }
   },
   "audit": {
@@ -849,7 +870,8 @@
       "ADJUSTMENT": "تسوية",
       "COUNT_ADJUSTMENT": "تسوية جرد",
       "STATUS_CHANGE": "تغيير حالة",
-      "REVERSAL": "عكس"
+      "REVERSAL": "عكس",
+      "CUSTOMER_DELIVERY": "تسليم لعميل"
     },
     "documentTypes": {
       "OPENING_BALANCE": "رصيد افتتاحي",
@@ -865,7 +887,8 @@
       "TRANSIT_RECEIPT": "استلام شحنة",
       "LANDED_COST": "تكلفة إضافية",
       "CONSUMPTION": "استهلاك المبيعات",
-      "PRODUCTION": "إنتاج"
+      "PRODUCTION": "إنتاج",
+      "CUSTOMER_DELIVERY": "تسليم لعميل"
     },
     "reasons": {
       "DATA_CORRECTION": "تصحيح بيانات",
@@ -1199,7 +1222,13 @@
       "REJECTED": "مرفوض",
       "CLOSED": "مغلق",
       "CANCELLED": "ملغى"
-    }
+    },
+    "fulfil": "إنشاء شحنة",
+    "fulfilFrom": "الإرسال من",
+    "linesToFulfil": "البنود المطلوب إرسالها",
+    "fromStock": "من المخزون الخاص:",
+    "fulfilTitle": "التلبية من المخزون الخاص",
+    "fulfilHint": "أرسل هذه البنود من مستودع آخر (مثل المطبخ المركزي) بدل طلبها: يُختار المخزون الصالح هناك الأقرب انتهاءً أولًا في شحنة مسودة إلى هذا الفرع. إلغاء الشحنة يعيد فتح البنود."
   },
   "recipes": {
     "title": "الوصفات",
@@ -2094,7 +2123,8 @@
       "STATEMENTS_TO_VERIFY": "{count, plural, one {منتج ببيانات غذائية أو حساسية للتحقق} other {# منتجات ببيانات غذائية أو حساسية للتحقق}}",
       "NC_OPEN": "{count, plural, one {عدم مطابقة مفتوح} other {# حالات عدم مطابقة مفتوحة}}",
       "ACTIONS_OVERDUE": "{count, plural, one {إجراء تصحيحي متأخر} other {# إجراءات تصحيحية متأخرة}}",
-      "RECALLS_ACTIVE": "{count, plural, one {استدعاء نشط} other {# استدعاءات نشطة}}"
+      "RECALLS_ACTIVE": "{count, plural, one {استدعاء نشط} other {# استدعاءات نشطة}}",
+      "CUSTOMER_INVOICES_OVERDUE": "{count, plural, one {فاتورة عميل متأخرة} other {# فواتير عملاء متأخرة}}"
     }
   },
   "production": {
@@ -2158,5 +2188,71 @@
     "madeFrom": "صُنعت من",
     "usedIn": "استُخدمت في دفعات",
     "noLot": "لا تشغيلة مسجلة (فجوة)"
+  },
+  "b2b": {
+    "customers": "العملاء",
+    "customersHint": "عملاء الجملة: فنادق ومتعهدو تموين وشركات تبيع لها.",
+    "noCustomers": "لا يوجد عملاء بعد.",
+    "addCustomer": "إضافة عميل",
+    "code": "الرمز",
+    "name": "الاسم",
+    "nameAr": "الاسم العربي",
+    "vatNumber": "الرقم الضريبي",
+    "paymentTerms": "مدة السداد (أيام)",
+    "email": "البريد الإلكتروني",
+    "customer": "العميل",
+    "customerHint": "الفواتير المفتوحة والمقبوضات.",
+    "received": "المقبوض",
+    "receipts": "المقبوضات",
+    "noReceipts": "لا توجد مقبوضات بعد.",
+    "recordReceipt": "تسجيل قبض",
+    "applyOldestFirst": "التطبيق على الأقدم استحقاقًا أولًا",
+    "orders": "طلبات البيع",
+    "ordersHint": "طلبات من عملاء الجملة، تُسلَّم من مخزونك.",
+    "newOrder": "طلب بيع جديد",
+    "noOrders": "لا توجد طلبات بيع بعد.",
+    "createOrder": "إنشاء الطلب",
+    "shipFrom": "الشحن من",
+    "customerRef": "مرجع العميل",
+    "requestedOn": "مطلوب ليوم",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "CONFIRMED": "مؤكد",
+      "PARTIALLY_DELIVERED": "مسلّم جزئيًا",
+      "DELIVERED": "مسلّم",
+      "CANCELLED": "ملغى"
+    },
+    "orderNet": "قيمة الطلب (صافي)",
+    "lines": "البنود",
+    "netPrice": "السعر الصافي",
+    "defaultSalesVat": "ضريبة المبيعات الافتراضية",
+    "addLine": "إضافة بند",
+    "delivered": "المسلّم",
+    "confirm": "تأكيد الطلب",
+    "confirmQuestion": "تأكيد هذا الطلب؟ لا يمكن تغيير البنود بعده.",
+    "deliver": "تسليم",
+    "deliverHint": "الكميات بوحدة مخزون المنتج؛ يُؤخذ المخزون الصالح الأقرب انتهاءً أولًا. لا يُسلَّم شيء إذا نقص أي بند.",
+    "deliveries": "التسليمات",
+    "costOfGoods": "تكلفة البضاعة",
+    "invoice": "إصدار فاتورة",
+    "reverseDelivery": "عكس التسليم",
+    "cancelOrder": "إلغاء الطلب",
+    "invoices": "فواتير البيع",
+    "invoicesHint": "فواتير تسليمات الجملة مع ضريبة المخرجات.",
+    "noInvoices": "لا توجد فواتير بيع بعد.",
+    "invoiceStatuses": {
+      "POSTED": "صادرة",
+      "CANCELLED": "ملغاة"
+    },
+    "invoiceTitle": "فاتورة",
+    "taxInvoiceTitle": "فاتورة ضريبية",
+    "billTo": "إلى",
+    "delivery": "التسليم",
+    "notEInvoice": "فاتورة قابلة للطباعة. ليست فاتورة إلكترونية لهيئة الزكاة أو مصلحة الضرائب؛ الفوترة الإلكترونية مع POS4.",
+    "internal": "داخلي",
+    "margin": "هامش الربح الإجمالي",
+    "balances": "أرصدة العملاء",
+    "balancesHint": "المستحق على كل عميل جملة، مع تقادم الفواتير المفتوحة حسب الاستحقاق.",
+    "outputVat": "ضريبة المخرجات (فواتير الجملة)"
   }
 }
