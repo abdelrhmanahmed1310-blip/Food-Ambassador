@@ -2405,7 +2405,9 @@
     "sources": {
       "MANUAL": "Entered",
       "CSV": "CSV import"
-    }
+    },
+    "amount": "Amount",
+    "customerCurrency": "Customer's currency"
   },
   "attachments": {
     "title": "Attachments",

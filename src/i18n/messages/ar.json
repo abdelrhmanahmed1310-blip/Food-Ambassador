@@ -2405,7 +2405,9 @@
     "sources": {
       "MANUAL": "إدخال يدوي",
       "CSV": "استيراد CSV"
-    }
+    },
+    "amount": "المبلغ",
+    "customerCurrency": "عملة العميل"
   },
   "attachments": {
     "title": "المرفقات",

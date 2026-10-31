@@ -5,6 +5,7 @@ import { CustomerForm } from "@/components/b2b/forms";
 import { Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
 import { listCustomers } from "@/modules/b2b/service";
+import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { createCustomerAction } from "../actions";
 
@@ -58,7 +59,10 @@ export default async function CustomersPage({ params }: PageProps<"/o/[orgSlug]/
         )}
         {hasPermission(ctx.grants, "b2b.manage") ? (
           <Card title={t("b2b.addCustomer")}>
-            <CustomerForm action={createCustomerAction.bind(null, orgSlug)} />
+            <CustomerForm
+              action={createCustomerAction.bind(null, orgSlug)}
+              currencies={currencyChoices(ctx.baseCurrency)}
+            />
           </Card>
         ) : null}
       </div>

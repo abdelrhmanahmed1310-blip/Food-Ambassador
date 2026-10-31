@@ -7,7 +7,7 @@ import { hasPermission } from "@/modules/access/authorize";
 import { customerBalances } from "@/modules/b2b/receivables";
 import { AGING_BUCKETS } from "@/modules/invoices/payables-rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyIn } from "@/server/fx-view";
 
 export default async function CustomerBalancesPage({
   params,
@@ -17,14 +17,17 @@ export default async function CustomerBalancesPage({
   const sp = await searchParams;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "b2b.view")) notFound();
-  const [t, locale, money, b] = await Promise.all([
+  const [t, locale, b] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
     customerBalances(ctx, typeof sp.asOf === "string" ? sp.asOf : undefined),
   ]);
-  const amount = (v: Decimal) => (
-    <span className="ltr-value whitespace-nowrap">{v.isZero() ? "—" : money.money(v)}</span>
+  // Rows in their own currency, the equivalent and the total in base (ADR-054).
+  const moneyOf = await moneyIn([ctx.baseCurrency, ...b.rows.map((r) => r.currency)]);
+  const amount = (v: Decimal, currency = ctx.baseCurrency) => (
+    <span className="ltr-value whitespace-nowrap">
+      {v.isZero() ? "—" : moneyOf(currency).money(v)}
+    </span>
   );
   return (
     <>
@@ -53,16 +56,21 @@ export default async function CustomerBalancesPage({
           <thead>
             <tr>
               <Th>{t("b2b.customer")}</Th>
+              <Th>{t("fx.currency")}</Th>
               <Th>{t("payables.balance")}</Th>
               {AGING_BUCKETS.map((x) => (
                 <Th key={x}>{t(`payables.aging.${x}`)}</Th>
               ))}
               <Th>{t("payables.unapplied")}</Th>
+              <Th>{t("fx.inBase", { currency: ctx.baseCurrency })}</Th>
             </tr>
           </thead>
           <tbody>
             {b.rows.map((r) => (
-              <tr key={r.customer.id} data-testid={`customer-balance-${r.customer.code}`}>
+              <tr
+                key={`${r.customer.id}-${r.currency}`}
+                data-testid={`customer-balance-${r.customer.code}${r.currency === ctx.baseCurrency ? "" : `-${r.currency}`}`}
+              >
                 <Td>
                   <Link
                     href={`/o/${orgSlug}/b2b/customers/${r.customer.id}`}
@@ -72,15 +80,31 @@ export default async function CustomerBalancesPage({
                     <bdi>{(locale === "ar" && r.customer.nameAr) || r.customer.name}</bdi>
                   </Link>
                 </Td>
-                <Td className="font-medium tabular-nums">{amount(r.balance)}</Td>
+                <Td>
+                  <span className="ltr-value font-mono text-xs">{r.currency}</span>
+                </Td>
+                <Td className="font-medium tabular-nums">{amount(r.balance, r.currency)}</Td>
                 {AGING_BUCKETS.map((x) => (
                   <Td key={x} className="tabular-nums">
-                    {amount(r.aging[x])}
+                    {amount(r.aging[x], r.currency)}
                   </Td>
                 ))}
-                <Td className="tabular-nums">{amount(r.unapplied)}</Td>
+                <Td className="tabular-nums">{amount(r.unapplied, r.currency)}</Td>
+                <Td className="tabular-nums">{amount(r.balanceBase)}</Td>
               </tr>
             ))}
+            <tr className="font-medium" data-testid="customer-balance-total">
+              <Td>{t("payables.total")}</Td>
+              <Td>
+                <span className="ltr-value font-mono text-xs">{ctx.baseCurrency}</span>
+              </Td>
+              <Td />
+              {AGING_BUCKETS.map((x) => (
+                <Td key={x} />
+              ))}
+              <Td />
+              <Td className="tabular-nums">{amount(b.totalBase)}</Td>
+            </tr>
           </tbody>
         </Table>
       )}

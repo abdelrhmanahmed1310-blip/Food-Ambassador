@@ -5,7 +5,7 @@ import { Badge, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/pr
 import { hasPermission } from "@/modules/access/authorize";
 import { listSalesInvoices } from "@/modules/b2b/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyIn } from "@/server/fx-view";
 
 export default async function SalesInvoicesPage({
   params,
@@ -13,12 +13,12 @@ export default async function SalesInvoicesPage({
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "b2b.view")) notFound();
-  const [t, locale, money, invoices] = await Promise.all([
+  const [t, locale, invoices] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
     listSalesInvoices(ctx),
   ]);
+  const moneyOf = await moneyIn([ctx.baseCurrency, ...invoices.map((i) => i.currency)]);
   return (
     <>
       <PageHeader title={t("b2b.invoices")} description={t("b2b.invoicesHint")} />
@@ -53,7 +53,7 @@ export default async function SalesInvoicesPage({
                   <span className="ltr-value">{i.invoiceDate.toISOString().slice(0, 10)}</span>
                 </Td>
                 <Td className="tabular-nums">
-                  <span className="ltr-value">{money.money(i.grossAmount)}</span>
+                  <span className="ltr-value">{moneyOf(i.currency).money(i.grossAmount)}</span>
                 </Td>
                 <Td>
                   <Badge tone={i.status === "POSTED" ? "success" : "muted"}>

@@ -7,7 +7,7 @@ import { ActionForm, CheckboxField, SelectField, TextField } from "@/components/
 type Option = { value: string; label: string };
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
-export function CustomerForm({ action }: { action: Action }) {
+export function CustomerForm({ action, currencies }: { action: Action; currencies: string[] }) {
   const t = useTranslations();
   return (
     <ActionForm
@@ -38,6 +38,12 @@ export function CustomerForm({ action }: { action: Action }) {
           dir="ltr"
           optionalLabel={t("common.optional")}
         />
+        <SelectField
+          name="currency"
+          label={t("fx.currency")}
+          options={currencies.map((c) => ({ value: c, label: c }))}
+          defaultValue={currencies[0]}
+        />
       </div>
     </ActionForm>
   );
@@ -47,10 +53,13 @@ export function SalesOrderForm({
   action,
   customers,
   warehouses,
+  currencies,
 }: {
   action: Action;
   customers: Option[];
   warehouses: Option[];
+  /** "" = the customer's currency (ADR-054). */
+  currencies: string[];
 }) {
   const t = useTranslations();
   return (
@@ -74,6 +83,15 @@ export function SalesOrderForm({
           options={warehouses}
           placeholder={t("common.select")}
           required
+        />
+        <SelectField
+          name="currency"
+          label={t("fx.currency")}
+          options={[
+            { value: "", label: t("fx.customerCurrency") },
+            ...currencies.map((c) => ({ value: c, label: c })),
+          ]}
+          defaultValue=""
         />
         <TextField
           name="customerRef"
@@ -210,11 +228,14 @@ export function CustomerReceiptForm({
   action,
   methods,
   currency,
+  currencies,
   today,
 }: {
   action: Action;
   methods: Option[];
+  /** The customer's currency (default). */
   currency: string;
+  currencies: string[];
   today: string;
 }) {
   const t = useTranslations();
@@ -233,12 +254,12 @@ export function CustomerReceiptForm({
           defaultValue={today}
           required
         />
-        <TextField
-          name="amount"
-          label={t("payables.amountIn", { currency })}
-          inputMode="decimal"
-          dir="ltr"
-          required
+        <TextField name="amount" label={t("fx.amount")} inputMode="decimal" dir="ltr" required />
+        <SelectField
+          name="currency"
+          label={t("fx.currency")}
+          options={currencies.map((c) => ({ value: c, label: c }))}
+          defaultValue={currency}
         />
         <SelectField
           name="method"

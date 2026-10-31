@@ -5,6 +5,7 @@ import { Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
 import { listCustomers } from "@/modules/b2b/service";
 import { warehouseOptions } from "@/modules/inventory/queries";
+import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { createSalesOrderAction } from "../../actions";
 
@@ -25,6 +26,7 @@ export default async function NewSalesOrderPage({
       <PageHeader title={t("b2b.newOrder")} />
       <Card>
         <SalesOrderForm
+          currencies={currencyChoices(ctx.baseCurrency)}
           action={createSalesOrderAction.bind(null, orgSlug)}
           customers={customers
             .filter((c) => !c.archivedAt)

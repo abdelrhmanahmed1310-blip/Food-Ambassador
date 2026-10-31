@@ -18,9 +18,10 @@ import { hasPermission } from "@/modules/access/authorize";
 import { customerAccount } from "@/modules/b2b/receivables";
 import { businessDate } from "@/modules/inventory/rules";
 import { PAYMENT_METHODS } from "@/modules/invoices/payables";
+import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyIn } from "@/server/fx-view";
 import { recordCustomerReceiptAction, voidCustomerReceiptAction } from "../../actions";
 
 export default async function CustomerPage({
@@ -30,15 +31,21 @@ export default async function CustomerPage({
   if (!isUuid(customerId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const a = await notFoundOnAppError(customerAccount(ctx, customerId));
-  const [t, locale, money] = await Promise.all([
-    getTranslations(),
-    getLocale(),
-    moneyFormatter(ctx.baseCurrency),
+  const [t, locale] = await Promise.all([getTranslations(), getLocale()]);
+  // Each document in its own currency (ADR-054).
+  const moneyOf = await moneyIn([
+    ctx.baseCurrency,
+    a.customer.currency ?? ctx.baseCurrency,
+    ...a.open.map((i) => i.currency),
+    ...a.receipts.map((r) => r.currency),
   ]);
+  const money = moneyOf(a.customer.currency ?? ctx.baseCurrency);
   const manage = hasPermission(ctx.grants, "b2b.manage");
   const c = a.customer;
-  const amount = (v: { toString(): string }) => (
-    <span className="ltr-value whitespace-nowrap">{money.money(v)}</span>
+  const amount = (v: { toString(): string }, currency?: string) => (
+    <span className="ltr-value whitespace-nowrap">
+      {(currency ? moneyOf(currency) : money).money(v)}
+    </span>
   );
   return (
     <>
@@ -55,6 +62,7 @@ export default async function CustomerPage({
                 value: <span className="ltr-value font-mono">{c.taxId ?? "—"}</span>,
               },
               { label: t("b2b.paymentTerms"), value: c.paymentTermsDays ?? "—" },
+              { label: t("fx.currency"), value: c.currency ?? ctx.baseCurrency },
               { label: t("b2b.email"), value: <span className="ltr-value">{c.email ?? "—"}</span> },
             ]}
           />
@@ -87,9 +95,9 @@ export default async function CustomerPage({
                     <Td>
                       <span className="ltr-value">{i.dueOn}</span>
                     </Td>
-                    <Td className="tabular-nums">{amount(i.grossAmount)}</Td>
-                    <Td className="tabular-nums">{amount(i.received)}</Td>
-                    <Td className="font-medium tabular-nums">{amount(i.open)}</Td>
+                    <Td className="tabular-nums">{amount(i.grossAmount, i.currency)}</Td>
+                    <Td className="tabular-nums">{amount(i.received, i.currency)}</Td>
+                    <Td className="font-medium tabular-nums">{amount(i.open, i.currency)}</Td>
                   </tr>
                 ))}
               </tbody>
@@ -105,13 +113,15 @@ export default async function CustomerPage({
                 <li key={r.id} className="flex flex-wrap items-center gap-2">
                   <span className="ltr-value font-mono text-xs">{r.number}</span>
                   <span className="ltr-value">{r.date.toISOString().slice(0, 10)}</span>
-                  {amount(r.amount)}
+                  {amount(r.amount, r.currency)}
                   {r.status === "VOIDED" ? (
                     <Badge tone="muted">{t("payables.statuses.VOIDED")}</Badge>
                   ) : null}
                   {r.unapplied.gt(0) ? (
                     <span className="text-muted text-xs">
-                      {t("payables.unappliedAmount", { amount: money.money(r.unapplied) })}
+                      {t("payables.unappliedAmount", {
+                        amount: moneyOf(r.currency).money(r.unapplied),
+                      })}
                     </span>
                   ) : null}
                   {manage && r.status === "POSTED" ? (
@@ -141,7 +151,8 @@ export default async function CustomerPage({
                 value: m,
                 label: t(`payables.methods.${m}`),
               }))}
-              currency={ctx.baseCurrency}
+              currency={c.currency ?? ctx.baseCurrency}
+              currencies={currencyChoices(ctx.baseCurrency)}
               today={businessDate(ctx.timeZone)}
             />
           </Card>

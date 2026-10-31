@@ -1039,7 +1039,9 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   against payables) and **reverses it the next day**, so every period
   starts from booked values and realised differences (ADR-050) stay
   correct; the reversal appears in the period that contains the next day.
-- Payables only; B2B receivables follow the same rule (ADR-054).
+- Payables only for now. Customer balances in foreign currencies are shown
+  with base equivalents (ADR-054) but not revalued, because B2B has no
+  journal export yet; both come together.
 
 ### ADR-053 Landed costs in foreign currencies — Accepted
 
@@ -1051,6 +1053,24 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   `rate_date`); amounts must fit the currency's unit.
 - Allocation by value uses the receipt's own prices (one currency per
   receipt), so the shares are unaffected.
+
+### ADR-054 B2B sales in foreign currencies — Accepted
+
+- Customers have a default currency (null = base; USD, EUR, SAR, EGP or a GCC
+  currency, ADR-050). Sales orders are priced in a currency (default the
+  customer's). Deliveries are valued at cost in base currency as before.
+- **Sales invoices** are in the order's currency: VAT and rounding in that
+  currency's unit, the **rate on the invoice date** fixed with base totals
+  (`net/tax/gross_amount_base`); **margin = net in base − cost**.
+- **Customer receipts** have a currency (default the customer's), the rate on
+  their date and a base amount; they settle only invoices of the same
+  customer and currency (service and database trigger). Each allocation
+  stores the realised difference = amount × (receipt rate − invoice rate)
+  (+ = gain for receivables).
+- Customer balances are per customer and currency with a base equivalent at
+  the documents' rates and a base total; output VAT in the VAT summary is in
+  base, each line at its invoice's rate.
+- Not yet: revaluation of open customer balances and a B2B journal export.
 
 ---
 

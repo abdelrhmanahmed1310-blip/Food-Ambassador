@@ -2996,6 +2996,8 @@ model Customer {
   phone            String?
   address          String?
   paymentTermsDays Int?      @map("payment_terms_days")
+  /// Default currency of this customer's orders, invoices and receipts (ADR-054); null = base.
+  currency         String?   @db.Char(3)
   archivedAt       DateTime? @map("archived_at") @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -3016,6 +3018,8 @@ model SalesOrder {
   number            String
   customerId        String           @map("customer_id") @db.Uuid
   warehouseId       String           @map("warehouse_id") @db.Uuid
+  /// Prices are in this currency (default: the customer's; ADR-054).
+  currency          String           @db.Char(3)
   status            SalesOrderStatus @default(DRAFT)
   customerRef       String?          @map("customer_ref")
   requestedOn       DateTime?        @map("requested_on") @db.Date
@@ -3125,6 +3129,13 @@ model SalesInvoice {
   netAmount         Decimal            @map("net_amount") @db.Decimal(19, 4)
   taxAmount         Decimal            @map("tax_amount") @db.Decimal(19, 4)
   grossAmount       Decimal            @map("gross_amount") @db.Decimal(19, 4)
+  /// Invoice currency, the rate on the invoice date and base totals (ADR-054). `cost` is base.
+  currency          String             @db.Char(3)
+  exchangeRate      Decimal            @default(1) @map("exchange_rate") @db.Decimal(20, 10)
+  rateDate          DateTime?          @map("rate_date") @db.Date
+  netAmountBase     Decimal            @map("net_amount_base") @db.Decimal(19, 4)
+  taxAmountBase     Decimal            @map("tax_amount_base") @db.Decimal(19, 4)
+  grossAmountBase   Decimal            @map("gross_amount_base") @db.Decimal(19, 4)
   /// Cost of goods of the delivery, for the margin.
   cost              Decimal            @db.Decimal(19, 4)
   createdByUserId   String             @map("created_by_user_id") @db.Uuid
@@ -3177,6 +3188,11 @@ model CustomerReceipt {
   customerId      String           @map("customer_id") @db.Uuid
   date            DateTime         @db.Date
   amount          Decimal          @db.Decimal(19, 4)
+  /// Receipt currency, the rate on its date and base amount (ADR-054).
+  currency        String           @db.Char(3)
+  exchangeRate    Decimal          @default(1) @map("exchange_rate") @db.Decimal(20, 10)
+  rateDate        DateTime?        @map("rate_date") @db.Date
+  amountBase      Decimal          @map("amount_base") @db.Decimal(19, 4)
   method          PaymentMethod
   reference       String?
   note            String?
@@ -3198,13 +3214,15 @@ model CustomerReceipt {
 }
 
 model CustomerReceiptAllocation {
-  id              String   @id @default(uuid(7)) @db.Uuid
-  organizationId  String   @map("organization_id") @db.Uuid
-  receiptId       String   @map("receipt_id") @db.Uuid
-  invoiceId       String   @map("invoice_id") @db.Uuid
-  amount          Decimal  @db.Decimal(19, 4)
-  createdByUserId String   @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  receiptId        String   @map("receipt_id") @db.Uuid
+  invoiceId        String   @map("invoice_id") @db.Uuid
+  amount           Decimal  @db.Decimal(19, 4)
+  /// Realised exchange difference, base: amount × (receipt rate − invoice rate); + = gain.
+  fxDifferenceBase Decimal  @default(0) @map("fx_difference_base") @db.Decimal(19, 4)
+  createdByUserId  String   @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   receipt      CustomerReceipt @relation(fields: [organizationId, receiptId], references: [organizationId, id], onDelete: Restrict)

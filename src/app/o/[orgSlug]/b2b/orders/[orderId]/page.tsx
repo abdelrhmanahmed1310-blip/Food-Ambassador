@@ -51,7 +51,7 @@ export default async function SalesOrderPage({
     getTranslations(),
     getLocale(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(o.currency),
   ]);
   const [products, units, options] = o.can.edit
     ? await Promise.all([
@@ -65,6 +65,8 @@ export default async function SalesOrderPage({
   const amount = (v: { toString(): string }) => (
     <span className="ltr-value whitespace-nowrap">{money.money(v)}</span>
   );
+  // Cost of goods is always in base currency (ADR-054).
+  const baseMoney = await moneyFormatter(ctx.baseCurrency);
   const base = `/o/${orgSlug}/b2b`;
   const openLines = o.lines
     .map((l) => ({
@@ -200,7 +202,7 @@ export default async function SalesOrderPage({
                         {d.number}
                       </Link>
                       <span>
-                        {t("b2b.costOfGoods")}: {amount(d.cost)}
+                        {t("b2b.costOfGoods")}: {baseMoney.money(d.cost)}
                       </span>
                       {d.status === "REVERSED" ? (
                         <Badge tone="muted">{t("production.statuses.REVERSED")}</Badge>

@@ -1,5 +1,7 @@
 import "server-only";
+import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
+import { optionalCurrency } from "@/modules/procurement/schemas";
 import { z } from "zod";
 import { isCalendarDate } from "@/lib/dates";
 import { Decimal, decimalString, toDecimal } from "@/lib/decimal";
@@ -85,13 +87,16 @@ const customerSchema = z.object({
     .refine((v) => v === undefined || (/^\d{1,3}$/.test(v) && Number(v) <= 365), {
       error: "invalidNumber",
     }),
+  /** Default document currency (ADR-054); empty = base currency. */
+  currency: optionalCurrency,
 });
 
 export async function createCustomer(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "b2b.manage");
   const parsed = customerSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { paymentTermsDays, ...input } = parsed.data;
+  const { paymentTermsDays, currency, ...input } = parsed.data;
+  if (currency) assertDocumentCurrency(ctx, currency);
   try {
     return await withTenantTx(ctx.organizationId, async (tx) => {
       const c = await tx.customer.create({
@@ -99,6 +104,7 @@ export async function createCustomer(ctx: TenantContext, rawInput: unknown) {
           organizationId: ctx.organizationId,
           ...input,
           paymentTermsDays: paymentTermsDays === undefined ? null : Number(paymentTermsDays),
+          currency: currency && currency !== ctx.baseCurrency ? currency : null,
         },
         select: { id: true, code: true },
       });
@@ -142,6 +148,8 @@ const orderSchema = z.object({
   customerRef: optionalText(60),
   requestedOn: optionalDate,
   note: optionalText(500),
+  /** Empty = the customer's currency (ADR-054). */
+  currency: optionalCurrency,
   idempotencyKey: idempotencyKeySchema,
 });
 
@@ -164,9 +172,11 @@ export async function createSalesOrder(ctx: TenantContext, rawInput: unknown) {
     async (tx) => {
       const customer = await tx.customer.findFirst({
         where: { organizationId: ctx.organizationId, id: input.customerId, archivedAt: null },
-        select: { id: true },
+        select: { id: true, currency: true },
       });
       if (!customer) throw notFound("Customer");
+      const currency = input.currency ?? customer.currency ?? ctx.baseCurrency;
+      assertDocumentCurrency(ctx, currency);
       const wh = await loadWarehouse(tx, ctx, input.warehouseId);
       assertActive(wh);
       const number = await nextDocumentNumber(
@@ -181,6 +191,7 @@ export async function createSalesOrder(ctx: TenantContext, rawInput: unknown) {
           number,
           customerId: customer.id,
           warehouseId: wh.id,
+          currency,
           customerRef: input.customerRef,
           requestedOn: input.requestedOn ? date(input.requestedOn) : null,
           note: input.note,
@@ -591,10 +602,11 @@ export async function invoiceDelivery(ctx: TenantContext, deliveryId: string, ra
             { code: resolved.code },
           );
         // Not VAT registered (or no VAT in the country): no VAT is charged.
+        // VAT and rounding in the invoice's currency (ADR-054).
         const t = resolved
-          ? taxFromNet(net, resolved.rate, ctx.baseCurrency)
+          ? taxFromNet(net, resolved.rate, d.order.currency)
           : (() => {
-              const rounded = roundToCurrency(net, ctx.baseCurrency);
+              const rounded = roundToCurrency(net, d.order.currency);
               return { net: rounded, tax: new Decimal(0), gross: rounded };
             })();
         lines.push({
@@ -620,6 +632,9 @@ export async function invoiceDelivery(ctx: TenantContext, deliveryId: string, ra
         Number(invoiceDate.slice(0, 4)),
       );
       const due = dueDateFor(invoiceDate, d.order.customer.paymentTermsDays);
+      const fx = await rateFor(tx, ctx, d.order.currency, invoiceDate);
+      const netBase = baseAmount(ctx, sum("netAmount"), fx.rate);
+      const taxBase = baseAmount(ctx, sum("taxAmount"), fx.rate);
       const inv = await tx.salesInvoice.create({
         data: {
           organizationId: ctx.organizationId,
@@ -631,6 +646,12 @@ export async function invoiceDelivery(ctx: TenantContext, deliveryId: string, ra
           netAmount: sum("netAmount").toFixed(),
           taxAmount: sum("taxAmount").toFixed(),
           grossAmount: sum("grossAmount").toFixed(),
+          currency: d.order.currency,
+          exchangeRate: fx.rate.toFixed(),
+          rateDate: date(fx.rateDate),
+          netAmountBase: netBase.toFixed(),
+          taxAmountBase: taxBase.toFixed(),
+          grossAmountBase: netBase.plus(taxBase).toFixed(),
           cost: d.cost,
           createdByUserId: ctx.userId,
         },
@@ -806,7 +827,8 @@ export async function getSalesInvoice(ctx: TenantContext, invoiceId: string) {
         inv.status === "POSTED"
           ? Decimal.max(dec(inv.grossAmount).minus(received), 0)
           : new Decimal(0),
-      margin: dec(inv.netAmount).minus(dec(inv.cost)),
+      // Cost of goods is in base currency: margin = net in base − cost (ADR-054).
+      margin: dec(inv.netAmountBase).minus(dec(inv.cost)),
       can: {
         cancel:
           hasPermission(ctx.grants, "b2b.manage") && inv.status === "POSTED" && received.isZero(),
@@ -830,12 +852,14 @@ export async function listSalesInvoices(ctx: TenantContext, filters: { customerI
   );
 }
 
-/** Output VAT on posted B2B invoices by invoice date, per code and rate (for the VAT summary). */
+/**
+ * Output VAT on posted B2B invoices by invoice date, per code and rate (for
+ * the VAT summary), in base currency: each line at its invoice's rate (ADR-054).
+ */
 export async function b2bOutputVat(ctx: TenantContext, period: { from: string; to: string }) {
   assertPermission(ctx.grants, "b2b.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const rows = await tx.salesInvoiceLine.groupBy({
-      by: ["taxCodeId", "taxRate"],
+    const lines = await tx.salesInvoiceLine.findMany({
       where: {
         organizationId: ctx.organizationId,
         invoice: {
@@ -843,20 +867,44 @@ export async function b2bOutputVat(ctx: TenantContext, period: { from: string; t
           invoiceDate: { gte: date(period.from), lte: date(period.to) },
         },
       },
-      _sum: { netAmount: true, taxAmount: true, grossAmount: true },
-      _count: { _all: true },
+      select: {
+        taxCodeId: true,
+        taxRate: true,
+        netAmount: true,
+        taxAmount: true,
+        invoice: { select: { exchangeRate: true } },
+      },
     });
     const codes = await tx.taxCode.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, code: true, name: true, nameAr: true },
     });
-    return rows.map((r) => ({
-      code: codes.find((c) => c.id === r.taxCodeId) ?? null,
-      rate: r.taxRate,
-      lines: r._count._all,
-      net: r._sum.netAmount,
-      tax: r._sum.taxAmount,
-      gross: r._sum.grossAmount,
+    const groups = new Map<
+      string,
+      { taxCodeId: string | null; rate: Decimal | null; lines: number; net: Decimal; tax: Decimal }
+    >();
+    for (const l of lines) {
+      const key = `${l.taxCodeId ?? ""}|${l.taxRate === null ? "" : dec(l.taxRate).toFixed()}`;
+      const g = groups.get(key) ?? {
+        taxCodeId: l.taxCodeId,
+        rate: l.taxRate === null ? null : dec(l.taxRate),
+        lines: 0,
+        net: new Decimal(0),
+        tax: new Decimal(0),
+      };
+      const rate = dec(l.invoice.exchangeRate);
+      g.lines += 1;
+      g.net = g.net.plus(baseAmount(ctx, dec(l.netAmount), rate));
+      g.tax = g.tax.plus(baseAmount(ctx, dec(l.taxAmount), rate));
+      groups.set(key, g);
+    }
+    return [...groups.values()].map((g) => ({
+      code: codes.find((c) => c.id === g.taxCodeId) ?? null,
+      rate: g.rate,
+      lines: g.lines,
+      net: g.net,
+      tax: g.tax,
+      gross: g.net.plus(g.tax),
     }));
   });
 }

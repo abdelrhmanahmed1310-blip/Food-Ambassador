@@ -23,11 +23,13 @@ export default async function SalesInvoicePage({
     getTranslations(),
     getLocale(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(inv.currency),
   ]);
   const amount = (v: { toString(): string }) => (
     <span className="ltr-value whitespace-nowrap">{money.money(v)}</span>
   );
+  // Cost and margin are in base currency (ADR-054).
+  const base = await moneyFormatter(ctx.baseCurrency);
   const pct = (r: { toString(): string } | null) =>
     r === null
       ? "—"
@@ -58,6 +60,14 @@ export default async function SalesInvoicePage({
         <p className="ltr-value font-mono text-sm">
           {inv.number} · {inv.invoiceDate.toISOString().slice(0, 10)}
         </p>
+        {inv.currency !== ctx.baseCurrency ? (
+          <p className="ltr-value text-muted text-sm" data-testid="fx-rate">
+            {inv.currency} · 1 {inv.currency} = {inv.exchangeRate.toFixed().replace(/\.?0+$/, "")}{" "}
+            {ctx.baseCurrency}
+            {inv.rateDate ? ` (${inv.rateDate.toISOString().slice(0, 10)})` : ""} ·{" "}
+            {t("fx.totalInBase", { currency: ctx.baseCurrency })}: {base.money(inv.grossAmountBase)}
+          </p>
+        ) : null}
         <p className="mt-2 text-sm">
           <strong>{t("b2b.billTo")}:</strong>{" "}
           <bdi>{(locale === "ar" && inv.customer.nameAr) || inv.customer.name}</bdi>
@@ -139,8 +149,8 @@ export default async function SalesInvoicePage({
       <Card title={t("b2b.internal")}>
         <p className="text-sm print:hidden">
           {t("b2b.received")}: {amount(inv.received)} · {t("payables.open")}: {amount(inv.open)} ·{" "}
-          {t("b2b.costOfGoods")}: {amount(inv.cost)} · {t("b2b.margin")}:{" "}
-          <span data-testid="margin">{amount(inv.margin)}</span>
+          {t("b2b.costOfGoods")}: {base.money(inv.cost)} · {t("b2b.margin")}:{" "}
+          <span data-testid="margin">{base.money(inv.margin)}</span>
         </p>
       </Card>
       {inv.can.cancel ? (
