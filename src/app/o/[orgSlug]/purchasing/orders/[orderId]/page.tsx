@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttachmentsCard } from "@/components/attachments/attachments-card";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ApprovalSteps } from "@/components/approvals/steps";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
@@ -369,6 +370,12 @@ export default async function OrderPage({
             </Card>
           ) : null}
         </div>
+        <AttachmentsCard
+          ctx={ctx}
+          orgSlug={orgSlug}
+          entityType="PURCHASE_ORDER"
+          entityId={order.id}
+        />
       </div>
     </>
   );

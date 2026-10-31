@@ -399,7 +399,10 @@
     "NO_EXCHANGE_RATE": "There is no {currency} exchange rate on or before {date}. Add one under Purchasing → Exchange rates.",
     "EXCHANGE_RATE_STALE": "The latest {currency} rate ({latest}) is more than {days} days before {date}. Add a current rate under Purchasing → Exchange rates.",
     "BASE_CURRENCY_RATE": "The base currency needs no exchange rate.",
-    "RECEIPT_OTHER_CURRENCY": "This receipt is in {currency}, not in the invoice's currency."
+    "RECEIPT_OTHER_CURRENCY": "This receipt is in {currency}, not in the invoice's currency.",
+    "ATTACHMENT_TOO_LARGE": "Files can be at most {maxMb} MB.",
+    "ATTACHMENT_TYPE_NOT_ALLOWED": "Attach a PDF, JPEG, PNG or WebP file.",
+    "ATTACHMENT_RETAINED": "Files are kept for three years. Only a mistaken upload can be removed, by the person who uploaded it, within an hour."
   },
   "notFound": {
     "title": "Page not found",
@@ -2398,5 +2401,20 @@
       "MANUAL": "Entered",
       "CSV": "CSV import"
     }
+  },
+  "attachments": {
+    "title": "Attachments",
+    "none": "No files attached.",
+    "file": "File",
+    "fileHint": "PDF, JPEG, PNG or WebP, up to 3 MB. Kept for 3 years.",
+    "upload": "Attach file",
+    "uploading": "Uploading…",
+    "uploaded": "File attached.",
+    "fileRequired": "Choose a file.",
+    "tooLarge": "Files can be at most 3 MB.",
+    "remove": "Remove",
+    "removeConfirm": "Remove this file? Only possible within an hour of uploading it.",
+    "keptUntil": "kept until {date}",
+    "purged": "content deleted after the retention period"
   }
 }

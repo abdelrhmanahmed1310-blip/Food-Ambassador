@@ -101,3 +101,11 @@ It prints counts only. Set `INTEGRATION_ENCRYPTION_KEY` in production and
 keep it with the other secrets: losing it makes every connector secret
 unreadable (rotate them all after restoring with a new key). Failed
 deliveries are listed on each connector's page and can be retried there.
+
+## 8. Attachment retention
+
+Files are kept 3 years (ADR-051). Run `pnpm attachments:purge` daily from the
+scheduler: it deletes the content of files past their retention date for
+all organizations and keeps their records; it prints counts only. Files
+live in the database, so backups grow with them (up to 3 MB per file) —
+size backup storage accordingly.

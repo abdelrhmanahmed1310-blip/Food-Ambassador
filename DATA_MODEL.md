@@ -915,6 +915,13 @@ row-level security.
 - **idempotency_keys** (implemented M1): see §2. Rows are kept; a retention
   job (delete after 30 days) is planned with background jobs (ADR-008).
 - **notifications**: recipient, type, payload, read_at.
-- **attachments**: owner entity, storage key, filename, content type, size,
-  checksum, uploaded_by, `deleted_at`.
+- **attachments** (implemented, ADR-051, migration
+  `20261114090000_q08_attachments`): `entity_type` (PURCHASE_ORDER |
+  GOODS_RECEIPT | SUPPLIER_INVOICE | SUPPLIER_SETTLEMENT | STOCK_COUNT),
+  `entity_id`, `file_name`, `content_type` (PDF/JPEG/PNG/WebP), `size_bytes`
+  (1 – 3,145,728), `sha256`, uploader, `uploaded_at`, `retain_until`
+  (+3 years), `removed_at`/`removed_by_user_id`, `purged_at`. A trigger
+  allows only removal and purging to be recorded. **attachment_contents**
+  (`attachment_id` PK, `data` BYTEA; a trigger checks the size). Both have
+  row-level security.
 - **document_sequences**: (organization_id, document_type, year) PK, next_value.

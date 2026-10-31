@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (foreign-currency purchasing; approval matrix)
+Last updated: 2026-10-31 (attachments; foreign-currency purchasing; approval matrix)
 
 ## Summary
 
@@ -18,6 +18,35 @@ Last updated: 2026-10-31 (foreign-currency purchasing; approval matrix)
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
 | POS1 – POS5                   | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## Attachments (delivered)
+
+Rules: DECISIONS.md ADR-051 (Q-08).
+
+| Area      | What works                                                                                                  | Where                                    |
+| --------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Files     | PDF/JPEG/PNG/WebP up to 3 MB on orders, receipts, supplier invoices, payments/credit notes and stock counts | attachments card on those pages          |
+| Access    | View/download by who may see the document; add by who may work on it; download-only with safe headers       | `attachments/service.ts`, download route |
+| Retention | Kept 3 years; uploader may remove a mistaken file within an hour; daily purge keeps the record              | `pnpm attachments:purge`                 |
+
+Checks: `pnpm check` pass (unit 36 files / 201 tests, 3 new: type from
+content, safe names, 3-year date incl. 29 February, removal window;
+build); `pnpm test:integration` 35 files / 230 tests pass (6 new: stored
+and returned byte for byte with hash and retention date; exactly 3 MB
+accepted, 3 MB + 1 and HTML-as-PDF refused; view-only and other-warehouse
+users, other tenants; counter attaches to a count; only the uploader within
+an hour may remove; database refuses edits and size mismatches; purge after
+retention keeps the record); `pnpm test:e2e` 40 tests pass (new: attach and
+download a PDF on an order, wrong type refused with the reason on the
+field, 2.5 MB accepted, over 3 MB refused).
+
+Found and fixed: the upload form showed only "Please correct the
+highlighted fields" for a refused file type, because the rule is reported
+on the file field; it now shows the reason under the field (caught by the
+new E2E test).
+
+Limitations: no virus scanning or previews; stored in PostgreSQL until a
+hosting decision; the one-hour removal window is an assumption to confirm.
 
 ## Foreign-currency purchasing and exchange rates (delivered)
 

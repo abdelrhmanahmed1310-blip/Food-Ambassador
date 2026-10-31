@@ -999,6 +999,32 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   differences), B2B sales in foreign currencies, landed costs in foreign
   currencies, a live rate feed.
 
+### ADR-051 Attachments: 3 MB, kept 3 years — Accepted (Q-08)
+
+- **Decision (Q-08):** files up to **3 MB** each, **kept 3 years** from
+  upload. After that a daily job (`pnpm attachments:purge`) deletes the
+  content and keeps the record (name, size, SHA-256, dates).
+- On purchase orders, goods receipts, supplier invoices, payments / credit
+  notes and stock counts. Whoever may see the document may see and download
+  its files; whoever may work on it (manage the order, receive, enter
+  invoices, record payments, count) may add files. Nothing crosses
+  organizations (row-level security and service checks).
+- **Types:** PDF, JPEG, PNG, WebP, detected from the file's first bytes —
+  never from its name or the browser. Names are cleaned (no paths or control
+  characters) and get the detected extension. Downloads are always served
+  as attachments with `nosniff` and a sandboxing CSP, so a file can never
+  run as a page of this site.
+- **Removal (assumption, to confirm):** only a mistaken upload, by its
+  uploader, within one hour; otherwise files stay for the retention period.
+  Records are fixed in the database (trigger) and the stored size must match
+  the bytes.
+- **Storage:** PostgreSQL (`attachment_contents`, apart from the metadata),
+  so files are in the same backups and tenancy model; object storage can
+  replace it after the hosting decision (Q-03). Server actions accept 4 MB
+  bodies for this; other uploads keep their own lower limits.
+- Not yet: virus scanning (needs a scanning service), previews, attachments
+  on other documents (food safety records, recipes).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -1027,7 +1053,7 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 | Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050).           |
 | Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                        |
 | Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)         |
-| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051, being built).                                                                                |
+| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051).                                                                                             |
 | Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                           |
 | Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)         |
 | Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).            |

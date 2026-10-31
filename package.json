@@ -24,7 +24,8 @@
     "db:backup": "bash scripts/backup.sh",
     "db:restore": "bash scripts/restore.sh",
     "db:verify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/verify-integrity.ts",
-    "integrations:deliver": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/deliver-webhooks.ts"
+    "integrations:deliver": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/deliver-webhooks.ts",
+    "attachments:purge": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/purge-attachments.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

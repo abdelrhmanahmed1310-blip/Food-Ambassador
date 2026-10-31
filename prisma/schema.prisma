@@ -152,6 +152,7 @@ model Organization {
   purchaseOrderApprovals PurchaseOrderApproval[]
   approvalLayers         ApprovalLayer[]
   exchangeRates          ExchangeRate[]
+  attachments            Attachment[]
   stockCountApprovals    StockCountApproval[]
   purchaseOrderLines     PurchaseOrderLine[]
   goodsReceipts          GoodsReceipt[]
@@ -1060,6 +1061,55 @@ model ExchangeRate {
 
   @@unique([organizationId, currency, rateDate])
   @@map("exchange_rates")
+}
+
+/// Documents that can carry attachments (ADR-051).
+enum AttachmentEntity {
+  PURCHASE_ORDER
+  GOODS_RECEIPT
+  SUPPLIER_INVOICE
+  SUPPLIER_SETTLEMENT
+  STOCK_COUNT
+}
+
+/// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
+/// `retain_until` (3 years), then its content is purged and this record kept.
+model Attachment {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  entityType       AttachmentEntity @map("entity_type")
+  entityId         String           @map("entity_id") @db.Uuid
+  fileName         String           @map("file_name")
+  contentType      String           @map("content_type")
+  sizeBytes        Int              @map("size_bytes")
+  sha256           String
+  uploadedByUserId String           @map("uploaded_by_user_id") @db.Uuid
+  uploadedAt       DateTime         @default(now()) @map("uploaded_at") @db.Timestamptz(3)
+  retainUntil      DateTime         @map("retain_until") @db.Date
+  /// Removed by its uploader shortly after upload (a mistaken file), or purged after retention.
+  removedAt        DateTime?        @map("removed_at") @db.Timestamptz(3)
+  removedByUserId  String?          @map("removed_by_user_id") @db.Uuid
+  purgedAt         DateTime?        @map("purged_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  content      AttachmentContent?
+
+  @@unique([organizationId, id])
+  @@index([organizationId, entityType, entityId])
+  @@index([retainUntil])
+  @@map("attachments")
+}
+
+/// The bytes of an attachment, kept apart so listings never load them.
+model AttachmentContent {
+  attachmentId   String @id @map("attachment_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  data           Bytes
+
+  attachment Attachment @relation(fields: [organizationId, attachmentId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, attachmentId])
+  @@map("attachment_contents")
 }
 
 model Supplier {

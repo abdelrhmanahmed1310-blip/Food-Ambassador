@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttachmentsCard } from "@/components/attachments/attachments-card";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ReverseForm } from "@/components/inventory/forms";
 import { ReceiptStatusBadge } from "@/components/procurement/badges";
@@ -262,6 +263,12 @@ export default async function ReceiptPage({
             <ReverseForm action={reverseReceiptAction.bind(null, orgSlug, receipt.id)} />
           </Card>
         ) : null}
+        <AttachmentsCard
+          ctx={ctx}
+          orgSlug={orgSlug}
+          entityType="GOODS_RECEIPT"
+          entityId={receipt.id}
+        />
       </div>
     </>
   );

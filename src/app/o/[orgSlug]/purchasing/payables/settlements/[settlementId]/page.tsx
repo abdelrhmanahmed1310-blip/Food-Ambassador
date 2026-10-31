@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttachmentsCard } from "@/components/attachments/attachments-card";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { TextReasonForm } from "@/components/invoices/forms";
 import { AllocateForm } from "@/components/invoices/payables-forms";
@@ -202,6 +203,12 @@ export default async function SettlementPage({
             />
           </Card>
         ) : null}
+        <AttachmentsCard
+          ctx={ctx}
+          orgSlug={orgSlug}
+          entityType="SUPPLIER_SETTLEMENT"
+          entityId={s.id}
+        />
       </div>
     </>
   );

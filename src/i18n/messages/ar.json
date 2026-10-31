@@ -399,7 +399,10 @@
     "NO_EXCHANGE_RATE": "لا يوجد سعر صرف لعملة {currency} في {date} أو قبله. أضفه من المشتريات ← أسعار الصرف.",
     "EXCHANGE_RATE_STALE": "أحدث سعر لعملة {currency} ({latest}) أقدم من {days} أيام قبل {date}. أضف سعرًا حديثًا من المشتريات ← أسعار الصرف.",
     "BASE_CURRENCY_RATE": "العملة الأساسية لا تحتاج سعر صرف.",
-    "RECEIPT_OTHER_CURRENCY": "هذا الاستلام بعملة {currency}، وليس بعملة الفاتورة."
+    "RECEIPT_OTHER_CURRENCY": "هذا الاستلام بعملة {currency}، وليس بعملة الفاتورة.",
+    "ATTACHMENT_TOO_LARGE": "الحد الأقصى لحجم الملف {maxMb} ميجابايت.",
+    "ATTACHMENT_TYPE_NOT_ALLOWED": "أرفق ملف PDF أو JPEG أو PNG أو WebP.",
+    "ATTACHMENT_RETAINED": "تُحفظ الملفات لمدة ثلاث سنوات. يمكن إزالة الملف المرفوع خطأً فقط، من قِبل من رفعه، خلال ساعة."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -2398,5 +2401,20 @@
       "MANUAL": "إدخال يدوي",
       "CSV": "استيراد CSV"
     }
+  },
+  "attachments": {
+    "title": "المرفقات",
+    "none": "لا توجد ملفات مرفقة.",
+    "file": "الملف",
+    "fileHint": "PDF أو JPEG أو PNG أو WebP، حتى 3 ميجابايت. تُحفظ لمدة 3 سنوات.",
+    "upload": "إرفاق ملف",
+    "uploading": "جارٍ الرفع…",
+    "uploaded": "تم إرفاق الملف.",
+    "fileRequired": "اختر ملفًا.",
+    "tooLarge": "الحد الأقصى لحجم الملف 3 ميجابايت.",
+    "remove": "إزالة",
+    "removeConfirm": "إزالة هذا الملف؟ ممكن فقط خلال ساعة من رفعه.",
+    "keptUntil": "محفوظ حتى {date}",
+    "purged": "حُذف المحتوى بعد انتهاء مدة الحفظ"
   }
 }

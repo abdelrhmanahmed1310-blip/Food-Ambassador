@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttachmentsCard } from "@/components/attachments/attachments-card";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import {
@@ -373,6 +374,12 @@ export default async function InvoicePage({
             />
           </Card>
         ) : null}
+        <AttachmentsCard
+          ctx={ctx}
+          orgSlug={orgSlug}
+          entityType="SUPPLIER_INVOICE"
+          entityId={inv.id}
+        />
       </div>
     </>
   );

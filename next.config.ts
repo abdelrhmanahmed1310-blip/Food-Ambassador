@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
   // Self-contained server bundle for the Docker image (set in Dockerfile).
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
+  experimental: {
+    // Attachments up to 3 MB (ADR-051, Q-08) plus multipart overhead. Other
+    // uploads keep their own, lower limits in their actions.
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

@@ -118,6 +118,7 @@ role `CREATEROLE` for the first run (ADR-013). A local superuser works as is.
 | `pnpm db:verify`               | Integrity check: RLS, balances and values vs. ledger, migrations                         |
 | `pnpm library:import …`        | Import a full food-database download into one organization's ingredient library (below)  |
 | `pnpm integrations:deliver`    | Send due outbound webhooks once (`--watch` to loop); see docs/INTEGRATIONS.md            |
+| `pnpm attachments:purge`       | Delete attachment contents past their 3-year retention (daily job)                       |
 
 Integration and E2E tests create uniquely named data and never reset the
 database, so they can be re-run against the same test database.
