@@ -1201,7 +1201,8 @@
     "methods": {
       "BY_VALUE": "قيمة البند",
       "BY_QUANTITY": "الكمية"
-    }
+    },
+    "currencyHint": "يُحوَّل إلى {base} بسعر صرف اليوم."
   },
   "requisitions": {
     "title": "طلبات الشراء",

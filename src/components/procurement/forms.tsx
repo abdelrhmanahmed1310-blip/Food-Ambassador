@@ -618,10 +618,13 @@ const LANDED_COST_CHARGES = ["FREIGHT", "CUSTOMS_DUTY", "INSURANCE", "HANDLING",
 export function LandedCostForm({
   action,
   currency,
+  currencies,
   quantityAllowed,
 }: {
   action: Action;
   currency: string;
+  /** Currencies the charge may be in, base first (ADR-053). */
+  currencies: string[];
   /** Allocation by quantity is offered only when all lines share a base unit. */
   quantityAllowed: boolean;
 }) {
@@ -646,10 +649,17 @@ export function LandedCostForm({
         />
         <TextField
           name="amount"
-          label={`${t("landedCost.amount")} (${currency})`}
+          label={t("landedCost.amount")}
           inputMode="decimal"
           dir="ltr"
           required
+        />
+        <SelectField
+          name="currency"
+          label={t("fx.currency")}
+          hint={t("landedCost.currencyHint", { base: currency })}
+          options={currencies.map((c) => ({ value: c, label: c }))}
+          defaultValue={currency}
         />
         <SelectField
           name="method"

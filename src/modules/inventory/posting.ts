@@ -559,7 +559,10 @@ export interface LandedCostInput {
   receiptId: string;
   chargeType: LandedCostCharge;
   method: LandedCostMethod;
+  /** Base currency (posted to stock). */
   amount: Decimal;
+  /** As entered (ADR-053); defaults to the base amount in base currency. */
+  entered?: { currency: string; amount: Decimal; rate: Decimal; rateDate: string };
   reference?: string;
   note?: string;
   /** One per receipt line (one per product); shares add up to `amount`. */
@@ -642,6 +645,10 @@ export async function postLandedCost(
       chargeType: input.chargeType,
       method: input.method,
       amount: input.amount.toFixed(),
+      currency: input.entered?.currency ?? ctx.baseCurrency,
+      enteredAmount: (input.entered?.amount ?? input.amount).toFixed(),
+      exchangeRate: (input.entered?.rate ?? new Decimal(1)).toFixed(),
+      rateDate: input.entered ? new Date(`${input.entered.rateDate}T00:00:00Z`) : null,
       capitalizedAmount: capitalized.toFixed(),
       expensedAmount: expensed.toFixed(),
       reference: input.reference,

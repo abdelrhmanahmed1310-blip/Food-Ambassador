@@ -212,6 +212,8 @@ export const landedCostSchema = z.object({
   chargeType: z.enum(LANDED_COST_CHARGES, { error: "invalidOption" }),
   method: z.enum(LANDED_COST_METHODS, { error: "invalidOption" }),
   amount: decimalString({ maxScale: 4, min: "0.0001" }),
+  /** Currency of the amount (ADR-053); empty = base currency. */
+  currency: optionalCurrency,
   reference: optionalText(100),
   note: optionalText(500),
   idempotencyKey: idempotencyKeySchema,

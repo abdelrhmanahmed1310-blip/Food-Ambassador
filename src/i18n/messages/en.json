@@ -1201,7 +1201,8 @@
     "methods": {
       "BY_VALUE": "Line value",
       "BY_QUANTITY": "Quantity"
-    }
+    },
+    "currencyHint": "Converted to {base} at the rate on today's date."
   },
   "requisitions": {
     "title": "Requisitions",

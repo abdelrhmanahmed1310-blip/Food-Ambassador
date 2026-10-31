@@ -25,6 +25,7 @@ import {
   getOrder,
   submitOrder,
 } from "@/modules/procurement/orders";
+import { addReceiptLandedCost } from "@/modules/procurement/landed-costs";
 import { postReceipt } from "@/modules/procurement/receipts";
 import { createSupplier } from "@/modules/procurement/suppliers";
 import { createBranch } from "@/modules/sites/branches";
@@ -150,6 +151,36 @@ describe("a USD purchase from order to payment (ADR-050)", () => {
       where: { organizationId: ctx.organizationId, supplierId: acme, productId: flour },
     });
     expect(link.lastUnitPrice?.toFixed()).toBe("2.5"); // kept in the supplier's currency
+  });
+
+  it("adds landed costs entered in a foreign currency at the rate of the day (ADR-053)", async () => {
+    const receipt = await getDb().goodsReceipt.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, purchaseOrderId: orderId },
+    });
+    // Freight of 10 USD, all still on hand: + 490 EGP to the stock value.
+    await addReceiptLandedCost(ctx, receipt.id, {
+      chargeType: "FREIGHT",
+      method: "BY_VALUE",
+      amount: "10",
+      currency: "USD",
+    });
+    expect(await valuation()).toBe("1715");
+    const lc = await getDb().landedCost.findFirstOrThrow({ where: { receiptId: receipt.id } });
+    expect(lc.currency).toBe("USD");
+    expect([lc.enteredAmount.toFixed(), lc.exchangeRate.toFixed(), lc.amount.toFixed()]).toEqual([
+      "10",
+      "49",
+      "490",
+    ]);
+    await expectAppError(
+      addReceiptLandedCost(ctx, receipt.id, {
+        chargeType: "CUSTOMS_DUTY",
+        method: "BY_VALUE",
+        amount: "5",
+        currency: "GBP",
+      }),
+      "BUSINESS_RULE_VIOLATION",
+    );
   });
 
   it("invoices in USD at the invoice-date rate; receipts in another currency are refused", async () => {

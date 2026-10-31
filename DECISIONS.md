@@ -1041,6 +1041,17 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   correct; the reversal appears in the period that contains the next day.
 - Payables only; B2B receivables follow the same rule (ADR-054).
 
+### ADR-053 Landed costs in foreign currencies — Accepted
+
+- A landed cost (freight, duty, insurance, handling, other) may be entered in
+  any document currency (ADR-050); it is converted at the rate on the
+  posting date and the **base amount** is allocated and posted to stock as
+  before (ADR-028). The entered currency, amount and rate are kept on the
+  charge (`landed_costs.currency`, `entered_amount`, `exchange_rate`,
+  `rate_date`); amounts must fit the currency's unit.
+- Allocation by value uses the receipt's own prices (one currency per
+  receipt), so the shares are unaffected.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

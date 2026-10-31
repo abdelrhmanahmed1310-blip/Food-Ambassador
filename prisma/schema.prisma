@@ -1629,6 +1629,11 @@ model LandedCost {
   chargeType        LandedCostCharge @map("charge_type")
   method            LandedCostMethod
   amount            Decimal          @db.Decimal(19, 4)
+  /// As entered: currency, amount and the rate on the posting date (ADR-053); `amount` is base currency.
+  currency          String           @db.Char(3)
+  enteredAmount     Decimal          @map("entered_amount") @db.Decimal(19, 4)
+  exchangeRate      Decimal          @default(1) @map("exchange_rate") @db.Decimal(20, 10)
+  rateDate          DateTime?        @map("rate_date") @db.Date
   /// Added to stock still on hand; the rest relates to stock already used.
   capitalizedAmount Decimal          @map("capitalized_amount") @db.Decimal(19, 4)
   expensedAmount    Decimal          @map("expensed_amount") @db.Decimal(19, 4)

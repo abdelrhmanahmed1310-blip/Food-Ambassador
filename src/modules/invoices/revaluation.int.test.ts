@@ -66,7 +66,10 @@ describe("period-end exchange revaluation (ADR-052)", () => {
     expect(p.total.toFixed()).toBe("90"); // a loss: the payable grew
     // Before the invoice nothing was open.
     expect((await previewRevaluation(ctx, addDays(today, -20))).lines).toHaveLength(0);
-    await expectAppError(postRevaluation(ctx, { asOf: addDays(today, -20) }), "BUSINESS_RULE_VIOLATION");
+    await expectAppError(
+      postRevaluation(ctx, { asOf: addDays(today, -20) }),
+      "BUSINESS_RULE_VIOLATION",
+    );
   });
 
   it("is stored once per date, fixed, cancellable, and only by rate managers", async () => {

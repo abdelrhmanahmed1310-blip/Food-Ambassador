@@ -1,6 +1,8 @@
 import "server-only";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { assertPermission } from "@/modules/access/authorize";
+import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import { currencyDecimals } from "@/modules/tax/rules";
 import { postLandedCost } from "@/modules/inventory/posting";
 import { businessDate } from "@/modules/inventory/rules";
 import { runIdempotent } from "@/modules/shared/idempotency";
@@ -86,9 +88,19 @@ export async function addReceiptLandedCost(
           "The received goods have no value; allocate by quantity",
           { field: "method" },
         );
-      const amount = toDecimal(input.amount);
-      const shares = allocateCharge(amount, weights);
+      // Entered in its own currency (e.g. freight in USD), posted in base at today's rate (ADR-053).
       const today = businessDate(order.warehouse.branch.timeZone ?? ctx.timeZone);
+      const currency = input.currency ?? ctx.baseCurrency;
+      assertDocumentCurrency(ctx, currency);
+      const entered = toDecimal(input.amount);
+      if (entered.decimalPlaces() > currencyDecimals(currency))
+        throw businessRuleViolation("AMOUNT_TOO_PRECISE", "More decimals than the currency has", {
+          field: "amount",
+          decimals: currencyDecimals(currency),
+        });
+      const fx = await rateFor(tx, ctx, currency, today);
+      const amount = baseAmount(ctx, entered, fx.rate);
+      const shares = allocateCharge(amount, weights);
       const result = await postLandedCost(
         tx,
         ctx,
@@ -98,6 +110,7 @@ export async function addReceiptLandedCost(
           chargeType: input.chargeType,
           method: input.method,
           amount,
+          entered: { currency, amount: entered, rate: fx.rate, rateDate: fx.rateDate },
           reference: input.reference,
           note: input.note,
           lines: lines.map((l, i) => ({

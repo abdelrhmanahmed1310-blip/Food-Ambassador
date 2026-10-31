@@ -17,6 +17,7 @@ import {
 import { Decimal } from "@/lib/decimal";
 import { isUuid } from "@/lib/uuid";
 import { getReceipt } from "@/modules/procurement/receipts";
+import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import { fxItems } from "@/server/fx-view";
@@ -226,6 +227,12 @@ export default async function ReceiptPage({
                       <Td>{t(`landedCost.methods.${c.method}`)}</Td>
                       <Td className="tabular-nums">
                         <span className="ltr-value whitespace-nowrap">{money.money(c.amount)}</span>
+                        {c.currency !== ctx.baseCurrency ? (
+                          <span className="ltr-value text-muted block text-xs">
+                            {c.enteredAmount.toFixed()} {c.currency} ×{" "}
+                            {c.exchangeRate.toFixed().replace(/\.?0+$/, "")}
+                          </span>
+                        ) : null}
                       </Td>
                       <Td className="tabular-nums">
                         <span className="ltr-value whitespace-nowrap">
@@ -251,6 +258,7 @@ export default async function ReceiptPage({
                 <LandedCostForm
                   action={addLandedCostAction.bind(null, orgSlug, receipt.id)}
                   currency={ctx.baseCurrency}
+                  currencies={currencyChoices(ctx.baseCurrency)}
                   quantityAllowed={stockedUnits.size === 1}
                 />
               </div>
