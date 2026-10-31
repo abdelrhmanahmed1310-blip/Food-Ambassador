@@ -8,6 +8,7 @@ import {
   cancelCount,
   createCount,
   postCount,
+  rejectCount,
   recordCountedQuantity,
   submitCount,
 } from "@/modules/inventory/counts";
@@ -175,6 +176,17 @@ export async function postCountAction(
 ) {
   return tenantMutation(orgSlug, previous, formData, (ctx) =>
     postCount(ctx, countId).then(() => undefined),
+  );
+}
+
+export async function rejectCountAction(
+  orgSlug: string,
+  countId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    rejectCount(ctx, countId, formValues(formData)),
   );
 }
 

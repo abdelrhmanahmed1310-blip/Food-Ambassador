@@ -122,7 +122,8 @@
     "salesInvoices": "Sales invoices",
     "customerBalances": "Customer balances",
     "customers": "Customers",
-    "integrations": "Integrations"
+    "integrations": "Integrations",
+    "approvalSettings": "Approvals"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -956,7 +957,9 @@
       "NONE": "No cost known"
     },
     "stockValueCard": "Stock value",
-    "viewValuation": "View stock value"
+    "viewValuation": "View stock value",
+    "varianceValue": "Value of differences",
+    "varianceUnknown": "Unknown (an item has no cost yet) — every layer applies"
   },
   "suppliers": {
     "title": "Suppliers",
@@ -1095,32 +1098,9 @@
       "OTHER": "Other"
     },
     "settingsTitle": "Purchasing settings",
-    "approvalThreshold": "Approval limit",
-    "approvalThresholdHint": "Orders above this total, in {currency}, go through the approval steps below. Leave empty for no approval step; 0 = every order.",
     "tolerance": "Over-receipt tolerance (%)",
     "toleranceHint": "How much more than ordered may be accepted on a line. 0 = never more than ordered.",
-    "print": "Print",
-    "approvalChain": "Approval steps above the limit",
-    "branchApprovalSteps": "Branch approvals",
-    "branchApprovalStepsHint": "Different people with approval rights at the order's branch or warehouse, one after another.",
-    "headOfficeApproval": "Head office approval",
-    "headOfficeApprovalHint": "A final approval by someone with organization-wide approval rights.",
-    "headOfficeRequired": "Required (last step)",
-    "headOfficeNotRequired": "Not required",
-    "approvalSteps": "Approvals",
-    "approvalStep": "Step {step} of {of}",
-    "approvalWaiting": "Waiting",
-    "signStep": "Approve this step",
-    "approvalLevels": {
-      "BRANCH": "Branch",
-      "HEAD_OFFICE": "Head office",
-      "ANY": "Approver"
-    },
-    "approvalBlocked": {
-      "SELF": "You created or submitted this order, so other people must approve it.",
-      "ALREADY_SIGNED": "You approved an earlier step; the next step needs a different person.",
-      "LEVEL": "The next step needs an approver of another level (branch or head office)."
-    }
+    "print": "Print"
   },
   "reorder": {
     "title": "Reorder",
@@ -2340,5 +2320,34 @@
       "DELIVERED": "Delivered",
       "FAILED": "Failed"
     }
+  },
+  "approvals": {
+    "title": "Approvals",
+    "intro": "Who must approve purchase orders and stock counts. Up to three branch layers, then head office. Each layer has its own limit and is required only above it; leave a layer empty if you do not use it. Each layer is a different person, never the author.",
+    "purchaseOrders": "Purchase orders",
+    "purchaseOrdersHint": "Amount = order total.",
+    "stockCounts": "Stock counts",
+    "stockCountsHint": "Amount = value of the differences found (each item's |counted − system| × average cost). Counts without differences need no approval.",
+    "branchLayer": "Branch layer {n}",
+    "headOfficeLayer": "Head office",
+    "requiredAbove": "Required above (in {currency}); 0 = any amount",
+    "notUsed": "Not used if empty",
+    "steps": "Approvals",
+    "step": "Step {step} of {of}",
+    "waiting": "Waiting",
+    "signStep": "Approve this step",
+    "levels": {
+      "BRANCH": "Branch",
+      "HEAD_OFFICE": "Head office",
+      "ANY": "Approver"
+    },
+    "blocked": {
+      "SELF": "You created or submitted this, so other people must approve it.",
+      "ALREADY_SIGNED": "You approved an earlier step; the next step needs a different person.",
+      "LEVEL": "The next step needs an approver of another level (branch or head office)."
+    },
+    "reject": "Send back",
+    "rejectReason": "Reason for sending back",
+    "rejected": "Sent back: {reason}"
   }
 }

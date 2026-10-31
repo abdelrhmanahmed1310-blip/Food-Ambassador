@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (Q-04 multi-level purchase approval)
+Last updated: 2026-10-31 (approval matrix with per-layer limits; Q-09, Q-11, Q-12 decided)
 
 ## Summary
 
@@ -18,6 +18,34 @@ Last updated: 2026-10-31 (Q-04 multi-level purchase approval)
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
 | POS1 – POS5                   | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## Approval matrix — per-layer limits, purchase orders and stock counts (delivered)
+
+Rules: DECISIONS.md ADR-049 (Q-04 refined, Q-12).
+
+| Area     | What works                                                                                                                             | Where                                     |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Settings | Up to 3 branch layers + head office, each "required above" its own amount, separately for orders (total) and counts (difference value) | Settings → Approvals, `approvals/service` |
+| Orders   | Chain from the layers the total exceeds; nothing applies = approved on submit                                                          | `submitOrder`, `approvals/rules.ts`       |
+| Counts   | Difference value at submission; chain as for orders; counter never approves; send back to recount; last step posts                     | `inventory/counts.ts`                     |
+| Screens  | Steps with who/when on orders and counts; reason when you cannot sign; needs-attention per level                                       | `components/approvals/steps.tsx`          |
+
+Checks: `pnpm check` pass (unit 34 files / 194 tests; the approval
+rules moved to `approvals/rules.test.ts` with per-layer limits); `pnpm
+test:integration` 33 files / 218 tests pass (new: limits per layer give
+1, 1, 2 and 3 steps for totals 100, 500, 600 and 3,000; invalid limits and
+non-admins refused; count difference value 10 → branch + head office,
+counter and head office refused at the branch step, nothing posted before
+the last step, sent back, recounted to 5 → one step, posted; unknown cost →
+all layers with distinct people; no difference → no approval; database
+refuses the counter's approval); `pnpm test:e2e` 38 tests pass (approval
+chain now set on Settings → Approvals).
+
+Changed behaviour: the single approval limit and the "branch steps / head
+office" settings are replaced by the matrix; existing settings were
+converted by the migration (the old limit on each layer).
+
+Limitations: no delegation; requisitions have no approval of their own.
 
 ## Q-04 — Multi-level purchase approval (delivered)
 

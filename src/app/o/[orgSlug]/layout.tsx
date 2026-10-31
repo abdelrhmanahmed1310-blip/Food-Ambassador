@@ -124,6 +124,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push(
       { href: `${base}/settings/purchasing`, label: t("purchasingSettings") },
       { href: `${base}/settings/tax`, label: t("taxSettings") },
+      { href: `${base}/settings/approvals`, label: t("approvalSettings") },
     );
   if (hasPermission(ctx.grants, "members.view"))
     settings.items.push({ href: `${base}/settings/members`, label: t("members") });

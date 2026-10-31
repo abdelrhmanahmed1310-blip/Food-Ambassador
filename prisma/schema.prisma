@@ -150,6 +150,8 @@ model Organization {
   procurementSettings    ProcurementSettings?
   purchaseOrders         PurchaseOrder[]
   purchaseOrderApprovals PurchaseOrderApproval[]
+  approvalLayers         ApprovalLayer[]
+  stockCountApprovals    StockCountApproval[]
   purchaseOrderLines     PurchaseOrderLine[]
   goodsReceipts          GoodsReceipt[]
   goodsReceiptLines      GoodsReceiptLine[]
@@ -965,30 +967,39 @@ enum StockCountStatus {
 }
 
 model StockCount {
-  id                String           @id @default(uuid(7)) @db.Uuid
-  organizationId    String           @map("organization_id") @db.Uuid
-  number            String
-  warehouseId       String           @map("warehouse_id") @db.Uuid
+  id                   String           @id @default(uuid(7)) @db.Uuid
+  organizationId       String           @map("organization_id") @db.Uuid
+  number               String
+  warehouseId          String           @map("warehouse_id") @db.Uuid
   /// Optional: count only one location of the warehouse.
-  locationId        String?          @map("location_id") @db.Uuid
-  status            StockCountStatus @default(OPEN)
-  snapshotAt        DateTime         @default(now()) @map("snapshot_at") @db.Timestamptz(3)
-  note              String?
-  documentId        String?          @map("document_id") @db.Uuid
-  createdByUserId   String           @map("created_by_user_id") @db.Uuid
-  submittedByUserId String?          @map("submitted_by_user_id") @db.Uuid
-  submittedAt       DateTime?        @map("submitted_at") @db.Timestamptz(3)
-  postedByUserId    String?          @map("posted_by_user_id") @db.Uuid
-  postedAt          DateTime?        @map("posted_at") @db.Timestamptz(3)
-  cancelledAt       DateTime?        @map("cancelled_at") @db.Timestamptz(3)
-  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  locationId           String?          @map("location_id") @db.Uuid
+  status               StockCountStatus @default(OPEN)
+  snapshotAt           DateTime         @default(now()) @map("snapshot_at") @db.Timestamptz(3)
+  note                 String?
+  documentId           String?          @map("document_id") @db.Uuid
+  createdByUserId      String           @map("created_by_user_id") @db.Uuid
+  submittedByUserId    String?          @map("submitted_by_user_id") @db.Uuid
+  submittedAt          DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  postedByUserId       String?          @map("posted_by_user_id") @db.Uuid
+  postedAt             DateTime?        @map("posted_at") @db.Timestamptz(3)
+  cancelledAt          DateTime?        @map("cancelled_at") @db.Timestamptz(3)
+  /// Value of the differences (sum of |counted − system| × average cost, base currency), at submission.
+  varianceValue        Decimal?         @map("variance_value") @db.Decimal(19, 4)
+  /// Approval chain (ADR-049, Q-12), as for purchase orders.
+  approvalRound        Int              @default(0) @map("approval_round")
+  approvalChain        ApprovalLevel[]  @default([]) @map("approval_chain")
+  approvalsGiven       Int              @default(0) @map("approvals_given")
+  pendingApprovalLevel ApprovalLevel?   @map("pending_approval_level")
+  rejectionNote        String?          @map("rejection_note")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  warehouse    Warehouse          @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
-  location     StorageLocation?   @relation(fields: [organizationId, warehouseId, locationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
-  document     InventoryDocument? @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse            @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  location     StorageLocation?     @relation(fields: [organizationId, warehouseId, locationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+  document     InventoryDocument?   @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
   lines        StockCountLine[]
+  approvals    StockCountApproval[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1088,16 +1099,10 @@ model SupplierProduct {
 /// Purchasing rules of one organization (DECISIONS.md ADR-023).
 model ProcurementSettings {
   organizationId        String   @id @map("organization_id") @db.Uuid
-  /// Orders above this total need approval by another user; null = no approval step.
-  approvalThreshold     Decimal? @map("approval_threshold") @db.Decimal(19, 4)
   /// Fraction 0–1 by which accepted quantity may exceed the ordered quantity.
   overReceiptTolerance  Decimal  @default(0) @map("over_receipt_tolerance") @db.Decimal(9, 6)
   /// Fraction 0–1 by which an invoice unit price may differ from the order price (ADR-038).
   invoicePriceTolerance Decimal  @default(0) @map("invoice_price_tolerance") @db.Decimal(9, 6)
-  /// Approvals by the order's branch (different people) before head office (Q-04, ADR-049).
-  branchApprovalSteps   Int      @default(2) @map("branch_approval_steps")
-  /// Whether a head-office approver signs off last.
-  headOfficeApproval    Boolean  @default(true) @map("head_office_approval")
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -1116,36 +1121,36 @@ enum PurchaseOrderStatus {
 }
 
 model PurchaseOrder {
-  id                         String              @id @default(uuid(7)) @db.Uuid
-  organizationId             String              @map("organization_id") @db.Uuid
-  number                     String
-  supplierId                 String              @map("supplier_id") @db.Uuid
-  warehouseId                String              @map("warehouse_id") @db.Uuid
-  status                     PurchaseOrderStatus @default(DRAFT)
-  currency                   String              @db.Char(3)
-  expectedOn                 DateTime?           @map("expected_on") @db.Date
-  note                       String?
-  totalAmount                Decimal             @default(0) @map("total_amount") @db.Decimal(19, 4)
-  createdByUserId            String              @map("created_by_user_id") @db.Uuid
-  submittedAt                DateTime?           @map("submitted_at") @db.Timestamptz(3)
-  submittedByUserId          String?             @map("submitted_by_user_id") @db.Uuid
-  approvedAt                 DateTime?           @map("approved_at") @db.Timestamptz(3)
-  approvedByUserId           String?             @map("approved_by_user_id") @db.Uuid
+  id                   String              @id @default(uuid(7)) @db.Uuid
+  organizationId       String              @map("organization_id") @db.Uuid
+  number               String
+  supplierId           String              @map("supplier_id") @db.Uuid
+  warehouseId          String              @map("warehouse_id") @db.Uuid
+  status               PurchaseOrderStatus @default(DRAFT)
+  currency             String              @db.Char(3)
+  expectedOn           DateTime?           @map("expected_on") @db.Date
+  note                 String?
+  totalAmount          Decimal             @default(0) @map("total_amount") @db.Decimal(19, 4)
+  createdByUserId      String              @map("created_by_user_id") @db.Uuid
+  submittedAt          DateTime?           @map("submitted_at") @db.Timestamptz(3)
+  submittedByUserId    String?             @map("submitted_by_user_id") @db.Uuid
+  approvedAt           DateTime?           @map("approved_at") @db.Timestamptz(3)
+  approvedByUserId     String?             @map("approved_by_user_id") @db.Uuid
   /// True when submission approved the order automatically (no threshold or below it).
-  autoApproved               Boolean             @default(false) @map("auto_approved")
-  rejectionNote              String?             @map("rejection_note")
+  autoApproved         Boolean             @default(false) @map("auto_approved")
+  rejectionNote        String?             @map("rejection_note")
   /// Approval chain (ADR-049): fixed at submission; the round counts submissions.
-  approvalRound              Int                 @default(0) @map("approval_round")
-  branchApprovalsRequired    Int                 @default(0) @map("branch_approvals_required")
-  headOfficeApprovalRequired Boolean             @default(false) @map("head_office_approval_required")
-  approvalsGiven             Int                 @default(0) @map("approvals_given")
+  approvalRound        Int                 @default(0) @map("approval_round")
+  /// Levels this submission must pass, fixed at submission from the approval layers.
+  approvalChain        ApprovalLevel[]     @default([]) @map("approval_chain")
+  approvalsGiven       Int                 @default(0) @map("approvals_given")
   /// Level of the next step while PENDING_APPROVAL.
-  pendingApprovalLevel       ApprovalLevel?      @map("pending_approval_level")
-  closedAt                   DateTime?           @map("closed_at") @db.Timestamptz(3)
-  closedByUserId             String?             @map("closed_by_user_id") @db.Uuid
-  closeReason                String?             @map("close_reason")
-  createdAt                  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  pendingApprovalLevel ApprovalLevel?      @map("pending_approval_level")
+  closedAt             DateTime?           @map("closed_at") @db.Timestamptz(3)
+  closedByUserId       String?             @map("closed_by_user_id") @db.Uuid
+  closeReason          String?             @map("close_reason")
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   supplier     Supplier                @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
@@ -1167,6 +1172,47 @@ enum ApprovalLevel {
   BRANCH
   HEAD_OFFICE
   ANY
+}
+
+/// Document types with an approval matrix.
+enum ApprovalDocument {
+  PURCHASE_ORDER
+  STOCK_COUNT
+}
+
+/// One layer of an organization's approval matrix (ADR-049): positions 1–3
+/// branch, 4 head office; required when the amount is above above_amount.
+/// No row = layer not used.
+model ApprovalLayer {
+  organizationId String           @map("organization_id") @db.Uuid
+  document       ApprovalDocument
+  position       Int
+  aboveAmount    Decimal          @map("above_amount") @db.Decimal(19, 4)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@id([organizationId, document, position])
+  @@map("approval_layers")
+}
+
+/// One approval step of a stock count (insert-only), as for purchase orders.
+model StockCountApproval {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  organizationId   String        @map("organization_id") @db.Uuid
+  countId          String        @map("count_id") @db.Uuid
+  round            Int
+  step             Int
+  level            ApprovalLevel
+  approvedByUserId String        @map("approved_by_user_id") @db.Uuid
+  approvedAt       DateTime      @default(now()) @map("approved_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  count        StockCount   @relation(fields: [organizationId, countId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, countId, round, step], map: "count_approvals_step_key")
+  @@unique([organizationId, countId, round, approvedByUserId], map: "count_approvals_person_key")
+  @@map("stock_count_approvals")
 }
 
 /// One approval step of one submission round (insert-only).

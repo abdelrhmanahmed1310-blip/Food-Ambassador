@@ -929,30 +929,35 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   inbound formats other than ours, a job runner inside the app (the worker
   is a separate process, ADR-008).
 
-### ADR-049 Multi-level purchase approval: branch steps, then head office — Accepted (Q-04)
+### ADR-049 Approval matrix: branch layers then head office, each with its own limit — Accepted (Q-04, Q-12)
 
-- **Decision (Q-04):** orders that need approval go through **two approvals
-  in the order's branch, then one at head office**. Configurable per
-  organization (Settings → Purchasing): branch steps 0–3 (default 2), head
-  office required yes/no (default yes). With neither, one approval by any
-  approver of the site (the ADR-023 rule).
-- **Which orders:** unchanged — orders above the approval limit; no limit =
-  approved on submit; a limit of 0 sends every order through the chain.
-- **Who signs:** branch steps need `purchasing.approve` granted for the
-  order's own branch or warehouse (an organization-wide grant does not
-  count); head office needs it organization-wide. Each step is a different
-  person, and never the order's creator or submitter (service check, unique
-  index, database trigger). Branch Managers now hold `purchasing.approve`
-  (granted to existing organizations by migration).
-- **Flow:** the chain is fixed when the order is submitted (later settings
-  changes do not affect orders in flight); steps are signed in order; the
-  last one approves the order (and emits `purchase_order.approved`). Any
-  person able to sign the current step may reject with a reason: the order
-  returns to draft and the next submission starts a new round. Every
-  signature is kept (`purchase_order_approvals`) and audited.
-- "Needs attention" counts only orders whose next step the user may sign.
-- Not covered: amount bands with different chains, delegation/holiday
-  cover, approval of requisitions.
+- **Decision (Q-04, refined):** purchase orders pass up to three **branch
+  layers** and then a **head-office layer**. **Each layer has its own
+  limit** and is required only when the amount is above it (0 = any
+  amount; empty = layer not used). Example: branch 1 above 0, branch 2
+  above 5,000, head office above 20,000 — a 3,000 order needs one branch
+  approval, a 25,000 order all three. No applicable layer = approved on
+  submit. Configured under Settings → Approvals (`approval_layers`); this
+  replaces the single approval limit of ADR-023.
+- **Decision (Q-12):** stock counts use the same matrix, configured
+  separately; the amount is the **value of the differences** (Σ |counted −
+  system| × average cost, base currency) at submission. Counts without
+  differences need no approval. If a differing item has no known cost, every
+  configured layer applies (never under-approve on unknown values).
+- **Who signs:** branch layers need the approval permission
+  (`purchasing.approve` / `inventory.count.approve`) granted for the
+  document's own branch or warehouse — an organization-wide grant is head
+  office and does not count; the head-office layer needs it
+  organization-wide. Each step is a different person and never the
+  document's creator or submitter (service check, unique index, database
+  trigger). Branch Managers hold `purchasing.approve`.
+- **Flow:** the chain is fixed at submission; steps are signed in order;
+  the last one approves the order (and emits `purchase_order.approved`) or
+  posts the count. Whoever may sign the current step may send it back with
+  a reason (order → draft; count → open for recounting); resubmission starts
+  a new round. Every signature is kept and audited. "Needs attention" counts
+  only documents whose next step the user may sign.
+- Not covered: delegation/holiday cover, approval of requisitions.
 
 ---
 
@@ -973,23 +978,23 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 
 ## Open questions
 
-| ID   | Question                                                                                                                                                                | Needed by                 |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                        |
-| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.             | M5 (labels), M8 (hosting) |
-| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)                |
-| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                            |
-| Q-05 | Foreign-currency supplier invoices — **default in place** (ADR-023): base currency only. Confirm for the pilot.                                                         | M7                        |
-| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                        |
-| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)         |
-| Q-08 | Attachment retention period and maximum file size.                                                                                                                      | M6                        |
-| Q-09 | Over-receipt tolerance — **default in place** (ADR-023): 0 %, configurable per organization.                                                                            | M3                        |
-| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)         |
-| Q-11 | Should base currency ever be changeable before any transactions exist? Currently fixed at creation.                                                                     | M2                        |
-| Q-12 | Should counting and approving a stock count require two different people (segregation of duties)? Currently allowed to be the same user.                                | M8 (pilot)                |
-| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                  | M3                        |
-| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                          | —                         |
-| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                          | POS3                      |
-| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline? | POS1                      |
-| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                           | POS4                      |
-| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                    | POS5                      |
+| ID   | Question                                                                                                                                                                   | Needed by                 |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                   | M3                        |
+| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.                | M5 (labels), M8 (hosting) |
+| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                                 | M8 (pilot)                |
+| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                               |
+| Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050, being built). |
+| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                    | M7                        |
+| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                   | M1 (nice to know)         |
+| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051, being built).                                                                                   |
+| Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                              |
+| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                   | M2 (before pilot)         |
+| Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).               |
+| Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                    |
+| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                     | M3                        |
+| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                             | —                         |
+| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                             | POS3                      |
+| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline?    | POS1                      |
+| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                              | POS4                      |
+| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                       | POS5                      |

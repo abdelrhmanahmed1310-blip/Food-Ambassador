@@ -1,8 +1,18 @@
 import "server-only";
-import { Decimal } from "@/lib/decimal";
+import { z } from "zod";
+import { Decimal, roundMoney } from "@/lib/decimal";
 import { uuidv7 } from "@/lib/uuid";
 import { accessibleScope } from "@/modules/access/authorize";
+import {
+  approvalBlock,
+  chainFor,
+  holdsApprovalLevel,
+  nextApprovalLevel,
+  type ApprovalLevel,
+} from "@/modules/approvals/rules";
+import { loadLayers } from "@/modules/approvals/service";
 import { actorOf, recordAudit } from "@/modules/audit/service";
+import { requiredText } from "@/modules/shared/schemas";
 import { runIdempotent } from "@/modules/shared/idempotency";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
@@ -23,7 +33,8 @@ import { addCountLineSchema, createCountSchema, recordCountSchema } from "./sche
 
 /**
  * Stock counts (cycle counts) of AVAILABLE stock in one warehouse, optionally
- * one location. Lifecycle: OPEN → SUBMITTED → POSTED, or → CANCELLED.
+ * one location. Lifecycle: OPEN → SUBMITTED → POSTED, or → CANCELLED; a
+ * rejected count goes back to OPEN. Approval follows the matrix (ADR-049).
  *
  * The system quantity of a line is captured when the line is counted, and the
  * posted adjustment is counted − system quantity at that moment. Movements
@@ -67,8 +78,16 @@ async function loadCount(
       note: true,
       documentId: true,
       createdAt: true,
+      createdByUserId: true,
+      submittedByUserId: true,
       submittedAt: true,
       postedAt: true,
+      varianceValue: true,
+      approvalRound: true,
+      approvalChain: true,
+      approvalsGiven: true,
+      pendingApprovalLevel: true,
+      rejectionNote: true,
       document: { select: { id: true, number: true } },
       location: { select: { code: true, name: true } },
     },
@@ -227,6 +246,43 @@ export async function addCountLine(
   }
 }
 
+/**
+ * Value of a count's differences: Σ |counted − system| × average cost of the
+ * product in the warehouse. Null when a differing item has no known cost —
+ * then every configured approval layer applies (ADR-049).
+ */
+async function varianceValueOf(tx: Tx, ctx: TenantContext, countId: string, warehouseId: string) {
+  const lines = await tx.stockCountLine.findMany({
+    where: { organizationId: ctx.organizationId, countId },
+    select: { productId: true, expectedQuantity: true, countedQuantity: true },
+  });
+  const differing = lines.filter(
+    (l) => !countAdjustment(l.expectedQuantity.toString(), l.countedQuantity!.toString()).isZero(),
+  );
+  if (differing.length === 0) return new Decimal(0);
+  const costs = await tx.stockValuation.findMany({
+    where: {
+      organizationId: ctx.organizationId,
+      warehouseId,
+      productId: { in: [...new Set(differing.map((l) => l.productId))] },
+    },
+    select: { productId: true, averageUnitCost: true },
+  });
+  let total = new Decimal(0);
+  for (const l of differing) {
+    const cost = costs.find((c) => c.productId === l.productId)?.averageUnitCost;
+    if (cost == null) return null;
+    const delta = countAdjustment(l.expectedQuantity.toString(), l.countedQuantity!.toString());
+    total = total.plus(delta.abs().times(cost.toString()));
+  }
+  return roundMoney(total);
+}
+
+const countSite = (wh: { id: string; branchId: string }) => ({
+  branchId: wh.branchId,
+  warehouseId: wh.id,
+});
+
 export async function submitCount(ctx: TenantContext, countId: string): Promise<void> {
   await withTenantTx(ctx.organizationId, async (tx) => {
     const { count, wh } = await loadCount(tx, ctx, countId, { lock: true });
@@ -241,27 +297,120 @@ export async function submitCount(ctx: TenantContext, countId: string): Promise<
         "Every line must be counted (enter 0 for none)",
         { uncounted },
       );
+    const varianceValue = await varianceValueOf(tx, ctx, countId, count.warehouseId);
+    const chain = chainFor(
+      await loadLayers(tx, ctx, "STOCK_COUNT"),
+      varianceValue ?? new Decimal(Infinity),
+    );
     await tx.stockCount.update({
       where: { organizationId_id: { organizationId: ctx.organizationId, id: countId } },
-      data: { status: "SUBMITTED", submittedByUserId: ctx.userId, submittedAt: new Date() },
+      data: {
+        status: "SUBMITTED",
+        submittedByUserId: ctx.userId,
+        submittedAt: new Date(),
+        varianceValue: varianceValue?.toFixed() ?? null,
+        approvalRound: { increment: 1 },
+        approvalChain: chain,
+        approvalsGiven: 0,
+        pendingApprovalLevel: chain[0] ?? null,
+        rejectionNote: null,
+      },
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "stock_count.submitted",
       entityType: "stock_count",
       entityId: countId,
+      changes: { varianceValue: varianceValue?.toFixed() ?? null, chain },
     });
   });
 }
 
-/** Approve a submitted count: post COUNT_ADJUSTMENT entries for all differences. */
+function countBlock(
+  ctx: TenantContext,
+  count: {
+    createdByUserId: string;
+    submittedByUserId: string | null;
+    pendingApprovalLevel: ApprovalLevel | null;
+  },
+  wh: { id: string; branchId: string },
+  signedThisRound: readonly string[],
+) {
+  return approvalBlock({
+    userId: ctx.userId,
+    authors: [count.createdByUserId, count.submittedByUserId],
+    signedThisRound,
+    holdsLevel: holdsApprovalLevel(
+      ctx.grants,
+      "inventory.count.approve",
+      count.pendingApprovalLevel ?? "ANY",
+      countSite(wh),
+    ),
+  });
+}
+
+/**
+ * Approve a submitted count. Without an approval chain (no layer applies)
+ * one approval posts it. With a chain (ADR-049, Q-12), each call signs the
+ * next step — a different person each time, never the counter — and the
+ * last step posts COUNT_ADJUSTMENT entries for all differences.
+ */
 export async function postCount(
   ctx: TenantContext,
   countId: string,
-): Promise<{ documentNumber: string | null }> {
+): Promise<{ documentNumber: string | null; status: "SUBMITTED" | "POSTED" }> {
   return withTenantTx(ctx.organizationId, async (tx) => {
     const { count, wh } = await loadCount(tx, ctx, countId, { lock: true });
     assertWarehousePermission(ctx, "inventory.count.approve", wh);
     assertStatus(count.status, ["SUBMITTED"]);
+    if (count.approvalChain.length > 0) {
+      const signed = await tx.stockCountApproval.findMany({
+        where: { organizationId: ctx.organizationId, countId, round: count.approvalRound },
+        select: { approvedByUserId: true },
+      });
+      const block = countBlock(
+        ctx,
+        count,
+        wh,
+        signed.map((a) => a.approvedByUserId),
+      );
+      if (block === "SELF")
+        throw businessRuleViolation(
+          "SELF_APPROVAL_NOT_ALLOWED",
+          "Someone else must approve this count",
+        );
+      if (block === "ALREADY_SIGNED")
+        throw businessRuleViolation(
+          "APPROVAL_ALREADY_SIGNED",
+          "Each approval step needs a different person",
+        );
+      if (block === "LEVEL")
+        throw businessRuleViolation("APPROVAL_LEVEL_REQUIRED", "This step needs another approver", {
+          level: count.pendingApprovalLevel,
+        });
+      const step = count.approvalsGiven + 1;
+      await tx.stockCountApproval.create({
+        data: {
+          organizationId: ctx.organizationId,
+          countId,
+          round: count.approvalRound,
+          step,
+          level: count.pendingApprovalLevel ?? "ANY",
+          approvedByUserId: ctx.userId,
+        },
+      });
+      const next = nextApprovalLevel(count.approvalChain, step);
+      await tx.stockCount.update({
+        where: { organizationId_id: { organizationId: ctx.organizationId, id: countId } },
+        data: { approvalsGiven: step, pendingApprovalLevel: next },
+      });
+      await recordAudit(tx, actorOf(ctx), {
+        action: "stock_count.approval_step_signed",
+        entityType: "stock_count",
+        entityId: countId,
+        changes: { step, of: count.approvalChain.length, level: count.pendingApprovalLevel },
+      });
+      if (next) return { documentNumber: null, status: "SUBMITTED" as const };
+    }
     const rows = await tx.stockCountLine.findMany({
       where: { organizationId: ctx.organizationId, countId },
       select: {
@@ -314,7 +463,13 @@ export async function postCount(
     }
     await tx.stockCount.update({
       where: { organizationId_id: { organizationId: ctx.organizationId, id: countId } },
-      data: { status: "POSTED", postedByUserId: ctx.userId, postedAt: new Date(), documentId },
+      data: {
+        status: "POSTED",
+        postedByUserId: ctx.userId,
+        postedAt: new Date(),
+        documentId,
+        pendingApprovalLevel: null,
+      },
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "stock_count.posted",
@@ -322,7 +477,46 @@ export async function postCount(
       entityId: countId,
       changes: { adjustments: lines.length, document: documentNumber },
     });
-    return { documentNumber };
+    return { documentNumber, status: "POSTED" as const };
+  });
+}
+
+/** Send a submitted count back for recounting; whoever may sign the current step may do this. */
+export async function rejectCount(ctx: TenantContext, countId: string, rawInput: unknown) {
+  const parsed = z.object({ reason: requiredText(500) }).safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    const { count, wh } = await loadCount(tx, ctx, countId, { lock: true });
+    assertWarehousePermission(ctx, "inventory.count.approve", wh);
+    assertStatus(count.status, ["SUBMITTED"]);
+    if (
+      !holdsApprovalLevel(
+        ctx.grants,
+        "inventory.count.approve",
+        count.pendingApprovalLevel ?? "ANY",
+        countSite(wh),
+      )
+    )
+      throw businessRuleViolation("APPROVAL_LEVEL_REQUIRED", "This step needs another approver", {
+        level: count.pendingApprovalLevel,
+      });
+    await tx.stockCount.update({
+      where: { organizationId_id: { organizationId: ctx.organizationId, id: countId } },
+      data: {
+        status: "OPEN",
+        submittedAt: null,
+        submittedByUserId: null,
+        pendingApprovalLevel: null,
+        approvalsGiven: 0,
+        rejectionNote: parsed.data.reason,
+      },
+    });
+    await recordAudit(tx, actorOf(ctx), {
+      action: "stock_count.rejected",
+      entityType: "stock_count",
+      entityId: countId,
+      changes: { reason: parsed.data.reason, atStep: count.approvalsGiven + 1 },
+    });
   });
 }
 
@@ -333,7 +527,7 @@ export async function cancelCount(ctx: TenantContext, countId: string): Promise<
     assertStatus(count.status, ["OPEN", "SUBMITTED"]);
     await tx.stockCount.update({
       where: { organizationId_id: { organizationId: ctx.organizationId, id: countId } },
-      data: { status: "CANCELLED", cancelledAt: new Date() },
+      data: { status: "CANCELLED", cancelledAt: new Date(), pendingApprovalLevel: null },
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "stock_count.cancelled",
@@ -367,7 +561,50 @@ export async function getCount(ctx: TenantContext, countId: string) {
       },
       orderBy: [{ product: { sku: "asc" } }, { id: "asc" }],
     });
-    return { ...count, warehouse: wh, lines };
+    const approvals = await tx.stockCountApproval.findMany({
+      where: { organizationId: ctx.organizationId, countId, round: count.approvalRound },
+      select: { step: true, approvedByUserId: true, approvedAt: true },
+      orderBy: { step: "asc" },
+    });
+    const users = await tx.user.findMany({
+      where: { id: { in: approvals.map((a) => a.approvedByUserId) } },
+      select: { id: true, name: true },
+    });
+    const pending = count.status === "SUBMITTED";
+    const block =
+      pending && count.approvalChain.length > 0
+        ? countBlock(
+            ctx,
+            count,
+            wh,
+            approvals.map((a) => a.approvedByUserId),
+          )
+        : null;
+    return {
+      ...count,
+      warehouse: wh,
+      lines,
+      approvalSteps: count.approvalChain.map((level, i) => {
+        const a = approvals.find((x) => x.step === i + 1);
+        return {
+          step: i + 1,
+          level,
+          signedBy: a ? (users.find((u) => u.id === a.approvedByUserId)?.name ?? null) : null,
+          signedAt: a?.approvedAt ?? null,
+          current: pending && count.approvalsGiven === i,
+        };
+      }),
+      approvalBlocked: block,
+      canReject:
+        pending &&
+        count.approvalChain.length > 0 &&
+        holdsApprovalLevel(
+          ctx.grants,
+          "inventory.count.approve",
+          count.pendingApprovalLevel ?? "ANY",
+          countSite(wh),
+        ),
+    };
   });
 }
 

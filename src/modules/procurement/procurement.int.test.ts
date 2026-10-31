@@ -23,6 +23,7 @@ import {
   submitOrder,
 } from "./orders";
 import { getReceipt, postReceipt, reverseReceipt } from "./receipts";
+import { updateApprovalMatrix } from "@/modules/approvals/service";
 import { updateProcurementSettings } from "./settings";
 import {
   createSupplier,
@@ -197,13 +198,8 @@ describe("purchase orders and approval", () => {
     expect(auto.status).toBe("APPROVED");
     expect(auto.autoApproved).toBe(true);
 
-    // Single-approver mode: no branch steps, no head office (ADR-023 rule).
-    await updateProcurementSettings(ctx, {
-      approvalThreshold: "500",
-      overReceiptTolerancePercent: "0",
-      branchApprovalSteps: "0",
-      headOfficeApproval: "false",
-    });
+    // One layer: head office above 500 (ADR-049).
+    await updateApprovalMatrix(ctx, "PURCHASE_ORDER", { layer4: "500" });
     const small = await approvedOrder([
       { productId: flour, uomId: units.kg, quantity: "5", unitPrice: "100" },
     ]);
@@ -234,17 +230,11 @@ describe("purchase orders and approval", () => {
     expect(order.status).toBe("APPROVED");
     expect(order.autoApproved).toBe(false);
     expect(order.names.approvedBy).toBe(finance.user.name);
-    await updateProcurementSettings(ctx, {
-      approvalThreshold: "",
-      overReceiptTolerancePercent: "0",
-    });
+    await updateApprovalMatrix(ctx, "PURCHASE_ORDER", {});
   });
 
   it("runs the approval chain: two branch approvers, then head office (ADR-049)", async () => {
-    await updateProcurementSettings(ctx, {
-      approvalThreshold: "0",
-      overReceiptTolerancePercent: "0",
-    });
+    await updateApprovalMatrix(ctx, "PURCHASE_ORDER", { layer1: "0", layer2: "0", layer4: "0" });
     const buyer = await addMember(ctx, "procurement", { scopeType: "BRANCH", branchId });
     const local1 = await addMember(ctx, "branch_manager", { scopeType: "BRANCH", branchId });
     const local2 = await addMember(ctx, "branch_manager", {
@@ -335,10 +325,36 @@ describe("purchase orders and approval", () => {
       ),
     ).rejects.toThrow();
     await cancelOrder(buyer.ctx, other, { reason: "test" });
-    await updateProcurementSettings(ctx, {
-      approvalThreshold: "",
-      overReceiptTolerancePercent: "0",
+
+    // Each layer has its own limit: branch 1 always, branch 2 above 500, head office above 2,000.
+    await updateApprovalMatrix(ctx, "PURCHASE_ORDER", {
+      layer1: "0",
+      layer2: "500",
+      layer4: "2000",
     });
+    const chainOfTotal = async (unitPrice: string) => {
+      const { id: o } = await createOrder(buyer.ctx, { supplierId, warehouseId: mainWh });
+      await addOrderLine(buyer.ctx, o, {
+        productId: flour,
+        uomId: units.kg,
+        quantity: "10",
+        unitPrice,
+      });
+      await submitOrder(buyer.ctx, o);
+      const chain = (await getOrder(ctx, o)).approvalSteps.map((s) => s.level);
+      await cancelOrder(buyer.ctx, o, { reason: "test" });
+      return chain;
+    };
+    expect(await chainOfTotal("10")).toEqual(["BRANCH"]); // 100
+    expect(await chainOfTotal("50")).toEqual(["BRANCH"]); // 500: at the limit
+    expect(await chainOfTotal("60")).toEqual(["BRANCH", "BRANCH"]); // 600
+    expect(await chainOfTotal("300")).toEqual(["BRANCH", "BRANCH", "HEAD_OFFICE"]); // 3,000
+    await expectAppError(
+      updateApprovalMatrix(ctx, "PURCHASE_ORDER", { layer1: "-1" }),
+      "VALIDATION_FAILED",
+    );
+    await expectAppError(updateApprovalMatrix(buyer.ctx, "PURCHASE_ORDER", {}), "FORBIDDEN");
+    await updateApprovalMatrix(ctx, "PURCHASE_ORDER", {});
   });
 
   it("cancels drafts and approved orders without receipts", async () => {
@@ -423,7 +439,6 @@ describe("receiving", () => {
       });
     }
     await updateProcurementSettings(ctx, {
-      approvalThreshold: "",
       overReceiptTolerancePercent: "10",
     });
     const r = await postReceipt(ctx, order.id, {
@@ -437,7 +452,6 @@ describe("receiving", () => {
       "BUSINESS_RULE_VIOLATION",
     ); // fully received orders cannot take more
     await updateProcurementSettings(ctx, {
-      approvalThreshold: "",
       overReceiptTolerancePercent: "0",
     });
   });

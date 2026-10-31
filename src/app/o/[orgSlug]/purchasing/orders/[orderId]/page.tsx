@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import { ApprovalSteps } from "@/components/approvals/steps";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { OrderStatusBadge, ReceiptStatusBadge } from "@/components/procurement/badges";
 import { OrderHeaderForm, OrderLineForm, ReasonForm } from "@/components/procurement/forms";
 import {
   Alert,
-  Badge,
   Card,
   DescriptionList,
   EmptyState,
@@ -260,30 +260,7 @@ export default async function OrderPage({
             </Card>
           ) : null}
 
-          {order.approvalSteps.length > 0 ? (
-            <Card title={t("purchasing.approvalSteps")}>
-              <ol className="space-y-2 text-sm" data-testid="approval-steps">
-                {order.approvalSteps.map((s) => (
-                  <li key={s.step} className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">
-                      {t("purchasing.approvalStep", {
-                        step: s.step,
-                        of: order.approvalSteps.length,
-                      })}
-                    </span>
-                    <Badge tone="neutral">{t(`purchasing.approvalLevels.${s.level}`)}</Badge>
-                    {s.signedAt ? (
-                      <span>{who(s.signedBy, s.signedAt)}</span>
-                    ) : s.current ? (
-                      <Badge tone="warning">{t("purchasing.approvalWaiting")}</Badge>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </Card>
-          ) : null}
+          <ApprovalSteps steps={order.approvalSteps} formatTime={(d) => dt(d)} />
 
           {order.can.approve || order.can.reject ? (
             <Card>
@@ -293,7 +270,7 @@ export default async function OrderPage({
                     action={approveOrderAction.bind(null, orgSlug, order.id)}
                     label={
                       order.approvalSteps.filter((s) => !s.signedAt).length > 1
-                        ? t("purchasing.signStep")
+                        ? t("approvals.signStep")
                         : t("purchasing.approve")
                     }
                     confirmMessage={t("purchasing.confirmApprove")}
@@ -311,7 +288,7 @@ export default async function OrderPage({
             </Card>
           ) : null}
           {order.approvalBlocked ? (
-            <Alert tone="info">{t(`purchasing.approvalBlocked.${order.approvalBlocked}`)}</Alert>
+            <Alert tone="info">{t(`approvals.blocked.${order.approvalBlocked}`)}</Alert>
           ) : null}
 
           <Card title={t("purchasing.receiptsTitle")}>

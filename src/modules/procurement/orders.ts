@@ -1,4 +1,12 @@
 import "server-only";
+import {
+  approvalBlock,
+  chainFor,
+  holdsApprovalLevel,
+  nextApprovalLevel,
+  type ApprovalLevel,
+} from "@/modules/approvals/rules";
+import { loadLayers } from "@/modules/approvals/service";
 import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
@@ -16,21 +24,15 @@ import { businessRuleViolation, conflict, notFound, validationFailed } from "@/s
 import { releaseRequisitionLines } from "./requisition-links";
 import {
   PO_STATUSES,
-  approvalChain,
-  approvalOutcome,
-  holdsApprovalLevel,
   isCancellable,
   isClosable,
   isEditable,
   isReceivable,
   lineTotal,
-  nextApprovalLevel,
   openQuantity,
-  type ApprovalLevel,
   type PoStatus,
 } from "./rules";
 import { createOrderSchema, orderHeaderSchema, orderLineSchema, reasonSchema } from "./schemas";
-import { loadRules } from "./settings";
 import { loadSupplier } from "./suppliers";
 
 export const ORDER_PAGE_SIZE = 25;
@@ -290,13 +292,13 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
     const round = order.approvals.filter((a) => a.round === order.approvalRound);
     const block =
       status === "PENDING_APPROVAL" && on("purchasing.approve")
-        ? approvalBlock(
+        ? blockFor(
             ctx,
             order,
             round.map((a) => a.approvedByUserId),
           )
         : null;
-    const chain = order.approvalRound > 0 && !order.autoApproved ? chainOf(order) : [];
+    const chain = order.autoApproved ? [] : chainOf(order);
     return {
       ...order,
       lines: order.lines.map((l) => {
@@ -331,9 +333,7 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
         edit: isEditable(status) && on("purchasing.manage"),
         submit: isEditable(status) && order.lines.length > 0 && on("purchasing.manage"),
         approve: status === "PENDING_APPROVAL" && on("purchasing.approve") && block === null,
-        reject:
-          status === "PENDING_APPROVAL" &&
-          holdsApprovalLevel(ctx.grants, order.pendingApprovalLevel ?? "ANY", site(order)),
+        reject: status === "PENDING_APPROVAL" && holdsLevel(ctx, order),
         receive: isReceivable(status) && on("purchasing.receive"),
         close: isClosable(status) && on("purchasing.manage"),
         cancel: isCancellable(status, postedReceipts > 0) && on("purchasing.manage"),
@@ -546,9 +546,8 @@ export async function removeOrderLine(ctx: TenantContext, orderId: string, lineI
 // ─── Approval workflow ───
 
 /**
- * Submit a draft. With no approval threshold, or a total at or below it, the
- * order is approved at once; otherwise it enters the approval chain fixed
- * now from the settings (ADR-049): branch steps, then head office.
+ * Submit a draft. The approval layers whose limit the total exceeds form the
+ * order's chain, fixed now (ADR-049); with none, the order is approved at once.
  */
 export async function submitOrder(ctx: TenantContext, orderId: string) {
   return withTenantTx(ctx.organizationId, async (tx) => {
@@ -560,10 +559,9 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     const supplier = await loadSupplier(tx, ctx, order.supplierId);
     if (supplier.archivedAt)
       throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
-    const rules = await loadRules(tx, ctx);
     const total = dec(order.totalAmount);
-    const outcome = approvalOutcome(total, rules.approvalThreshold);
-    const chain = approvalChain(rules);
+    const chain = chainFor(await loadLayers(tx, ctx, "PURCHASE_ORDER"), total);
+    const outcome = chain.length === 0 ? "AUTO_APPROVED" : "NEEDS_APPROVAL";
     const now = new Date();
     await tx.purchaseOrder.update({
       where: { id: order.id },
@@ -579,21 +577,18 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
               approvedAt: now,
               approvedByUserId: ctx.userId,
               autoApproved: true,
-              branchApprovalsRequired: 0,
-              headOfficeApprovalRequired: false,
+              approvalChain: [],
               pendingApprovalLevel: null,
             }
           : {
               status: "PENDING_APPROVAL",
-              branchApprovalsRequired: chain.filter((l) => l === "BRANCH").length,
-              headOfficeApprovalRequired: chain.includes("HEAD_OFFICE"),
+              approvalChain: chain,
               pendingApprovalLevel: chain[0],
             }),
       },
     });
     await audit(tx, ctx, order, "submitted", {
       total: total.toFixed(),
-      threshold: rules.approvalThreshold?.toFixed() ?? null,
       outcome,
       ...(outcome === "AUTO_APPROVED" ? {} : { chain }),
     });
@@ -618,15 +613,7 @@ function orderEvent(
 }
 
 /** The chain an order was submitted with (ADR-049). */
-function chainOf(order: {
-  branchApprovalsRequired: number;
-  headOfficeApprovalRequired: boolean;
-}): ApprovalLevel[] {
-  return approvalChain({
-    branchApprovalSteps: order.branchApprovalsRequired,
-    headOfficeApproval: order.headOfficeApprovalRequired,
-  });
-}
+const chainOf = (order: { approvalChain: ApprovalLevel[] }) => order.approvalChain;
 
 const site = (order: { warehouseId: string; warehouse: { branchId: string } }) => ({
   branchId: order.warehouse.branchId,
@@ -638,7 +625,7 @@ const site = (order: { warehouseId: string; warehouse: { branchId: string } }) =
  * they created or submitted it, already signed this round, or do not hold
  * the step's level for the order's site.
  */
-function approvalBlock(
+function blockFor(
   ctx: TenantContext,
   order: {
     createdByUserId: string;
@@ -648,12 +635,29 @@ function approvalBlock(
     warehouse: { branchId: string };
   },
   signedThisRound: readonly string[],
-): "SELF" | "ALREADY_SIGNED" | "LEVEL" | null {
-  if (order.createdByUserId === ctx.userId || order.submittedByUserId === ctx.userId) return "SELF";
-  if (signedThisRound.includes(ctx.userId)) return "ALREADY_SIGNED";
-  const level = order.pendingApprovalLevel ?? "ANY";
-  return holdsApprovalLevel(ctx.grants, level, site(order)) ? null : "LEVEL";
+) {
+  return approvalBlock({
+    userId: ctx.userId,
+    authors: [order.createdByUserId, order.submittedByUserId],
+    signedThisRound,
+    holdsLevel: holdsLevel(ctx, order),
+  });
 }
+
+const holdsLevel = (
+  ctx: TenantContext,
+  order: {
+    pendingApprovalLevel: ApprovalLevel | null;
+    warehouseId: string;
+    warehouse: { branchId: string };
+  },
+) =>
+  holdsApprovalLevel(
+    ctx.grants,
+    "purchasing.approve",
+    order.pendingApprovalLevel ?? "ANY",
+    site(order),
+  );
 
 /**
  * Sign the next approval step of a pending order. Each step is a different
@@ -672,7 +676,7 @@ export async function approveOrder(ctx: TenantContext, orderId: string) {
       },
       select: { approvedByUserId: true },
     });
-    const block = approvalBlock(
+    const block = blockFor(
       ctx,
       order,
       signed.map((a) => a.approvedByUserId),
@@ -748,7 +752,7 @@ export async function rejectOrder(ctx: TenantContext, orderId: string, rawInput:
     requireStatus(order, order.status === "PENDING_APPROVAL");
     // Whoever may sign the current step may send the order back instead.
     const level = order.pendingApprovalLevel ?? "ANY";
-    if (!holdsApprovalLevel(ctx.grants, level, site(order)))
+    if (!holdsLevel(ctx, order))
       throw businessRuleViolation("APPROVAL_LEVEL_REQUIRED", "This step needs another approver", {
         level,
       });

@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
-  approvalChain,
-  holdsApprovalLevel,
-  nextApprovalLevel,
   allocateCharge,
-  approvalOutcome,
   isCancellable,
   isClosable,
   isEditable,
@@ -22,13 +18,6 @@ import {
 const d = (v: string) => new Decimal(v);
 
 describe("purchase order rules", () => {
-  it("approves automatically without a threshold or at/below it", () => {
-    expect(approvalOutcome(d("5000"), null)).toBe("AUTO_APPROVED");
-    expect(approvalOutcome(d("1000"), d("1000"))).toBe("AUTO_APPROVED");
-    expect(approvalOutcome(d("1000.0001"), d("1000"))).toBe("NEEDS_APPROVAL");
-    expect(approvalOutcome(d("0.01"), d("0"))).toBe("NEEDS_APPROVAL");
-  });
-
   it("computes line totals exactly at money scale", () => {
     expect(lineTotal(d("3"), d("0.333333")).toFixed()).toBe("1");
     expect(lineTotal(d("12.5"), d("4.4")).toFixed()).toBe("55");
@@ -213,56 +202,5 @@ describe("requisition rules", () => {
     });
     for (const s of ["ORDERED", "REJECTED", "CLOSED", "CANCELLED"] as const)
       expect(Object.values(requisitionActions(s, 0)).some(Boolean)).toBe(false);
-  });
-});
-
-describe("approval chain (ADR-049)", () => {
-  it("lists branch steps then head office; one ANY step when nothing is configured", () => {
-    expect(approvalChain({ branchApprovalSteps: 2, headOfficeApproval: true })).toEqual([
-      "BRANCH",
-      "BRANCH",
-      "HEAD_OFFICE",
-    ]);
-    expect(approvalChain({ branchApprovalSteps: 0, headOfficeApproval: true })).toEqual([
-      "HEAD_OFFICE",
-    ]);
-    expect(approvalChain({ branchApprovalSteps: 1, headOfficeApproval: false })).toEqual([
-      "BRANCH",
-    ]);
-    expect(approvalChain({ branchApprovalSteps: 0, headOfficeApproval: false })).toEqual(["ANY"]);
-    const chain = approvalChain({ branchApprovalSteps: 2, headOfficeApproval: true });
-    expect([0, 1, 2, 3].map((g) => nextApprovalLevel(chain, g))).toEqual([
-      "BRANCH",
-      "BRANCH",
-      "HEAD_OFFICE",
-      null,
-    ]);
-  });
-
-  it("branch steps need a grant on the order's own site; head office an organization-wide one", () => {
-    const site = { branchId: "b1", warehouseId: "w1" };
-    const approve = (scope: Parameters<typeof holdsApprovalLevel>[0][number]["scope"]) => [
-      { permission: "purchasing.approve", scope },
-    ];
-    const org = approve({ type: "ORGANIZATION" });
-    const branch = approve({ type: "BRANCH", branchId: "b1" });
-    const warehouse = approve({ type: "WAREHOUSE", warehouseId: "w1" });
-    const otherBranch = approve({ type: "BRANCH", branchId: "b2" });
-    expect(holdsApprovalLevel(branch, "BRANCH", site)).toBe(true);
-    expect(holdsApprovalLevel(warehouse, "BRANCH", site)).toBe(true);
-    expect(holdsApprovalLevel(org, "BRANCH", site)).toBe(false);
-    expect(holdsApprovalLevel(otherBranch, "BRANCH", site)).toBe(false);
-    expect(holdsApprovalLevel(org, "HEAD_OFFICE", site)).toBe(true);
-    expect(holdsApprovalLevel(branch, "HEAD_OFFICE", site)).toBe(false);
-    expect(holdsApprovalLevel(org, "ANY", site)).toBe(true);
-    expect(holdsApprovalLevel(branch, "ANY", site)).toBe(true);
-    expect(holdsApprovalLevel(otherBranch, "ANY", site)).toBe(false);
-    expect(
-      holdsApprovalLevel(
-        [{ permission: "purchasing.manage", scope: { type: "ORGANIZATION" } }],
-        "ANY",
-        site,
-      ),
-    ).toBe(false);
   });
 });

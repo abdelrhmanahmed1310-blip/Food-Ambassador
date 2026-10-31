@@ -58,11 +58,21 @@ test("purchase approval: two branch approvers, then head office", async ({ brows
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByRole("heading", { name: "Nile Mills" })).toBeVisible();
 
-  // Every order needs approval; the default chain is 2 branch steps + head office.
-  await page.goto(`/o/${slug}/settings/purchasing`);
-  await expect(page.getByLabel("Branch approvals")).toHaveValue("2");
-  await expect(page.getByLabel("Head office approval")).toHaveValue("true");
-  await page.getByLabel("Approval limit").fill("0");
+  // Approval matrix: two branch layers for every order, head office above 150.
+  await page.goto(`/o/${slug}/settings/approvals`);
+  // The purchase-order form comes first, then the stock-count one.
+  await page
+    .getByLabel(/^Branch layer 1/)
+    .first()
+    .fill("0");
+  await page
+    .getByLabel(/^Branch layer 2/)
+    .first()
+    .fill("0");
+  await page
+    .getByLabel(/^Head office/)
+    .first()
+    .fill("150");
   await page.getByRole("button", { name: "Save" }).first().click();
   await expect(page.getByText("Changes saved.").first()).toBeVisible();
 
@@ -96,7 +106,7 @@ test("purchase approval: two branch approvers, then head office", async ({ brows
   await page.getByRole("button", { name: "Submit" }).click();
   await expect(page.getByText("Awaiting approval", { exact: true }).first()).toBeVisible();
   await expect(page.getByTestId("approval-steps")).toContainText("Step 1 of 3");
-  await expect(page.getByText("You created or submitted this order")).toBeVisible();
+  await expect(page.getByText("You created or submitted this, so other people")).toBeVisible();
 
   // Head office cannot sign a branch step.
   await ho.page.goto(orderUrl);

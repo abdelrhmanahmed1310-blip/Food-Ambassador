@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createProduct, listUnits } from "@/modules/catalog/service";
 import { postOpeningBalance, postStatusChange } from "@/modules/inventory/operations";
 import { addDays, businessDate } from "@/modules/inventory/rules";
+import { updateApprovalMatrix } from "@/modules/approvals/service";
 import { addOrderLine, approveOrder, createOrder, submitOrder } from "@/modules/procurement/orders";
 import { saveReorderRule } from "@/modules/procurement/reorder";
-import { updateProcurementSettings } from "@/modules/procurement/settings";
 import { createSupplier } from "@/modules/procurement/suppliers";
 import { createBranch } from "@/modules/sites/branches";
 import { createWarehouse } from "@/modules/sites/warehouses";
@@ -120,10 +120,7 @@ describe("needs attention", () => {
       maxQuantity: "30",
     });
 
-    await updateProcurementSettings(ctx, {
-      approvalThreshold: "10",
-      overReceiptTolerancePercent: "0",
-    });
+    await updateApprovalMatrix(ctx, "PURCHASE_ORDER", { layer1: "10", layer2: "10", layer4: "10" });
     const supplierId = (await createSupplier(ctx, { code: "MILL", name: "Mill" })).id;
     const po = await createOrder(buyer, { supplierId, warehouseId: kitchen });
     await addOrderLine(buyer, po.id, {

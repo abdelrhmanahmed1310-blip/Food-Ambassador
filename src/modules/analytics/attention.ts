@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
 import { accessibleScope, hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
+import { approvalBlock, holdsApprovalLevel } from "@/modules/approvals/rules";
 import type { Permission } from "@/modules/access/permissions";
 import { EXPIRY_WARNING_DAYS } from "@/modules/inventory/queries";
 import { addDays, businessDate } from "@/modules/inventory/rules";
@@ -150,46 +151,52 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
       }
     }
 
-    // Orders whose next step this user may sign (ADR-049): branch steps need
-    // a grant on the order's own branch or warehouse, head office an
-    // organization-wide one; never their own orders or a second signature.
-    if (holdsAnyGrant(ctx.grants, "purchasing.approve")) {
-      const approveGrants = ctx.grants.filter((g) => g.permission === "purchasing.approve");
-      const headOffice = approveGrants.some((g) => g.scope.type === "ORGANIZATION");
-      const branchIds = approveGrants.flatMap((g) =>
-        g.scope.type === "BRANCH" ? [g.scope.branchId] : [],
-      );
-      const warehouseIds = approveGrants.flatMap((g) =>
-        g.scope.type === "WAREHOUSE" ? [g.scope.warehouseId] : [],
-      );
-      const local: Prisma.WarehouseWhereInput = {
-        OR: [{ branchId: { in: branchIds } }, { id: { in: warehouseIds } }],
-      };
-      const levels: Prisma.PurchaseOrderWhereInput[] = [
-        { pendingApprovalLevel: { in: ["BRANCH", "ANY"] }, warehouse: local },
-      ];
-      if (headOffice) levels.push({ pendingApprovalLevel: { in: ["HEAD_OFFICE", "ANY"] } });
-      const candidates = await tx.purchaseOrder.findMany({
-        where: {
-          organizationId: org,
-          status: "PENDING_APPROVAL",
-          OR: levels,
-          NOT: [{ submittedByUserId: ctx.userId }, { createdByUserId: ctx.userId }],
-        },
-        select: {
-          approvalRound: true,
-          approvals: { select: { round: true, approvedByUserId: true } },
-        },
+    // Documents whose next step this user may sign (ADR-049): the same rule
+    // as the document pages — level for the site, never the author, never a
+    // second signature in the same round.
+    const signable = (
+      permission: "purchasing.approve" | "inventory.count.approve",
+      d: {
+        createdByUserId: string;
+        submittedByUserId: string | null;
+        pendingApprovalLevel: "BRANCH" | "HEAD_OFFICE" | "ANY" | null;
+        approvalRound: number;
+        warehouseId: string;
+        warehouse: { branchId: string };
+        approvals: Array<{ round: number; approvedByUserId: string }>;
+      },
+    ) =>
+      approvalBlock({
+        userId: ctx.userId,
+        authors: [d.createdByUserId, d.submittedByUserId],
+        signedThisRound: d.approvals
+          .filter((a) => a.round === d.approvalRound)
+          .map((a) => a.approvedByUserId),
+        holdsLevel: holdsApprovalLevel(ctx.grants, permission, d.pendingApprovalLevel ?? "ANY", {
+          branchId: d.warehouse.branchId,
+          warehouseId: d.warehouseId,
+        }),
+      }) === null;
+    const chainFields = {
+      createdByUserId: true,
+      submittedByUserId: true,
+      pendingApprovalLevel: true,
+      approvalRound: true,
+      warehouseId: true,
+      warehouse: { select: { branchId: true } },
+      approvals: { select: { round: true, approvedByUserId: true } },
+    } as const;
+
+    const approve = warehouseWhere(ctx, "purchasing.approve");
+    if (approve) {
+      const orders = await tx.purchaseOrder.findMany({
+        where: { organizationId: org, status: "PENDING_APPROVAL", warehouse: approve },
+        select: chainFields,
       });
       push({
         key: "ORDERS_TO_APPROVE",
         tone: "info",
-        count: candidates.filter(
-          (o) =>
-            !o.approvals.some(
-              (a) => a.round === o.approvalRound && a.approvedByUserId === ctx.userId,
-            ),
-        ).length,
+        count: orders.filter((o) => signable("purchasing.approve", o)).length,
         href: "/purchasing/orders?status=PENDING_APPROVAL",
       });
     }
@@ -210,15 +217,21 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
       });
 
     const counts = warehouseWhere(ctx, "inventory.count.approve");
-    if (counts)
+    if (counts) {
+      const submitted = await tx.stockCount.findMany({
+        where: { organizationId: org, status: "SUBMITTED", warehouse: counts },
+        select: { ...chainFields, approvalChain: true },
+      });
       push({
         key: "COUNTS_TO_POST",
         tone: "info",
-        count: await tx.stockCount.count({
-          where: { organizationId: org, status: "SUBMITTED", warehouse: counts },
-        }),
+        // Without a chain any approver of the warehouse may post (as before).
+        count: submitted.filter(
+          (c) => c.approvalChain.length === 0 || signable("inventory.count.approve", c),
+        ).length,
         href: "/inventory/counts",
       });
+    }
 
     if (hasPermission(ctx.grants, "invoices.manage"))
       push({

@@ -97,7 +97,6 @@ beforeAll(async () => {
     vatNumber: "310122393500003",
   });
   await updateProcurementSettings(ctx, {
-    approvalThreshold: "",
     overReceiptTolerancePercent: "0",
     invoicePriceTolerancePercent: "2",
   });

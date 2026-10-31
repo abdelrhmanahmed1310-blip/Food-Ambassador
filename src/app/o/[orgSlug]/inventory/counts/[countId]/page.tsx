@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import { ApprovalSteps } from "@/components/approvals/steps";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { AddCountLineForm, CountSheetForm } from "@/components/inventory/forms";
+import { ReasonForm } from "@/components/procurement/forms";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui/primitives";
 import { Decimal } from "@/lib/decimal";
 import { isUuid } from "@/lib/uuid";
@@ -18,6 +20,7 @@ import {
   cancelCountAction,
   postCountAction,
   recordCountsAction,
+  rejectCountAction,
   submitCountAction,
 } from "../../actions";
 
@@ -28,7 +31,16 @@ export default async function CountPage({
   if (!isUuid(countId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const count = await notFoundOnAppError(getCount(ctx, countId));
-  const [t, locale, fmt] = await Promise.all([getTranslations(), getLocale(), quantityFormatter()]);
+  const [t, locale, fmt, format] = await Promise.all([
+    getTranslations(),
+    getLocale(),
+    quantityFormatter(),
+    getFormatter(),
+  ]);
+  const when = (d: Date) =>
+    format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone });
+  const chained = count.approvalChain.length > 0;
+  const remaining = count.approvalSteps.filter((s) => !s.signedAt).length;
   const target = { branchId: count.warehouse.branchId, warehouseId: count.warehouse.id };
   const canCount = hasPermission(ctx.grants, "inventory.count", target);
   const canApprove = hasPermission(ctx.grants, "inventory.count.approve", target);
@@ -78,6 +90,20 @@ export default async function CountPage({
       />
       <div className="space-y-6">
         <p className="text-muted text-sm">{t("inventory.countHint")}</p>
+        {open && count.rejectionNote ? (
+          <Alert tone="info">{t("approvals.rejected", { reason: count.rejectionNote })}</Alert>
+        ) : null}
+        {count.status !== "OPEN" && count.submittedAt ? (
+          <p className="text-sm">
+            {t("inventory.varianceValue")}:{" "}
+            <span className="ltr-value tabular-nums">
+              {count.varianceValue === null
+                ? t("inventory.varianceUnknown")
+                : `${ctx.baseCurrency} ${count.varianceValue.toFixed(2)}`}
+            </span>
+          </p>
+        ) : null}
+        <ApprovalSteps steps={count.approvalSteps} formatTime={when} />
         {count.status === "POSTED" ? (
           <Alert tone="success">
             {count.document ? (
@@ -105,6 +131,18 @@ export default async function CountPage({
           />
         )}
         {addForm ? <Card title={t("inventory.addItem")}>{addForm}</Card> : null}
+        {count.approvalBlocked ? (
+          <Alert tone="info">{t(`approvals.blocked.${count.approvalBlocked}`)}</Alert>
+        ) : null}
+        {count.canReject ? (
+          <Card>
+            <ReasonForm
+              action={rejectCountAction.bind(null, orgSlug, countId)}
+              submitLabel={t("approvals.reject")}
+              label={t("approvals.rejectReason")}
+            />
+          </Card>
+        ) : null}
         <div className="flex flex-wrap gap-3">
           {open && canCount && lines.length > 0 ? (
             <ConfirmActionButton
@@ -113,10 +151,10 @@ export default async function CountPage({
               variant="primary"
             />
           ) : null}
-          {count.status === "SUBMITTED" && canApprove ? (
+          {count.status === "SUBMITTED" && canApprove && !count.approvalBlocked ? (
             <ConfirmActionButton
               action={postCountAction.bind(null, orgSlug, countId)}
-              label={t("inventory.postCount")}
+              label={chained && remaining > 1 ? t("approvals.signStep") : t("inventory.postCount")}
               variant="primary"
               confirmMessage={t("inventory.confirmPostCount")}
             />
