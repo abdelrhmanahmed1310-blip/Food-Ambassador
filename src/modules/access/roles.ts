@@ -1,13 +1,19 @@
 import "server-only";
 import { z } from "zod";
-import { assertPermission } from "@/modules/access/authorize";
+import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { OWNER_ROLE_KEY, PERMISSIONS, type Permission } from "@/modules/access/permissions";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { requiredText, optionalText } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx } from "@/server/db/transactions";
-import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
+import {
+  businessRuleViolation,
+  conflict,
+  forbidden,
+  notFound,
+  validationFailed,
+} from "@/server/errors";
 import { uuidv7 } from "@/lib/uuid";
 
 const permissionListSchema = z
@@ -21,6 +27,9 @@ export const roleSchema = z.object({
 });
 
 export async function listRoles(ctx: TenantContext) {
+  // Role pickers on the members pages and the roles page itself.
+  const allowed: Permission[] = ["members.view", "members.manage", "roles.manage"];
+  if (!allowed.some((p) => hasPermission(ctx.grants, p))) throw forbidden();
   return withTenantTx(ctx.organizationId, async (tx) => {
     const roles = await tx.role.findMany({
       where: { organizationId: ctx.organizationId },

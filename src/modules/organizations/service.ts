@@ -114,6 +114,7 @@ export async function listUserOrganizations(userId: string): Promise<Organizatio
 }
 
 export async function getOrganizationSettings(ctx: TenantContext) {
+  assertPermission(ctx.grants, "org.settings.manage");
   return withTenantTx(ctx.organizationId, (tx) =>
     tx.organization.findUniqueOrThrow({
       where: { id: ctx.organizationId },

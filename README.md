@@ -4,7 +4,7 @@ Multi-tenant SaaS for end-to-end food operations: procurement, receiving,
 inventory, recipes and food cost, nutrition and allergens, food safety,
 traceability, point of sale, sales/invoice workflows and analytics.
 
-> **Status:** Milestones 0–7 complete — on top of the M1
+> **Status:** Milestones 0–8 complete — on top of the M1
 > foundation (sign-in, organizations, roles, sites, audit, Arabic/English):
 > products, units and conversions, lots and expiry, an append-only stock
 > ledger, opening balances, adjustments, write-offs, transfers, quarantine and
@@ -31,9 +31,13 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > second-person verification, recipe nutrition and allergens through
 > sub-recipes, an allergen matrix, labels approved by a second person, and
 > an ingredient library imported from USDA FoodData Central, Open Food Facts
-> and Wikidata. Milestone 8 (in progress) adds reports: waste and stock
-> differences, actual food cost per branch, branch comparison and trends,
-> with CSV downloads. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> and Wikidata. Milestone 8 adds reports (waste and stock differences,
+> actual food cost per branch, branch comparison and trends, CSV), a "needs
+> attention" list, and pilot readiness: backups with a tested restore, an
+> integrity check, runbooks and a security review
+> ([docs/OPERATIONS.md](docs/OPERATIONS.md),
+> [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md),
+> [docs/PILOT_ONBOARDING.md](docs/PILOT_ONBOARDING.md)). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |
@@ -105,6 +109,9 @@ role `CREATEROLE` for the first run (ADR-013). A local superuser works as is.
 | `pnpm db:migrate`              | Create/apply a migration in development                                                  |
 | `pnpm db:deploy`               | Apply committed migrations (CI/production)                                               |
 | `pnpm db:seed`                 | Insert [DEMO] data (development only, idempotent)                                        |
+| `pnpm db:backup [dir]`         | Checksummed backup of `DATABASE_URL` (docs/OPERATIONS.md)                                |
+| `pnpm db:restore <dump> <url>` | Restore into an empty database, then verify                                              |
+| `pnpm db:verify`               | Integrity check: RLS, balances and values vs. ledger, migrations                         |
 | `pnpm library:import …`        | Import a full food-database download into one organization's ingredient library (below)  |
 
 Integration and E2E tests create uniquely named data and never reset the

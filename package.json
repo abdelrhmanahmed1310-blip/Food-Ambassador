@@ -20,7 +20,10 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "postinstall": "prisma generate",
     "db:seed": "tsx --conditions=react-server --tsconfig tsconfig.json prisma/seed.ts",
-    "library:import": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import-library.ts"
+    "library:import": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import-library.ts",
+    "db:backup": "bash scripts/backup.sh",
+    "db:restore": "bash scripts/restore.sh",
+    "db:verify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/verify-integrity.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

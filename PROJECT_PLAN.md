@@ -48,7 +48,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M5   | Nutrition & allergens       | M4                               | Complete (live lookup, label layouts open) |
 | M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                               |
 | M7   | Sales & financial workflows | M3, M4                           | Complete                                   |
-| M8   | Analytics & pilot readiness | M2–M7                            | In progress (M8a, M8b done)                |
+| M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)              |
 | M9   | Central kitchen & B2B       | M4, M6                           | Proposed                                   |
 | M10  | Integrations                | M7                               | Proposed                                   |
 | POS1 | Core                        | M4                               | Planned                                    |
@@ -318,8 +318,13 @@ site: expired/expiring stock, quarantine, below minimum, approvals and
 verifications waiting (never one's own), overdue supplier invoices, food
 safety actions, active recalls; on the overview and its own page.
 
-**M8c — next:** backup and restore drill, runbooks, security review, pilot
-onboarding checklist.
+**M8c — Pilot readiness ✅ (ADR-044):** backup/restore scripts with checksum
+and empty-target checks, integrity check, restore drill done, runbooks
+(docs/OPERATIONS.md), security review with fixes (docs/SECURITY_REVIEW.md),
+pilot onboarding checklist (docs/PILOT_ONBOARDING.md).
+
+**Before go-live (open):** external penetration test, CSP script nonces,
+password reset and 2FA (Q-10, Q-07), hosting and data residency (Q-03).
 
 ---
 

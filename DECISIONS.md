@@ -799,6 +799,29 @@ documents stay scoped. Found by a scoped-user integration test.
   active recalls (`recalls.manage`).
 - Shown on the overview (first six) and on its own page, most urgent first.
 
+### ADR-044 Pilot readiness: backups, integrity check, security baseline — Accepted (M8c)
+
+- **Backups** are `pg_dump` custom-format files with a SHA-256 checksum
+  (`pnpm db:backup`), daily and before every deploy, stored off the database
+  host, encrypted and access-limited (they hold every tenant's data).
+- **Restores** go only into a new, empty database (`pnpm db:restore`): the
+  checksum must match, the target must have no tables, the tenant role is
+  recreated, the restore is one transaction, and the integrity check runs
+  after it. A live database is never overwritten; a single organization
+  cannot be restored on its own (shared tables) — documented manual
+  procedure instead.
+- **Integrity check** (`pnpm db:verify`): RLS and policy on every tenant
+  table, balances = ledger, values = ledger + revaluations + landed costs,
+  no negative or over-reserved stock, all migrations applied. Counts only,
+  never data. Run after restores and migrations and daily.
+- **Drill** before the pilot and quarterly, recorded in docs/OPERATIONS.md.
+- **Security baseline:** services check permissions even where a page
+  already does; `frame-ancestors 'none'`, `base-uri`/`form-action 'self'`,
+  `object-src 'none'` and HSTS in production. Restricting script sources
+  needs per-request nonces and is left open, like password reset and 2FA
+  (Q-10, Q-07) and an external penetration test — see
+  docs/SECURITY_REVIEW.md.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

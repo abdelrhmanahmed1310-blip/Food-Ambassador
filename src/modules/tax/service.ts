@@ -2,7 +2,12 @@ import "server-only";
 import { z } from "zod";
 import { Decimal, decimalString, toDecimal } from "@/lib/decimal";
 import { isCalendarDate } from "@/lib/dates";
-import { accessibleScope, assertPermission, holdsAnyGrant } from "@/modules/access/authorize";
+import {
+  accessibleScope,
+  assertPermission,
+  hasPermission,
+  holdsAnyGrant,
+} from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import {
   codeSchema,
@@ -90,6 +95,12 @@ async function audit(tx: Tx, ctx: TenantContext, action: string, changes: Record
 }
 
 export async function getTaxSetup(ctx: TenantContext) {
+  // VAT settings page, and the dish VAT code picker for recipe editors.
+  if (
+    !hasPermission(ctx.grants, "org.settings.manage") &&
+    !hasPermission(ctx.grants, "recipes.manage")
+  )
+    throw forbidden();
   return withTenantTx(ctx.organizationId, async (tx) => {
     const [settings, codes] = [
       await tx.taxSettings.findUnique({ where: { organizationId: ctx.organizationId } }),

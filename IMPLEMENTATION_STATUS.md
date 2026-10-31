@@ -1,21 +1,49 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-07 (M8b needs attention)
+Last updated: 2026-10-31 (M8c pilot readiness; Milestone 8 complete)
 
 ## Summary
 
-| Milestone                     | Status                                                                                                                                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                    |
-| M1 Application foundation     | ✅ Complete                                                                                                                                                                                    |
-| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                    |
-| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                            |
-| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                              |
-| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                   |
-| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export) |
-| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts     |
-| M8 Analytics & pilot          | 🔄 In progress — M8a ✅ (waste, actual food cost, branch comparison, trends, CSV), **M8b ✅** (needs attention); M8c pilot readiness next                                                      |
-| M9 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                       |
+| Milestone                     | Status                                                                                                                                                                                                                |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                           |
+| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                           |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                           |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                   |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                     |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                          |
+| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                        |
+| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                            |
+| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
+| M9 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## M8c — Pilot readiness (delivered)
+
+Rules: DECISIONS.md ADR-044.
+
+| Area            | What works                                                                                                                                       | Where                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| Backup          | `pnpm db:backup`: compressed custom-format dump + SHA-256                                                                                        | `scripts/backup.sh`           |
+| Restore         | `pnpm db:restore`: checksum must match, target must be empty, tenant role recreated, one transaction, then verify                                | `scripts/restore.sh`          |
+| Integrity check | `pnpm db:verify`: RLS + policy on tenant tables, balances = ledger, values = ledger + revaluations + landed costs, no negative stock, migrations | `scripts/verify-integrity.ts` |
+| Drill           | Test database (1,651 orgs, 79 tables, 6.3 MB): backup 2.6 s, restore + verify 4.9 s; identical row counts; bad inputs refused                    | docs/OPERATIONS.md §3         |
+| Runbooks        | Deploy, rollback, monitoring, backup/restore, integrity failures, incidents                                                                      | docs/OPERATIONS.md            |
+| Security review | Controls with evidence; 3 findings fixed (service checks, headers, restore), 3 open with owners                                                  | docs/SECURITY_REVIEW.md       |
+| Onboarding      | Pilot checklist from decisions to acceptance                                                                                                     | docs/PILOT_ONBOARDING.md      |
+
+Checks: `pnpm check` pass (unit 31 files / 186 tests; build);
+`pnpm test:integration` 28 files / 193 tests pass (1 new: an analyst is
+refused roles, VAT setup and organization settings; those who use them are
+not); `pnpm test:e2e` 34 tests pass with the new headers; `pnpm db:verify`
+passes on the development and test databases; `pnpm audit --prod` reports no
+known vulnerabilities; headers checked on the production build.
+
+Found and fixed: three settings reads without a service-level permission
+check; no CSP or HSTS; `.env.example` wrongly said tests reset the test
+database.
+
+Open before go-live: external penetration test, CSP script nonces, password
+reset and 2FA (Q-10, Q-07), hosting and data residency (Q-03).
 
 ## M8b — Needs attention (delivered)
 
