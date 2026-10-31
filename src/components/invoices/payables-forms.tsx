@@ -181,6 +181,10 @@ export function AccountsForm({
     inputVatAccount: string;
     paymentsAccount: string;
     fxDifferenceAccount: string;
+    receivablesAccount: string;
+    salesAccount: string;
+    outputVatAccount: string;
+    receiptsAccount: string;
   };
 }) {
   const t = useTranslations();
@@ -195,6 +199,10 @@ export function AccountsForm({
             ["inputVatAccount", "accountInputVat"],
             ["paymentsAccount", "accountPayments"],
             ["fxDifferenceAccount", "accountFxDifference"],
+            ["receivablesAccount", "accountReceivables"],
+            ["salesAccount", "accountSales"],
+            ["outputVatAccount", "accountOutputVat"],
+            ["receiptsAccount", "accountReceipts"],
           ] as const
         ).map(([name, label]) => (
           <TextField

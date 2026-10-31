@@ -88,7 +88,7 @@ export default async function RevaluationPage({
                 <Table label={t("revaluation.preview")}>
                   <thead>
                     <tr>
-                      <Th>{t("purchasing.supplier")}</Th>
+                      <Th>{t("revaluation.party")}</Th>
                       <Th>{t("fx.currency")}</Th>
                       <Th>{t("revaluation.open")}</Th>
                       <Th>{t("revaluation.booked")}</Th>
@@ -99,10 +99,11 @@ export default async function RevaluationPage({
                   </thead>
                   <tbody>
                     {preview.lines.map((l) => (
-                      <tr key={`${l.supplier.id}-${l.currency}`}>
+                      <tr key={`${l.kind}-${l.party.id}-${l.currency}`}>
                         <Td>
-                          <span className="ltr-value font-mono text-xs">{l.supplier.code}</span>{" "}
-                          <bdi>{(locale === "ar" && l.supplier.nameAr) || l.supplier.name}</bdi>
+                          <Badge tone="neutral">{t(`revaluation.kinds.${l.kind}`)}</Badge>{" "}
+                          <span className="ltr-value font-mono text-xs">{l.party.code}</span>{" "}
+                          <bdi>{(locale === "ar" && l.party.nameAr) || l.party.name}</bdi>
                         </Td>
                         <Td>
                           <span className="ltr-value font-mono text-xs">{l.currency}</span>
@@ -126,17 +127,28 @@ export default async function RevaluationPage({
                         </Td>
                       </tr>
                     ))}
-                    <tr className="font-medium" data-testid="revaluation-total">
-                      <Td>{t("payables.total")}</Td>
-                      <Td />
-                      <Td />
-                      <Td />
-                      <Td />
-                      <Td />
-                      <Td className="tabular-nums">
-                        <span className="ltr-value">{base.money(preview.total)}</span>
-                      </Td>
-                    </tr>
+                    {(
+                      [
+                        ["PAYABLE", preview.payablesTotal],
+                        ["RECEIVABLE", preview.receivablesTotal],
+                      ] as const
+                    ).map(([kind, total]) => (
+                      <tr
+                        key={kind}
+                        className="font-medium"
+                        data-testid={`revaluation-total-${kind}`}
+                      >
+                        <Td>{t(`revaluation.totals.${kind}`)}</Td>
+                        <Td />
+                        <Td />
+                        <Td />
+                        <Td />
+                        <Td />
+                        <Td className="tabular-nums">
+                          <span className="ltr-value">{base.money(total)}</span>
+                        </Td>
+                      </tr>
+                    ))}
                   </tbody>
                 </Table>
                 <p className="text-muted text-xs">{t("revaluation.sign")}</p>

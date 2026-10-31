@@ -1892,7 +1892,11 @@
       "PARTLY_PAID": "Partly paid",
       "PAID": "Paid"
     },
-    "accountFxDifference": "Exchange differences account"
+    "accountFxDifference": "Exchange differences account",
+    "accountReceivables": "Customer receivables account",
+    "accountSales": "Sales account",
+    "accountOutputVat": "Output VAT account",
+    "accountReceipts": "Customer receipts — bank account"
   },
   "nutrition": {
     "nutritionAndAllergens": "Nutrition and allergens",
@@ -2280,7 +2284,9 @@
     "margin": "Gross margin",
     "balances": "Customer balances",
     "balancesHint": "What each B2B customer owes, with open invoices aged by due date.",
-    "outputVat": "Output VAT (B2B invoices)"
+    "outputVat": "Output VAT (B2B invoices)",
+    "exportTitle": "Accounting export",
+    "exportHint": "B2B invoices and receipts of the period with currency, rate and base amounts, and a balanced journal in base currency (exchange differences and revaluations included)."
   },
   "integrations": {
     "title": "Integrations",
@@ -2439,7 +2445,7 @@
     "rate": "Rate (date)",
     "revalued": "Value at rate",
     "difference": "Difference",
-    "sign": "A positive difference means the payable grew in base currency (a loss); negative, a gain.",
+    "sign": "Payables: a positive difference means the amount owed grew in base currency (a loss). Receivables: a positive difference means the amount due grew (a gain).",
     "post": "Post revaluation",
     "posting": "Posting…",
     "postHint": "The figures above are stored and cannot be changed; a revaluation can be cancelled with a reason.",
@@ -2452,6 +2458,15 @@
     "cancelled": "Cancelled",
     "cancel": "Cancel revaluation",
     "cancelReason": "Reason",
-    "detailHint": "Unrealised exchange differences on open foreign-currency payables."
+    "detailHint": "Unrealised exchange differences on open foreign-currency payables.",
+    "party": "Supplier / customer",
+    "kinds": {
+      "PAYABLE": "Payable",
+      "RECEIVABLE": "Receivable"
+    },
+    "totals": {
+      "PAYABLE": "Payables difference (+ = loss)",
+      "RECEIVABLE": "Receivables difference (+ = gain)"
+    }
   }
 }

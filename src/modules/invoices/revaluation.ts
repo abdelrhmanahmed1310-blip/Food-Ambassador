@@ -2,7 +2,8 @@ import "server-only";
 import { z } from "zod";
 import { isCalendarDate } from "@/lib/dates";
 import { Decimal } from "@/lib/decimal";
-import { assertPermission } from "@/modules/access/authorize";
+import { assertPermission, hasPermission } from "@/modules/access/authorize";
+import { customerBalances } from "@/modules/b2b/receivables";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { revalue } from "@/modules/fx/rules";
 import { rateFor } from "@/modules/fx/service";
@@ -31,17 +32,39 @@ const asOfSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 });
 
-/** What a revaluation on `asOf` would contain (needs a usable rate per currency). */
+type Party = { id: string; code: string; name: string; nameAr: string | null };
+
+/**
+ * What a revaluation on `asOf` would contain (needs a usable rate per
+ * currency): open supplier balances (payables) and, with B2B access, open
+ * customer balances (receivables, ADR-056).
+ */
 async function computeLines(ctx: TenantContext, tx: Tx, asOf: string) {
-  const balances = await supplierBalances(ctx, asOf);
+  const payables = (await supplierBalances(ctx, asOf)).rows.map((r) => ({
+    kind: "PAYABLE" as const,
+    party: r.supplier as Party,
+    currency: r.currency,
+    balance: r.balance,
+    balanceBase: r.balanceBase,
+  }));
+  const receivables = hasPermission(ctx.grants, "b2b.view")
+    ? (await customerBalances(ctx, asOf)).rows.map((r) => ({
+        kind: "RECEIVABLE" as const,
+        party: r.customer as Party,
+        currency: r.currency,
+        balance: r.balance,
+        balanceBase: r.balanceBase,
+      }))
+    : [];
   const decimals = currencyDecimals(ctx.baseCurrency);
   const lines = [];
-  for (const r of balances.rows) {
+  for (const r of [...payables, ...receivables]) {
     if (r.currency === ctx.baseCurrency || r.balance.isZero()) continue;
     const fx = await rateFor(tx, ctx, r.currency, asOf);
     const { revaluedBase, differenceBase } = revalue(r.balance, r.balanceBase, fx.rate, decimals);
     lines.push({
-      supplier: r.supplier,
+      kind: r.kind,
+      party: r.party,
       currency: r.currency,
       openAmount: r.balance,
       bookedBase: r.balanceBase,
@@ -54,16 +77,19 @@ async function computeLines(ctx: TenantContext, tx: Tx, asOf: string) {
   return lines;
 }
 
+/** Payables differences (+ = loss) and receivables differences (+ = gain), kept apart. */
+function totals(lines: Array<{ kind: "PAYABLE" | "RECEIVABLE"; differenceBase: Decimal }>) {
+  const sum = (kind: string) =>
+    lines.filter((l) => l.kind === kind).reduce((a, l) => a.plus(l.differenceBase), new Decimal(0));
+  return { payablesTotal: sum("PAYABLE"), receivablesTotal: sum("RECEIVABLE") };
+}
+
 export async function previewRevaluation(ctx: TenantContext, asOf: string) {
   assertPermission(ctx.grants, "fx.manage");
   if (!isCalendarDate(asOf)) throw validationFailed(new z.ZodError([]));
   return withTenantTx(ctx.organizationId, async (tx) => {
     const lines = await computeLines(ctx, tx, asOf);
-    return {
-      asOf,
-      lines,
-      total: lines.reduce((a, l) => a.plus(l.differenceBase), new Decimal(0)),
-    };
+    return { asOf, lines, ...totals(lines) };
   });
 }
 
@@ -87,7 +113,7 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
             "NOTHING_TO_REVALUE",
             "No open foreign-currency balances on this date",
           );
-        const total = lines.reduce((a, l) => a.plus(l.differenceBase), new Decimal(0));
+        const { payablesTotal: total, receivablesTotal } = totals(lines);
         const number = await nextDocumentNumber(
           tx,
           ctx.organizationId,
@@ -100,6 +126,7 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
             number,
             asOf: new Date(`${asOf}T00:00:00Z`),
             totalDifferenceBase: total.toFixed(),
+            receivablesDifferenceBase: receivablesTotal.toFixed(),
             createdByUserId: ctx.userId,
           },
           select: { id: true, number: true },
@@ -108,7 +135,8 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
           data: lines.map((l) => ({
             organizationId: ctx.organizationId,
             revaluationId: rev.id,
-            supplierId: l.supplier.id,
+            supplierId: l.kind === "PAYABLE" ? l.party.id : null,
+            customerId: l.kind === "RECEIVABLE" ? l.party.id : null,
             currency: l.currency,
             openAmount: l.openAmount.toFixed(),
             bookedBase: l.bookedBase.toFixed(),
@@ -122,7 +150,13 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
           action: "fx_revaluation.posted",
           entityType: "fx_revaluation",
           entityId: rev.id,
-          changes: { number, asOf, lines: lines.length, total: total.toFixed() },
+          changes: {
+            number,
+            asOf,
+            lines: lines.length,
+            payables: total.toFixed(),
+            receivables: receivablesTotal.toFixed(),
+          },
         });
         return rev;
       },
@@ -186,7 +220,10 @@ export async function getRevaluation(ctx: TenantContext, revaluationId: string) 
       where: { organizationId: ctx.organizationId, id: revaluationId },
       include: {
         lines: {
-          include: { supplier: { select: { id: true, code: true, name: true, nameAr: true } } },
+          include: {
+            supplier: { select: { id: true, code: true, name: true, nameAr: true } },
+            customer: { select: { id: true, code: true, name: true, nameAr: true } },
+          },
           orderBy: { differenceBase: "desc" },
         },
       },

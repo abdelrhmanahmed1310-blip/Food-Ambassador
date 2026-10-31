@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (attachments; foreign-currency purchasing; approval matrix)
+Last updated: 2026-10-31 (open items closed: revaluation, foreign landed costs and B2B, B2B export, virus scanning)
 
 ## Summary
 
@@ -18,6 +18,42 @@ Last updated: 2026-10-31 (attachments; foreign-currency purchasing; approval mat
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
 | POS1 – POS5                   | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## Open items closed before POS (delivered)
+
+Rules: DECISIONS.md ADR-052 – ADR-056.
+
+| Area                  | What works                                                                                                                 | Where                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Exchange revaluation  | Open foreign supplier and customer balances at a closing rate; stored, fixed, cancellable; journal entry reversed next day | Payables → Exchange revaluation, `revaluation.ts` |
+| Landed costs          | Entered in any document currency, converted at the day's rate, base allocated to stock                                     | receipt page, `landed-costs.ts`                   |
+| B2B in currencies     | Customer currency; orders, invoices (rate, base totals, margin in base), receipts (rate, realised difference) per currency | `b2b/service.ts`, `b2b/receivables.ts`            |
+| B2B accounting export | Documents CSV with currency/rate/base and cost; balanced base journal with exchange and revaluation lines                  | B2B → Customer balances, `b2b/accounting.ts`      |
+| Virus scanning        | ClamAV `INSTREAM` when `CLAMAV_URL` is set; infected or unscannable uploads refused; files labelled checked / not checked  | `attachments/scanner.ts`, docker-compose `clamav` |
+
+Checks: `pnpm check` pass (unit 37 files / 204 tests; new: revaluation
+rule, clamd INSTREAM framing, clean/infected replies, unreachable scanner;
+build); `pnpm test:integration` 38 files / 242 tests pass (new: payables
+revaluation 60 USD booked 2,910 → 3,000 EGP = 90 loss, once per date,
+fixed, cancel and re-post, journal entry and next-day reversal; USD
+freight 10 × 49 = 490 EGP added to stock; USD customer invoice at 48.5 =
+388 EGP with margin 268, output VAT in base, EGP receipt cannot settle it,
+USD receipt at 50 records a 12 EGP gain; customer revaluation +12; B2B
+documents export and balanced journal; virus scanning against a **real
+ClamAV 1.x daemon** — clean file stored as checked, EICAR refused with
+nothing stored and the attempt audited, unreachable scanner refuses the
+upload); `pnpm test:e2e` 41 tests pass (new: rates pasted as CSV, USD
+invoice, revaluation previewed and posted). An existing E2E test found two
+"Bank …" fields after the new receipts account was added; the new label
+was renamed instead of changing the test.
+
+Note: the real-daemon run used a local EICAR signature, because this
+environment blocks the official signature download; CI uses a protocol
+stand-in unless `CLAMAV_TEST_URL` is set.
+
+Limitations: no live rate feed; attachments still stored in PostgreSQL
+(object storage waits for the hosting decision, Q-03); stock and cost of
+goods are not journaled (periodic approach, ADR-039).
 
 ## Attachments (delivered)
 

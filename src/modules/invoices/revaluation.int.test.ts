@@ -63,7 +63,7 @@ describe("period-end exchange revaluation (ADR-052)", () => {
     expect(p.lines[0].openAmount.toFixed()).toBe("60");
     expect(p.lines[0].bookedBase.toFixed()).toBe("2910");
     expect(p.lines[0].revaluedBase.toFixed()).toBe("3000");
-    expect(p.total.toFixed()).toBe("90"); // a loss: the payable grew
+    expect(p.payablesTotal.toFixed()).toBe("90"); // a loss: the payable grew
     // Before the invoice nothing was open.
     expect((await previewRevaluation(ctx, addDays(today, -20))).lines).toHaveLength(0);
     await expectAppError(

@@ -50,11 +50,17 @@ export default async function RevaluationDetailPage({
                 value: <span className="ltr-value">{day(rev.asOf)}</span>,
               },
               {
-                label: t("revaluation.difference"),
+                label: t("revaluation.totals.PAYABLE"),
                 value: (
                   <span className="ltr-value" data-testid="revaluation-difference">
                     {base.money(rev.totalDifferenceBase)}
                   </span>
+                ),
+              },
+              {
+                label: t("revaluation.totals.RECEIVABLE"),
+                value: (
+                  <span className="ltr-value">{base.money(rev.receivablesDifferenceBase)}</span>
                 ),
               },
               ...(rev.cancelReason
@@ -66,7 +72,7 @@ export default async function RevaluationDetailPage({
         <Table label={rev.number}>
           <thead>
             <tr>
-              <Th>{t("purchasing.supplier")}</Th>
+              <Th>{t("revaluation.party")}</Th>
               <Th>{t("fx.currency")}</Th>
               <Th>{t("revaluation.open")}</Th>
               <Th>{t("revaluation.booked")}</Th>
@@ -79,8 +85,16 @@ export default async function RevaluationDetailPage({
             {rev.lines.map((l) => (
               <tr key={l.id}>
                 <Td>
-                  <span className="ltr-value font-mono text-xs">{l.supplier.code}</span>{" "}
-                  <bdi>{(locale === "ar" && l.supplier.nameAr) || l.supplier.name}</bdi>
+                  <Badge tone="neutral">
+                    {t(`revaluation.kinds.${l.supplier ? "PAYABLE" : "RECEIVABLE"}`)}
+                  </Badge>{" "}
+                  <span className="ltr-value font-mono text-xs">
+                    {(l.supplier ?? l.customer)!.code}
+                  </span>{" "}
+                  <bdi>
+                    {(locale === "ar" && (l.supplier ?? l.customer)!.nameAr) ||
+                      (l.supplier ?? l.customer)!.name}
+                  </bdi>
                 </Td>
                 <Td>
                   <span className="ltr-value font-mono text-xs">{l.currency}</span>

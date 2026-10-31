@@ -35,9 +35,14 @@ const accountsSchema = z.object({
   paymentsAccount: account,
   /** Realised exchange gains and losses (ADR-050). */
   fxDifferenceAccount: account,
+  /** B2B (ADR-056). */
+  receivablesAccount: account,
+  salesAccount: account,
+  outputVatAccount: account,
+  receiptsAccount: account,
 });
 
-const periodSchema = z
+export const periodSchema = z
   .object({
     from: z.string().refine(isCalendarDate, { error: "invalidDate" }),
     to: z.string().refine(isCalendarDate, { error: "invalidDate" }),
@@ -108,7 +113,12 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
         cancelledAt: null,
         asOf: { gte: dayBefore, lte: range.lte },
       },
-      include: { lines: { include: { supplier: { select: { code: true } } } } },
+      include: {
+        lines: {
+          where: { supplierId: { not: null } },
+          include: { supplier: { select: { code: true } } },
+        },
+      },
     });
     return {
       invoices,
@@ -307,44 +317,46 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
       ],
     })),
     // Unrealised differences on the revaluation date, reversed the next day.
-    ...revaluations.flatMap((r) => {
-      const on = day(r.asOf);
-      const next = day(new Date(r.asOf.getTime() + 86_400_000));
-      const lines = (sign: 1 | -1) =>
-        r.lines.flatMap((l) =>
-          fxLines(
-            dec(l.differenceBase).times(sign),
-            accounts.payablesAccount!,
-            accounts.fxDifferenceAccount ?? "",
-          ),
-        );
-      return [
-        ...(on >= parsed.data.from && on <= parsed.data.to
-          ? [
-              {
-                date: on,
-                type: "FX_REVALUATION" as const,
-                number: r.number,
-                supplier: "",
-                reference: "",
-                lines: lines(1),
-              },
-            ]
-          : []),
-        ...(next >= parsed.data.from && next <= parsed.data.to
-          ? [
-              {
-                date: next,
-                type: "FX_REVALUATION_REVERSAL" as const,
-                number: `${r.number}-R`,
-                supplier: "",
-                reference: r.number,
-                lines: lines(-1),
-              },
-            ]
-          : []),
-      ];
-    }),
+    ...revaluations
+      .filter((r) => r.lines.length > 0)
+      .flatMap((r) => {
+        const on = day(r.asOf);
+        const next = day(new Date(r.asOf.getTime() + 86_400_000));
+        const lines = (sign: 1 | -1) =>
+          r.lines.flatMap((l) =>
+            fxLines(
+              dec(l.differenceBase).times(sign),
+              accounts.payablesAccount!,
+              accounts.fxDifferenceAccount ?? "",
+            ),
+          );
+        return [
+          ...(on >= parsed.data.from && on <= parsed.data.to
+            ? [
+                {
+                  date: on,
+                  type: "FX_REVALUATION" as const,
+                  number: r.number,
+                  supplier: "",
+                  reference: "",
+                  lines: lines(1),
+                },
+              ]
+            : []),
+          ...(next >= parsed.data.from && next <= parsed.data.to
+            ? [
+                {
+                  date: next,
+                  type: "FX_REVALUATION_REVERSAL" as const,
+                  number: `${r.number}-R`,
+                  supplier: "",
+                  reference: r.number,
+                  lines: lines(-1),
+                },
+              ]
+            : []),
+        ];
+      }),
   ].sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   const rows = docs.flatMap((d) =>
     d.lines.map((l) => [

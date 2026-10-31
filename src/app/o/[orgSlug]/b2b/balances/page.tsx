@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
 import type { Decimal } from "@/lib/decimal";
 import { hasPermission } from "@/modules/access/authorize";
 import { customerBalances } from "@/modules/b2b/receivables";
 import { AGING_BUCKETS } from "@/modules/invoices/payables-rules";
+import { buttonClass } from "@/components/ui/styles";
+import { isCalendarDate } from "@/lib/dates";
+import { businessDate } from "@/modules/inventory/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { moneyIn } from "@/server/fx-view";
 
@@ -29,6 +32,11 @@ export default async function CustomerBalancesPage({
       {v.isZero() ? "—" : moneyOf(currency).money(v)}
     </span>
   );
+  const today = businessDate(ctx.timeZone);
+  const from =
+    typeof sp.from === "string" && isCalendarDate(sp.from) ? sp.from : `${today.slice(0, 7)}-01`;
+  const to = typeof sp.to === "string" && isCalendarDate(sp.to) && sp.to >= from ? sp.to : today;
+  const exportBase = `/o/${orgSlug}/b2b/balances/export`;
   return (
     <>
       <PageHeader title={t("b2b.balances")} description={t("b2b.balancesHint")} />
@@ -108,6 +116,50 @@ export default async function CustomerBalancesPage({
           </tbody>
         </Table>
       )}
+      <div className="mt-6">
+        <Card title={t("b2b.exportTitle")}>
+          <p className="text-muted mb-3 text-sm">{t("b2b.exportHint")}</p>
+          <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+            <input type="hidden" name="asOf" value={b.asOf} />
+            {(
+              [
+                ["from", t("tax.from"), from],
+                ["to", t("tax.to"), to],
+              ] as const
+            ).map(([name, label, value]) => (
+              <label key={name} className="text-sm">
+                <span className="mb-1 block font-medium">{label}</span>
+                <input
+                  type="date"
+                  name={name}
+                  defaultValue={value}
+                  className="border-border bg-surface rounded-md border px-3 py-2"
+                />
+              </label>
+            ))}
+            <button
+              type="submit"
+              className="border-border hover:bg-surface-muted rounded-md border px-3 py-2 text-sm"
+            >
+              {t("common.apply")}
+            </button>
+          </form>
+          <div className="flex flex-wrap gap-3">
+            <a
+              href={`${exportBase}/documents?from=${from}&to=${to}`}
+              className={buttonClass("secondary")}
+            >
+              {t("payables.exportDocuments")}
+            </a>
+            <a
+              href={`${exportBase}/journal?from=${from}&to=${to}`}
+              className={buttonClass("secondary")}
+            >
+              {t("payables.exportJournal")}
+            </a>
+          </div>
+        </Card>
+      </div>
     </>
   );
 }

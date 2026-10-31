@@ -881,6 +881,23 @@ at submission). `goods_receipts.currency`, `exchange_rate`, `rate_date`.
 the allocation trigger also requires the same currency. Existing rows were
 backfilled as base-currency documents at rate 1.
 
+**Revaluations** (ADR-052, ADR-056; migrations `20261115090000_fx_revaluation`,
+`20261119090000_b2b_accounting`): **fx_revaluations** (`REV-` number, `as_of`,
+`total_difference_base` payables, `receivables_difference_base`; partial UQ
+per date while not cancelled; trigger allows only cancelling) and
+**fx_revaluation_lines** (supplier _or_ customer — CHECK exactly one —,
+currency, `open_amount`, `booked_base`, `rate`, `rate_date`,
+`revalued_base`, `difference_base` = revalued − booked; insert-only).
+**landed_costs** (ADR-053): `currency`, `entered_amount`, `exchange_rate`,
+`rate_date`; `amount` stays the base value posted.
+**B2B** (ADR-054): `customers.currency`; `sales_orders.currency`;
+`sales_invoices.currency`, `exchange_rate`, `rate_date`, `*_amount_base`
+(CHECK gross = net + tax); `customer_receipts.currency`, `exchange_rate`,
+`rate_date`, `amount_base`; `customer_receipt_allocations.fx_difference_base`
+(+ = gain) with a trigger requiring the same customer and currency.
+**accounting_settings** also holds receivables, sales, output VAT and
+receipts accounts (ADR-056).
+
 ## 10. Integrations (Milestone 10, ADR-048)
 
 Migration `20261110090000_m10_integrations`; all three tables have
@@ -921,7 +938,8 @@ row-level security.
   `entity_id`, `file_name`, `content_type` (PDF/JPEG/PNG/WebP), `size_bytes`
   (1 – 3,145,728), `sha256`, uploader, `uploaded_at`, `retain_until`
   (+3 years), `removed_at`/`removed_by_user_id`, `purged_at`. A trigger
-  allows only removal and purging to be recorded. **attachment_contents**
+  allows only removal and purging to be recorded. `scan_status` CLEAN |
+  NOT_SCANNED with `scanned_at` (ADR-055). **attachment_contents**
   (`attachment_id` PK, `data` BYTEA; a trigger checks the size). Both have
   row-level security.
 - **document_sequences**: (organization_id, document_type, year) PK, next_value.

@@ -43,6 +43,10 @@ export default async function PurchasingSettingsPage({
               inputVatAccount: accounts?.inputVatAccount ?? "",
               paymentsAccount: accounts?.paymentsAccount ?? "",
               fxDifferenceAccount: accounts?.fxDifferenceAccount ?? "",
+              receivablesAccount: accounts?.receivablesAccount ?? "",
+              salesAccount: accounts?.salesAccount ?? "",
+              outputVatAccount: accounts?.outputVatAccount ?? "",
+              receiptsAccount: accounts?.receiptsAccount ?? "",
             }}
           />
         </Card>

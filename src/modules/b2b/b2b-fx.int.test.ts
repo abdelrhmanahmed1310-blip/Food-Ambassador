@@ -8,6 +8,14 @@ import { createWarehouse } from "@/modules/sites/warehouses";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
 import { createTenant, expectAppError } from "../../../test/support/factories";
+import { parseCsv } from "@/lib/csv";
+import { updateAccountingSettings } from "@/modules/invoices/accounting";
+import {
+  getRevaluation,
+  postRevaluation,
+  previewRevaluation,
+} from "@/modules/invoices/revaluation";
+import { exportReceivablesDocumentsCsv, exportReceivablesJournalCsv } from "./accounting";
 import { customerBalances, recordCustomerReceipt } from "./receivables";
 import {
   addSalesOrderLine,
@@ -96,6 +104,22 @@ describe("B2B in foreign currencies (ADR-054)", () => {
     ]);
   });
 
+  it("revalues the open USD receivable at the closing rate (ADR-056)", async () => {
+    const p = await previewRevaluation(ctx, today);
+    const line = p.lines.find((l) => l.kind === "RECEIVABLE")!;
+    expect([
+      line.openAmount.toFixed(),
+      line.bookedBase.toFixed(),
+      line.revaluedBase.toFixed(),
+    ]).toEqual(["8", "388", "400"]);
+    expect(p.receivablesTotal.toFixed()).toBe("12"); // the amount due grew: a gain
+    expect(p.payablesTotal.toFixed()).toBe("0");
+    const rev = await postRevaluation(ctx, { asOf: today });
+    const stored = await getRevaluation(ctx, rev.id);
+    expect(stored.receivablesDifferenceBase.toFixed()).toBe("12");
+    expect(stored.lines[0].customer?.code).toBe("GULF");
+  });
+
   it("collects in USD only against USD invoices and records the realised difference", async () => {
     // An EGP receipt from the same customer cannot settle the USD invoice.
     const egp = await recordCustomerReceipt(ctx, {
@@ -125,5 +149,58 @@ describe("B2B in foreign currencies (ADR-054)", () => {
     expect(rows.find((x) => x.currency === "USD")!.balance.toFixed()).toBe("0");
     const egpRow = rows.find((x) => x.currency === "EGP")!;
     expect([egpRow.unapplied.toFixed(), egpRow.balanceBase.toFixed()]).toEqual(["100", "-100"]);
+  });
+});
+
+describe("B2B accounting export (ADR-056)", () => {
+  it("exports documents with base amounts and a balanced base journal", async () => {
+    const period = { from: addDays(today, -1), to: addDays(today, 1) };
+    const docs = parseCsv(
+      (await exportReceivablesDocumentsCsv(ctx, period)).replace(/^\uFEFF/, ""),
+    );
+    const h = docs[0];
+    const inv = docs.find((r) => r[0] === "SALES_INVOICE")!;
+    expect(
+      ["gross", "currency", "exchange_rate", "gross_base", "cost_of_goods_base"].map(
+        (c) => inv[h.indexOf(c)],
+      ),
+    ).toEqual(["8.00", "USD", "48.5", "388.00", "120.00"]);
+
+    await expectAppError(exportReceivablesJournalCsv(ctx, period), "BUSINESS_RULE_VIOLATION");
+    await updateAccountingSettings(ctx, {
+      receivablesAccount: "1200",
+      salesAccount: "4100",
+      receiptsAccount: "1010",
+      fxDifferenceAccount: "7900",
+    });
+    const rows = parseCsv((await exportReceivablesJournalCsv(ctx, period)).replace(/^\uFEFF/, ""))
+      .slice(1)
+      .filter((r) => r.length > 1);
+    const pick = (type: string) => rows.filter((r) => r[2] === type).map((r) => [r[4], r[5], r[6]]);
+    expect(pick("SALES_INVOICE")).toEqual([
+      ["1200", "388.00", ""],
+      ["4100", "", "388.00"],
+    ]);
+    const usdReceipt = rows.filter((r) => r[2] === "CUSTOMER_RECEIPT" && r[5] === "400.00");
+    expect(usdReceipt.map((r) => r[4])).toEqual(["1010"]);
+    expect(pick("FX_REVALUATION")).toEqual([
+      ["1200", "12.00", ""],
+      ["7900", "", "12.00"],
+    ]);
+    expect(pick("FX_REVALUATION_REVERSAL")).toEqual([
+      ["7900", "12.00", ""],
+      ["1200", "", "12.00"],
+    ]);
+    // The realised gain on the USD receipt: receivables up, exchange account credited.
+    const receiptEntry = rows.find((r) => r[2] === "CUSTOMER_RECEIPT" && r[5] === "400.00")![0];
+    expect(rows.filter((r) => r[0] === receiptEntry).map((r) => [r[4], r[5], r[6]])).toEqual([
+      ["1010", "400.00", ""],
+      ["1200", "", "400.00"],
+      ["1200", "12.00", ""],
+      ["7900", "", "12.00"],
+    ]);
+    const sum = (c: number) => rows.reduce((a, r) => a + Number(r[c] || 0), 0);
+    expect(sum(5)).toBeCloseTo(sum(6), 6);
+    expect(rows.every((r) => r[7] === "EGP")).toBe(true);
   });
 });

@@ -1039,9 +1039,9 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   against payables) and **reverses it the next day**, so every period
   starts from booked values and realised differences (ADR-050) stay
   correct; the reversal appears in the period that contains the next day.
-- Payables only for now. Customer balances in foreign currencies are shown
-  with base equivalents (ADR-054) but not revalued, because B2B has no
-  journal export yet; both come together.
+- Customer balances are revalued in the same run (ADR-056): their
+  difference is kept apart (+ = the amount due grew = gain) and exported
+  in the receivables journal.
 
 ### ADR-053 Landed costs in foreign currencies — Accepted
 
@@ -1070,7 +1070,7 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - Customer balances are per customer and currency with a base equivalent at
   the documents' rates and a base total; output VAT in the VAT summary is in
   base, each line at its invoice's rate.
-- Not yet: revaluation of open customer balances and a B2B journal export.
+- Revaluation of customer balances and the B2B accounting export: ADR-056.
 
 ### ADR-055 Virus scanning of attachments with ClamAV — Accepted
 
@@ -1089,6 +1089,24 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   signature (the official signature download was blocked by the
   environment's network policy); CI uses a protocol stand-in unless
   `CLAMAV_TEST_URL` points at a daemon.
+
+### ADR-056 B2B accounting export and revaluation of customer balances — Accepted
+
+- **Accounts** (purchasing settings): customer receivables, sales, output
+  VAT (when VAT registered), bank for customer receipts, and the exchange
+  account (ADR-050).
+- **Documents export** (B2B → balances): sales invoices and customer
+  receipts of the period with document currency, rate, base amounts and
+  the invoice's cost of goods.
+- **Journal export** in base currency, balanced: invoice — Dr receivables
+  gross, Cr sales net, Cr output VAT; receipt — Dr bank, Cr receivables,
+  plus the realised difference (gain: Dr receivables, Cr exchange; loss the
+  other way); revaluations — the customer differences on the date and
+  reversed the next day. Cost of goods and stock are not journaled here,
+  as for purchases (periodic approach, ADR-039).
+- **Revaluation** (ADR-052) now includes open customer balances in foreign
+  currencies (with `b2b.view`); each line is for one supplier or one
+  customer (CHECK), and the run keeps payables and receivables totals apart.
 
 ---
 
