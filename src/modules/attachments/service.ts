@@ -8,6 +8,8 @@ import { businessDate } from "@/modules/inventory/rules";
 import { uuidSchema } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withSystemTx, withTenantTx, type Tx } from "@/server/db/transactions";
+import { getEnv } from "@/server/env";
+import { logger } from "@/server/logger";
 import { businessRuleViolation, forbidden, notFound, validationFailed } from "@/server/errors";
 import {
   MAX_ATTACHMENT_BYTES,
@@ -16,6 +18,7 @@ import {
   safeFileName,
   sniffContentType,
 } from "./rules";
+import { scanWithClamd } from "./scanner";
 
 /**
  * Attachments (DECISIONS.md ADR-051, Q-08): PDF or image files of at most
@@ -136,6 +139,38 @@ export async function uploadAttachment(
     throw businessRuleViolation("ATTACHMENT_TYPE_NOT_ALLOWED", "Only PDF, JPEG, PNG or WebP", {
       field: "file",
     });
+  // Check access before scanning, so nobody can use the scanner on a document they cannot change.
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    const access = await accessTo(tx, ctx, entityType, entityId);
+    if (!access.upload) throw forbidden();
+  });
+  // Virus scan (ADR-055): refused when infected, or when a configured scanner cannot answer.
+  const scannerUrl = getEnv().CLAMAV_URL;
+  let scannedAt: Date | null = null;
+  if (scannerUrl) {
+    const scan = await scanWithClamd(scannerUrl, file.bytes);
+    if (scan.status === "INFECTED") {
+      logger.warn("attachment refused: infected", { entityType, signature: scan.signature });
+      await withTenantTx(ctx.organizationId, (tx) =>
+        recordAudit(tx, actorOf(ctx), {
+          action: "attachment.refused_infected",
+          entityType: entityType.toLowerCase(),
+          entityId,
+          changes: { fileName: safeFileName(file.name, contentType), signature: scan.signature },
+        }),
+      );
+      throw businessRuleViolation("ATTACHMENT_INFECTED", "The file contains malware", {
+        field: "file",
+      });
+    }
+    if (scan.status === "ERROR") {
+      logger.error("attachment scan failed", { entityType, error: scan.message });
+      throw businessRuleViolation("ATTACHMENT_SCAN_FAILED", "The virus scanner is not available", {
+        field: "file",
+      });
+    }
+    scannedAt = new Date();
+  }
   return withTenantTx(ctx.organizationId, async (tx) => {
     const access = await accessTo(tx, ctx, entityType, entityId);
     if (!access.upload) throw forbidden();
@@ -149,10 +184,12 @@ export async function uploadAttachment(
         contentType,
         sizeBytes: file.bytes.length,
         sha256: createHash("sha256").update(file.bytes).digest("hex"),
+        scanStatus: scannedAt ? "CLEAN" : "NOT_SCANNED",
+        scannedAt,
         uploadedByUserId: ctx.userId,
         retainUntil: new Date(`${retainUntil(today)}T00:00:00Z`),
       },
-      select: { id: true, fileName: true, sizeBytes: true, retainUntil: true },
+      select: { id: true, fileName: true, sizeBytes: true, retainUntil: true, scanStatus: true },
     });
     await tx.attachmentContent.create({
       data: {
@@ -190,6 +227,7 @@ export async function listAttachments(
         uploadedByUserId: true,
         retainUntil: true,
         purgedAt: true,
+        scanStatus: true,
       },
       orderBy: { uploadedAt: "desc" },
     });

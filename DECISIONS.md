@@ -1021,8 +1021,8 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   so files are in the same backups and tenancy model; object storage can
   replace it after the hosting decision (Q-03). Server actions accept 4 MB
   bodies for this; other uploads keep their own lower limits.
-- Not yet: virus scanning (needs a scanning service), previews, attachments
-  on other documents (food safety records, recipes).
+- Virus scanning: ADR-055. Not yet: previews, attachments on other
+  documents (food safety records, recipes).
 
 ### ADR-052 Period-end exchange revaluation — Accepted
 
@@ -1071,6 +1071,24 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   the documents' rates and a base total; output VAT in the VAT summary is in
   base, each line at its invoice's rate.
 - Not yet: revaluation of open customer balances and a B2B journal export.
+
+### ADR-055 Virus scanning of attachments with ClamAV — Accepted
+
+- When `CLAMAV_URL` (tcp://host:port of a ClamAV daemon) is set, every upload
+  is streamed to clamd (`INSTREAM`) before it is stored. **Infected → refused**
+  and nothing is stored (the attempt and signature name are audited);
+  **scanner unreachable or erroring → refused** (fail closed), so no
+  unchecked file slips in while scanning is configured. Clean files are
+  stored as `CLEAN` with the scan time.
+- When unset, files are stored as `NOT_SCANNED` and shown as "not
+  virus-checked". Production should run clamd with current signatures
+  (`freshclam`); docker-compose has an optional `clamav` service.
+- Access is checked before scanning, so the scanner cannot be used by
+  people who may not add files to the document.
+- Verified against a real clamd 1.x in development with a local EICAR
+  signature (the official signature download was blocked by the
+  environment's network policy); CI uses a protocol stand-in unless
+  `CLAMAV_TEST_URL` points at a daemon.
 
 ---
 

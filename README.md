@@ -154,6 +154,7 @@ See [.env.example](.env.example). Never commit `.env` files or real secrets.
 | `LOG_LEVEL`                       | no       | `fatal` · `error` · `warn` · `info` (default) · `debug`                                             |
 | `SEED_PASSWORD`                   | no       | Password for seeded demo users                                                                      |
 | `INTEGRATION_ENCRYPTION_KEY`      | prod     | 32 random bytes, base64; encrypts connector secrets (derived from `AUTH_SECRET` if unset)           |
+| `CLAMAV_URL`                      | no       | ClamAV daemon for attachment scanning, `tcp://host:3310`; unset = files marked "not virus-checked"  |
 | `INTEGRATIONS_ALLOW_PRIVATE_URLS` | no       | `1` lets outbound webhooks call http and private addresses — development only (default `0`)         |
 
 ## Deployment

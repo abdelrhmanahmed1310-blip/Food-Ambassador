@@ -26,6 +26,14 @@ const envSchema = z.object({
     .enum(["0", "1"])
     .default("0")
     .transform((v) => v === "1"),
+  // ClamAV daemon for attachment scanning, e.g. tcp://clamav:3310 (ADR-055). Unset = not scanned.
+  CLAMAV_URL: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || /^tcp:\/\/[^:/\s]+:\d{1,5}$/.test(v),
+      "CLAMAV_URL must be tcp://host:port",
+    ),
 });
 
 export type Env = z.infer<typeof envSchema>;

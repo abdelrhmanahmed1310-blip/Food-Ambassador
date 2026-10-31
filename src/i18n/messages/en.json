@@ -406,7 +406,9 @@
     "ATTACHMENT_RETAINED": "Files are kept for three years. Only a mistaken upload can be removed, by the person who uploaded it, within an hour.",
     "REVALUATION_IN_FUTURE": "Revalue a date that has passed.",
     "NOTHING_TO_REVALUE": "There are no open foreign-currency balances on this date.",
-    "REVALUATION_CANCELLED": "This revaluation is already cancelled."
+    "REVALUATION_CANCELLED": "This revaluation is already cancelled.",
+    "ATTACHMENT_INFECTED": "The file contains malware and was not stored.",
+    "ATTACHMENT_SCAN_FAILED": "The virus scanner is not available right now, so the file was not stored. Try again later."
   },
   "notFound": {
     "title": "Page not found",
@@ -2422,7 +2424,9 @@
     "remove": "Remove",
     "removeConfirm": "Remove this file? Only possible within an hour of uploading it.",
     "keptUntil": "kept until {date}",
-    "purged": "content deleted after the retention period"
+    "purged": "content deleted after the retention period",
+    "scanClean": "virus-checked",
+    "notScanned": "not virus-checked"
   },
   "revaluation": {
     "title": "Exchange revaluation",

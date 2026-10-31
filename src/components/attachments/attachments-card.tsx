@@ -58,7 +58,8 @@ export async function AttachmentsCard({
                     ·{" "}
                     {f.purgedAt
                       ? t("purged")
-                      : t("keptUntil", { date: f.retainUntil.toISOString().slice(0, 10) })}
+                      : t("keptUntil", { date: f.retainUntil.toISOString().slice(0, 10) })}{" "}
+                    · {t(f.scanStatus === "CLEAN" ? "scanClean" : "notScanned")}
                   </span>
                 </span>
                 {f.canRemove ? (

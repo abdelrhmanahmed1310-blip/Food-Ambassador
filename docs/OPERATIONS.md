@@ -109,3 +109,12 @@ scheduler: it deletes the content of files past their retention date for
 all organizations and keeps their records; it prints counts only. Files
 live in the database, so backups grow with them (up to 3 MB per file) —
 size backup storage accordingly.
+
+## 9. Virus scanner
+
+Run a ClamAV daemon (for example the `clamav` service in docker-compose,
+profile `scan`) and set `CLAMAV_URL=tcp://host:3310`. Keep signatures
+current (`freshclam`, included in the official image). While it is set, an
+unreachable scanner blocks uploads (they fail with "virus scanner not
+available") — monitor it like the database. Refused infected uploads appear
+in the audit log as `attachment.refused_infected`.

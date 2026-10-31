@@ -18,5 +18,17 @@ services:
       timeout: 3s
       retries: 10
 
+  # Optional virus scanner for attachments (ADR-055): `docker compose --profile scan up -d`,
+  # then set CLAMAV_URL=tcp://localhost:3310. The image updates its signatures with freshclam.
+  clamav:
+    image: clamav/clamav:1.4
+    profiles: ["scan"]
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav-db:/var/lib/clamav
+
 volumes:
   postgres-data:
+  clamav-db:

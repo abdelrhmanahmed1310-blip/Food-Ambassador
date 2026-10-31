@@ -1076,22 +1076,30 @@ enum AttachmentEntity {
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
 /// `retain_until` (3 years), then its content is purged and this record kept.
+enum AttachmentScanStatus {
+  CLEAN
+  NOT_SCANNED
+}
+
 model Attachment {
-  id               String           @id @default(uuid(7)) @db.Uuid
-  organizationId   String           @map("organization_id") @db.Uuid
-  entityType       AttachmentEntity @map("entity_type")
-  entityId         String           @map("entity_id") @db.Uuid
-  fileName         String           @map("file_name")
-  contentType      String           @map("content_type")
-  sizeBytes        Int              @map("size_bytes")
+  id               String               @id @default(uuid(7)) @db.Uuid
+  organizationId   String               @map("organization_id") @db.Uuid
+  entityType       AttachmentEntity     @map("entity_type")
+  entityId         String               @map("entity_id") @db.Uuid
+  fileName         String               @map("file_name")
+  contentType      String               @map("content_type")
+  sizeBytes        Int                  @map("size_bytes")
   sha256           String
-  uploadedByUserId String           @map("uploaded_by_user_id") @db.Uuid
-  uploadedAt       DateTime         @default(now()) @map("uploaded_at") @db.Timestamptz(3)
-  retainUntil      DateTime         @map("retain_until") @db.Date
+  /// CLEAN when ClamAV found nothing; NOT_SCANNED when no scanner is configured (ADR-055).
+  scanStatus       AttachmentScanStatus @default(NOT_SCANNED) @map("scan_status")
+  scannedAt        DateTime?            @map("scanned_at") @db.Timestamptz(3)
+  uploadedByUserId String               @map("uploaded_by_user_id") @db.Uuid
+  uploadedAt       DateTime             @default(now()) @map("uploaded_at") @db.Timestamptz(3)
+  retainUntil      DateTime             @map("retain_until") @db.Date
   /// Removed by its uploader shortly after upload (a mistaken file), or purged after retention.
-  removedAt        DateTime?        @map("removed_at") @db.Timestamptz(3)
-  removedByUserId  String?          @map("removed_by_user_id") @db.Uuid
-  purgedAt         DateTime?        @map("purged_at") @db.Timestamptz(3)
+  removedAt        DateTime?            @map("removed_at") @db.Timestamptz(3)
+  removedByUserId  String?              @map("removed_by_user_id") @db.Uuid
+  purgedAt         DateTime?            @map("purged_at") @db.Timestamptz(3)
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   content      AttachmentContent?
