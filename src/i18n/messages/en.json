@@ -236,7 +236,8 @@
     "productAlreadyOnOrder": "This product is already on the order. Change that line instead.",
     "invoiceNumberTaken": "This supplier invoice number is already entered for this supplier.",
     "creditNoteNumberTaken": "This credit note number is already entered for this supplier.",
-    "deliveryInvoiced": "This delivery is already invoiced."
+    "deliveryInvoiced": "This delivery is already invoiced.",
+    "revaluationExists": "This date is already revalued."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -402,7 +403,10 @@
     "RECEIPT_OTHER_CURRENCY": "This receipt is in {currency}, not in the invoice's currency.",
     "ATTACHMENT_TOO_LARGE": "Files can be at most {maxMb} MB.",
     "ATTACHMENT_TYPE_NOT_ALLOWED": "Attach a PDF, JPEG, PNG or WebP file.",
-    "ATTACHMENT_RETAINED": "Files are kept for three years. Only a mistaken upload can be removed, by the person who uploaded it, within an hour."
+    "ATTACHMENT_RETAINED": "Files are kept for three years. Only a mistaken upload can be removed, by the person who uploaded it, within an hour.",
+    "REVALUATION_IN_FUTURE": "Revalue a date that has passed.",
+    "NOTHING_TO_REVALUE": "There are no open foreign-currency balances on this date.",
+    "REVALUATION_CANCELLED": "This revaluation is already cancelled."
   },
   "notFound": {
     "title": "Page not found",
@@ -2416,5 +2420,31 @@
     "removeConfirm": "Remove this file? Only possible within an hour of uploading it.",
     "keptUntil": "kept until {date}",
     "purged": "content deleted after the retention period"
+  },
+  "revaluation": {
+    "title": "Exchange revaluation",
+    "intro": "At a period end, open supplier balances in foreign currencies are valued at that day's rate. The difference against the booked values is an unrealised exchange gain or loss; the journal posts it on that date and reverses it the next day.",
+    "preview": "Revalue on a date",
+    "asOf": "Date",
+    "nothing": "No open foreign-currency balances on this date.",
+    "open": "Open balance",
+    "booked": "Booked value",
+    "rate": "Rate (date)",
+    "revalued": "Value at rate",
+    "difference": "Difference",
+    "sign": "A positive difference means the payable grew in base currency (a loss); negative, a gain.",
+    "post": "Post revaluation",
+    "posting": "Posting…",
+    "postHint": "The figures above are stored and cannot be changed; a revaluation can be cancelled with a reason.",
+    "alreadyPosted": "This date is already revalued ({number}).",
+    "history": "Revaluations",
+    "noRuns": "No revaluations yet.",
+    "number": "Number",
+    "status": "Status",
+    "posted": "Posted",
+    "cancelled": "Cancelled",
+    "cancel": "Cancel revaluation",
+    "cancelReason": "Reason",
+    "detailHint": "Unrealised exchange differences on open foreign-currency payables."
   }
 }

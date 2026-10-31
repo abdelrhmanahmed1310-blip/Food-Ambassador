@@ -153,6 +153,8 @@ model Organization {
   approvalLayers         ApprovalLayer[]
   exchangeRates          ExchangeRate[]
   attachments            Attachment[]
+  fxRevaluations         FxRevaluation[]
+  fxRevaluationLines     FxRevaluationLine[]
   stockCountApprovals    StockCountApproval[]
   purchaseOrderLines     PurchaseOrderLine[]
   goodsReceipts          GoodsReceipt[]
@@ -1112,6 +1114,51 @@ model AttachmentContent {
   @@map("attachment_contents")
 }
 
+/// A period-end revaluation of open foreign-currency payables (ADR-052):
+/// unrealised exchange differences at the rate on `as_of`, reversed the next day.
+model FxRevaluation {
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  number              String
+  asOf                DateTime  @map("as_of") @db.Date
+  /// Σ differences, base currency: + = the payables grew (loss).
+  totalDifferenceBase Decimal   @map("total_difference_base") @db.Decimal(19, 4)
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  cancelledAt         DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelledByUserId   String?   @map("cancelled_by_user_id") @db.Uuid
+  cancelReason        String?   @map("cancel_reason")
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  lines        FxRevaluationLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@map("fx_revaluations")
+}
+
+model FxRevaluationLine {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  revaluationId  String   @map("revaluation_id") @db.Uuid
+  supplierId     String   @map("supplier_id") @db.Uuid
+  currency       String   @db.Char(3)
+  /// Open balance in the currency (invoices − settlements), and its booked base value.
+  openAmount     Decimal  @map("open_amount") @db.Decimal(19, 4)
+  bookedBase     Decimal  @map("booked_base") @db.Decimal(19, 4)
+  rate           Decimal  @db.Decimal(20, 10)
+  rateDate       DateTime @map("rate_date") @db.Date
+  revaluedBase   Decimal  @map("revalued_base") @db.Decimal(19, 4)
+  differenceBase Decimal  @map("difference_base") @db.Decimal(19, 4)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  revaluation  FxRevaluation @relation(fields: [organizationId, revaluationId], references: [organizationId, id], onDelete: Restrict)
+  supplier     Supplier      @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, revaluationId])
+  @@map("fx_revaluation_lines")
+}
+
 model Supplier {
   id               String    @id @default(uuid(7)) @db.Uuid
   organizationId   String    @map("organization_id") @db.Uuid
@@ -1132,12 +1179,13 @@ model Supplier {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  products       SupplierProduct[]
-  purchaseOrders PurchaseOrder[]
-  receipts       GoodsReceipt[]
-  invoices       SupplierInvoice[]
-  settlements    SupplierSettlement[]
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products           SupplierProduct[]
+  purchaseOrders     PurchaseOrder[]
+  receipts           GoodsReceipt[]
+  invoices           SupplierInvoice[]
+  settlements        SupplierSettlement[]
+  fxRevaluationLines FxRevaluationLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])

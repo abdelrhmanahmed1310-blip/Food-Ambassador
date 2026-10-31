@@ -995,9 +995,8 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   carries currency, rate and base columns; the journal is in base currency
   with exchange differences posted to an exchange-difference account
   (required once any exists).
-- Not yet: revaluation of open foreign balances at period end (unrealised
-  differences), B2B sales in foreign currencies, landed costs in foreign
-  currencies, a live rate feed.
+- Period-end revaluation: ADR-052; landed costs: ADR-053; B2B: ADR-054.
+  Not yet: a live rate feed.
 
 ### ADR-051 Attachments: 3 MB, kept 3 years — Accepted (Q-08)
 
@@ -1024,6 +1023,23 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   bodies for this; other uploads keep their own lower limits.
 - Not yet: virus scanning (needs a scanning service), previews, attachments
   on other documents (food safety records, recipes).
+
+### ADR-052 Period-end exchange revaluation — Accepted
+
+- On a chosen date, each supplier's **open balance per foreign currency**
+  (invoices − settlements, booked at the documents' own rates, as in the
+  balances report) is valued at the rate on that date (same 7-day rule,
+  ADR-050). The difference is an **unrealised** exchange gain or loss
+  (+ = the payable grew = loss).
+- Stored as a **revaluation** (`REV-`, `fx_revaluations` + lines: open
+  amount, booked base, rate and its date, revalued base, difference),
+  fixed by trigger, one per date unless cancelled (with a reason). By
+  owners, admins and finance (`fx.manage`); visible to `invoices.view`.
+- The journal export posts it on its date (exchange-difference account
+  against payables) and **reverses it the next day**, so every period
+  starts from booked values and realised differences (ADR-050) stay
+  correct; the reversal appears in the period that contains the next day.
+- Payables only; B2B receivables follow the same rule (ADR-054).
 
 ---
 

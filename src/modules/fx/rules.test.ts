@@ -44,3 +44,16 @@ describe("exchange rates (ADR-050)", () => {
     expect(isDocumentCurrency("GBP", "GBP")).toBe(true);
   });
 });
+
+describe("period-end revaluation (ADR-052)", () => {
+  it("values the open balance at the closing rate and measures the difference", async () => {
+    const { revalue } = await import("./rules");
+    expect(revalue(d("100"), d("4850"), d("50"), 2)).toEqual({
+      revaluedBase: d("5000"),
+      differenceBase: d("150"),
+    });
+    expect(revalue(d("100"), d("4850"), d("48"), 2).differenceBase.toFixed()).toBe("-50");
+    // A debit balance (unapplied payment) revalues the other way.
+    expect(revalue(d("-10"), d("-485"), d("50"), 2).differenceBase.toFixed()).toBe("-15");
+  });
+});

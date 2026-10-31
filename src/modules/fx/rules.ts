@@ -86,3 +86,18 @@ export function realisedDifference(
     toBase(amount, invoiceRate, baseDecimals),
   );
 }
+
+/**
+ * Period-end revaluation of an open foreign balance (ADR-052): its base
+ * value at the closing rate, and the unrealised difference against what is
+ * booked (+ = the balance grew in base currency).
+ */
+export function revalue(
+  openAmount: Decimal,
+  bookedBase: Decimal,
+  closingRate: Decimal,
+  baseDecimals: number,
+): { revaluedBase: Decimal; differenceBase: Decimal } {
+  const revaluedBase = toBase(openAmount, closingRate, baseDecimals);
+  return { revaluedBase, differenceBase: revaluedBase.minus(bookedBase) };
+}

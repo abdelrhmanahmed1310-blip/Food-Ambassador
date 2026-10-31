@@ -100,7 +100,23 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
     const accounts = await tx.accountingSettings.findUnique({
       where: { organizationId: ctx.organizationId },
     });
-    return { invoices, settlements, vatRegistered: settings?.vatRegistered ?? false, accounts };
+    // Revaluations dated in the period, and those whose reversal (next day) falls in it (ADR-052).
+    const dayBefore = new Date(range.gte.getTime() - 86_400_000);
+    const revaluations = await tx.fxRevaluation.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        cancelledAt: null,
+        asOf: { gte: dayBefore, lte: range.lte },
+      },
+      include: { lines: { include: { supplier: { select: { code: true } } } } },
+    });
+    return {
+      invoices,
+      settlements,
+      revaluations,
+      vatRegistered: settings?.vatRegistered ?? false,
+      accounts,
+    };
   });
 }
 
@@ -217,7 +233,10 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
   assertPermission(ctx.grants, "invoices.view");
   const parsed = periodSchema.safeParse(rawPeriod);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { invoices, settlements, vatRegistered, accounts } = await documentsIn(ctx, parsed.data);
+  const { invoices, settlements, revaluations, vatRegistered, accounts } = await documentsIn(
+    ctx,
+    parsed.data,
+  );
   if (
     !accounts?.payablesAccount ||
     !accounts.purchasesAccount ||
@@ -230,7 +249,10 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
     );
   const fxOf = (s: (typeof settlements)[number]) =>
     s.allocations.reduce((a, x) => a.plus(dec(x.fxDifferenceBase)), new Decimal(0));
-  if (!accounts.fxDifferenceAccount && settlements.some((s) => !fxOf(s).isZero()))
+  if (
+    !accounts.fxDifferenceAccount &&
+    (settlements.some((s) => !fxOf(s).isZero()) || revaluations.length > 0)
+  )
     throw businessRuleViolation(
       "ACCOUNTS_NOT_SET",
       "Set the exchange difference account before exporting a journal with foreign-currency settlements",
@@ -284,6 +306,45 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
         ...fxLines(fxOf(s), accounts.payablesAccount!, accounts.fxDifferenceAccount ?? ""),
       ],
     })),
+    // Unrealised differences on the revaluation date, reversed the next day.
+    ...revaluations.flatMap((r) => {
+      const on = day(r.asOf);
+      const next = day(new Date(r.asOf.getTime() + 86_400_000));
+      const lines = (sign: 1 | -1) =>
+        r.lines.flatMap((l) =>
+          fxLines(
+            dec(l.differenceBase).times(sign),
+            accounts.payablesAccount!,
+            accounts.fxDifferenceAccount ?? "",
+          ),
+        );
+      return [
+        ...(on >= parsed.data.from && on <= parsed.data.to
+          ? [
+              {
+                date: on,
+                type: "FX_REVALUATION" as const,
+                number: r.number,
+                supplier: "",
+                reference: "",
+                lines: lines(1),
+              },
+            ]
+          : []),
+        ...(next >= parsed.data.from && next <= parsed.data.to
+          ? [
+              {
+                date: next,
+                type: "FX_REVALUATION_REVERSAL" as const,
+                number: `${r.number}-R`,
+                supplier: "",
+                reference: r.number,
+                lines: lines(-1),
+              },
+            ]
+          : []),
+      ];
+    }),
   ].sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   const rows = docs.flatMap((d) =>
     d.lines.map((l) => [

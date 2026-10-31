@@ -152,6 +152,9 @@ export default async function PayablesPage({
             >
               {t("payables.exportDocuments")}
             </a>
+            <a href={`${base}/revaluation`} className={buttonClass("secondary")}>
+              {t("revaluation.title")}
+            </a>
             {ready ? (
               <a
                 href={`${base}/export/journal?from=${from}&to=${to}`}
