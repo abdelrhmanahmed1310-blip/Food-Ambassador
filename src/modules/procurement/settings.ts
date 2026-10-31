@@ -14,9 +14,15 @@ export interface ProcurementRules {
   overReceiptTolerance: Decimal;
   /** Fraction 0–1 an invoice price may differ from the order price. */
   invoicePriceTolerance: Decimal;
+  /** Approval chain above the limit (ADR-049): branch steps, then head office. */
+  branchApprovalSteps: number;
+  headOfficeApproval: boolean;
 }
 
-/** Defaults until an organization changes them (ADR-023): no approval step, 0 % tolerance. */
+/**
+ * Defaults until an organization changes them: no approval limit, 0 %
+ * tolerances (ADR-023); above a limit, two branch steps then head office (ADR-049).
+ */
 export async function loadRules(tx: Tx, ctx: TenantContext): Promise<ProcurementRules> {
   const row = await tx.procurementSettings.findUnique({
     where: { organizationId: ctx.organizationId },
@@ -26,6 +32,8 @@ export async function loadRules(tx: Tx, ctx: TenantContext): Promise<Procurement
       row?.approvalThreshold == null ? null : new Decimal(row.approvalThreshold.toString()),
     overReceiptTolerance: new Decimal(row?.overReceiptTolerance.toString() ?? "0"),
     invoicePriceTolerance: new Decimal(row?.invoicePriceTolerance.toString() ?? "0"),
+    branchApprovalSteps: row?.branchApprovalSteps ?? 2,
+    headOfficeApproval: row?.headOfficeApproval ?? true,
   };
 }
 
@@ -45,6 +53,7 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
   const invoicePriceTolerance = toDecimal(parsed.data.invoicePriceTolerancePercent)
     .dividedBy(100)
     .toFixed();
+  const { branchApprovalSteps, headOfficeApproval } = parsed.data;
   await withTenantTx(ctx.organizationId, async (tx) => {
     const before = await loadRules(tx, ctx);
     await tx.procurementSettings.upsert({
@@ -54,8 +63,16 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
         approvalThreshold,
         overReceiptTolerance,
         invoicePriceTolerance,
+        branchApprovalSteps,
+        headOfficeApproval,
       },
-      update: { approvalThreshold, overReceiptTolerance, invoicePriceTolerance },
+      update: {
+        approvalThreshold,
+        overReceiptTolerance,
+        invoicePriceTolerance,
+        branchApprovalSteps,
+        headOfficeApproval,
+      },
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "procurement.settings_updated",
@@ -74,6 +91,8 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
           from: before.invoicePriceTolerance.toFixed(),
           to: invoicePriceTolerance,
         },
+        branchApprovalSteps: { from: before.branchApprovalSteps, to: branchApprovalSteps },
+        headOfficeApproval: { from: before.headOfficeApproval, to: headOfficeApproval },
       },
     });
   });

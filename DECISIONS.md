@@ -224,8 +224,8 @@ Constraints that follow from this decision:
 - **Approval (Q-04 default):** one optional approval limit per organization.
   No limit (the default) means submitting approves the order. With a limit,
   orders above it wait for approval by someone with `purchasing.approve` who
-  neither created nor submitted the order. Multi-level approval is not
-  built; it can be added when a customer needs it.
+  neither created nor submitted the order. Multi-level approval:
+  superseded by ADR-049 (Q-04 decided).
 - **Over-receipt (Q-09 default):** 0 %. Each organization can set a
   tolerance; accepted quantity per line may never exceed ordered ×
   (1 + tolerance).
@@ -929,6 +929,31 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   inbound formats other than ours, a job runner inside the app (the worker
   is a separate process, ADR-008).
 
+### ADR-049 Multi-level purchase approval: branch steps, then head office — Accepted (Q-04)
+
+- **Decision (Q-04):** orders that need approval go through **two approvals
+  in the order's branch, then one at head office**. Configurable per
+  organization (Settings → Purchasing): branch steps 0–3 (default 2), head
+  office required yes/no (default yes). With neither, one approval by any
+  approver of the site (the ADR-023 rule).
+- **Which orders:** unchanged — orders above the approval limit; no limit =
+  approved on submit; a limit of 0 sends every order through the chain.
+- **Who signs:** branch steps need `purchasing.approve` granted for the
+  order's own branch or warehouse (an organization-wide grant does not
+  count); head office needs it organization-wide. Each step is a different
+  person, and never the order's creator or submitter (service check, unique
+  index, database trigger). Branch Managers now hold `purchasing.approve`
+  (granted to existing organizations by migration).
+- **Flow:** the chain is fixed when the order is submitted (later settings
+  changes do not affect orders in flight); steps are signed in order; the
+  last one approves the order (and emits `purchase_order.approved`). Any
+  person able to sign the current step may reject with a reason: the order
+  returns to draft and the next submission starts a new round. Every
+  signature is kept (`purchase_order_approvals`) and audited.
+- "Needs attention" counts only orders whose next step the user may sign.
+- Not covered: amount bands with different chains, delegation/holiday
+  cover, approval of requisitions.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -953,7 +978,7 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 | Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                        |
 | Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.             | M5 (labels), M8 (hosting) |
 | Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)                |
-| Q-04 | Purchase approval policy — **default in place** (ADR-023): one optional approval limit; author cannot approve. Confirm, or ask for multi-level approval.                | M3                        |
+| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                            |
 | Q-05 | Foreign-currency supplier invoices — **default in place** (ADR-023): base currency only. Confirm for the pilot.                                                         | M7                        |
 | Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                        |
 | Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)         |

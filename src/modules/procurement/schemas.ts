@@ -82,6 +82,17 @@ export const settingsSchema = z.object({
     .optional()
     .transform((v) => blank(v) ?? "0")
     .pipe(decimalString({ maxScale: 4, min: "0", max: "100" })),
+  /** ADR-049. Omitted (older forms, API callers) = the default chain. */
+  branchApprovalSteps: z
+    .string()
+    .optional()
+    .transform((v) => blank(v) ?? "2")
+    .pipe(z.enum(["0", "1", "2", "3"], { error: "invalidOption" }))
+    .transform(Number),
+  headOfficeApproval: z
+    .string()
+    .optional()
+    .transform((v) => v === undefined || v === "on" || v === "true"),
 });
 
 export const orderHeaderSchema = z.object({

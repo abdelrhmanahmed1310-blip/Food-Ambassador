@@ -150,21 +150,49 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
       }
     }
 
-    const approve = warehouseWhere(ctx, "purchasing.approve");
-    if (approve)
+    // Orders whose next step this user may sign (ADR-049): branch steps need
+    // a grant on the order's own branch or warehouse, head office an
+    // organization-wide one; never their own orders or a second signature.
+    if (holdsAnyGrant(ctx.grants, "purchasing.approve")) {
+      const approveGrants = ctx.grants.filter((g) => g.permission === "purchasing.approve");
+      const headOffice = approveGrants.some((g) => g.scope.type === "ORGANIZATION");
+      const branchIds = approveGrants.flatMap((g) =>
+        g.scope.type === "BRANCH" ? [g.scope.branchId] : [],
+      );
+      const warehouseIds = approveGrants.flatMap((g) =>
+        g.scope.type === "WAREHOUSE" ? [g.scope.warehouseId] : [],
+      );
+      const local: Prisma.WarehouseWhereInput = {
+        OR: [{ branchId: { in: branchIds } }, { id: { in: warehouseIds } }],
+      };
+      const levels: Prisma.PurchaseOrderWhereInput[] = [
+        { pendingApprovalLevel: { in: ["BRANCH", "ANY"] }, warehouse: local },
+      ];
+      if (headOffice) levels.push({ pendingApprovalLevel: { in: ["HEAD_OFFICE", "ANY"] } });
+      const candidates = await tx.purchaseOrder.findMany({
+        where: {
+          organizationId: org,
+          status: "PENDING_APPROVAL",
+          OR: levels,
+          NOT: [{ submittedByUserId: ctx.userId }, { createdByUserId: ctx.userId }],
+        },
+        select: {
+          approvalRound: true,
+          approvals: { select: { round: true, approvedByUserId: true } },
+        },
+      });
       push({
         key: "ORDERS_TO_APPROVE",
         tone: "info",
-        count: await tx.purchaseOrder.count({
-          where: {
-            organizationId: org,
-            status: "PENDING_APPROVAL",
-            warehouse: approve,
-            NOT: { submittedByUserId: ctx.userId },
-          },
-        }),
+        count: candidates.filter(
+          (o) =>
+            !o.approvals.some(
+              (a) => a.round === o.approvalRound && a.approvedByUserId === ctx.userId,
+            ),
+        ).length,
         href: "/purchasing/orders?status=PENDING_APPROVAL",
       });
+    }
 
     const manage = warehouseWhere(ctx, "purchasing.manage");
     if (manage)

@@ -370,6 +370,8 @@ export function ProcurementSettingsForm({
     approvalThreshold: string;
     overReceiptTolerancePercent: string;
     invoicePriceTolerancePercent: string;
+    branchApprovalSteps: string;
+    headOfficeApproval: string;
   };
 }) {
   const t = useTranslations();
@@ -402,6 +404,28 @@ export function ProcurementSettingsForm({
           dir="ltr"
         />
       </div>
+      <fieldset className="grid gap-4 sm:grid-cols-2">
+        <legend className="mb-2 text-sm font-medium">{t("purchasing.approvalChain")}</legend>
+        <SelectField
+          name="branchApprovalSteps"
+          label={t("purchasing.branchApprovalSteps")}
+          hint={t("purchasing.branchApprovalStepsHint")}
+          options={["0", "1", "2", "3"].map((v) => ({ value: v, label: v }))}
+          defaultValue={defaults.branchApprovalSteps}
+          required
+        />
+        <SelectField
+          name="headOfficeApproval"
+          label={t("purchasing.headOfficeApproval")}
+          hint={t("purchasing.headOfficeApprovalHint")}
+          options={[
+            { value: "true", label: t("purchasing.headOfficeRequired") },
+            { value: "false", label: t("purchasing.headOfficeNotRequired") },
+          ]}
+          defaultValue={defaults.headOfficeApproval}
+          required
+        />
+      </fieldset>
     </ActionForm>
   );
 }

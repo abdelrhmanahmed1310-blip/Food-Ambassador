@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createProduct, listUnits } from "@/modules/catalog/service";
 import { postOpeningBalance, postStatusChange } from "@/modules/inventory/operations";
 import { addDays, businessDate } from "@/modules/inventory/rules";
-import { addOrderLine, createOrder, submitOrder } from "@/modules/procurement/orders";
+import { addOrderLine, approveOrder, createOrder, submitOrder } from "@/modules/procurement/orders";
 import { saveReorderRule } from "@/modules/procurement/reorder";
 import { updateProcurementSettings } from "@/modules/procurement/settings";
 import { createSupplier } from "@/modules/procurement/suppliers";
@@ -17,6 +17,7 @@ let ctx: TenantContext;
 let buyer: TenantContext;
 let units: Record<string, string>;
 let kitchen: string;
+let branchId: string;
 let otherBranch: string;
 
 const keys = async (c: TenantContext) =>
@@ -29,6 +30,7 @@ beforeAll(async () => {
   buyer = (await addMember(ctx, "procurement")).ctx;
   units = Object.fromEntries((await listUnits(ctx)).map((u) => [u.code, u.id]));
   const branch = (await createBranch(ctx, { code: "ZAM", name: "Zamalek", type: "RESTAURANT" })).id;
+  branchId = branch;
   otherBranch = (await createBranch(ctx, { code: "MAA", name: "Maadi", type: "RESTAURANT" })).id;
   kitchen = (
     await createWarehouse(ctx, {
@@ -132,13 +134,18 @@ describe("needs attention", () => {
     });
     await submitOrder(buyer, po.id);
 
+    // Default chain (ADR-049): two branch steps first, so the branch's
+    // approver sees it and head office (the owner) does not yet.
     const owner = await keys(ctx);
-    expect(owner).toMatchObject({
-      EXPIRING_STOCK: 1,
-      QUARANTINE: 1,
-      BELOW_MINIMUM: 1,
-      ORDERS_TO_APPROVE: 1,
-    });
+    expect(owner).toMatchObject({ EXPIRING_STOCK: 1, QUARANTINE: 1, BELOW_MINIMUM: 1 });
+    expect(owner.ORDERS_TO_APPROVE).toBeUndefined();
+    const local = (await addMember(ctx, "branch_manager", { scopeType: "BRANCH", branchId })).ctx;
+    expect((await keys(local)).ORDERS_TO_APPROVE).toBe(1);
+    await approveOrder(local, po.id);
+    expect((await keys(local)).ORDERS_TO_APPROVE).toBeUndefined(); // already signed
+    const local2 = (await addMember(ctx, "branch_manager", { scopeType: "BRANCH", branchId })).ctx;
+    await approveOrder(local2, po.id);
+    expect((await keys(ctx)).ORDERS_TO_APPROVE).toBe(1); // now head office
     expect(owner.EXPIRED_STOCK).toBeUndefined();
     // Danger before warning before info.
     const order = (await attentionItems(ctx)).map((i) => i.tone);

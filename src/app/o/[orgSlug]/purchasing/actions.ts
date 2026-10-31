@@ -102,7 +102,9 @@ export async function approveOrderAction(
   previous: ActionState,
   formData: FormData,
 ) {
-  return tenantMutation(orgSlug, previous, formData, (ctx) => approveOrder(ctx, orderId));
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await approveOrder(ctx, orderId);
+  });
 }
 
 export async function rejectOrderAction(

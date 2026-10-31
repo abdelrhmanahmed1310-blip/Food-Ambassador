@@ -197,9 +197,12 @@ describe("purchase orders and approval", () => {
     expect(auto.status).toBe("APPROVED");
     expect(auto.autoApproved).toBe(true);
 
+    // Single-approver mode: no branch steps, no head office (ADR-023 rule).
     await updateProcurementSettings(ctx, {
       approvalThreshold: "500",
       overReceiptTolerancePercent: "0",
+      branchApprovalSteps: "0",
+      headOfficeApproval: "false",
     });
     const small = await approvedOrder([
       { productId: flour, uomId: units.kg, quantity: "5", unitPrice: "100" },
@@ -231,6 +234,107 @@ describe("purchase orders and approval", () => {
     expect(order.status).toBe("APPROVED");
     expect(order.autoApproved).toBe(false);
     expect(order.names.approvedBy).toBe(finance.user.name);
+    await updateProcurementSettings(ctx, {
+      approvalThreshold: "",
+      overReceiptTolerancePercent: "0",
+    });
+  });
+
+  it("runs the approval chain: two branch approvers, then head office (ADR-049)", async () => {
+    await updateProcurementSettings(ctx, {
+      approvalThreshold: "0",
+      overReceiptTolerancePercent: "0",
+    });
+    const buyer = await addMember(ctx, "procurement", { scopeType: "BRANCH", branchId });
+    const local1 = await addMember(ctx, "branch_manager", { scopeType: "BRANCH", branchId });
+    const local2 = await addMember(ctx, "branch_manager", {
+      scopeType: "WAREHOUSE",
+      warehouseId: mainWh,
+    });
+    const finance = await addMember(ctx, "finance"); // organization-wide approver = head office
+    const otherBranch = (await createBranch(ctx, { code: "ALX", name: "Alex", type: "RESTAURANT" }))
+      .id;
+    const outsider = await addMember(ctx, "branch_manager", {
+      scopeType: "BRANCH",
+      branchId: otherBranch,
+    });
+
+    const { id } = await createOrder(buyer.ctx, { supplierId, warehouseId: mainWh });
+    await addOrderLine(buyer.ctx, id, {
+      productId: flour,
+      uomId: units.kg,
+      quantity: "2",
+      unitPrice: "50",
+    });
+    expect((await submitOrder(buyer.ctx, id)).status).toBe("PENDING_APPROVAL");
+    let order = await getOrder(local1.ctx, id);
+    expect(order.approvalSteps.map((s) => s.level)).toEqual(["BRANCH", "BRANCH", "HEAD_OFFICE"]);
+    expect(order.can.approve).toBe(true);
+
+    // Head office and other branches cannot sign the branch steps; the author never.
+    expect((await getOrder(finance.ctx, id)).approvalBlocked).toBe("LEVEL");
+    await expectAppError(approveOrder(finance.ctx, id), "BUSINESS_RULE_VIOLATION");
+    await expectAppError(approveOrder(ctx, id), "BUSINESS_RULE_VIOLATION"); // owner = head office
+    await expectAppError(approveOrder(outsider.ctx, id), "NOT_FOUND");
+    await expectAppError(approveOrder(buyer.ctx, id), "FORBIDDEN"); // no approval right
+
+    expect(await approveOrder(local1.ctx, id)).toMatchObject({
+      status: "PENDING_APPROVAL",
+      step: 1,
+      of: 3,
+    });
+    await expectAppError(approveOrder(local1.ctx, id), "BUSINESS_RULE_VIOLATION"); // same person twice
+    expect((await getOrder(local1.ctx, id)).approvalBlocked).toBe("ALREADY_SIGNED");
+    expect(await approveOrder(local2.ctx, id)).toMatchObject({ step: 2 });
+    await expectAppError(approveOrder(local1.ctx, id), "BUSINESS_RULE_VIOLATION"); // HO step now
+
+    // Head office sends it back: the chain starts again on resubmission.
+    await rejectOrder(finance.ctx, id, { reason: "Wrong supplier" });
+    order = await getOrder(ctx, id);
+    expect(order).toMatchObject({ status: "DRAFT", rejectionNote: "Wrong supplier" });
+    await submitOrder(buyer.ctx, id);
+    order = await getOrder(ctx, id);
+    expect(order.approvalSteps.every((s) => s.signedAt === null)).toBe(true);
+    await approveOrder(local2.ctx, id);
+    await approveOrder(local1.ctx, id);
+    expect(await approveOrder(finance.ctx, id)).toMatchObject({ status: "APPROVED", step: 3 });
+    order = await getOrder(ctx, id);
+    expect(order).toMatchObject({ status: "APPROVED", autoApproved: false });
+    expect(order.names.approvedBy).toBe(finance.user.name);
+    expect(order.approvalSteps.map((s) => s.signedBy)).toEqual([
+      local2.user.name,
+      local1.user.name,
+      finance.user.name,
+    ]);
+    const history = await getDb().purchaseOrderApproval.findMany({
+      where: { purchaseOrderId: id },
+    });
+    expect(history.map((h) => h.round).sort()).toEqual([1, 1, 2, 2, 2]);
+
+    // The database refuses an approval row by the order's author, whatever the code path.
+    const { id: other } = await createOrder(buyer.ctx, { supplierId, warehouseId: mainWh });
+    await addOrderLine(buyer.ctx, other, {
+      productId: flour,
+      uomId: units.kg,
+      quantity: "1",
+      unitPrice: "5",
+    });
+    await submitOrder(buyer.ctx, other);
+    await expect(
+      withTenantTx(ctx.organizationId, (tx) =>
+        tx.purchaseOrderApproval.create({
+          data: {
+            organizationId: ctx.organizationId,
+            purchaseOrderId: other,
+            round: 1,
+            step: 1,
+            level: "BRANCH",
+            approvedByUserId: buyer.user.id,
+          },
+        }),
+      ),
+    ).rejects.toThrow();
+    await cancelOrder(buyer.ctx, other, { reason: "test" });
     await updateProcurementSettings(ctx, {
       approvalThreshold: "",
       overReceiptTolerancePercent: "0",

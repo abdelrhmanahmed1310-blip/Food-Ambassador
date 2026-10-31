@@ -40,6 +40,62 @@ export function approvalOutcome(
   return total.greaterThan(threshold) ? "NEEDS_APPROVAL" : "AUTO_APPROVED";
 }
 
+export type ApprovalLevel = "BRANCH" | "HEAD_OFFICE" | "ANY";
+
+/**
+ * The approval steps an order above the limit goes through (ADR-049): the
+ * branch steps, then head office. With neither configured, one approval by
+ * any approver of the order's site (the ADR-023 rule).
+ */
+export function approvalChain(policy: {
+  branchApprovalSteps: number;
+  headOfficeApproval: boolean;
+}): ApprovalLevel[] {
+  const steps: ApprovalLevel[] = Array.from(
+    { length: policy.branchApprovalSteps },
+    () => "BRANCH" as const,
+  );
+  if (policy.headOfficeApproval) steps.push("HEAD_OFFICE");
+  return steps.length > 0 ? steps : ["ANY"];
+}
+
+/** Level of step `given + 1`, or null when the chain is complete. */
+export function nextApprovalLevel(
+  chain: readonly ApprovalLevel[],
+  given: number,
+): ApprovalLevel | null {
+  return given < chain.length ? chain[given] : null;
+}
+
+type ApproverGrant = {
+  permission: string;
+  scope:
+    | { type: "ORGANIZATION" }
+    | { type: "BRANCH"; branchId: string }
+    | { type: "WAREHOUSE"; warehouseId: string };
+};
+
+/**
+ * Whether these grants may sign a step at `level` for an order of this site.
+ * BRANCH needs `purchasing.approve` granted for the order's branch or
+ * warehouse itself (an organization-wide grant does not count — it is head
+ * office); HEAD_OFFICE needs it organization-wide; ANY accepts either.
+ */
+export function holdsApprovalLevel(
+  grants: readonly ApproverGrant[],
+  level: ApprovalLevel,
+  site: { branchId: string; warehouseId: string },
+): boolean {
+  return grants.some((g) => {
+    if (g.permission !== "purchasing.approve") return false;
+    const local =
+      (g.scope.type === "BRANCH" && g.scope.branchId === site.branchId) ||
+      (g.scope.type === "WAREHOUSE" && g.scope.warehouseId === site.warehouseId);
+    const headOffice = g.scope.type === "ORGANIZATION";
+    return level === "BRANCH" ? local : level === "HEAD_OFFICE" ? headOffice : local || headOffice;
+  });
+}
+
 /** Most that may be accepted against a line: ordered × (1 + tolerance), in the base unit. */
 export function maxAcceptable(orderedBase: Decimal, tolerance: Decimal): Decimal {
   if (tolerance.lt(0) || tolerance.gt(1)) throw new RangeError("Tolerance must be between 0 and 1");

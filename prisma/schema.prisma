@@ -122,91 +122,92 @@ model Organization {
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships           OrganizationMembership[]
-  roles                 Role[]
-  rolePermissions       RolePermission[]
-  membershipRoles       MembershipRole[]
-  invitations           Invitation[]
-  branches              Branch[]
-  warehouses            Warehouse[]
-  locations             StorageLocation[]
-  auditEvents           AuditEvent[]
-  idempotencyKeys       IdempotencyKey[]
-  units                 UnitOfMeasure[]
-  products              Product[]
-  barcodes              ProductBarcode[]
-  conversions           ProductUomConversion[]
-  lots                  InventoryLot[]
-  documents             InventoryDocument[]
-  ledgerEntries         InventoryLedgerEntry[]
-  balances              StockBalance[]
-  stockCounts           StockCount[]
-  stockCountLines       StockCountLine[]
-  sequences             DocumentSequence[]
-  valuations            StockValuation[]
-  revaluations          StockRevaluation[]
-  suppliers             Supplier[]
-  supplierProducts      SupplierProduct[]
-  procurementSettings   ProcurementSettings?
-  purchaseOrders        PurchaseOrder[]
-  purchaseOrderLines    PurchaseOrderLine[]
-  goodsReceipts         GoodsReceipt[]
-  goodsReceiptLines     GoodsReceiptLine[]
-  productCategories     ProductCategory[]
-  reorderRules          ReorderRule[]
-  stockShipments        StockShipment[]
-  stockShipmentLines    StockShipmentLine[]
-  landedCosts           LandedCost[]
-  landedCostLines       LandedCostLine[]
-  requisitions          PurchaseRequisition[]
-  requisitionLines      PurchaseRequisitionLine[]
-  recipes               Recipe[]
-  recipeVersions        RecipeVersion[]
-  recipeIngredients     RecipeIngredient[]
-  standardCosts         ProductStandardCost[]
-  recipeSnapshots       RecipeCostSnapshot[]
-  recipePrices          RecipePrice[]
-  recipeSettings        RecipeSettings?
-  recalls               Recall[]
-  recallLots            RecallLot[]
-  recallStock           RecallStock[]
-  recallDocuments       RecallDocument[]
-  safetyCheckpoints     SafetyCheckpoint[]
-  safetyRecords         FoodSafetyRecord[]
-  checklistTemplates    ChecklistTemplate[]
-  checklistItems        ChecklistItem[]
-  checklistRuns         ChecklistRun[]
-  checklistAnswers      ChecklistAnswer[]
-  nonConformances       NonConformance[]
-  correctiveActions     CorrectiveAction[]
-  salesImports          SalesImport[]
-  salesLines            SalesLine[]
-  taxCodes              TaxCode[]
-  taxRates              TaxRate[]
-  taxSettings           TaxSettings?
-  supplierInvoices      SupplierInvoice[]
-  supplierInvoiceLines  SupplierInvoiceLine[]
-  supplierSettlements   SupplierSettlement[]
-  settlementAllocations SettlementAllocation[]
-  accountingSettings    AccountingSettings?
-  allergenDeclarations  AllergenDeclaration[]
-  nutritionProfiles     NutritionProfile[]
-  recipeLabels          RecipeLabel[]
-  referenceFoods        ReferenceFood[]
-  referenceImports      ReferenceImport[]
-  productionOrders      ProductionOrder[]
-  customers             Customer[]
-  salesOrders           SalesOrder[]
-  salesOrderLines       SalesOrderLine[]
-  customerDeliveries    CustomerDelivery[]
-  customerDeliveryLines CustomerDeliveryLine[]
-  salesInvoices         SalesInvoice[]
-  salesInvoiceLines     SalesInvoiceLine[]
-  customerReceipts      CustomerReceipt[]
-  receiptAllocations    CustomerReceiptAllocation[]
-  connectors            Connector[]
-  integrationEvents     IntegrationEvent[]
-  outboundDeliveries    OutboundDelivery[]
+  memberships            OrganizationMembership[]
+  roles                  Role[]
+  rolePermissions        RolePermission[]
+  membershipRoles        MembershipRole[]
+  invitations            Invitation[]
+  branches               Branch[]
+  warehouses             Warehouse[]
+  locations              StorageLocation[]
+  auditEvents            AuditEvent[]
+  idempotencyKeys        IdempotencyKey[]
+  units                  UnitOfMeasure[]
+  products               Product[]
+  barcodes               ProductBarcode[]
+  conversions            ProductUomConversion[]
+  lots                   InventoryLot[]
+  documents              InventoryDocument[]
+  ledgerEntries          InventoryLedgerEntry[]
+  balances               StockBalance[]
+  stockCounts            StockCount[]
+  stockCountLines        StockCountLine[]
+  sequences              DocumentSequence[]
+  valuations             StockValuation[]
+  revaluations           StockRevaluation[]
+  suppliers              Supplier[]
+  supplierProducts       SupplierProduct[]
+  procurementSettings    ProcurementSettings?
+  purchaseOrders         PurchaseOrder[]
+  purchaseOrderApprovals PurchaseOrderApproval[]
+  purchaseOrderLines     PurchaseOrderLine[]
+  goodsReceipts          GoodsReceipt[]
+  goodsReceiptLines      GoodsReceiptLine[]
+  productCategories      ProductCategory[]
+  reorderRules           ReorderRule[]
+  stockShipments         StockShipment[]
+  stockShipmentLines     StockShipmentLine[]
+  landedCosts            LandedCost[]
+  landedCostLines        LandedCostLine[]
+  requisitions           PurchaseRequisition[]
+  requisitionLines       PurchaseRequisitionLine[]
+  recipes                Recipe[]
+  recipeVersions         RecipeVersion[]
+  recipeIngredients      RecipeIngredient[]
+  standardCosts          ProductStandardCost[]
+  recipeSnapshots        RecipeCostSnapshot[]
+  recipePrices           RecipePrice[]
+  recipeSettings         RecipeSettings?
+  recalls                Recall[]
+  recallLots             RecallLot[]
+  recallStock            RecallStock[]
+  recallDocuments        RecallDocument[]
+  safetyCheckpoints      SafetyCheckpoint[]
+  safetyRecords          FoodSafetyRecord[]
+  checklistTemplates     ChecklistTemplate[]
+  checklistItems         ChecklistItem[]
+  checklistRuns          ChecklistRun[]
+  checklistAnswers       ChecklistAnswer[]
+  nonConformances        NonConformance[]
+  correctiveActions      CorrectiveAction[]
+  salesImports           SalesImport[]
+  salesLines             SalesLine[]
+  taxCodes               TaxCode[]
+  taxRates               TaxRate[]
+  taxSettings            TaxSettings?
+  supplierInvoices       SupplierInvoice[]
+  supplierInvoiceLines   SupplierInvoiceLine[]
+  supplierSettlements    SupplierSettlement[]
+  settlementAllocations  SettlementAllocation[]
+  accountingSettings     AccountingSettings?
+  allergenDeclarations   AllergenDeclaration[]
+  nutritionProfiles      NutritionProfile[]
+  recipeLabels           RecipeLabel[]
+  referenceFoods         ReferenceFood[]
+  referenceImports       ReferenceImport[]
+  productionOrders       ProductionOrder[]
+  customers              Customer[]
+  salesOrders            SalesOrder[]
+  salesOrderLines        SalesOrderLine[]
+  customerDeliveries     CustomerDelivery[]
+  customerDeliveryLines  CustomerDeliveryLine[]
+  salesInvoices          SalesInvoice[]
+  salesInvoiceLines      SalesInvoiceLine[]
+  customerReceipts       CustomerReceipt[]
+  receiptAllocations     CustomerReceiptAllocation[]
+  connectors             Connector[]
+  integrationEvents      IntegrationEvent[]
+  outboundDeliveries     OutboundDelivery[]
 
   @@map("organizations")
 }
@@ -1093,6 +1094,10 @@ model ProcurementSettings {
   overReceiptTolerance  Decimal  @default(0) @map("over_receipt_tolerance") @db.Decimal(9, 6)
   /// Fraction 0–1 by which an invoice unit price may differ from the order price (ADR-038).
   invoicePriceTolerance Decimal  @default(0) @map("invoice_price_tolerance") @db.Decimal(9, 6)
+  /// Approvals by the order's branch (different people) before head office (Q-04, ADR-049).
+  branchApprovalSteps   Int      @default(2) @map("branch_approval_steps")
+  /// Whether a head-office approver signs off last.
+  headOfficeApproval    Boolean  @default(true) @map("head_office_approval")
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -1111,41 +1116,76 @@ enum PurchaseOrderStatus {
 }
 
 model PurchaseOrder {
-  id                String              @id @default(uuid(7)) @db.Uuid
-  organizationId    String              @map("organization_id") @db.Uuid
-  number            String
-  supplierId        String              @map("supplier_id") @db.Uuid
-  warehouseId       String              @map("warehouse_id") @db.Uuid
-  status            PurchaseOrderStatus @default(DRAFT)
-  currency          String              @db.Char(3)
-  expectedOn        DateTime?           @map("expected_on") @db.Date
-  note              String?
-  totalAmount       Decimal             @default(0) @map("total_amount") @db.Decimal(19, 4)
-  createdByUserId   String              @map("created_by_user_id") @db.Uuid
-  submittedAt       DateTime?           @map("submitted_at") @db.Timestamptz(3)
-  submittedByUserId String?             @map("submitted_by_user_id") @db.Uuid
-  approvedAt        DateTime?           @map("approved_at") @db.Timestamptz(3)
-  approvedByUserId  String?             @map("approved_by_user_id") @db.Uuid
+  id                         String              @id @default(uuid(7)) @db.Uuid
+  organizationId             String              @map("organization_id") @db.Uuid
+  number                     String
+  supplierId                 String              @map("supplier_id") @db.Uuid
+  warehouseId                String              @map("warehouse_id") @db.Uuid
+  status                     PurchaseOrderStatus @default(DRAFT)
+  currency                   String              @db.Char(3)
+  expectedOn                 DateTime?           @map("expected_on") @db.Date
+  note                       String?
+  totalAmount                Decimal             @default(0) @map("total_amount") @db.Decimal(19, 4)
+  createdByUserId            String              @map("created_by_user_id") @db.Uuid
+  submittedAt                DateTime?           @map("submitted_at") @db.Timestamptz(3)
+  submittedByUserId          String?             @map("submitted_by_user_id") @db.Uuid
+  approvedAt                 DateTime?           @map("approved_at") @db.Timestamptz(3)
+  approvedByUserId           String?             @map("approved_by_user_id") @db.Uuid
   /// True when submission approved the order automatically (no threshold or below it).
-  autoApproved      Boolean             @default(false) @map("auto_approved")
-  rejectionNote     String?             @map("rejection_note")
-  closedAt          DateTime?           @map("closed_at") @db.Timestamptz(3)
-  closedByUserId    String?             @map("closed_by_user_id") @db.Uuid
-  closeReason       String?             @map("close_reason")
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  autoApproved               Boolean             @default(false) @map("auto_approved")
+  rejectionNote              String?             @map("rejection_note")
+  /// Approval chain (ADR-049): fixed at submission; the round counts submissions.
+  approvalRound              Int                 @default(0) @map("approval_round")
+  branchApprovalsRequired    Int                 @default(0) @map("branch_approvals_required")
+  headOfficeApprovalRequired Boolean             @default(false) @map("head_office_approval_required")
+  approvalsGiven             Int                 @default(0) @map("approvals_given")
+  /// Level of the next step while PENDING_APPROVAL.
+  pendingApprovalLevel       ApprovalLevel?      @map("pending_approval_level")
+  closedAt                   DateTime?           @map("closed_at") @db.Timestamptz(3)
+  closedByUserId             String?             @map("closed_by_user_id") @db.Uuid
+  closeReason                String?             @map("close_reason")
+  createdAt                  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  supplier     Supplier            @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
-  warehouse    Warehouse           @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier                @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse               @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
   lines        PurchaseOrderLine[]
   receipts     GoodsReceipt[]
+  approvals    PurchaseOrderApproval[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, status])
   @@index([organizationId, supplierId])
   @@map("purchase_orders")
+}
+
+/// BRANCH: by a branch- or warehouse-scoped approver of the order's site;
+/// HEAD_OFFICE: by an organization-wide approver; ANY: either (single step).
+enum ApprovalLevel {
+  BRANCH
+  HEAD_OFFICE
+  ANY
+}
+
+/// One approval step of one submission round (insert-only).
+model PurchaseOrderApproval {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  organizationId   String        @map("organization_id") @db.Uuid
+  purchaseOrderId  String        @map("purchase_order_id") @db.Uuid
+  round            Int
+  step             Int
+  level            ApprovalLevel
+  approvedByUserId String        @map("approved_by_user_id") @db.Uuid
+  approvedAt       DateTime      @default(now()) @map("approved_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        PurchaseOrder @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, purchaseOrderId, round, step], map: "po_approvals_step_key")
+  @@unique([organizationId, purchaseOrderId, round, approvedByUserId], map: "po_approvals_person_key")
+  @@map("purchase_order_approvals")
 }
 
 model PurchaseOrderLine {

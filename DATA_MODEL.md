@@ -546,7 +546,7 @@ tenant foreign keys and the `tenant_isolation` RLS policy.
   (must convert to the product's base unit), supplier SKU, `last_unit_price`
   (per purchase unit, updated by receipts in that unit), lead time, minimum
   order, `preferred`, `archived_at` (removal archives, history kept).
-- **procurement_settings** (one row per org, optional): `approval_threshold`
+- **procurement_settings** (one row per org, optional; `branch_approval_steps` 0–3, default 2, and `head_office_approval`, default true — ADR-049): `approval_threshold`
   (`NUMERIC(19,4)`, null = no approval step), `over_receipt_tolerance`
   (fraction 0–1, default 0).
 - **purchase_orders**: `number` (`PO-YYYY-NNNNNN`), supplier, delivery
@@ -555,7 +555,15 @@ PARTIALLY_RECEIVED → RECEIVED`, plus `CLOSED` (short close) and `CANCELLED`
   (only without posted receipts). Currency = base currency, `expected_on`,
   `total_amount`, who/when for creation, submission, approval
   (`auto_approved` flag) and closing; `rejection_note` when sent back to draft.
-  CK: approved states carry an approver.
+  CK: approved states carry an approver. Approval chain (ADR-049, migration
+  `20261111090000_q04_multi_level_approval`): `approval_round` (submissions
+  so far), `branch_approvals_required`, `head_office_approval_required`
+  (fixed at submission), `approvals_given`, `pending_approval_level` (BRANCH
+  | HEAD_OFFICE | ANY, only while pending).
+- **purchase_order_approvals** (insert-only): order, `round`, `step`,
+  `level`, approver, time. UQ (order, round, step) and (order, round,
+  approver) — one person signs once per round; a trigger refuses the
+  order's creator or submitter and rows for a round or status not waiting.
 - **purchase_order_lines**: UQ (org, order, product) and (org, order,
   line_no); quantity in the entered unit and in base units, `unit_price` per
   entered unit, `line_total` (money scale), `received_quantity_base`

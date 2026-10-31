@@ -37,7 +37,7 @@ So "all Foodics functionality" splits into two groups:
 | Capability                                                               | Food Ambassador                                                 | Status | Milestone |
 | ------------------------------------------------------------------------ | --------------------------------------------------------------- | ------ | --------- |
 | Inventory items, units, suppliers per item                               | Products, units, conversions, barcodes; suppliers planned       | 🟡     | M2 / M3   |
-| Purchase orders: draft → submit for review → approve / reject            | Planned with approval rules (Q-04)                              | ⬜     | M3        |
+| Purchase orders: draft → submit for review → approve / reject            | Done: approval limit + branch/head-office chain (ADR-049)       | ✅     | M3        |
 | Import items into a purchase order                                       | Not explicit; CSV import exists for products and opening stock  | 🆕     | M3        |
 | Receiving purchases, returns to supplier                                 | Receiving planned; supplier returns not explicit                | 🟡     | M3        |
 | Transfer orders (request) and transfer send / receive                    | Immediate transfers only; request + in-transit planned          | 🟡     | M3        |

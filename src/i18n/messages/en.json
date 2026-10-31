@@ -390,7 +390,9 @@
     "DELIVERY_REVERSE_IN_SALES": "Reverse customer deliveries from the delivery.",
     "WEBHOOK_URL_NOT_ALLOWED": "This address cannot be called. Use a public HTTPS address (no user name or password) that resolves to a public IP.",
     "CONNECTOR_CREATOR_LACKS_ACCESS": "You cannot import sales into this warehouse, so a connector you create cannot either.",
-    "DELIVERY_ALREADY_SENT": "This event was already delivered."
+    "DELIVERY_ALREADY_SENT": "This event was already delivered.",
+    "APPROVAL_ALREADY_SIGNED": "You already approved a step of this order; each step needs a different person.",
+    "APPROVAL_LEVEL_REQUIRED": "This step needs an approver of another level (branch or head office)."
   },
   "notFound": {
     "title": "Page not found",
@@ -1033,7 +1035,6 @@
     "reject": "Send back",
     "rejectReason": "Reason",
     "rejectedNote": "Sent back: {note}",
-    "selfApproval": "You created or submitted this order, so someone else must approve it.",
     "receive": "Receive delivery",
     "close": "Close order",
     "closeHint": "Use when the rest will not be delivered.",
@@ -1095,10 +1096,31 @@
     },
     "settingsTitle": "Purchasing settings",
     "approvalThreshold": "Approval limit",
-    "approvalThresholdHint": "Orders above this total, in {currency}, need approval by someone other than their author. Leave empty for no approval step.",
+    "approvalThresholdHint": "Orders above this total, in {currency}, go through the approval steps below. Leave empty for no approval step; 0 = every order.",
     "tolerance": "Over-receipt tolerance (%)",
     "toleranceHint": "How much more than ordered may be accepted on a line. 0 = never more than ordered.",
-    "print": "Print"
+    "print": "Print",
+    "approvalChain": "Approval steps above the limit",
+    "branchApprovalSteps": "Branch approvals",
+    "branchApprovalStepsHint": "Different people with approval rights at the order's branch or warehouse, one after another.",
+    "headOfficeApproval": "Head office approval",
+    "headOfficeApprovalHint": "A final approval by someone with organization-wide approval rights.",
+    "headOfficeRequired": "Required (last step)",
+    "headOfficeNotRequired": "Not required",
+    "approvalSteps": "Approvals",
+    "approvalStep": "Step {step} of {of}",
+    "approvalWaiting": "Waiting",
+    "signStep": "Approve this step",
+    "approvalLevels": {
+      "BRANCH": "Branch",
+      "HEAD_OFFICE": "Head office",
+      "ANY": "Approver"
+    },
+    "approvalBlocked": {
+      "SELF": "You created or submitted this order, so other people must approve it.",
+      "ALREADY_SIGNED": "You approved an earlier step; the next step needs a different person.",
+      "LEVEL": "The next step needs an approver of another level (branch or head office)."
+    }
   },
   "reorder": {
     "title": "Reorder",

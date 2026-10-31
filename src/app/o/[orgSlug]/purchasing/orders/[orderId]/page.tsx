@@ -6,6 +6,7 @@ import { OrderStatusBadge, ReceiptStatusBadge } from "@/components/procurement/b
 import { OrderHeaderForm, OrderLineForm, ReasonForm } from "@/components/procurement/forms";
 import {
   Alert,
+  Badge,
   Card,
   DescriptionList,
   EmptyState,
@@ -259,15 +260,46 @@ export default async function OrderPage({
             </Card>
           ) : null}
 
-          {order.can.approve ? (
+          {order.approvalSteps.length > 0 ? (
+            <Card title={t("purchasing.approvalSteps")}>
+              <ol className="space-y-2 text-sm" data-testid="approval-steps">
+                {order.approvalSteps.map((s) => (
+                  <li key={s.step} className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">
+                      {t("purchasing.approvalStep", {
+                        step: s.step,
+                        of: order.approvalSteps.length,
+                      })}
+                    </span>
+                    <Badge tone="neutral">{t(`purchasing.approvalLevels.${s.level}`)}</Badge>
+                    {s.signedAt ? (
+                      <span>{who(s.signedBy, s.signedAt)}</span>
+                    ) : s.current ? (
+                      <Badge tone="warning">{t("purchasing.approvalWaiting")}</Badge>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          ) : null}
+
+          {order.can.approve || order.can.reject ? (
             <Card>
               <div className="flex flex-wrap items-start gap-6">
-                <ConfirmActionButton
-                  action={approveOrderAction.bind(null, orgSlug, order.id)}
-                  label={t("purchasing.approve")}
-                  confirmMessage={t("purchasing.confirmApprove")}
-                  variant="primary"
-                />
+                {order.can.approve ? (
+                  <ConfirmActionButton
+                    action={approveOrderAction.bind(null, orgSlug, order.id)}
+                    label={
+                      order.approvalSteps.filter((s) => !s.signedAt).length > 1
+                        ? t("purchasing.signStep")
+                        : t("purchasing.approve")
+                    }
+                    confirmMessage={t("purchasing.confirmApprove")}
+                    variant="primary"
+                  />
+                ) : null}
                 <div className="min-w-64 flex-1">
                   <ReasonForm
                     action={rejectOrderAction.bind(null, orgSlug, order.id)}
@@ -277,8 +309,9 @@ export default async function OrderPage({
                 </div>
               </div>
             </Card>
-          ) : order.selfApprovalBlocked ? (
-            <Alert tone="info">{t("purchasing.selfApproval")}</Alert>
+          ) : null}
+          {order.approvalBlocked ? (
+            <Alert tone="info">{t(`purchasing.approvalBlocked.${order.approvalBlocked}`)}</Alert>
           ) : null}
 
           <Card title={t("purchasing.receiptsTitle")}>

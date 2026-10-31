@@ -16,13 +16,17 @@ import { businessRuleViolation, conflict, notFound, validationFailed } from "@/s
 import { releaseRequisitionLines } from "./requisition-links";
 import {
   PO_STATUSES,
+  approvalChain,
   approvalOutcome,
+  holdsApprovalLevel,
   isCancellable,
   isClosable,
   isEditable,
   isReceivable,
   lineTotal,
+  nextApprovalLevel,
   openQuantity,
+  type ApprovalLevel,
   type PoStatus,
 } from "./rules";
 import { createOrderSchema, orderHeaderSchema, orderLineSchema, reasonSchema } from "./schemas";
@@ -252,6 +256,16 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
           orderBy: { receivedAt: "desc" },
           select: { id: true, number: true, status: true, receivedAt: true },
         },
+        approvals: {
+          orderBy: [{ round: "desc" }, { step: "asc" }],
+          select: {
+            round: true,
+            step: true,
+            level: true,
+            approvedByUserId: true,
+            approvedAt: true,
+          },
+        },
       },
     });
     if (!order || !canOnWarehouse(ctx, "purchasing.view", order.warehouse))
@@ -261,6 +275,7 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
       order.submittedByUserId,
       order.approvedByUserId,
       order.closedByUserId,
+      ...order.approvals.map((a) => a.approvedByUserId),
     ].filter((v): v is string => !!v);
     const users = await tx.user.findMany({
       where: { id: { in: userIds } },
@@ -271,8 +286,17 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
     const status = order.status as PoStatus;
     const on = (p: Permission) => canOnWarehouse(ctx, p, order.warehouse);
     const postedReceipts = order.receipts.filter((r) => r.status === "POSTED").length;
-    const selfSubmitted =
-      order.createdByUserId === ctx.userId || order.submittedByUserId === ctx.userId;
+    // Steps of the round shown: the current submission, or the one that approved it.
+    const round = order.approvals.filter((a) => a.round === order.approvalRound);
+    const block =
+      status === "PENDING_APPROVAL" && on("purchasing.approve")
+        ? approvalBlock(
+            ctx,
+            order,
+            round.map((a) => a.approvedByUserId),
+          )
+        : null;
+    const chain = order.approvalRound > 0 && !order.autoApproved ? chainOf(order) : [];
     return {
       ...order,
       lines: order.lines.map((l) => {
@@ -293,17 +317,29 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
         approvedBy: name(order.approvedByUserId),
         closedBy: name(order.closedByUserId),
       },
+      approvalSteps: chain.map((level, i) => {
+        const signed = round.find((a) => a.step === i + 1);
+        return {
+          step: i + 1,
+          level,
+          signedBy: signed ? name(signed.approvedByUserId) : null,
+          signedAt: signed?.approvedAt ?? null,
+          current: status === "PENDING_APPROVAL" && order.approvalsGiven === i,
+        };
+      }),
       can: {
         edit: isEditable(status) && on("purchasing.manage"),
         submit: isEditable(status) && order.lines.length > 0 && on("purchasing.manage"),
-        approve: status === "PENDING_APPROVAL" && on("purchasing.approve") && !selfSubmitted,
+        approve: status === "PENDING_APPROVAL" && on("purchasing.approve") && block === null,
+        reject:
+          status === "PENDING_APPROVAL" &&
+          holdsApprovalLevel(ctx.grants, order.pendingApprovalLevel ?? "ANY", site(order)),
         receive: isReceivable(status) && on("purchasing.receive"),
         close: isClosable(status) && on("purchasing.manage"),
         cancel: isCancellable(status, postedReceipts > 0) && on("purchasing.manage"),
       },
-      /** True when approval is pending but this user may not approve their own order. */
-      selfApprovalBlocked:
-        status === "PENDING_APPROVAL" && on("purchasing.approve") && selfSubmitted,
+      /** Why an approver cannot sign the current step (own order, already signed, other level). */
+      approvalBlocked: block,
     };
   });
 }
@@ -511,7 +547,8 @@ export async function removeOrderLine(ctx: TenantContext, orderId: string, lineI
 
 /**
  * Submit a draft. With no approval threshold, or a total at or below it, the
- * order is approved at once; otherwise it waits for another user's approval.
+ * order is approved at once; otherwise it enters the approval chain fixed
+ * now from the settings (ADR-049): branch steps, then head office.
  */
 export async function submitOrder(ctx: TenantContext, orderId: string) {
   return withTenantTx(ctx.organizationId, async (tx) => {
@@ -526,6 +563,7 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     const rules = await loadRules(tx, ctx);
     const total = dec(order.totalAmount);
     const outcome = approvalOutcome(total, rules.approvalThreshold);
+    const chain = approvalChain(rules);
     const now = new Date();
     await tx.purchaseOrder.update({
       where: { id: order.id },
@@ -533,20 +571,31 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
         submittedAt: now,
         submittedByUserId: ctx.userId,
         rejectionNote: null,
+        approvalRound: { increment: 1 },
+        approvalsGiven: 0,
         ...(outcome === "AUTO_APPROVED"
           ? {
               status: "APPROVED",
               approvedAt: now,
               approvedByUserId: ctx.userId,
               autoApproved: true,
+              branchApprovalsRequired: 0,
+              headOfficeApprovalRequired: false,
+              pendingApprovalLevel: null,
             }
-          : { status: "PENDING_APPROVAL" }),
+          : {
+              status: "PENDING_APPROVAL",
+              branchApprovalsRequired: chain.filter((l) => l === "BRANCH").length,
+              headOfficeApprovalRequired: chain.includes("HEAD_OFFICE"),
+              pendingApprovalLevel: chain[0],
+            }),
       },
     });
     await audit(tx, ctx, order, "submitted", {
       total: total.toFixed(),
       threshold: rules.approvalThreshold?.toFixed() ?? null,
       outcome,
+      ...(outcome === "AUTO_APPROVED" ? {} : { chain }),
     });
     if (outcome === "AUTO_APPROVED")
       await emitEvent(tx, ctx, "purchase_order.approved", order.id, orderEvent(order, total));
@@ -568,34 +617,124 @@ function orderEvent(
   };
 }
 
-/** Approve a pending order. The person who created or submitted it cannot approve it. */
+/** The chain an order was submitted with (ADR-049). */
+function chainOf(order: {
+  branchApprovalsRequired: number;
+  headOfficeApprovalRequired: boolean;
+}): ApprovalLevel[] {
+  return approvalChain({
+    branchApprovalSteps: order.branchApprovalsRequired,
+    headOfficeApproval: order.headOfficeApprovalRequired,
+  });
+}
+
+const site = (order: { warehouseId: string; warehouse: { branchId: string } }) => ({
+  branchId: order.warehouse.branchId,
+  warehouseId: order.warehouseId,
+});
+
+/**
+ * Why this user cannot sign the order's next step, or null if they can:
+ * they created or submitted it, already signed this round, or do not hold
+ * the step's level for the order's site.
+ */
+function approvalBlock(
+  ctx: TenantContext,
+  order: {
+    createdByUserId: string;
+    submittedByUserId: string | null;
+    pendingApprovalLevel: ApprovalLevel | null;
+    warehouseId: string;
+    warehouse: { branchId: string };
+  },
+  signedThisRound: readonly string[],
+): "SELF" | "ALREADY_SIGNED" | "LEVEL" | null {
+  if (order.createdByUserId === ctx.userId || order.submittedByUserId === ctx.userId) return "SELF";
+  if (signedThisRound.includes(ctx.userId)) return "ALREADY_SIGNED";
+  const level = order.pendingApprovalLevel ?? "ANY";
+  return holdsApprovalLevel(ctx.grants, level, site(order)) ? null : "LEVEL";
+}
+
+/**
+ * Sign the next approval step of a pending order. Each step is a different
+ * person, never its author; the last step approves the order.
+ */
 export async function approveOrder(ctx: TenantContext, orderId: string) {
-  await withTenantTx(ctx.organizationId, async (tx) => {
+  return withTenantTx(ctx.organizationId, async (tx) => {
     const order = await lockOrder(tx, ctx, orderId);
     requireOn(ctx, "purchasing.approve", order);
     requireStatus(order, order.status === "PENDING_APPROVAL");
-    if (order.createdByUserId === ctx.userId || order.submittedByUserId === ctx.userId)
+    const signed = await tx.purchaseOrderApproval.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        purchaseOrderId: order.id,
+        round: order.approvalRound,
+      },
+      select: { approvedByUserId: true },
+    });
+    const block = approvalBlock(
+      ctx,
+      order,
+      signed.map((a) => a.approvedByUserId),
+    );
+    const level = order.pendingApprovalLevel ?? "ANY";
+    if (block === "SELF")
       throw businessRuleViolation(
         "SELF_APPROVAL_NOT_ALLOWED",
         "Orders must be approved by someone other than their author",
       );
-    await tx.purchaseOrder.update({
-      where: { id: order.id },
+    if (block === "ALREADY_SIGNED")
+      throw businessRuleViolation(
+        "APPROVAL_ALREADY_SIGNED",
+        "Each approval step needs a different person",
+      );
+    if (block === "LEVEL")
+      throw businessRuleViolation("APPROVAL_LEVEL_REQUIRED", "This step needs another approver", {
+        level,
+      });
+    const chain = chainOf(order);
+    const step = order.approvalsGiven + 1;
+    const now = new Date();
+    await tx.purchaseOrderApproval.create({
       data: {
-        status: "APPROVED",
-        approvedAt: new Date(),
+        organizationId: ctx.organizationId,
+        purchaseOrderId: order.id,
+        round: order.approvalRound,
+        step,
+        level,
         approvedByUserId: ctx.userId,
-        autoApproved: false,
+        approvedAt: now,
       },
     });
-    await audit(tx, ctx, order, "approved", { total: dec(order.totalAmount).toFixed() });
-    await emitEvent(
-      tx,
-      ctx,
-      "purchase_order.approved",
-      order.id,
-      orderEvent(order, dec(order.totalAmount)),
-    );
+    const next = nextApprovalLevel(chain, step);
+    await tx.purchaseOrder.update({
+      where: { id: order.id },
+      data: next
+        ? { approvalsGiven: step, pendingApprovalLevel: next }
+        : {
+            approvalsGiven: step,
+            pendingApprovalLevel: null,
+            status: "APPROVED",
+            approvedAt: now,
+            approvedByUserId: ctx.userId,
+            autoApproved: false,
+          },
+    });
+    await audit(tx, ctx, order, next ? "approval_step_signed" : "approved", {
+      step,
+      of: chain.length,
+      level,
+      total: dec(order.totalAmount).toFixed(),
+    });
+    if (!next)
+      await emitEvent(
+        tx,
+        ctx,
+        "purchase_order.approved",
+        order.id,
+        orderEvent(order, dec(order.totalAmount)),
+      );
+    return { status: next ? "PENDING_APPROVAL" : "APPROVED", step, of: chain.length };
   });
 }
 
@@ -607,6 +746,12 @@ export async function rejectOrder(ctx: TenantContext, orderId: string, rawInput:
     const order = await lockOrder(tx, ctx, orderId);
     requireOn(ctx, "purchasing.approve", order);
     requireStatus(order, order.status === "PENDING_APPROVAL");
+    // Whoever may sign the current step may send the order back instead.
+    const level = order.pendingApprovalLevel ?? "ANY";
+    if (!holdsApprovalLevel(ctx.grants, level, site(order)))
+      throw businessRuleViolation("APPROVAL_LEVEL_REQUIRED", "This step needs another approver", {
+        level,
+      });
     await tx.purchaseOrder.update({
       where: { id: order.id },
       data: {
@@ -614,9 +759,15 @@ export async function rejectOrder(ctx: TenantContext, orderId: string, rawInput:
         rejectionNote: parsed.data.reason,
         submittedAt: null,
         submittedByUserId: null,
+        pendingApprovalLevel: null,
+        approvalsGiven: 0,
       },
     });
-    await audit(tx, ctx, order, "rejected", { reason: parsed.data.reason });
+    await audit(tx, ctx, order, "rejected", {
+      reason: parsed.data.reason,
+      atStep: order.approvalsGiven + 1,
+      level,
+    });
   });
 }
 
@@ -640,6 +791,7 @@ export async function cancelOrder(ctx: TenantContext, orderId: string, rawInput:
       where: { id: order.id },
       data: {
         status: "CANCELLED",
+        pendingApprovalLevel: null,
         closedAt: new Date(),
         closedByUserId: ctx.userId,
         closeReason: parsed.data.reason,

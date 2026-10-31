@@ -305,6 +305,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "suppliers.view",
       "purchasing.view",
       "purchasing.manage",
+      "purchasing.approve",
       "purchasing.receive",
       "purchasing.request",
       "recipes.view",

@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (M10a integration framework)
+Last updated: 2026-10-31 (Q-04 multi-level purchase approval)
 
 ## Summary
 
@@ -18,6 +18,39 @@ Last updated: 2026-10-31 (M10a integration framework)
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
 | POS1 – POS5                   | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## Q-04 — Multi-level purchase approval (delivered)
+
+Rules: DECISIONS.md ADR-049.
+
+| Area      | What works                                                                                                                             | Where                                     |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Settings  | Branch approvals 0–3 (default 2) and head office yes/no (default yes), applied above the approval limit                                | Settings → Purchasing                     |
+| Chain     | Fixed at submission; branch steps by branch- or warehouse-scoped approvers, last step organization-wide; different person each step    | `approveOrder`, `procurement/rules.ts`    |
+| Rejection | By anyone who may sign the current step; back to draft; resubmission starts a new round; history kept                                  | `rejectOrder`, `purchase_order_approvals` |
+| Screens   | Steps with who/when on the order; button only for whoever may sign the current step, otherwise the reason; "needs attention" per level | order page, `analytics/attention.ts`      |
+
+Checks: `pnpm check` pass (unit 33 files / 194 tests, 2 new: chain from
+settings, who may sign each level; build); `pnpm test:integration` 32 files
+/ 215 tests pass (1 new and 2 updated: three-step chain with branch,
+warehouse and organization approvers, head office and other branches
+refused at branch steps, author and second signature refused, rejection
+at head office restarts the chain, history of both rounds, database
+refuses an approval by the author; the single-approver test now sets that
+mode explicitly; "needs attention" shows the order to the branch approver
+first, then to head office); `pnpm test:e2e` 38 tests pass (new: limit 0,
+default chain shown in settings, owner orders, two invited branch
+managers sign, head office cannot sign a branch step, finance approves
+last, steps list all three).
+
+Found and fixed: cancelling an order waiting for approval left its pending
+step set, which the new database check refused; cancel now clears it.
+
+Limitations: one chain per organization (no amount bands), no delegation,
+requisitions have no approval of their own. Organizations that had set an
+approval limit now get the default chain on their next submissions; set
+branch approvals to 0 and head office to "not required" for the old
+single-approver rule.
 
 ## M10a — Integration framework (delivered)
 
