@@ -49,7 +49,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                               |
 | M7   | Sales & financial workflows | M3, M4                           | Complete                                   |
 | M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)              |
-| M9   | Central kitchen & B2B       | M4, M6                           | Proposed                                   |
+| M9   | Central kitchen & B2B       | M4, M6                           | In progress (M9a done)                     |
 | M10  | Integrations                | M7                               | Proposed                                   |
 | POS1 | Core                        | M4                               | Planned                                    |
 | POS2 | Floor & kitchen             | POS1                             | Planned                                    |
@@ -334,6 +334,16 @@ Production planning from branch demand, production orders that consume
 ingredients and produce lot-tracked batches, internal branch orders, and
 external B2B customers with orders, delivery notes and sales invoices. Added
 after the Supy capability review (`docs/SUPY_FEATURE_MAP.md`).
+
+**M9a — Production ✅ (ADR-045):** production orders consume ingredients
+FEFO and put the output into stock as a lot at exactly their value, with
+yield variance, expiry capped by the ingredients, lot genealogy both ways,
+reversal from the order, and a plan from branch requisitions and reorder
+levels in whole batches.
+
+**M9b — next:** fulfilling branch requisitions from the central kitchen by
+shipment, and B2B customers with sales orders, delivery notes, sales
+invoices (output VAT) and customer balances.
 
 ## M10 — Integrations (proposed)
 

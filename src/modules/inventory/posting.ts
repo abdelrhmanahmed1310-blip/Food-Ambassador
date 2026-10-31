@@ -66,6 +66,12 @@ export interface PostingLine {
   /** Inbound lines only: take the value of this outbound line (index) of the same document. */
   costFromLine?: number;
   /**
+   * Inbound lines only: take the summed value of these outbound lines (any
+   * products) of the same document — production output carries exactly
+   * what its ingredients took (ADR-045).
+   */
+  costFromLines?: number[];
+  /**
    * Reversals: the reversed entry's value change. Inbound lines put back what
    * an outbound entry took; outbound lines take out what an inbound entry
    * added (capped at the value on hand).
@@ -105,6 +111,7 @@ const NUMBER_PREFIX: Record<InventoryDocumentType, string> = {
   TRANSIT_RECEIPT: "TRR",
   LANDED_COST: "LCA",
   CONSUMPTION: "CON",
+  PRODUCTION: "PRO",
 };
 
 /** Atomically allocate the next number for (organization, series, year). */
@@ -385,7 +392,7 @@ async function costLines(tx: Tx, organizationId: string, lines: PostingLine[]) {
     const l = lines[i];
     const v = valuations.get(valuationKey(l.warehouseId, l.productId))!;
     if (l.quantityDelta.isNegative()) {
-      if (l.unitCost != null || l.costFromLine !== undefined)
+      if (l.unitCost != null || l.costFromLine !== undefined || l.costFromLines !== undefined)
         throw new Error("Outbound lines are costed at the average or restore an entry");
       const quantity = l.quantityDelta.negated();
       if (quantity.greaterThan(v.state.quantity)) {
@@ -442,6 +449,23 @@ function inboundCost(
       value: negate(costed.valueDelta),
       unitCost: costed.unitCost,
       costMissing: outboundMissing[l.costFromLine],
+    };
+  }
+  if (l.costFromLines !== undefined) {
+    let value = new Decimal(0);
+    let missing = false;
+    for (const j of l.costFromLines) {
+      const costed = results[j];
+      if (!costed || !lines[j]?.quantityDelta.isNegative())
+        throw new Error("costFromLines must reference outbound lines of the same document");
+      value = value.plus(negate(costed.valueDelta));
+      missing ||= outboundMissing[j];
+    }
+    return {
+      kind: "transfer",
+      value,
+      unitCost: value.dividedBy(l.quantityDelta).toDecimalPlaces(6),
+      costMissing: missing,
     };
   }
   if (l.restore) {

@@ -654,7 +654,12 @@ export async function reverseDocumentInTx(
   ctx: TenantContext,
   documentId: string,
   input: { reasonCode: string; note?: string },
-  options: { allowReceipt: boolean; allowConsumption?: boolean; permission?: Permission },
+  options: {
+    allowReceipt: boolean;
+    allowConsumption?: boolean;
+    allowProduction?: boolean;
+    permission?: Permission;
+  },
 ): Promise<PostedDocument> {
   const doc = await tx.inventoryDocument.findFirst({
     where: { organizationId: ctx.organizationId, id: documentId },
@@ -689,6 +694,11 @@ export async function reverseDocumentInTx(
     throw businessRuleViolation(
       "RECEIPT_REVERSE_IN_PURCHASING",
       "Reverse goods receipts from the receipt page",
+    );
+  if (doc.type === "PRODUCTION" && !options.allowProduction)
+    throw businessRuleViolation(
+      "PRODUCTION_REVERSE_IN_PRODUCTION",
+      "Reverse production from the production order",
     );
   if (doc.type === "CONSUMPTION" && !options.allowConsumption)
     throw businessRuleViolation(

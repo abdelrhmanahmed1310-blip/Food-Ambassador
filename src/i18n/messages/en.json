@@ -115,7 +115,8 @@
     "reportsSection": "Reports",
     "foodCostReport": "Food cost by branch",
     "wasteReport": "Waste and differences",
-    "attention": "Needs attention"
+    "attention": "Needs attention",
+    "production": "Production"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -358,7 +359,15 @@
     "NOTHING_TO_APPLY": "Choose what to use from the record.",
     "REFERENCE_HAS_NO_VALUES": "This record has no nutrition values.",
     "REFERENCE_VALUES_IMPLAUSIBLE": "This record's values fail the plausibility checks ({detail}); enter the values by hand.",
-    "REFERENCE_WOULD_REPLACE_SPEC": "The product has values from a specification or lab report; a database record does not replace them."
+    "REFERENCE_WOULD_REPLACE_SPEC": "The product has values from a specification or lab report; a database record does not replace them.",
+    "OUTPUT_ONLY_FOR_PREPARATIONS": "Only preparations are produced into stock.",
+    "RECIPE_HAS_NO_OUTPUT": "Choose the product this preparation produces first.",
+    "PRODUCTION_NOT_PLANNED": "Only planned production orders can be completed or cancelled.",
+    "RECIPE_NOT_EXPANDABLE": "Part of the recipe cannot be expanded; check its sub-recipes and units.",
+    "INSUFFICIENT_STOCK_FOR_PRODUCTION": "Not enough usable stock for: {products}.",
+    "OUTPUT_OUTLIVES_INPUT": "The batch cannot be used after {latest}, when an ingredient lot it was made from expires.",
+    "PRODUCTION_NOT_COMPLETED": "Only completed batches can be reversed.",
+    "PRODUCTION_REVERSE_IN_PRODUCTION": "Reverse production from the production order."
   },
   "notFound": {
     "title": "Page not found",
@@ -559,7 +568,9 @@
       "payments.manage": "Record supplier payments and credit notes",
       "nutrition.view": "View nutrition and allergens",
       "nutrition.manage": "Record nutrition values and allergen statements",
-      "labels.approve": "Approve product labels"
+      "labels.approve": "Approve product labels",
+      "production.view": "View production",
+      "production.manage": "Plan and record production"
     }
   },
   "audit": {
@@ -853,7 +864,8 @@
       "DISPATCH": "Dispatch",
       "TRANSIT_RECEIPT": "Transit receipt",
       "LANDED_COST": "Landed cost",
-      "CONSUMPTION": "Sales consumption"
+      "CONSUMPTION": "Sales consumption",
+      "PRODUCTION": "Production"
     },
     "reasons": {
       "DATA_CORRECTION": "Data correction",
@@ -881,7 +893,8 @@
       "DAMAGED_IN_TRANSIT": "Damaged in transit",
       "LOST_IN_TRANSIT": "Lost in transit",
       "SHORT_SHIPPED": "Short-shipped",
-      "SALES": "Sales"
+      "SALES": "Sales",
+      "PRODUCTION": "Production"
     },
     "valuationTitle": "Stock value",
     "valuationHint": "Moving weighted average cost per product and warehouse, in {currency}.",
@@ -2083,5 +2096,67 @@
       "ACTIONS_OVERDUE": "{count, plural, one {# corrective action overdue} other {# corrective actions overdue}}",
       "RECALLS_ACTIVE": "{count, plural, one {# active recall} other {# active recalls}}"
     }
+  },
+  "production": {
+    "title": "Production",
+    "hint": "Batches made in a kitchen: ingredients taken first-expiring-first, the output put into stock as a lot at their exact value.",
+    "new": "New production order",
+    "newHint": "Choose a preparation that produces a stock item, where it is made, and how much.",
+    "create": "Create order",
+    "none": "No production orders yet.",
+    "recipe": "Preparation",
+    "warehouse": "Production site",
+    "plannedQuantity": "Planned quantity",
+    "plannedQuantityHint": "In the recipe's yield unit; ingredients are taken for this amount.",
+    "plannedFor": "Planned for",
+    "planned": "Planned",
+    "produced": "Produced",
+    "cost": "Value",
+    "statuses": {
+      "PLANNED": "Planned",
+      "COMPLETED": "Completed",
+      "REVERSED": "Reversed",
+      "CANCELLED": "Cancelled"
+    },
+    "noRecipes": "No preparation produces a stock item yet. On a preparation, choose the product it produces.",
+    "batchOf": "batch of {quantity} {unit}",
+    "plan": "Production plan",
+    "planTitle": "Production plan",
+    "planHint": "What to make so branch requests and minimum levels are covered.",
+    "planNote": "Need = open branch requisitions for the product (not yet ordered from a supplier) + topping up to the reorder maximum when stock would fall below the minimum − usable stock − batches already planned. Suggested amounts are whole recipe batches.",
+    "requested": "Requested by branches",
+    "usable": "Usable stock",
+    "alreadyPlanned": "Already planned",
+    "need": "Need",
+    "suggested": "Suggested",
+    "batches": "{count, plural, one {# batch} other {# batches}}",
+    "planIt": "Plan it",
+    "outputProduct": "Product made",
+    "document": "Stock document",
+    "completedAt": "Completed",
+    "closedBecause": "Closed: {reason}",
+    "ingredientsNeeded": "Ingredients needed",
+    "needed": "Needed",
+    "short": "Not enough usable stock for at least one ingredient; the batch cannot be recorded until it arrives.",
+    "notExpandable": "Part of the recipe cannot be expanded (a sub-recipe without an active version or an incompatible unit).",
+    "ingredientsUsed": "Ingredients used",
+    "lot": "Lot",
+    "value": "Value",
+    "complete": "Record as made",
+    "completeHint": "Takes the ingredients for the planned quantity from stock (first expiring first) and puts what was actually made into stock. The batch cannot expire after an ingredient lot it was made from.",
+    "producedIn": "Made ({unit})",
+    "producedHint": "Actual output; defaults to the plan.",
+    "lotCode": "Batch lot",
+    "expiresOn": "Use by",
+    "expiresOnHint": "Empty = shelf life of the product, never later than the earliest ingredient lot.",
+    "cancel": "Cancel order",
+    "reverse": "Reverse batch",
+    "reverseHint": "Puts the ingredients back and takes the batch out of stock; only possible while the whole batch is still in stock.",
+    "producesTitle": "Produced into stock",
+    "outputProductHint": "The stock item a batch of this preparation becomes in the central kitchen. Its stock unit must convert from the yield unit.",
+    "noOutput": "Not produced into stock",
+    "madeFrom": "Made from",
+    "usedIn": "Used in batches",
+    "noLot": "no lot recorded (gap)"
   }
 }

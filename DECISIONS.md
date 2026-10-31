@@ -822,6 +822,35 @@ documents stay scoped. Found by a scoped-user integration test.
   (Q-10, Q-07) and an external penetration test — see
   docs/SECURITY_REVIEW.md.
 
+### ADR-045 Central kitchen production — Accepted (M9a)
+
+- A **PREPARATION** recipe can name the stock product it produces
+  (`recipes.output_product_id`, CK: preparations only); its yield unit must
+  convert to the product's stock unit.
+- A **production order** (`PRD-`) fixes recipe, active version, site and
+  planned quantity (yield unit). Completing it posts one `PRO-` PRODUCTION
+  document: the ingredients of the planned quantity — gross, with waste, as
+  for sales (ADR-036) — are taken FEFO from usable stock (never expired or
+  recall-held; shortages refuse the whole batch), and the actual output
+  enters stock with **exactly the value the ingredients took**
+  (`costFromLines`, no rounding drift). Yield variance = actual − planned.
+- **Lot rules:** a lot-tracked output gets a lot (default: the order
+  number); its expiry is the product's shelf life from today, but never
+  later than the earliest expiry of an ingredient lot used — an explicit
+  later date is refused.
+- **Genealogy** from the ledger: a produced lot lists the lots it was made
+  from (ingredients without a lot are shown as gaps); an ingredient lot
+  lists the batches it went into. (Recalls do not yet follow genealogy
+  automatically: recall the output lots too.)
+- Reversal only from the order (generic reversal refused), and only while
+  the whole output is still in stock; cancel only while planned. Status
+  transitions are enforced by a trigger.
+- **Plan** per site: open branch requisitions for each output product (not
+  yet ordered from a supplier) + topping up to the reorder maximum when
+  stock would fall below the minimum − usable stock − already planned,
+  rounded up to whole batches.
+- Permissions `production.view` / `production.manage`, scoped to sites.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

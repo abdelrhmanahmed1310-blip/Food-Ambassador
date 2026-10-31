@@ -587,7 +587,9 @@ export async function warehouseOptions(
     | "inventory.adjust"
     | "inventory.transfer"
     | "inventory.count"
-    | "inventory.valuation.view" = "inventory.view",
+    | "inventory.valuation.view"
+    | "production.view"
+    | "production.manage" = "inventory.view",
 ) {
   const scope = accessibleScope(ctx.grants, permission);
   return withTenantTx(ctx.organizationId, (tx) =>

@@ -49,6 +49,8 @@ export const PERMISSIONS = [
   "nutrition.view",
   "nutrition.manage",
   "labels.approve",
+  "production.view",
+  "production.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -79,6 +81,8 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "foodsafety.manage",
   "sales.view",
   "sales.import",
+  "production.view",
+  "production.manage",
 ]);
 
 /**
@@ -161,6 +165,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.receive",
       "purchasing.request",
       "recipes.view",
+      "production.view",
+      "production.manage",
       "nutrition.view",
       "nutrition.manage",
       "labels.approve",
@@ -194,6 +200,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.receive",
       "purchasing.request",
       "recipes.view",
+      "production.view",
       "nutrition.view",
       "nutrition.manage",
       "recipes.costs.view",
@@ -217,6 +224,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.receive",
       "purchasing.request",
       "recipes.view",
+      "production.view",
       "nutrition.view",
       "traceability.view",
       "foodsafety.view",
@@ -236,6 +244,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "suppliers.view",
       "purchasing.view",
       "recipes.view",
+      "production.view",
       "nutrition.view",
       "nutrition.manage",
       "labels.approve",
@@ -292,6 +301,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "purchasing.receive",
       "purchasing.request",
       "recipes.view",
+      "production.view",
+      "production.manage",
       "nutrition.view",
       "traceability.view",
       "foodsafety.view",
@@ -313,6 +324,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "suppliers.view",
       "purchasing.view",
       "recipes.view",
+      "production.view",
       "nutrition.view",
       "recipes.costs.view",
       "traceability.view",

@@ -247,6 +247,74 @@ export default async function LotTracePage({
           </Table>
         </Card>
 
+        {trace.madeBy.length > 0 ? (
+          <Card title={t("production.madeFrom")}>
+            <p className="text-muted mb-2 text-sm">
+              {trace.madeBy.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/o/${orgSlug}/production/${m.id}`}
+                  className="ltr-value text-primary me-2 font-mono text-xs hover:underline"
+                >
+                  {m.number}
+                </Link>
+              ))}
+            </p>
+            <ul className="space-y-1 text-sm" data-testid="made-from">
+              {trace.madeFrom.map((m, i) => (
+                <li key={i}>
+                  {m.product.sku} — {(locale === "ar" && m.product.nameAr) || m.product.nameEn} ·{" "}
+                  <span className="ltr-value">
+                    {fmt(m.quantity)} {m.product.baseUom.code}
+                  </span>{" "}
+                  ·{" "}
+                  {m.lot ? (
+                    <Link
+                      href={`/o/${orgSlug}/traceability/lots/${m.lot.id}`}
+                      className="ltr-value text-primary font-mono text-xs hover:underline"
+                    >
+                      {m.lot.lotCode}
+                    </Link>
+                  ) : (
+                    <span className="text-warning">{t("production.noLot")}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
+
+        {trace.usedIn.length > 0 ? (
+          <Card title={t("production.usedIn")}>
+            <ul className="space-y-1 text-sm" data-testid="used-in">
+              {trace.usedIn.map((u) => (
+                <li key={u.id}>
+                  <Link
+                    href={`/o/${orgSlug}/production/${u.id}`}
+                    className="ltr-value text-primary font-mono text-xs hover:underline"
+                  >
+                    {u.number}
+                  </Link>{" "}
+                  · {u.outputProduct.sku} —{" "}
+                  {(locale === "ar" && u.outputProduct.nameAr) || u.outputProduct.nameEn}
+                  {u.outputLot ? (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <Link
+                        href={`/o/${orgSlug}/traceability/lots/${u.outputLot.id}`}
+                        className="ltr-value text-primary font-mono text-xs hover:underline"
+                      >
+                        {u.outputLot.lotCode}
+                      </Link>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
+
         {trace.recalls.length > 0 ? (
           <Card title={t("recalls.title")}>
             <ul className="space-y-1 text-sm">

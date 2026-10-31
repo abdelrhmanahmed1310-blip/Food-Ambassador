@@ -770,7 +770,17 @@ Implemented in M6a (migrations `20261101090000_m6_recalls`,
   OPEN → DONE → VERIFIED; CK: verifier ≠ doer).
 - Traces are queries over `inventory_ledger_entries`, `goods_receipt_lines`
   and `stock_shipment_lines`; no trace tables. Production lot links come
-  with production (not yet planned in a milestone).
+  from the PRODUCTION documents (M9a): inputs are the document's outbound
+  entries, the output lot is on the production order.
+
+**Production** (migration `20261107090000_m9_production`, ADR-045):
+`recipes.output_product_id` (CK preparations only); **production_orders**
+(`PRD-` number, recipe, version, warehouse, output product, planned
+quantity and unit, planned date, status PLANNED | COMPLETED | REVERSED |
+CANCELLED with CK on document/timestamps, produced quantity (base), output
+lot, cost, PRODUCTION and reversal documents UQ; trigger for transitions).
+`inventory_document_type` gains PRODUCTION (`PRO-`); inputs post as
+CONSUMPTION with reason PRODUCTION, the output as PRODUCTION_OUTPUT.
 
 ## 9. Sales and finance (Milestone 7)
 

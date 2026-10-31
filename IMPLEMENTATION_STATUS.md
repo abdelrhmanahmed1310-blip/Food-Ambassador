@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (M8c pilot readiness; Milestone 8 complete)
+Last updated: 2026-10-31 (M9a central kitchen production)
 
 ## Summary
 
@@ -15,7 +15,42 @@ Last updated: 2026-10-31 (M8c pilot readiness; Milestone 8 complete)
 | M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                        |
 | M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                            |
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
-| M9 – M10, POS1 – POS5         | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+| M9 Central kitchen & B2B      | 🔄 In progress — **M9a ✅** production orders, plan, genealogy; M9b branch fulfilment and B2B next                                                                                                                    |
+| M10, POS1 – POS5              | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+
+## M9a — Central kitchen production (delivered)
+
+Rules: DECISIONS.md ADR-045.
+
+| Area      | What works                                                                                                                                | Where                                 |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Output    | A preparation names the stock product it produces (yield unit must convert)                                                               | recipe page, `setRecipeOutputProduct` |
+| Orders    | `PRD-` planned at a site; ingredients needed vs usable shown; complete with actual output, lot and use-by; cancel; reverse from the order | `src/modules/production/service.ts`   |
+| Posting   | One `PRO-` document: ingredients FEFO (gross, with waste), output at exactly their value (`costFromLines`); shortages refuse the batch    | `inventory/posting.ts`                |
+| Lots      | Output lot (default the order number), use-by capped by the earliest ingredient lot                                                       | `completeProduction`                  |
+| Genealogy | Lot trace shows "made from" (with unlotted inputs as gaps) and "used in batches"                                                          | `traceability/trace.ts`               |
+| Plan      | Branch requisitions + reorder top-up − usable − planned, in whole batches; "plan it" prefills an order                                    | `/production/plan`                    |
+
+Checks: `pnpm check` pass (unit 31 files / 186 tests; build);
+`pnpm test:integration` 29 files / 198 tests pass (5 new: output only on
+preparations and convertible units; FEFO across two lots, exact value 146
+at moving average, use-by capped by the oldest lot, genealogy both ways,
+generic reversal refused, reversal restores stock and value; shortage
+refused and cancel; plan from a branch requisition in whole batches and
+less what is planned; permissions, other tenants, trigger refuses reopening
+a reversed batch; ledger and valuations reconcile afterwards);
+`pnpm test:e2e` 35 tests pass (new: preparation set to produce a stock item,
+oversized batch refused with the shortage and cancelled, 4 kg batch made at
+80.00, stock value 200.00).
+
+Found while testing: my own expectation priced ingredients per lot; costs
+are a moving average per product and warehouse (ADR-021), so the batch
+cost 146, not 144 — the test was corrected, not the rule.
+
+Limitations: ingredients are taken for the planned quantity (no per-line
+actual usage entry); recalls do not yet extend to output lots
+automatically; no capacity or labour planning; fulfilment of branch
+requests by shipment comes with M9b.
 
 ## M8c — Pilot readiness (delivered)
 

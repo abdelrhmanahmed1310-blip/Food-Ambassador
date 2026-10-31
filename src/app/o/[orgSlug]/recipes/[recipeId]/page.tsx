@@ -10,11 +10,14 @@ import { businessDate } from "@/modules/inventory/rules";
 import { listRecipePrices } from "@/modules/recipes/menu";
 import { RecipePriceForm, TargetForm } from "@/components/recipes/forms";
 import { RecipeTaxForm } from "@/components/tax/forms";
+import { OutputProductForm } from "@/components/production/forms";
+import { listProductOptions } from "@/modules/catalog/service";
+import { setOutputProductAction } from "../../production/actions";
 import { getTaxSetup } from "@/modules/tax/service";
 import { getRecipe } from "@/modules/recipes/recipes";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
-import { moneyFormatter, quantityFormatter } from "@/server/inventory-view";
+import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
 import { hasPermission } from "@/modules/access/authorize";
 import {
   addRecipePriceAction,
@@ -42,6 +45,8 @@ export default async function RecipePage({ params }: PageProps<"/o/[orgSlug]/rec
     costs ? listSnapshots(ctx, recipe.id) : Promise.resolve([]),
   ]);
   const prices = recipe.type === "DISH" ? await listRecipePrices(ctx, recipe.id) : [];
+  const outputOptions =
+    recipe.type === "PREPARATION" && recipe.can.edit ? await listProductOptions(ctx) : [];
   const taxCodes =
     recipe.type === "DISH" && recipe.can.edit
       ? (await getTaxSetup(ctx)).codes.filter((c) => !c.archivedAt)
@@ -174,6 +179,19 @@ export default async function RecipePage({ params }: PageProps<"/o/[orgSlug]/rec
                 />
               </div>
             ) : null}
+          </Card>
+        ) : null}
+
+        {recipe.type === "PREPARATION" && recipe.can.edit ? (
+          <Card title={t("production.producesTitle")}>
+            <OutputProductForm
+              action={setOutputProductAction.bind(null, orgSlug, recipe.id)}
+              products={outputOptions.map((p) => ({
+                value: p.id,
+                label: `${p.sku} — ${productName(p, locale)}`,
+              }))}
+              current={recipe.outputProductId ?? undefined}
+            />
           </Card>
         ) : null}
 

@@ -47,6 +47,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ inventory/            # posting engine (only ledger + valuation writer), operations, counts, queries, CSV,
 │  │  │                        #   valuation.ts (pure moving-average rules), valuation-queries.ts (stock value reports)
 │  │  ├─ procurement/          # suppliers, requisitions, purchase orders + approval, receiving, landed cost, reorder, supplier performance (rules.ts pure)
+│  │  ├─ production/           # central kitchen production orders, plan (FEFO via inventory, genealogy in traceability)
 │  │  ├─ recipes/              # recipes, versions, ingredients, standard costs, cost snapshots (costing.ts pure)
 │  │  ├─ invoices/             # supplier invoices, 3-way match, input VAT; payables, aging, accounting export (rules pure)
 │  │  ├─ nutrition/            # allergens, nutrition, recipe roll-up, labels, ingredient library (rules, parsers pure)

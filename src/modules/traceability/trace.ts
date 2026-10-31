@@ -193,6 +193,48 @@ export async function traceLot(ctx: TenantContext, lotId: string) {
       where: { organizationId: ctx.organizationId, lotId: lot.id },
       select: { recall: { select: { id: true, number: true, status: true, title: true } } },
     });
+    // Genealogy (ADR-045): what a produced lot was made from, and what this lot went into.
+    const madeBy = await tx.productionOrder.findMany({
+      where: { organizationId: ctx.organizationId, outputLotId: lot.id, documentId: { not: null } },
+      select: { id: true, number: true, status: true, documentId: true },
+    });
+    const madeFrom = madeBy.length
+      ? await tx.inventoryLedgerEntry.findMany({
+          where: {
+            organizationId: ctx.organizationId,
+            documentId: { in: madeBy.map((m) => m.documentId as string) },
+            quantityDelta: { lt: 0 },
+          },
+          select: {
+            quantityDelta: true,
+            documentId: true,
+            product: {
+              select: {
+                sku: true,
+                nameEn: true,
+                nameAr: true,
+                baseUom: { select: { code: true } },
+              },
+            },
+            lot: { select: { id: true, lotCode: true, expiresOn: true } },
+          },
+        })
+      : [];
+    const usedInDocs = entries
+      .filter((e) => e.document.type === "PRODUCTION" && dec(e.quantityDelta).lt(0))
+      .map((e) => e.document.id);
+    const usedIn = usedInDocs.length
+      ? await tx.productionOrder.findMany({
+          where: { organizationId: ctx.organizationId, documentId: { in: usedInDocs } },
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            outputProduct: { select: { sku: true, nameEn: true, nameAr: true } },
+            outputLot: { select: { id: true, lotCode: true, expiresOn: true } },
+          },
+        })
+      : [];
     const byId = new Map(entries.map((e) => [e.id, e]));
     const unlottedById = new Map(unlotted.map((e) => [e.id, e]));
     return {
@@ -211,6 +253,9 @@ export async function traceLot(ctx: TenantContext, lotId: string) {
       shipments,
       stock: await lotStock(tx, ctx, [lot.id]),
       recalls: recalls.map((r) => r.recall),
+      madeBy,
+      madeFrom: madeFrom.map((m) => ({ ...m, quantity: dec(m.quantityDelta).negated() })),
+      usedIn,
     };
   });
 }

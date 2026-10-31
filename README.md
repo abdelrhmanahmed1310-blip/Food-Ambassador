@@ -37,7 +37,10 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > integrity check, runbooks and a security review
 > ([docs/OPERATIONS.md](docs/OPERATIONS.md),
 > [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md),
-> [docs/PILOT_ONBOARDING.md](docs/PILOT_ONBOARDING.md)). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> [docs/PILOT_ONBOARDING.md](docs/PILOT_ONBOARDING.md)). Milestone 9 (in
+> progress) adds central kitchen production: batches that consume
+> ingredients first-expiring-first and enter stock as lots at their exact
+> value, with lot genealogy and a production plan from branch requests. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

@@ -194,6 +194,7 @@ model Organization {
   recipeLabels          RecipeLabel[]
   referenceFoods        ReferenceFood[]
   referenceImports      ReferenceImport[]
+  productionOrders      ProductionOrder[]
 
   @@map("organizations")
 }
@@ -387,29 +388,30 @@ model Warehouse {
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branch          Branch                 @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
-  locations       StorageLocation[]
-  membershipRoles MembershipRole[]
-  invitations     Invitation[]
-  ledgerEntries   InventoryLedgerEntry[]
-  balances        StockBalance[]
-  documents       InventoryDocument[]    @relation("DocumentWarehouse")
-  inboundDocs     InventoryDocument[]    @relation("DocumentDestination")
-  stockCounts     StockCount[]
-  valuations      StockValuation[]
-  revaluations    StockRevaluation[]
-  purchaseOrders  PurchaseOrder[]
-  goodsReceipts   GoodsReceipt[]
-  reorderRules    ReorderRule[]
-  shipmentsOut    StockShipment[]        @relation("ShipmentFrom")
-  shipmentsIn     StockShipment[]        @relation("ShipmentTo")
-  landedCosts     LandedCost[]
-  landedCostLines LandedCostLine[]
-  requisitions    PurchaseRequisition[]
-  recipeSnapshots RecipeCostSnapshot[]
-  recallStock     RecallStock[]
-  salesImports    SalesImport[]
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch           Branch                 @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  locations        StorageLocation[]
+  membershipRoles  MembershipRole[]
+  invitations      Invitation[]
+  ledgerEntries    InventoryLedgerEntry[]
+  balances         StockBalance[]
+  documents        InventoryDocument[]    @relation("DocumentWarehouse")
+  inboundDocs      InventoryDocument[]    @relation("DocumentDestination")
+  stockCounts      StockCount[]
+  valuations       StockValuation[]
+  revaluations     StockRevaluation[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  reorderRules     ReorderRule[]
+  shipmentsOut     StockShipment[]        @relation("ShipmentFrom")
+  shipmentsIn      StockShipment[]        @relation("ShipmentTo")
+  landedCosts      LandedCost[]
+  landedCostLines  LandedCostLine[]
+  requisitions     PurchaseRequisition[]
+  recipeSnapshots  RecipeCostSnapshot[]
+  recallStock      RecallStock[]
+  salesImports     SalesImport[]
+  productionOrders ProductionOrder[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -527,6 +529,7 @@ model UnitOfMeasure {
   recipeIngredients  RecipeIngredient[]
   recipeYields       RecipeVersion[]
   invoiceLines       SupplierInvoiceLine[]
+  productionOrders   ProductionOrder[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
   @@unique([organizationId, code], map: "units_of_measure_code_key")
@@ -595,6 +598,8 @@ model Product {
   allergenDeclarations AllergenDeclaration[]
   nutritionProfiles    NutritionProfile[]
   referenceLinks       ReferenceFood[]           @relation("ReferenceLinkedProduct")
+  producedBy           Recipe[]                  @relation("RecipeOutput")
+  productionOrders     ProductionOrder[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -674,6 +679,7 @@ model InventoryLot {
   shipmentLines StockShipmentLine[]
   recallLots    RecallLot[]
   recallStock   RecallStock[]
+  producedBy    ProductionOrder[]
 
   @@unique([organizationId, id])
   /// Lets ledger rows prove their lot belongs to their product.
@@ -722,6 +728,7 @@ enum InventoryDocumentType {
   TRANSIT_RECEIPT
   LANDED_COST
   CONSUMPTION
+  PRODUCTION
 }
 
 /// How the unit cost of a ledger entry was determined (ADR-021).
@@ -753,23 +760,25 @@ model InventoryDocument {
   postedAt               DateTime              @default(now()) @map("posted_at") @db.Timestamptz(3)
   postedByUserId         String                @map("posted_by_user_id") @db.Uuid
 
-  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  warehouse        Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
-  destination      Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
-  reverses         InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
-  reversedBy       InventoryDocument?     @relation("DocumentReversal")
-  entries          InventoryLedgerEntry[]
-  stockCount       StockCount?
-  revaluation      StockRevaluation?
-  receipt          GoodsReceipt?          @relation("ReceiptDocument")
-  receiptReversal  GoodsReceipt?          @relation("ReceiptReversal")
-  shipmentDispatch StockShipment?         @relation("ShipmentDispatch")
-  shipmentReceipt  StockShipment?         @relation("ShipmentReceipt")
-  shipmentCancel   StockShipment?         @relation("ShipmentCancel")
-  landedCost       LandedCost?            @relation("LandedCostDocument")
-  recallDocument   RecallDocument?
-  salesImport      SalesImport?           @relation("SalesConsumption")
-  salesReversal    SalesImport?           @relation("SalesReversal")
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse          Warehouse              @relation("DocumentWarehouse", fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  destination        Warehouse?             @relation("DocumentDestination", fields: [organizationId, destinationWarehouseId], references: [organizationId, id], onDelete: Restrict)
+  reverses           InventoryDocument?     @relation("DocumentReversal", fields: [organizationId, reversesDocumentId], references: [organizationId, id], onDelete: Restrict)
+  reversedBy         InventoryDocument?     @relation("DocumentReversal")
+  entries            InventoryLedgerEntry[]
+  stockCount         StockCount?
+  revaluation        StockRevaluation?
+  receipt            GoodsReceipt?          @relation("ReceiptDocument")
+  receiptReversal    GoodsReceipt?          @relation("ReceiptReversal")
+  shipmentDispatch   StockShipment?         @relation("ShipmentDispatch")
+  shipmentReceipt    StockShipment?         @relation("ShipmentReceipt")
+  shipmentCancel     StockShipment?         @relation("ShipmentCancel")
+  landedCost         LandedCost?            @relation("LandedCostDocument")
+  recallDocument     RecallDocument?
+  salesImport        SalesImport?           @relation("SalesConsumption")
+  salesReversal      SalesImport?           @relation("SalesReversal")
+  productionOrder    ProductionOrder?       @relation("ProductionDocument")
+  productionReversal ProductionOrder?       @relation("ProductionReversal")
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1541,16 +1550,20 @@ model Recipe {
   targetFoodCostFraction Decimal?   @map("target_food_cost_fraction") @db.Decimal(7, 6)
   /// Sales tax code; null = the organization's default sales code.
   taxCodeId              String?    @map("tax_code_id") @db.Uuid
+  /// Stock item a PREPARATION produces in the central kitchen (ADR-045).
+  outputProductId        String?    @map("output_product_id") @db.Uuid
   createdAt              DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  versions     RecipeVersion[]
-  usedIn       RecipeIngredient[] @relation("SubRecipe")
-  prices       RecipePrice[]
-  labels       RecipeLabel[]
-  taxCode      TaxCode?           @relation("RecipeTaxCode", fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
-  salesLines   SalesLine[]
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  versions         RecipeVersion[]
+  usedIn           RecipeIngredient[] @relation("SubRecipe")
+  prices           RecipePrice[]
+  labels           RecipeLabel[]
+  outputProduct    Product?           @relation("RecipeOutput", fields: [organizationId, outputProductId], references: [organizationId, id], onDelete: Restrict)
+  productionOrders ProductionOrder[]
+  taxCode          TaxCode?           @relation("RecipeTaxCode", fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+  salesLines       SalesLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1579,13 +1592,14 @@ model RecipeVersion {
   createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  recipe       Recipe               @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
-  yieldUom     UnitOfMeasure        @relation(fields: [yieldUomId], references: [id], onDelete: Restrict)
-  ingredients  RecipeIngredient[]
-  snapshots    RecipeCostSnapshot[]
-  salesLines   SalesLine[]
-  labels       RecipeLabel[]
+  organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recipe           Recipe               @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+  yieldUom         UnitOfMeasure        @relation(fields: [yieldUomId], references: [id], onDelete: Restrict)
+  ingredients      RecipeIngredient[]
+  snapshots        RecipeCostSnapshot[]
+  salesLines       SalesLine[]
+  labels           RecipeLabel[]
+  productionOrders ProductionOrder[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, recipeId, versionNo])
@@ -2624,4 +2638,63 @@ model ReferenceImport {
   @@unique([organizationId, id])
   @@unique([organizationId, sha256])
   @@map("reference_imports")
+}
+
+// ─── Central kitchen production (Milestone 9a, ADR-045) ───
+
+enum ProductionStatus {
+  PLANNED
+  COMPLETED
+  REVERSED
+  CANCELLED
+}
+
+/// A batch of a PREPARATION recipe made in one warehouse: ingredients are
+/// consumed FEFO and the output product enters stock as a lot at their value.
+model ProductionOrder {
+  id                   String           @id @default(uuid(7)) @db.Uuid
+  organizationId       String           @map("organization_id") @db.Uuid
+  number               String
+  recipeId             String           @map("recipe_id") @db.Uuid
+  versionId            String           @map("version_id") @db.Uuid
+  warehouseId          String           @map("warehouse_id") @db.Uuid
+  outputProductId      String           @map("output_product_id") @db.Uuid
+  /// Planned quantity in the recipe's yield unit; ingredients are consumed for this.
+  plannedQuantity      Decimal          @map("planned_quantity") @db.Decimal(20, 6)
+  plannedUomId         String           @map("planned_uom_id") @db.Uuid
+  plannedFor           DateTime?        @map("planned_for") @db.Date
+  status               ProductionStatus @default(PLANNED)
+  /// Actual output, in the output product's base unit.
+  producedQuantityBase Decimal?         @map("produced_quantity_base") @db.Decimal(20, 6)
+  outputLotId          String?          @map("output_lot_id") @db.Uuid
+  /// Stock value consumed = value of the output.
+  cost                 Decimal?         @db.Decimal(19, 4)
+  documentId           String?          @map("document_id") @db.Uuid
+  reversalDocumentId   String?          @map("reversal_document_id") @db.Uuid
+  note                 String?
+  createdByUserId      String           @map("created_by_user_id") @db.Uuid
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt          DateTime?        @map("completed_at") @db.Timestamptz(3)
+  completedByUserId    String?          @map("completed_by_user_id") @db.Uuid
+  closedAt             DateTime?        @map("closed_at") @db.Timestamptz(3)
+  closedByUserId       String?          @map("closed_by_user_id") @db.Uuid
+  closeReason          String?          @map("close_reason")
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recipe        Recipe             @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+  version       RecipeVersion      @relation(fields: [organizationId, versionId], references: [organizationId, id], onDelete: Restrict)
+  warehouse     Warehouse          @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  outputProduct Product            @relation(fields: [organizationId, outputProductId], references: [organizationId, id], onDelete: Restrict)
+  plannedUom    UnitOfMeasure      @relation(fields: [plannedUomId], references: [id], onDelete: Restrict)
+  outputLot     InventoryLot?      @relation(fields: [organizationId, outputProductId, outputLotId], references: [organizationId, productId, id], onDelete: Restrict)
+  document      InventoryDocument? @relation("ProductionDocument", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  reversal      InventoryDocument? @relation("ProductionReversal", fields: [organizationId, reversalDocumentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@unique([organizationId, documentId])
+  @@unique([organizationId, reversalDocumentId])
+  @@index([organizationId, warehouseId, status])
+  @@map("production_orders")
 }

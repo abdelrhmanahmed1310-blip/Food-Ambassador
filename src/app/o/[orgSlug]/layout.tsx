@@ -83,6 +83,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     );
   if (hasPermission(ctx.grants, "recipes.manage"))
     kitchen.items.push({ href: `${base}/recipes/replace`, label: t("replaceIngredient") });
+  if (holdsAnyGrant(ctx.grants, "production.view"))
+    kitchen.items.push({ href: `${base}/production`, label: t("production") });
   if (hasPermission(ctx.grants, "recipes.view") && hasPermission(ctx.grants, "nutrition.view"))
     kitchen.items.push({ href: `${base}/recipes/allergens`, label: t("allergenMatrix") });
   const safety: NavSection = { title: t("safetySection"), items: [] };
