@@ -163,6 +163,14 @@ model Organization {
   menuItemModifierGroups MenuItemModifierGroup[]
   comboComponents        ComboComponent[]
   menuItemUnavailable    MenuItemUnavailable[]
+  posRegisters           PosRegister[]
+  posShifts              PosShift[]
+  posCashMovements       PosCashMovement[]
+  posOrders              PosOrder[]
+  posOrderLines          PosOrderLine[]
+  posPayments            PosPayment[]
+  posRefunds             PosRefund[]
+  posShortfalls          PosConsumptionShortfall[]
   stockCountApprovals    StockCountApproval[]
   purchaseOrderLines     PurchaseOrderLine[]
   goodsReceipts          GoodsReceipt[]
@@ -392,6 +400,8 @@ model Branch {
   menuItemPrices      MenuItemPrice[]
   menuItemUnavailable MenuItemUnavailable[]
 
+  posRegisters PosRegister[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@map("branches")
@@ -443,6 +453,8 @@ model Warehouse {
   salesImports     SalesImport[]
   productionOrders ProductionOrder[]
   salesOrders      SalesOrder[]
+
+  posRegisters PosRegister[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -637,6 +649,8 @@ model Product {
 
   menuItems       MenuItem[]
   modifierOptions ModifierOption[]
+
+  posShortfalls PosConsumptionShortfall[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -3546,4 +3560,243 @@ model MenuItemUnavailable {
 
   @@id([organizationId, itemId, branchId])
   @@map("menu_item_unavailable")
+}
+
+// ─── POS1b: selling (ADR-059) ───
+
+/// A till: sells for one branch and uses stock from one warehouse.
+model PosRegister {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  warehouseId    String    @map("warehouse_id") @db.Uuid
+  code           String
+  name           String
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  shifts       PosShift[]
+  orders       PosOrder[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("pos_registers")
+}
+
+enum PosShiftStatus {
+  OPEN
+  CLOSED
+}
+
+/// A cashier's shift on a register: opening float, cash in/out, counted cash at close.
+model PosShift {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  number         String
+  registerId     String         @map("register_id") @db.Uuid
+  status         PosShiftStatus @default(OPEN)
+  openingFloat   Decimal        @map("opening_float") @db.Decimal(19, 4)
+  openedByUserId String         @map("opened_by_user_id") @db.Uuid
+  openedAt       DateTime       @default(now()) @map("opened_at") @db.Timestamptz(3)
+  /// At close: cash expected in the drawer, counted, and the difference (counted − expected).
+  expectedCash   Decimal?       @map("expected_cash") @db.Decimal(19, 4)
+  countedCash    Decimal?       @map("counted_cash") @db.Decimal(19, 4)
+  cashDifference Decimal?       @map("cash_difference") @db.Decimal(19, 4)
+  closeNote      String?        @map("close_note")
+  closedByUserId String?        @map("closed_by_user_id") @db.Uuid
+  closedAt       DateTime?      @map("closed_at") @db.Timestamptz(3)
+
+  organization  Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  register      PosRegister       @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
+  cashMovements PosCashMovement[]
+  orders        PosOrder[]
+  refunds       PosRefund[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, registerId])
+  @@map("pos_shifts")
+}
+
+enum PosCashMovementKind {
+  PAY_IN
+  PAY_OUT
+}
+
+model PosCashMovement {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  organizationId  String              @map("organization_id") @db.Uuid
+  shiftId         String              @map("shift_id") @db.Uuid
+  kind            PosCashMovementKind
+  amount          Decimal             @db.Decimal(19, 4)
+  reason          String
+  createdByUserId String              @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shift        PosShift     @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, shiftId])
+  @@map("pos_cash_movements")
+}
+
+enum PosOrderStatus {
+  PAID
+  VOIDED
+}
+
+/// A paid order. Its id is generated by the device, so a retried submission never sells twice.
+model PosOrder {
+  id               String         @id @db.Uuid
+  organizationId   String         @map("organization_id") @db.Uuid
+  number           String
+  registerId       String         @map("register_id") @db.Uuid
+  shiftId          String         @map("shift_id") @db.Uuid
+  branchId         String         @map("branch_id") @db.Uuid
+  warehouseId      String         @map("warehouse_id") @db.Uuid
+  channel          SalesChannel
+  status           PosOrderStatus @default(PAID)
+  /// When the cashier took the order (device time), and its business date at the branch.
+  orderedAt        DateTime       @map("ordered_at") @db.Timestamptz(3)
+  businessDate     DateTime       @map("business_date") @db.Date
+  netAmount        Decimal        @map("net_amount") @db.Decimal(19, 4)
+  taxAmount        Decimal        @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount      Decimal        @map("gross_amount") @db.Decimal(19, 4)
+  /// Stock value used (moving average), base currency.
+  costAmount       Decimal        @default(0) @map("cost_amount") @db.Decimal(19, 4)
+  consumptionDocId String?        @map("consumption_doc_id") @db.Uuid
+  refundedAmount   Decimal        @default(0) @map("refunded_amount") @db.Decimal(19, 4)
+  note             String?
+  cashierUserId    String         @map("cashier_user_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  voidedAt         DateTime?      @map("voided_at") @db.Timestamptz(3)
+  voidedByUserId   String?        @map("voided_by_user_id") @db.Uuid
+  voidReason       String?        @map("void_reason")
+  voidDocId        String?        @map("void_doc_id") @db.Uuid
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  register     PosRegister               @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
+  shift        PosShift                  @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
+  lines        PosOrderLine[]
+  payments     PosPayment[]
+  refunds      PosRefund[]
+  shortfalls   PosConsumptionShortfall[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, shiftId])
+  @@index([organizationId, businessDate])
+  @@map("pos_orders")
+}
+
+/// A sold line, with the menu item, price and chosen options as they were at the sale.
+model PosOrderLine {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  orderId          String   @map("order_id") @db.Uuid
+  lineNo           Int      @map("line_no")
+  menuItemId       String   @map("menu_item_id") @db.Uuid
+  name             String
+  quantity         Decimal  @db.Decimal(20, 6)
+  /// Per item including the options' price changes, as the price was entered (incl. or excl. VAT).
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(19, 4)
+  priceIncludesTax Boolean  @map("price_includes_tax")
+  /// [{ optionId, name, priceDelta }]
+  options          Json     @default("[]")
+  taxCodeId        String?  @map("tax_code_id") @db.Uuid
+  taxRate          Decimal? @map("tax_rate") @db.Decimal(7, 6)
+  netAmount        Decimal  @map("net_amount") @db.Decimal(19, 4)
+  taxAmount        Decimal  @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount      Decimal  @map("gross_amount") @db.Decimal(19, 4)
+  refundedQuantity Decimal  @default(0) @map("refunded_quantity") @db.Decimal(20, 6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        PosOrder     @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, orderId, lineNo])
+  @@map("pos_order_lines")
+}
+
+enum PosPaymentMethod {
+  CASH
+  /// Paid on a separate card terminal (no card data here; POS3 integrates terminals).
+  CARD
+}
+
+model PosPayment {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  orderId        String           @map("order_id") @db.Uuid
+  method         PosPaymentMethod
+  /// Applied to the order.
+  amount         Decimal          @db.Decimal(19, 4)
+  /// Cash: what the customer handed over, and the change given.
+  tendered       Decimal?         @db.Decimal(19, 4)
+  change         Decimal?         @db.Decimal(19, 4)
+  reference      String?
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        PosOrder     @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, orderId])
+  @@map("pos_payments")
+}
+
+/// Money given back for some or all lines of a paid order (stock is not returned).
+model PosRefund {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  number          String
+  orderId         String           @map("order_id") @db.Uuid
+  /// The open shift the money left from.
+  shiftId         String           @map("shift_id") @db.Uuid
+  method          PosPaymentMethod
+  amount          Decimal          @db.Decimal(19, 4)
+  taxAmount       Decimal          @map("tax_amount") @db.Decimal(19, 4)
+  /// [{ orderLineId, quantity, gross, tax }]
+  lines           Json
+  reason          String
+  createdByUserId String           @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        PosOrder     @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
+  shift        PosShift     @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, number])
+  @@index([organizationId, orderId])
+  @@index([organizationId, shiftId])
+  @@map("pos_refunds")
+}
+
+enum PosShortfallStatus {
+  OPEN
+  POSTED
+  CANCELLED
+}
+
+/// Stock a paid order should have used but the system did not show; posted later (ADR-059).
+model PosConsumptionShortfall {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  orderId        String             @map("order_id") @db.Uuid
+  warehouseId    String             @map("warehouse_id") @db.Uuid
+  productId      String             @map("product_id") @db.Uuid
+  quantity       Decimal            @db.Decimal(20, 6)
+  status         PosShortfallStatus @default(OPEN)
+  documentId     String?            @map("document_id") @db.Uuid
+  resolvedAt     DateTime?          @map("resolved_at") @db.Timestamptz(3)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        PosOrder     @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
+  product      Product      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@map("pos_consumption_shortfalls")
 }

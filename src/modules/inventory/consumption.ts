@@ -27,6 +27,8 @@ export async function planConsumptionInTx(
   ctx: TenantContext,
   warehouse: WarehouseInfo,
   usage: ReadonlyMap<string, Decimal>,
+  /** Take what is available and report the rest as a shortage (POS sales, ADR-059). */
+  options: { partial?: boolean } = {},
 ) {
   const today = todayFor(warehouse);
   const ids = [...usage.keys()];
@@ -79,7 +81,7 @@ export async function planConsumptionInTx(
         required,
         available: roundQuantity(required.minus(plan.shortfall)),
       });
-      continue;
+      if (!options.partial) continue;
     }
     for (const p of plan.picks)
       picks.push({

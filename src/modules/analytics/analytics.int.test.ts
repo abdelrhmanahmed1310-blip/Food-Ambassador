@@ -214,7 +214,8 @@ describe("reports", () => {
         "",
       ),
     );
-    expect(out[1].slice(0, 5)).toEqual(["MAA", "1", "250.00", "100.00", "40.00"]);
+    expect(out[0].slice(0, 3)).toEqual(["branch", "imports", "pos_orders"]);
+    expect(out[1].slice(0, 6)).toEqual(["MAA", "1", "0", "250.00", "100.00", "40.00"]);
   });
 
   it("shows each user only the sites and figures they may see", async () => {

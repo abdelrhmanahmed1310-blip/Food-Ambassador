@@ -15,6 +15,7 @@ import {
   optionalUuidSchema,
   requiredText,
 } from "@/modules/shared/schemas";
+import type { Prisma } from "@/generated/prisma/client";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
@@ -389,17 +390,109 @@ export async function vatSummary(ctx: TenantContext, period: { from: string; to:
       _sum: { netAmount: true, taxAmount: true, grossAmount: true },
       _count: { _all: true },
     });
+    // Point-of-sale sales (ADR-059): paid orders by business date, less refunds
+    // in the period they were paid out (each refund line keeps its order line's code and rate).
+    const branchIds = scope.all ? null : scope.branchIds;
+    const warehouseIds = scope.all ? null : scope.warehouseIds;
+    const pos = await tx.$queryRaw<
+      Array<{
+        tax_code_id: string | null;
+        tax_rate: Prisma.Decimal | null;
+        lines: bigint;
+        net: Prisma.Decimal;
+        tax: Prisma.Decimal;
+        gross: Prisma.Decimal;
+      }>
+    >`
+      WITH sold AS (
+        SELECT l.tax_code_id, l.tax_rate, l.net_amount AS net, l.tax_amount AS tax, l.gross_amount AS gross
+        FROM pos_order_lines l JOIN pos_orders o ON o.id = l.order_id
+        WHERE o.organization_id = ${ctx.organizationId}::uuid AND o.status = 'PAID'
+          AND o.business_date BETWEEN ${period.from}::date AND ${period.to}::date
+          AND (${branchIds}::uuid[] IS NULL OR o.branch_id = ANY(${branchIds}::uuid[])
+               OR o.warehouse_id = ANY(${warehouseIds}::uuid[]))
+      ), refunded AS (
+        SELECT l.tax_code_id, l.tax_rate,
+               -((x->>'gross')::numeric - (x->>'tax')::numeric) AS net,
+               -(x->>'tax')::numeric AS tax, -(x->>'gross')::numeric AS gross
+        FROM pos_refunds r
+        JOIN pos_orders o ON o.id = r.order_id
+        CROSS JOIN LATERAL jsonb_array_elements(r.lines) x
+        JOIN pos_order_lines l ON l.id = (x->>'orderLineId')::uuid
+        WHERE r.organization_id = ${ctx.organizationId}::uuid AND o.status = 'PAID'
+          AND (r.created_at AT TIME ZONE ${ctx.timeZone})::date BETWEEN ${period.from}::date AND ${period.to}::date
+          AND (${branchIds}::uuid[] IS NULL OR o.branch_id = ANY(${branchIds}::uuid[])
+               OR o.warehouse_id = ANY(${warehouseIds}::uuid[]))
+      )
+      SELECT tax_code_id, tax_rate, COUNT(*) AS lines, SUM(net) AS net, SUM(tax) AS tax, SUM(gross) AS gross
+      FROM (SELECT * FROM sold UNION ALL SELECT * FROM refunded) u
+      GROUP BY tax_code_id, tax_rate`;
+    const merged = new Map<
+      string,
+      {
+        taxCodeId: string | null;
+        rate: Decimal | null;
+        lines: number;
+        net: Decimal;
+        tax: Decimal;
+        gross: Decimal;
+      }
+    >();
+    const add = (r: {
+      taxCodeId: string | null;
+      rate: { toString(): string } | null;
+      lines: number;
+      net: { toString(): string } | null;
+      tax: { toString(): string } | null;
+      gross: { toString(): string } | null;
+    }) => {
+      const key = `${r.taxCodeId ?? ""}|${r.rate === null ? "" : new Decimal(r.rate.toString()).toFixed()}`;
+      const d = (v: { toString(): string } | null) => new Decimal(v?.toString() ?? 0);
+      const m = merged.get(key);
+      if (m) {
+        m.lines += r.lines;
+        m.net = m.net.plus(d(r.net));
+        m.tax = m.tax.plus(d(r.tax));
+        m.gross = m.gross.plus(d(r.gross));
+      } else
+        merged.set(key, {
+          taxCodeId: r.taxCodeId,
+          rate: r.rate === null ? null : d(r.rate),
+          lines: r.lines,
+          net: d(r.net),
+          tax: d(r.tax),
+          gross: d(r.gross),
+        });
+    };
+    for (const r of rows)
+      add({
+        taxCodeId: r.taxCodeId,
+        rate: r.taxRate,
+        lines: r._count._all,
+        net: r._sum.netAmount,
+        tax: r._sum.taxAmount,
+        gross: r._sum.grossAmount,
+      });
+    for (const r of pos)
+      add({
+        taxCodeId: r.tax_code_id,
+        rate: r.tax_rate,
+        lines: Number(r.lines),
+        net: r.net,
+        tax: r.tax,
+        gross: r.gross,
+      });
     const codes = await tx.taxCode.findMany({
       where: { organizationId: ctx.organizationId },
       select: { id: true, code: true, name: true, nameAr: true, category: true },
     });
-    return rows.map((r) => ({
+    return [...merged.values()].map((r) => ({
       code: codes.find((c) => c.id === r.taxCodeId) ?? null,
-      rate: r.taxRate,
-      lines: r._count._all,
-      net: r._sum.netAmount,
-      tax: r._sum.taxAmount,
-      gross: r._sum.grossAmount,
+      rate: r.rate,
+      lines: r.lines,
+      net: r.net,
+      tax: r.tax,
+      gross: r.gross,
     }));
   });
 }

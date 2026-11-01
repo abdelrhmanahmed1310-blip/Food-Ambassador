@@ -78,6 +78,6 @@ test("reports: waste at stock value and actual food cost per branch from a sales
   const csv = await page.request.get(
     `/o/${slug}/reports/food-cost/export?from=${today}&to=${today}`,
   );
-  expect(await csv.text()).toContain("ZAM,1,100.00,40.00,40.00,12.00,0.00,52.00");
+  expect(await csv.text()).toContain("ZAM,1,0,100.00,40.00,40.00,12.00,0.00,52.00");
   await context.close();
 });

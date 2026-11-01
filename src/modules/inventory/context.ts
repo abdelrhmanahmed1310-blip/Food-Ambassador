@@ -23,6 +23,12 @@ export async function loadWarehouse(
   tx: Tx,
   ctx: TenantContext,
   warehouseId: string,
+  /**
+   * The permission that lets this caller reach the warehouse. Inventory screens
+   * use inventory.view; the till uses pos.sell for its register's warehouse,
+   * so cashiers use stock without being able to browse it.
+   */
+  viewPermission: Permission = "inventory.view",
 ): Promise<WarehouseInfo> {
   const wh = await tx.warehouse.findFirst({
     where: { organizationId: ctx.organizationId, id: warehouseId },
@@ -37,7 +43,7 @@ export async function loadWarehouse(
   });
   if (
     !wh ||
-    !hasPermission(ctx.grants, "inventory.view", { branchId: wh.branchId, warehouseId: wh.id })
+    !hasPermission(ctx.grants, viewPermission, { branchId: wh.branchId, warehouseId: wh.id })
   )
     throw notFound("Warehouse");
   return {

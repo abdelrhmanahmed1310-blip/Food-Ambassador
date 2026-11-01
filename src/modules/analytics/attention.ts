@@ -31,7 +31,8 @@ export type AttentionKey =
   | "NC_OPEN"
   | "ACTIONS_OVERDUE"
   | "RECALLS_ACTIVE"
-  | "CUSTOMER_INVOICES_OVERDUE";
+  | "CUSTOMER_INVOICES_OVERDUE"
+  | "POS_SHORTFALLS";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -406,6 +407,19 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         count,
         amount,
         href: "/b2b/balances",
+      });
+    }
+
+    const adjust = warehouseWhere(ctx, "inventory.adjust");
+    if (adjust) {
+      const ids = await visibleWarehouseIds(tx, ctx, adjust);
+      push({
+        key: "POS_SHORTFALLS",
+        tone: "warning",
+        count: await tx.posConsumptionShortfall.count({
+          where: { organizationId: org, status: "OPEN", warehouseId: { in: ids } },
+        }),
+        href: "/pos/shortfalls",
       });
     }
 

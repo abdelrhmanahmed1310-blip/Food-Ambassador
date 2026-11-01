@@ -41,6 +41,7 @@ export default async function FoodCostReportPage({
     <tr data-testid={testId}>
       <Td>{label}</Td>
       <Td className="tabular-nums">{f.imports}</Td>
+      <Td className="tabular-nums">{f.posOrders}</Td>
       <Td className="tabular-nums">{amount(f.net)}</Td>
       <Td className="tabular-nums">{amount(f.cost)}</Td>
       <Td className="font-medium tabular-nums">{pct(f.foodCost)}</Td>
@@ -74,6 +75,7 @@ export default async function FoodCostReportPage({
               <tr>
                 <Th>{t("reports.branch")}</Th>
                 <Th>{t("reports.imports")}</Th>
+                <Th>{t("reports.posOrders")}</Th>
                 <Th>{t("reports.netSales")}</Th>
                 <Th>{t("reports.costOfSales")}</Th>
                 <Th>{t("reports.foodCost")}</Th>

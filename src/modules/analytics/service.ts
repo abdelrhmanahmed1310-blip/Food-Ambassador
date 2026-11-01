@@ -224,6 +224,44 @@ async function importsInTx(
   }));
 }
 
+/**
+ * Point-of-sale sales per warehouse whose business date is in the period
+ * (ADR-059): paid orders' net less refunded net; cost is the stock they used,
+ * including shortfalls posted later. Voided orders are left out (their stock
+ * went back).
+ */
+async function posSalesInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  warehouseIds: string[],
+  from: string,
+  to: string,
+) {
+  if (warehouseIds.length === 0) return [];
+  const rows = await tx.$queryRaw<
+    Array<{ warehouse_id: string; orders: bigint; net: Prisma.Decimal; cost: Prisma.Decimal }>
+  >`
+    SELECT o.warehouse_id, COUNT(*) AS orders,
+           SUM(o.net_amount) - COALESCE(SUM(r.net), 0) AS net,
+           SUM(o.cost_amount) AS cost
+    FROM pos_orders o
+    LEFT JOIN (
+      SELECT order_id, SUM(amount - tax_amount) AS net FROM pos_refunds
+      WHERE organization_id = ${ctx.organizationId}::uuid GROUP BY order_id
+    ) r ON r.order_id = o.id
+    WHERE o.organization_id = ${ctx.organizationId}::uuid
+      AND o.status = 'PAID'
+      AND o.warehouse_id = ANY(${warehouseIds}::uuid[])
+      AND o.business_date BETWEEN ${from}::date AND ${to}::date
+    GROUP BY o.warehouse_id`;
+  return rows.map((r) => ({
+    warehouseId: r.warehouse_id,
+    orders: Number(r.orders),
+    net: dec(r.net),
+    cost: dec(r.cost),
+  }));
+}
+
 /** Warehouses the user may see for both sales and stock value. */
 async function foodCostWarehouses(tx: Tx, ctx: TenantContext) {
   const sales = await visibleWarehouses(tx, ctx, "sales.view");
@@ -236,6 +274,8 @@ async function foodCostWarehouses(tx: Tx, ctx: TenantContext) {
 export interface BranchFigures {
   branch: { id: string; code: string; name: string };
   imports: number;
+  /** Point-of-sale orders in the period (ADR-059). */
+  posOrders: number;
   net: Decimal | null;
   cost: Decimal;
   foodCost: Decimal | null;
@@ -253,6 +293,7 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
     const all = await importsInTx(tx, ctx, ids, period.from, period.to);
     const { inside, straddling } = splitByPeriod(all, period.from, period.to);
     const losses = await lossesInTx(tx, ctx, ids, period);
+    const pos = await posSalesInTx(tx, ctx, ids, period.from, period.to);
     const branches = new Map<string, BranchFigures>();
     const of = (warehouseId: string) => {
       const w = warehouses.find((x) => x.id === warehouseId)!;
@@ -261,6 +302,7 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
         b = {
           branch: w.branch,
           imports: 0,
+          posOrders: 0,
           net: new Decimal(0),
           cost: new Decimal(0),
           foodCost: null,
@@ -278,6 +320,12 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
       b.cost = b.cost.plus(i.cost);
       b.net = b.net === null || i.net === null ? null : b.net.plus(i.net);
     }
+    for (const p of pos) {
+      const b = of(p.warehouseId);
+      b.posOrders += p.orders;
+      b.cost = b.cost.plus(p.cost);
+      b.net = b.net === null ? null : b.net.plus(p.net);
+    }
     for (const l of losses) {
       const b = of(l.warehouseId);
       if (l.kind === "WASTE") b.waste = b.waste.plus(l.value);
@@ -285,6 +333,7 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
     }
     const total: Omit<BranchFigures, "branch"> = {
       imports: 0,
+      posOrders: 0,
       net: new Decimal(0),
       cost: new Decimal(0),
       foodCost: null,
@@ -293,17 +342,18 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
       costWithLosses: null,
     };
     for (const b of branches.values()) {
-      if (b.imports === 0) b.net = null;
+      const sold = b.imports > 0 || b.posOrders > 0;
+      if (!sold) b.net = null;
       b.foodCost = ratio(b.cost, b.net);
       b.costWithLosses = ratio(b.cost.plus(b.waste).plus(b.differences), b.net);
       total.imports += b.imports;
+      total.posOrders += b.posOrders;
       total.cost = total.cost.plus(b.cost);
       total.waste = total.waste.plus(b.waste);
       total.differences = total.differences.plus(b.differences);
-      if (b.imports > 0)
-        total.net = total.net === null || b.net === null ? null : total.net.plus(b.net);
+      if (sold) total.net = total.net === null || b.net === null ? null : total.net.plus(b.net);
     }
-    if (total.imports === 0) total.net = null;
+    if (total.imports === 0 && total.posOrders === 0) total.net = null;
     total.foodCost = ratio(total.cost, total.net);
     total.costWithLosses = ratio(total.cost.plus(total.waste).plus(total.differences), total.net);
     return {
@@ -400,6 +450,7 @@ export async function exportBranchComparisonCsv(ctx: TenantContext, rawPeriod: u
     [
       "branch",
       "imports",
+      "pos_orders",
       "net_sales",
       "cost_of_sales",
       "food_cost_pct",
@@ -410,6 +461,7 @@ export async function exportBranchComparisonCsv(ctx: TenantContext, rawPeriod: u
     r.branches.map((b) => [
       b.branch.code,
       b.imports,
+      b.posOrders,
       fixed(b.net),
       fixed(b.cost),
       percent(b.foodCost),

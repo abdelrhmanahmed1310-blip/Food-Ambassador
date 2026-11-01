@@ -41,7 +41,11 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > ingredients first-expiring-first and enter stock as lots at their exact
 > value, with lot genealogy and a production plan from branch requests,
 > branch requests fulfilled from the kitchen, and B2B sales: customers,
-> orders, deliveries at cost, invoices with VAT, receipts and balances. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> orders, deliveries at cost, invoices with VAT, receipts and balances. The
+> point of sale has started: a menu (POS1a) and selling (POS1b) — registers,
+> shifts with cash counts, a cashier screen for tablet, phone and browser,
+> paid orders that use stock through recipes, voids, refunds, X/Z reports and
+> 80 mm receipts. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

@@ -1148,6 +1148,62 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - Permissions: `menu.view` (organization-wide read, like recipes) and
   `menu.manage` (admins and operations managers).
 
+### ADR-059 POS selling — Accepted (POS1b)
+
+- **Registers** belong to a branch and use one of its warehouses for stock.
+  A register has at most one **open shift** (unique index); the shift has an
+  opening float, cash in / cash out with a reason, and is closed by counting
+  the drawer: expected cash = float + cash sales − cash refunds + cash in −
+  cash out; the difference is recorded. The shift page is the **X report**
+  while open and the **Z report** once closed (sales by channel and method,
+  VAT, voids, refunds, cash).
+- **Orders** are counter service in POS1b: the device submits a complete,
+  paid order. Its **id is generated on the device**, so a retry after a lost
+  response returns the same order and never charges twice (the base for the
+  offline queue, POS1c). Tabs, tables and kitchen tickets are POS2.
+- The server **recomputes every price** from the menu (ADR-058) on the
+  order's business date in the branch's time zone, checks options against
+  their groups, and refuses the order if the total the cashier saw differs
+  (`ORDER_PRICES_CHANGED`). An order time from the device must fall within
+  the open shift.
+- **VAT per line**: the item's code, else the recipe's, else the default sales
+  code, at the rate on the business date; none when the organization is not
+  registered. Base currency only (Q-11).
+- **Payments**: cash (cash received ≥ amount, change recorded) or card
+  ("external terminal" until POS3); payments must equal the total exactly.
+- **Stock**: dish recipes are exploded per portion, products by their
+  quantity, combos per component, options by their recipe or product, then
+  used FEFO from the register's warehouse through a CONSUMPTION document. A
+  sale is **never refused for missing stock and stock never goes negative**:
+  what the system does not show on hand becomes a **shortfall**, listed under
+  needs attention and posted from the shortfall page once the stock is
+  recorded (its cost is then added to the order). A recipe without an active
+  version, or one that cannot be exploded, refuses the sale.
+- **Void**: `pos.void`, only while the order's shift is open and before any
+  refund; the stock it used goes back (reversal of its documents, including
+  shortfalls already posted), open shortfalls are cancelled. Voiding reverses
+  inventory documents, so a custom role with `pos.void` also needs
+  `inventory.view` at that warehouse (all system roles with `pos.void` have
+  it).
+- **Refund**: `pos.refund`, by line and quantity, paid from an open shift at
+  a register of the same branch, cash or card, with a reason. Amounts are
+  proportional to the line (the last part takes the remainder, so a line
+  never refunds more than it charged). Food is not returned to stock.
+- Sales records are fixed in the database: an order may only change its
+  status, void and refund fields and cost; lines only their refunded
+  quantity; payments, refunds and cash movements are insert-only; CHECKs
+  hold the money arithmetic.
+- **Reports**: POS sales count in the food cost report (orders by business
+  date; net less refunds) and in the VAT summary (refunds reduce output VAT
+  in the period they are paid).
+- **Receipts** print from the browser at 80 mm (ADR-057). A receipt shows the
+  VAT number and "simplified tax invoice" when registered, but it is **not a
+  ZATCA or ETA e-invoice**: QR codes, signing and clearance are POS4.
+- Permissions: `pos.sell`, `pos.void`, `pos.refund`, `pos.view` (scopable to
+  a branch) and `pos.manage` (registers). A new **Cashier** role has
+  `pos.sell` and `menu.view`; cashiers use the register's warehouse stock
+  through `pos.sell` without being able to browse inventory.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

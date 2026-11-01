@@ -38,24 +38,24 @@ M4 Recipes ─► POS1 Core ─► POS2 Floor & kitchen ─► POS4 Tax e-invoic
 
 A market goes live on the POS only after its e-invoicing work (POS4) passes.
 
-| #    | Milestone                   | Depends on                       | Status                                     |
-| ---- | --------------------------- | -------------------------------- | ------------------------------------------ |
-| M0   | Repository & architecture   | —                                | **Complete**                               |
-| M1   | Application foundation      | M0                               | **Complete**                               |
-| M2   | Inventory MVP               | M1                               | **Complete**                               |
-| M3   | Procurement & receiving     | M2                               | **Complete**                               |
-| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete**                               |
-| M5   | Nutrition & allergens       | M4                               | Complete (live lookup, label layouts open) |
-| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                               |
-| M7   | Sales & financial workflows | M3, M4                           | Complete                                   |
-| M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)              |
-| M9   | Central kitchen & B2B       | M4, M6                           | Complete                                   |
-| M10  | Integrations                | M7                               | Framework complete (connectors open)       |
-| POS1 | Core                        | M4                               | Planned                                    |
-| POS2 | Floor & kitchen             | POS1                             | Planned                                    |
-| POS3 | Payments                    | POS1, Q-15                       | Planned                                    |
-| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                                    |
-| POS5 | Customer channels           | POS1–POS4                        | Planned                                    |
+| #    | Milestone                   | Depends on                       | Status                                        |
+| ---- | --------------------------- | -------------------------------- | --------------------------------------------- |
+| M0   | Repository & architecture   | —                                | **Complete**                                  |
+| M1   | Application foundation      | M0                               | **Complete**                                  |
+| M2   | Inventory MVP               | M1                               | **Complete**                                  |
+| M3   | Procurement & receiving     | M2                               | **Complete**                                  |
+| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete**                                  |
+| M5   | Nutrition & allergens       | M4                               | Complete (live lookup, label layouts open)    |
+| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                                  |
+| M7   | Sales & financial workflows | M3, M4                           | Complete                                      |
+| M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)                 |
+| M9   | Central kitchen & B2B       | M4, M6                           | Complete                                      |
+| M10  | Integrations                | M7                               | Framework complete (connectors open)          |
+| POS1 | Core                        | M4                               | In progress — POS1a menu ✅, POS1b selling ✅ |
+| POS2 | Floor & kitchen             | POS1                             | Planned                                       |
+| POS3 | Payments                    | POS1, Q-15                       | Planned                                       |
+| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                                       |
+| POS5 | Customer channels           | POS1–POS4                        | Planned                                       |
 
 ---
 
@@ -364,8 +364,8 @@ testing against the provider's real sandbox.
 
 Split (ADR-057): **POS1a menu ✅** (categories, items from recipes or
 products, combos, modifiers, channel and branch prices, availability);
-**POS1b selling** (shifts, cash drawer, orders, payments, receipts, voids and
-refunds, stock use); **POS1c cashier app** (installable on tablet and phone,
+**POS1b selling ✅** (registers, shifts, cash drawer, paid orders, receipts,
+voids and refunds, stock use with shortfalls, cashier screen); **POS1c cashier app** (installable on tablet and phone,
 offline queue, sync); **POS1d store apps** (Capacitor wrappers, needs
 developer accounts).
 

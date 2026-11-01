@@ -57,6 +57,11 @@ export const PERMISSIONS = [
   "fx.manage",
   "menu.view",
   "menu.manage",
+  "pos.sell",
+  "pos.void",
+  "pos.refund",
+  "pos.manage",
+  "pos.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -87,6 +92,10 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "foodsafety.manage",
   "sales.view",
   "sales.import",
+  "pos.sell",
+  "pos.void",
+  "pos.refund",
+  "pos.view",
   "production.view",
   "production.manage",
 ]);
@@ -159,6 +168,11 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "pos.sell",
+      "pos.void",
+      "pos.refund",
+      "pos.manage",
+      "pos.view",
       "menu.view",
       "menu.manage",
       ...VIEW_SITES,
@@ -272,6 +286,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
     permissions: [
+      "pos.view",
       "menu.view",
       ...VIEW_SITES,
       "audit.view",
@@ -298,6 +313,10 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "pos.sell",
+      "pos.void",
+      "pos.refund",
+      "pos.view",
       "menu.view",
       ...VIEW_SITES,
       "branches.manage",
@@ -335,6 +354,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Read-only Analyst",
     description: "Read-only access to operational data.",
     permissions: [
+      "pos.view",
       "menu.view",
       ...VIEW_SITES,
       ...VIEW_STOCK,
@@ -351,6 +371,14 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "b2b.view",
       "invoices.view",
     ],
+    organizationScopeOnly: false,
+  },
+  {
+    key: "cashier",
+    name: "Cashier",
+    description:
+      "Sells at the point of sale and runs their own shift (usually granted at branch scope).",
+    permissions: ["pos.sell", "menu.view"],
     organizationScopeOnly: false,
   },
 ];

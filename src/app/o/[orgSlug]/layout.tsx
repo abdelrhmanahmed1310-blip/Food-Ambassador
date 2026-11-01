@@ -35,6 +35,15 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     main.items.push({ href: `${base}/branches`, label: t("branches") });
   if (holdsAnyGrant(ctx.grants, "warehouses.view"))
     main.items.push({ href: `${base}/warehouses`, label: t("warehouses") });
+  const pos: NavSection = { title: t("posSection"), items: [] };
+  if (
+    holdsAnyGrant(ctx.grants, "pos.sell") ||
+    holdsAnyGrant(ctx.grants, "pos.view") ||
+    hasPermission(ctx.grants, "pos.manage")
+  )
+    pos.items.push({ href: `${base}/pos`, label: t("pos") });
+  if (holdsAnyGrant(ctx.grants, "inventory.adjust"))
+    pos.items.push({ href: `${base}/pos/shortfalls`, label: t("posShortfalls") });
   const inventory: NavSection = { title: t("inventorySection"), items: [] };
   if (holdsAnyGrant(ctx.grants, "inventory.view")) {
     inventory.items.push(
@@ -153,6 +162,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   if (visible.waste) reports.items.push({ href: `${base}/reports/waste`, label: t("wasteReport") });
   const sections = [
     main,
+    pos,
     inventory,
     purchasing,
     kitchen,

@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS1a menu; Q-16 decided)
+Last updated: 2026-11-01 (POS1b selling)
 
 ## Summary
 
@@ -17,7 +17,53 @@ Last updated: 2026-11-01 (POS1a menu; Q-16 decided)
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | In progress — **POS1a menu** done; POS1b selling, POS1c cashier app, POS1d store apps next                                                                                                                            |
+| POS1 – POS5                   | In progress — **POS1a menu** and **POS1b selling** done; POS1c installable cashier app with offline queue, POS1d store apps next                                                                                      |
+
+## POS1b — Selling (delivered)
+
+Rules: DECISIONS.md ADR-059 (selling), ADR-057 (devices), ADR-058 (menu).
+
+| Area            | What works                                                                                                                                                                     | Where                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Registers       | Per branch, using one of its warehouses for stock; created with `pos.manage`                                                                                                   | `/pos`                                                 |
+| Shifts and cash | One open shift per register, opening float, cash in / out with reason, close by counting the drawer (expected, counted, difference)                                            | `/pos/registers/[id]`                                  |
+| Cashier screen  | Channel tabs, categories, item grid, options dialog (at least / at most), cart, cash with change or card; tablet, phone and browser layouts                                    | `/pos/registers/[id]/sell`, `pos/till.tsx`             |
+| Orders          | Device-generated id (a retry returns the same order), server-side prices, options and VAT per line, refused if the total changed or time is outside the shift                  | `pos/service.ts` `submitOrder`, `pos/rules.ts`         |
+| Stock           | Recipes per portion, products, combo components and options used FEFO from the register's warehouse; missing stock becomes a shortfall, posted later (cost added to the order) | `/pos/shortfalls`, needs attention                     |
+| Voids, refunds  | Void in the open shift before any refund (stock back, including late-posted shortfalls); refunds by line and quantity, proportional VAT, from an open shift of the same branch | `/pos/orders/[id]`                                     |
+| Reports         | X report while open, Z report when closed; POS sales in the food cost report (new POS orders column, CSV `pos_orders`) and the VAT summary                                     | `/pos/shifts/[id]`, `/reports/food-cost`, `/sales/vat` |
+| Receipt         | 80 mm print view with VAT number and "simplified tax invoice" when registered                                                                                                  | `/pos/orders/[id]/receipt`                             |
+| Access          | `pos.sell`, `pos.void`, `pos.refund`, `pos.view` (branch-scopable), `pos.manage`; new **Cashier** role; cashiers use stock without browsing it                                 | `access/permissions.ts`, migration                     |
+
+Checks: `pnpm check` pass (unit 39 files / 211 tests, 4 new: line amounts with
+and without VAT, payments must settle exactly with change only on cash,
+expected cash, proportional refunds with the remainder on the last part;
+build); `pnpm test:integration` 40 files / 257 tests pass (9 new: register
+warehouse in its own branch, one open shift; prices, VAT, cash change, stock
+and an idempotent retry; changed prices, wrong payments, unknown options, no
+channel price and an order time outside the shift refused; combo components,
+shortfall instead of negative stock, late posting with its cost, void returning
+it; void permissions and stock back, partial refund, over-refund and void after
+refund refused; shift close against counted cash; POS in the VAT summary and
+food cost report; cashiers limited to their branch, other organizations see
+nothing and cannot reuse an order id; amounts fixed in the database);
+`pnpm test:e2e` 43 tests (new: register and shift, two items paid in cash
+with change, receipt, shortfall listed, the till at phone width without
+sideways scrolling, close with a Z report showing expected cash and no
+difference). The first full runs had one failure each in integration and
+E2E, both from the new CSV column (tests read the row by position); both
+tests now expect the new column and pass.
+
+Found and fixed: `loadWarehouse` required `inventory.view`, so a cashier could
+not sell; it now takes the permission that reaches the warehouse (`pos.sell`
+for the till). Changed: the branch comparison CSV has a new `pos_orders`
+column, and its test now checks the new layout.
+
+Limitations: counter service only (tabs, tables, kitchen tickets are POS2);
+one payment method per order on the screen (the service accepts several);
+card payments are recorded, not processed (POS3); receipts are not ZATCA/ETA
+e-invoices (POS4); no offline queue or installable app yet (POS1c); base
+currency only; refunds do not return food to stock.
 
 ## POS1a — Menu (delivered)
 
@@ -49,7 +95,7 @@ file's last retention day, but the job runs for all organizations and the
 test database had older files from earlier runs; the test now checks that
 this file is kept that day and purged the next.
 
-Limitations: nothing is sold yet (POS1b); no images, time-based menus or
+Limitations: no images, time-based menus or
 happy-hour prices; store apps wait for developer accounts (ADR-057).
 
 ## Open items closed before POS (delivered)
