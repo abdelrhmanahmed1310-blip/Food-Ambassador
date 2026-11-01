@@ -25,7 +25,8 @@
     "db:restore": "bash scripts/restore.sh",
     "db:verify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/verify-integrity.ts",
     "integrations:deliver": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/deliver-webhooks.ts",
-    "attachments:purge": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/purge-attachments.ts"
+    "attachments:purge": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/purge-attachments.ts",
+    "zatca:report": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/report-zatca.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -35,6 +36,7 @@
     "next": "16.4.3",
     "next-intl": "4.14.9",
     "pg": "8.23.1",
+    "qrcode": "1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "0.0.1",
@@ -45,6 +47,7 @@
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/pg": "8.23.1",
+    "@types/qrcode": "1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "18.0.9",

@@ -38,24 +38,24 @@ M4 Recipes ─► POS1 Core ─► POS2 Floor & kitchen ─► POS4 Tax e-invoic
 
 A market goes live on the POS only after its e-invoicing work (POS4) passes.
 
-| #    | Milestone                   | Depends on                       | Status                                                                                                  |
-| ---- | --------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| M0   | Repository & architecture   | —                                | **Complete**                                                                                            |
-| M1   | Application foundation      | M0                               | **Complete**                                                                                            |
-| M2   | Inventory MVP               | M1                               | **Complete**                                                                                            |
-| M3   | Procurement & receiving     | M2                               | **Complete**                                                                                            |
-| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete**                                                                                            |
-| M5   | Nutrition & allergens       | M4                               | Complete (live lookup, label layouts open)                                                              |
-| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                                                                                            |
-| M7   | Sales & financial workflows | M3, M4                           | Complete                                                                                                |
-| M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)                                                                           |
-| M9   | Central kitchen & B2B       | M4, M6                           | Complete                                                                                                |
-| M10  | Integrations                | M7                               | Framework complete (connectors open)                                                                    |
-| POS1 | Core                        | M4                               | ✅ Complete — POS1a menu, POS1b selling, POS1c cashier app, POS1d store app projects (publishing: Q-19) |
-| POS2 | Floor & kitchen             | POS1                             | ✅ Complete — POS2a floor and tables, POS2b kitchen display                                             |
-| POS3 | Payments                    | POS1, Q-15                       | Planned                                                                                                 |
-| POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                                                                                                 |
-| POS5 | Customer channels           | POS1–POS4                        | Planned                                                                                                 |
+| #    | Milestone                   | Depends on                       | Status                                                                                                                   |
+| ---- | --------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| M0   | Repository & architecture   | —                                | **Complete**                                                                                                             |
+| M1   | Application foundation      | M0                               | **Complete**                                                                                                             |
+| M2   | Inventory MVP               | M1                               | **Complete**                                                                                                             |
+| M3   | Procurement & receiving     | M2                               | **Complete**                                                                                                             |
+| M4   | Recipes & food cost         | M2 (M3 for purchase-based costs) | **Complete**                                                                                                             |
+| M5   | Nutrition & allergens       | M4                               | Complete (live lookup, label layouts open)                                                                               |
+| M6   | Food safety & traceability  | M2, M3, M4                       | **Complete**                                                                                                             |
+| M7   | Sales & financial workflows | M3, M4                           | Complete                                                                                                                 |
+| M8   | Analytics & pilot readiness | M2–M7                            | Complete (go-live items open)                                                                                            |
+| M9   | Central kitchen & B2B       | M4, M6                           | Complete                                                                                                                 |
+| M10  | Integrations                | M7                               | Framework complete (connectors open)                                                                                     |
+| POS1 | Core                        | M4                               | ✅ Complete — POS1a menu, POS1b selling, POS1c cashier app, POS1d store app projects (publishing: Q-19)                  |
+| POS2 | Floor & kitchen             | POS1                             | ✅ Complete — POS2a floor and tables, POS2b kitchen display                                                              |
+| POS3 | Payments                    | POS1, Q-15                       | Planned                                                                                                                  |
+| POS4 | Tax & e-invoicing           | POS1, Q-17 (Saudi Arabia)        | In progress — POS4a ZATCA simplified documents built (sandbox validation pending); POS4b standard invoices and clearance |
+| POS5 | Customer channels           | POS1–POS4                        | Planned                                                                                                                  |
 
 ---
 

@@ -20,6 +20,7 @@ import { loadRecipeStructureInTx } from "@/modules/recipes/costs";
 import { explodeRecipe } from "@/modules/recipes/explode";
 import { codeSchema, optionalText, requiredText, uuidSchema } from "@/modules/shared/schemas";
 import { loadTaxContextInTx } from "@/modules/tax/service";
+import { issueCreditNoteInTx, issueOrderInvoiceInTx, receiptQrInTx } from "@/modules/zatca/service";
 import { createTicketsInTx, markVoidedInTx, orderStatusesInTx } from "./kitchen";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
@@ -936,6 +937,8 @@ export async function recordOrderInTx(
       where: { id: input.orderId },
       data: { costAmount: cost.toFixed(), consumptionDocId: documentId },
     });
+  // ZATCA: the signed simplified tax invoice, once the register's unit is onboarded (ADR-064).
+  await issueOrderInvoiceInTx(tx, ctx, input.orderId);
   await audit(tx, ctx, "pos_order", input.orderId, "paid", {
     number,
     gross: gross.toFixed(),
@@ -1029,6 +1032,8 @@ export async function voidOrder(ctx: TenantContext, orderId: string, rawInput: u
       data: { status: "CANCELLED", resolvedAt: new Date() },
     });
     await markVoidedInTx(tx, ctx, { orderLineIds: o.lines.map((l) => l.id) });
+    // A reported invoice is corrected by a credit note for the whole order.
+    await issueCreditNoteInTx(tx, ctx, { orderId: o.id, reason: parsed.data.reason });
     await tx.posOrder.update({
       where: { id: o.id },
       data: {
@@ -1156,6 +1161,13 @@ export async function refundOrder(ctx: TenantContext, orderId: string, rawInput:
       where: { id: o.id },
       data: { refundedAmount: dec(o.refundedAmount).plus(amount).toFixed() },
     });
+    await issueCreditNoteInTx(tx, ctx, {
+      orderId: o.id,
+      refundId: refund.id,
+      reason: input.reason,
+      registerId: register.id,
+      method: input.method,
+    });
     await audit(tx, ctx, "pos_order", o.id, "refunded", {
       number: o.number,
       refund: number,
@@ -1188,6 +1200,7 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
       vatNumber: tax?.vatRegistered ? (tax.vatNumber ?? null) : null,
       branch,
       cashierName: cashier?.name ?? null,
+      eInvoice: await receiptQrInTx(tx, ctx, o.id),
       can: {
         void:
           o.status === "PAID" &&

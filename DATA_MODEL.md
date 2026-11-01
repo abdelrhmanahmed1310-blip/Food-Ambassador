@@ -1036,3 +1036,23 @@ Migration `20261123090000_pos2b_kitchen`; all tables have row-level security.
   `guests`, `status` OPEN | DONE (DONE ⇔ `bumped_at`), bumped by.
 - **kitchen_ticket_items**: ticket, exactly one of `tab_line_id` /
   `order_line_id`, name, quantity, options, note, seat, course, `voided_at`.
+
+## 13. E-invoicing — ZATCA (POS4a, ADR-064)
+
+Migration `20261124090000_pos4a_zatca`; all tables have row-level security.
+
+- **zatca_settings** (one per organization): legal name, CR number,
+  national address (street, 4-digit building number, district, city,
+  5-digit postal code), business category, `environment` DEVELOPER_PORTAL
+  | SIMULATION | CORE.
+- **zatca_devices** (one e-invoicing unit per register, UQ register):
+  environment, common name, serial number, `status` NEW | COMPLIANCE |
+  ACTIVE | RETIRED (CHECK: credentials present for the status),
+  `private_key_sealed`, `csr`, compliance and production tokens with
+  sealed secrets, `icv` (last counter) and `last_hash` (next PIH).
+- **zatca_documents**: unit, `type` INVOICE | CREDIT_NOTE | DEBIT_NOTE,
+  `order_id` or `refund_id`, number, `uuid`, `icv` (UQ per unit), `pih`,
+  `invoice_hash`, signed `xml`, `qr`, `status` PENDING | REPORTED |
+  REPORTED_WITH_WARNINGS | REJECTED, `attempts`, `next_attempt_at`,
+  `response` (ZATCA's answer), `reported_at`. Only the reporting fields can
+  change (trigger); rows cannot be deleted.

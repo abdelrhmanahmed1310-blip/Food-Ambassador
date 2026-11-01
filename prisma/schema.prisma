@@ -172,6 +172,9 @@ model Organization {
   kitchenRoutes          KitchenRoute[]
   kitchenTickets         KitchenTicket[]
   kitchenTicketItems     KitchenTicketItem[]
+  zatcaSettings          ZatcaSettings?
+  zatcaDevices           ZatcaDevice[]
+  zatcaDocuments         ZatcaDocument[]
   posShifts              PosShift[]
   posCashMovements       PosCashMovement[]
   posOrders              PosOrder[]
@@ -3597,6 +3600,7 @@ model PosRegister {
   warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
   shifts       PosShift[]
   orders       PosOrder[]
+  zatcaDevice  ZatcaDevice?
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -4049,4 +4053,116 @@ model KitchenTicketItem {
   @@index([organizationId, tabLineId])
   @@index([organizationId, orderLineId])
   @@map("kitchen_ticket_items")
+}
+
+enum ZatcaEnvironment {
+  DEVELOPER_PORTAL
+  SIMULATION
+  CORE
+}
+
+enum ZatcaDeviceStatus {
+  /// Key and CSR made; waiting for the OTP from the Fatoora portal.
+  NEW
+  /// Compliance certificate received; compliance checks to pass.
+  COMPLIANCE
+  /// Production certificate: documents are signed and reported.
+  ACTIVE
+  RETIRED
+}
+
+enum ZatcaDocumentType {
+  INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+enum ZatcaDocumentStatus {
+  PENDING
+  REPORTED
+  REPORTED_WITH_WARNINGS
+  REJECTED
+}
+
+/// Seller details printed on e-invoices and the ZATCA environment (POS4, ADR-064).
+model ZatcaSettings {
+  organizationId   String           @id @map("organization_id") @db.Uuid
+  legalName        String           @map("legal_name")
+  crNumber         String?          @map("cr_number")
+  street           String
+  building         String
+  district         String
+  city             String
+  postalCode       String           @map("postal_code")
+  businessCategory String           @map("business_category")
+  environment      ZatcaEnvironment @default(DEVELOPER_PORTAL)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("zatca_settings")
+}
+
+/// An e-invoicing unit (EGS) — one per register — with its keys, certificates and invoice chain.
+model ZatcaDevice {
+  id                  String            @id @default(uuid(7)) @db.Uuid
+  organizationId      String            @map("organization_id") @db.Uuid
+  registerId          String            @map("register_id") @db.Uuid
+  environment         ZatcaEnvironment
+  commonName          String            @map("common_name")
+  serialNumber        String            @map("serial_number")
+  status              ZatcaDeviceStatus @default(NEW)
+  /// AES-256-GCM sealed (integrations key); never leaves the server.
+  privateKeySealed    String            @map("private_key_sealed")
+  csr                 String
+  complianceRequestId String?           @map("compliance_request_id")
+  complianceToken     String?           @map("compliance_token")
+  complianceSecret    String?           @map("compliance_secret_sealed")
+  productionToken     String?           @map("production_token")
+  productionSecret    String?           @map("production_secret_sealed")
+  /// Invoice counter value of the last document (KSA-16).
+  icv                 Int               @default(0)
+  /// Hash of the last document (the next one's PIH).
+  lastHash            String            @map("last_hash")
+  onboardedAt         DateTime?         @map("onboarded_at") @db.Timestamptz(3)
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  register     PosRegister     @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
+  documents    ZatcaDocument[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, registerId])
+  @@map("zatca_devices")
+}
+
+/// A signed e-invoice document (invoice, credit or debit note) and its reporting to ZATCA.
+model ZatcaDocument {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  deviceId       String              @map("device_id") @db.Uuid
+  type           ZatcaDocumentType
+  orderId        String?             @map("order_id") @db.Uuid
+  refundId       String?             @map("refund_id") @db.Uuid
+  number         String
+  uuid           String              @db.Uuid
+  icv            Int
+  pih            String
+  invoiceHash    String              @map("invoice_hash")
+  xml            String
+  qr             String
+  status         ZatcaDocumentStatus @default(PENDING)
+  attempts       Int                 @default(0)
+  nextAttemptAt  DateTime            @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  response       Json?
+  reportedAt     DateTime?           @map("reported_at") @db.Timestamptz(3)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  device       ZatcaDevice  @relation(fields: [organizationId, deviceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([deviceId, icv])
+  @@index([organizationId, orderId])
+  @@index([status, nextAttemptAt])
+  @@map("zatca_documents")
 }

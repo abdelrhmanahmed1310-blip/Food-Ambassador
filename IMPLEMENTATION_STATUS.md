@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS2b kitchen display)
+Last updated: 2026-11-01 (POS4a ZATCA e-invoicing; Q-17 decided: Saudi Arabia)
 
 ## Summary
 
@@ -17,7 +17,56 @@ Last updated: 2026-11-01 (POS2b kitchen display)
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | POS1 complete (store publishing waits on Q-19). **POS2 complete**: floor and tables, kitchen display. POS3 payments (Q-15) and POS4 e-invoicing (Q-17) wait on decisions                                              |
+| POS1 – POS5                   | POS1 and POS2 complete. **POS4a** ZATCA simplified e-invoicing built — **sandbox validation pending** (host blocked in development). POS3 payments: provider-neutral part next; provider connector waits on Q-15      |
+
+## POS4a — ZATCA e-invoicing, simplified documents (built; ZATCA validation pending)
+
+Rules: DECISIONS.md ADR-064. Q-17 decided: Saudi Arabia first.
+
+| Area           | What works                                                                                                                                                                    | Where                                        |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Receipt QR     | Phase 1 QR (seller, VAT number, time, total, VAT) on receipts in Saudi Arabia; Phase 2 QR of the signed document once onboarded                                               | receipt page, `zatca/tlv.ts`                 |
+| Seller details | Legal name, CR, national address, business category, ZATCA environment; requires SAR and Saudi VAT registration                                                               | `/settings/zatca`                            |
+| Units          | One per register: secp256k1 key (sealed), CSR with ZATCA's extensions; onboarding with the portal OTP (compliance CSID, three compliance samples, production CSID), resumable | `zatca/signing.ts`, `zatca/service.ts`       |
+| Documents      | Signed simplified invoice per sale; credit note per refund and void; UBL 2.1 canonical XML, hash, ECDSA signature, XAdES, ICV/PIH chain per unit; immutable                   | `zatca/invoice.ts`, `zatca_documents`        |
+| Reporting      | `pnpm zatca:report` (scheduled) or "Report now": reported, with warnings, rejected (answer kept), retried with backoff                                                        | `zatca/client.ts`, `scripts/report-zatca.ts` |
+
+**Not validated against ZATCA.** The environment's network policy blocks
+`gw-fatoora.zatca.gov.sa`. Verified here: the Phase 1 QR reproduces ZATCA's
+published example byte for byte; OpenSSL verifies the CSR and shows the
+ZATCA extensions; signatures verify with the device key; the flows run
+against a simulated ZATCA. Still to verify with ZATCA's sandbox: the
+invoice hash and signed-properties digest as ZATCA computes them, amount
+rounding (BR-KSA rules), exemption codes for zero-rated or exempt items,
+and the API responses. Do not use the core (production) environment until
+then.
+
+Checks: `pnpm check` pass (unit 41 files / 230 tests, 8 new: ZATCA's QR
+example, Arabic names and field limits, canonical XML with totals per VAT
+category and escaping, credit note references, the hash of the document
+without stamp equals the signed digest and the signature verifies, the
+Phase 2 QR fields, the first PIH and the chain, certificate reading, the
+CSR's signature and extensions); `pnpm test:integration` 43 files / 276
+tests pass (6 new, simulated ZATCA: Phase 1 QR before onboarding with the
+order's totals, SAR required, seller details validated, admins only; key
+sealed and CSR made, wrong OTP leaves the unit as it was, onboarding sends
+the compliance request, three signed samples whose hashes match and the
+production request; sales, a refund and a void form one chain with signed
+QRs that verify; reporting outcomes 200/202/400/503 with retry; documents
+cannot change or be deleted; other organizations see nothing);
+`pnpm test:e2e` 48 tests pass (new: Saudi organization, VAT registration,
+seller details with a building-number check, a card sale whose receipt is a
+simplified tax invoice with the QR, a register's unit prepared and waiting
+for the OTP).
+
+Found and fixed: invoices were written in the organization's base
+currency, so a non-SAR organization would have produced riyal-less
+documents; ZATCA setup is now refused unless the base currency is SAR.
+
+Limitations: standard (B2B) invoices and clearance are POS4b (the B2B
+sales invoices of M9b are not e-invoiced yet); zero-rated and exempt lines
+carry no exemption reason code yet; receipts printed before a sale is
+synced from an offline till have no QR (printed after sync).
 
 ## POS2b — Kitchen display (delivered)
 

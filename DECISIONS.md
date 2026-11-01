@@ -1348,6 +1348,48 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - Not in POS2b: a "served" step, item-level bumping, kitchen printers
   (needs hardware, Q-16), and push updates (screens poll).
 
+### ADR-064 ZATCA e-invoicing for the point of sale — Accepted (POS4a; validation pending)
+
+- **Q-17 decided: Saudi Arabia is the first market**, so POS4 builds ZATCA
+  Phase 2 ("integration phase") first. POS4a covers **simplified** (B2C)
+  documents from the point of sale; standard (B2B) invoices and clearance
+  are POS4b.
+- **Receipts** of an organization registered for VAT in Saudi Arabia carry a
+  **QR code**: Phase 1 (seller name, VAT number, time, total, VAT as
+  tag-length-value, base64) until the register's unit is onboarded, then the
+  Phase 2 QR of the signed document (adds hash, signature, public key and
+  the certificate's signature). The Phase 1 encoding reproduces ZATCA's
+  published guideline example byte for byte.
+- **One e-invoicing unit (EGS) per register**: a secp256k1 key (sealed with
+  AES-256-GCM, never leaves the server) and a CSR with ZATCA's extensions
+  (certificate template per environment; SN, VAT number, invoice types
+  "0100", address, business category). Onboarding with the portal's OTP:
+  compliance CSID → compliance checks with a signed sample invoice, credit
+  note and debit note → production CSID. Each step is saved so a failure
+  can be retried.
+- **Documents**: once a unit is active, every paid order gets a signed
+  **simplified tax invoice** (388), and every refund or void a **credit
+  note** (381) referencing the invoice with the reason — in the same
+  transaction. UBL 2.1 XML written directly in canonical form; invoice hash =
+  SHA-256 of the document without UBL extensions, signature reference and
+  QR; ECDSA over the hash bytes; XAdES signed properties; invoice counter
+  (ICV) and previous-invoice hash (PIH) chained per unit with the unit row
+  locked. Documents are immutable and never deleted (triggers).
+- **Reporting** within 24 hours: `pnpm zatca:report` (scheduled) or "Report
+  now"; 200 reported, 202 reported with warnings, 400 rejected (ZATCA's
+  answer kept for review), anything else retried with backoff.
+- Requires VAT registration in Saudi Arabia and the **Saudi riyal as base
+  currency** (base currency is fixed, Q-11); otherwise refused.
+- **Validation status**: the development environment's network policy
+  blocks `gw-fatoora.zatca.gov.sa`, so nothing has been sent to ZATCA yet.
+  Verified here: the Phase 1 QR against ZATCA's example, the CSR with
+  OpenSSL (`req -verify`), signatures with the public key, and the
+  application's flows against a simulated ZATCA. To verify before live use:
+  the hash and signed-properties digest as ZATCA's validator computes them,
+  line amounts and rounding rules (BR-KSA), exemption reason codes for
+  zero-rated or exempt items, and the API responses. Use the developer
+  portal or simulation environment until then.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -1385,6 +1427,6 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 | Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                                                                        | —                         |
 | Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                                                                        | POS3                      |
 | Q-16 | ~~POS devices~~ — **Decided:** tablets, web app and mobile app from one installable web app; store apps by wrapping it (ADR-057). Printers: 80 mm via the browser until hardware is chosen.                           |
-| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                                                                         | POS4                      |
+| Q-17 | ~~First market for live POS sales~~ — **Decided:** Saudi Arabia; POS4 builds ZATCA Phase 2 first (ADR-064).                                                                                                           | POS4                      |
 | Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                                                                  | POS5                      |
 | Q-19 | Store apps: the app id (permanent once published, e.g. `com.<company>.foodambassador`) and who owns the Apple and Google developer accounts (organization enrolment). Needed before the first store upload (ADR-061). | POS1d release             |

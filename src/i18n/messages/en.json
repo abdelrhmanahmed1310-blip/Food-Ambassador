@@ -131,7 +131,8 @@
     "pos": "Point of sale",
     "posShortfalls": "Stock shortfalls",
     "posFloor": "Floor plan",
-    "posKitchen": "Kitchen screens"
+    "posKitchen": "Kitchen screens",
+    "zatca": "E-invoicing (ZATCA)"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -457,7 +458,11 @@
     "NOTHING_TO_PAY": "Nothing is left to pay.",
     "CHECK_ITEM_OVERPAID": "More than is left on this item.",
     "STATION_DEFAULT_TAKEN": "This branch already has a default station.",
-    "TICKET_NOT_BUMPED": "This ticket is still on the screen."
+    "TICKET_NOT_BUMPED": "This ticket is still on the screen.",
+    "ZATCA_NEEDS_SAR": "ZATCA e-invoicing is for organizations whose base currency is the Saudi riyal.",
+    "ZATCA_DEVICE_EXISTS": "This register is already onboarded.",
+    "ZATCA_SETUP_INCOMPLETE": "Register for VAT in Saudi Arabia and complete the e-invoicing details first.",
+    "ZATCA_ONBOARDING_FAILED": "ZATCA refused the {step} (status {status}). Check the OTP and details, then try again."
   },
   "notFound": {
     "title": "Page not found",
@@ -2884,5 +2889,65 @@
     "targetMinutesHint": "The screen warns at 75 % and marks a ticket late at the target.",
     "voidedTag": "VOID",
     "waiting": "Waiting"
+  },
+  "zatca": {
+    "title": "E-invoicing (ZATCA)",
+    "intro": "Saudi Arabia, Phase 2: every point-of-sale sale gets a signed simplified tax invoice, every refund or void a credit note, reported to ZATCA within 24 hours. Until a register's unit is onboarded, its receipts carry the Phase 1 QR.",
+    "validationNote": "Not yet validated against ZATCA: the documents, signature and API calls follow ZATCA's standards but have not been through ZATCA's sandbox. Onboard on the developer portal or simulation first and check the results before using the core (production) environment.",
+    "notReady": "Requires VAT registration in Saudi Arabia (VAT settings) and the Saudi riyal as base currency.",
+    "seller": "Seller details (national address)",
+    "legalName": "Legal name (as registered)",
+    "crNumber": "Commercial registration (CR)",
+    "street": "Street",
+    "building": "Building number",
+    "buildingHint": "4 digits.",
+    "district": "District",
+    "city": "City",
+    "postalCode": "Postal code",
+    "businessCategory": "Business category",
+    "environment": "ZATCA environment",
+    "environmentHint": "Developer portal and simulation are for testing; core is production.",
+    "environments": {
+      "DEVELOPER_PORTAL": "Developer portal (test)",
+      "SIMULATION": "Simulation (test)",
+      "CORE": "Core (production)"
+    },
+    "units": "E-invoicing units",
+    "unitsIntro": "Each register is one e-invoicing unit with its own key and certificate. Prepare it, get a one-time password for it on the Fatoora portal, and onboard it here.",
+    "noRegisters": "No registers yet.",
+    "noUnit": "Not prepared",
+    "prepare": "Prepare unit",
+    "remakeKey": "Make a new key",
+    "onboard": "Onboard",
+    "onboarding": "Onboarding…",
+    "otp": "One-time password (OTP)",
+    "otpHint": "6 digits from the Fatoora portal; valid for one hour.",
+    "deviceStatuses": {
+      "NEW": "Prepared — waiting for OTP",
+      "COMPLIANCE": "Compliance checks",
+      "ACTIVE": "Onboarded",
+      "RETIRED": "Retired"
+    },
+    "documentsIssued": "{count, plural, one {# document} other {# documents}}",
+    "documents": "Documents",
+    "reportNow": "Report now",
+    "noDocuments": "No e-invoices yet.",
+    "number": "Number",
+    "type": "Type",
+    "issued": "Issued",
+    "status": "Status",
+    "statuses": {
+      "PENDING": "To report",
+      "REPORTED": "Reported",
+      "REPORTED_WITH_WARNINGS": "Reported with warnings",
+      "REJECTED": "Rejected"
+    },
+    "types": {
+      "INVOICE": "Simplified invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note"
+    },
+    "attempts": "({count} attempts)",
+    "reportResult": "Reported {reported}, rejected {rejected}, to retry {retrying}."
   }
 }

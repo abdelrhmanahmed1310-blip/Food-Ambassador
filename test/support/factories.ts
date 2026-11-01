@@ -18,13 +18,16 @@ export async function contextFor(userId: string, slug: string): Promise<TenantCo
   return ctx;
 }
 
-/** A fresh organization with its owner, as created by sign-up. */
-export async function createTenant(label = "org") {
+/** A fresh organization with its owner, as created by sign-up (Egypt unless told otherwise). */
+export async function createTenant(
+  label = "org",
+  options: { baseCurrency?: string; timeZone?: string } = {},
+) {
   const owner = await createUser(`${label}-owner`);
   const org = await createOrganization(owner.id, {
     name: `Tenant ${label} ${uuidv7().slice(-6)}`,
-    baseCurrency: "EGP",
-    timeZone: "Africa/Cairo",
+    baseCurrency: options.baseCurrency ?? "EGP",
+    timeZone: options.timeZone ?? "Africa/Cairo",
   });
   const ctx = await contextFor(owner.id, org.slug);
   return { owner, org, ctx };

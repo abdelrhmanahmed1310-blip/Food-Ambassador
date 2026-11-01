@@ -29,15 +29,21 @@ export const PASSWORD = "e2e-password-1234";
 /** Sign up through the UI; returns the organization slug from the landing URL. */
 export async function signUp(
   page: Page,
-  opts: { name: string; email: string; organization: string },
+  opts: {
+    name: string;
+    email: string;
+    organization: string;
+    baseCurrency?: string;
+    timeZone?: string;
+  },
 ): Promise<string> {
   await page.goto("/sign-up");
   await page.getByLabel("Full name").fill(opts.name);
   await page.getByLabel("Email").fill(opts.email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByLabel("Organization name").fill(opts.organization);
-  await page.getByLabel("Base currency").selectOption("EGP");
-  await page.getByLabel("Time zone").selectOption("Africa/Cairo");
+  await page.getByLabel("Base currency").selectOption(opts.baseCurrency ?? "EGP");
+  await page.getByLabel("Time zone").selectOption(opts.timeZone ?? "Africa/Cairo");
   await page.getByRole("button", { name: "Create organization" }).click();
   await expect(page).toHaveURL(/\/o\/[a-z0-9-]+$/);
   return new URL(page.url()).pathname.split("/")[2];

@@ -31,6 +31,10 @@ previous image at it — schema changes are not undone in place.
   `x-request-id` response header); secrets and passwords are redacted.
   Ask users for the time and page of a failure and search by request id.
 - Run `pnpm db:verify` daily (cron) and alert on a non-zero exit.
+- Saudi Arabia (ZATCA, ADR-064): run `pnpm zatca:report` every 5 minutes (or
+  `--watch` as a service); simplified documents must be reported within 24
+  hours. Alert when documents stay in "To report" for more than a few hours
+  or any are rejected (E-invoicing settings page).
 
 ## 3. Backup and restore
 

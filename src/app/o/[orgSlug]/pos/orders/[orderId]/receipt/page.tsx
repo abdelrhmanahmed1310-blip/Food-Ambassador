@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PrintButton } from "@/components/ui/print-button";
 import { isUuid } from "@/lib/uuid";
@@ -11,8 +12,9 @@ type Option = { optionId: string; name: string; priceDelta: string };
 
 /**
  * Customer receipt sized for 80 mm thermal printers through the browser's
- * print dialog (ADR-057). It is not a ZATCA/ETA e-invoice: fiscal e-invoicing
- * (QR, signing, clearance) is POS4 and needs testing against the authorities.
+ * print dialog (ADR-057). In Saudi Arabia it carries the ZATCA QR: the signed
+ * document's (Phase 2) once the register's unit is onboarded, else Phase 1
+ * (seller, VAT number, time, total, VAT) — ADR-064.
  */
 export default async function ReceiptPage({
   params,
@@ -29,6 +31,9 @@ export default async function ReceiptPage({
   const m = (v: { toString(): string }) => (
     <span className="ltr-value tabular-nums">{money.money(v)}</span>
   );
+  const qrSvg = o.eInvoice
+    ? await QRCode.toString(o.eInvoice.qr, { type: "svg", margin: 1, errorCorrectionLevel: "M" })
+    : null;
   const row = "flex justify-between gap-2";
   return (
     <div className="mx-auto max-w-[80mm] space-y-3 bg-white p-3 font-mono text-xs text-black">
@@ -120,6 +125,16 @@ export default async function ReceiptPage({
           </p>
         ))}
       </div>
+      {qrSvg ? (
+        <div
+          className="mx-auto w-40"
+          data-testid="zatca-qr"
+          data-signed={o.eInvoice?.signed ? "1" : "0"}
+        >
+          {/* SVG drawn by the qrcode library from the ZATCA fields (no user HTML). */}
+          <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
+        </div>
+      ) : null}
       <p className="text-center">{t("pos.thanks")}</p>
     </div>
   );
