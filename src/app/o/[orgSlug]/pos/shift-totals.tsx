@@ -55,6 +55,15 @@ export async function ShiftTotals({
               </>
             ),
           },
+          { label: t("pos.promotions"), value: m(totals.discounts.promotions) },
+          {
+            label: t("pos.orderDiscounts"),
+            value: (
+              <>
+                {totals.discounts.count} · {m(totals.discounts.orders)}
+              </>
+            ),
+          },
         ]}
       />
       <DescriptionList

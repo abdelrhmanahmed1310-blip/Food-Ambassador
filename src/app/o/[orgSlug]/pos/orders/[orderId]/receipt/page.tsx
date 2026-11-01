@@ -75,17 +75,35 @@ export default async function ReceiptPage({
               <span>
                 {l.quantity.toFixed()} × <bdi>{l.name}</bdi>
               </span>
-              {m(l.grossAmount)}
+              {m(l.grossAmount.plus(l.discountAmount))}
             </p>
             {(l.options as Option[]).map((x) => (
               <p key={x.optionId} className="ps-3">
                 + <bdi>{x.name}</bdi>
               </p>
             ))}
+            {l.discountAmount.gt(0) ? (
+              <p className={`${row} ps-3`}>
+                <span>{t("pos.discount")}</span>−{m(l.discountAmount)}
+              </p>
+            ) : null}
           </li>
         ))}
       </ul>
       <div className="space-y-0.5">
+        {o.promoDiscount.gt(0) ? (
+          <p className={row}>
+            <span>{t("pos.promotions")}</span>−{m(o.promoDiscount)}
+          </p>
+        ) : null}
+        {o.orderDiscount.gt(0) ? (
+          <p className={row}>
+            <span>
+              {o.coupon ? t("pos.couponApplied", { code: o.coupon.code }) : t("pos.discount")}
+            </span>
+            −{m(o.orderDiscount)}
+          </p>
+        ) : null}
         {o.taxAmount.gt(0) ? (
           <>
             <p className={row}>

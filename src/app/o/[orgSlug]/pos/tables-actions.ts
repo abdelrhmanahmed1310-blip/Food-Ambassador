@@ -19,6 +19,7 @@ import {
   voidTabLine,
 } from "@/modules/pos/tables";
 import { cancelPaymentLink, createPaymentLink, refreshPaymentLink } from "@/modules/payments/links";
+import { couponForRegister } from "@/modules/pos/service";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { errorToState, formValues } from "@/server/actions/handle";
@@ -142,4 +143,9 @@ export async function refreshLinkAction(orgSlug: string, linkId: string) {
 }
 export async function cancelLinkAction(orgSlug: string, linkId: string) {
   return run(orgSlug, (ctx) => cancelPaymentLink(ctx, linkId));
+}
+
+/** Look up a coupon for the till or a check before paying (ADR-067). */
+export async function couponAction(orgSlug: string, registerId: string, code: string) {
+  return run(orgSlug, (ctx) => couponForRegister(ctx, registerId, code));
 }

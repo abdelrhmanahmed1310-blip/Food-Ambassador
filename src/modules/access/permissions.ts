@@ -64,6 +64,7 @@ export const PERMISSIONS = [
   "pos.view",
   "pos.tables",
   "pos.kitchen",
+  "pos.discount",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -100,6 +101,7 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "pos.view",
   "pos.tables",
   "pos.kitchen",
+  "pos.discount",
   "production.view",
   "production.manage",
 ]);
@@ -179,6 +181,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "pos.view",
       "pos.tables",
       "pos.kitchen",
+      "pos.discount",
       "menu.view",
       "menu.manage",
       ...VIEW_SITES,
@@ -325,6 +328,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "pos.view",
       "pos.tables",
       "pos.kitchen",
+      "pos.discount",
       "menu.view",
       ...VIEW_SITES,
       "branches.manage",

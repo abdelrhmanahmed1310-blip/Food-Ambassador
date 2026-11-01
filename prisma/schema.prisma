@@ -179,6 +179,8 @@ model Organization {
   cardSettlementLines     CardSettlementLine[]
   paymentProviderSettings PaymentProviderSettings?
   paymentLinks            PaymentLink[]
+  posPromotions           PosPromotion[]
+  posCoupons              PosCoupon[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
   posOrders               PosOrder[]
@@ -3703,6 +3705,12 @@ model PosOrder {
   voidDocId        String?        @map("void_doc_id") @db.Uuid
   /// The check (POS2a) this order paid all or part of.
   tabId            String?        @map("tab_id") @db.Uuid
+  /// Discounts (POS5a, ADR-067): from promotions, and on the whole order (manual or coupon).
+  promoDiscount    Decimal        @default(0) @map("promo_discount") @db.Decimal(19, 4)
+  orderDiscount    Decimal        @default(0) @map("order_discount") @db.Decimal(19, 4)
+  discountReason   String?        @map("discount_reason")
+  couponId         String?        @map("coupon_id") @db.Uuid
+  coupon           PosCoupon?     @relation(fields: [organizationId, couponId], references: [organizationId, id], onDelete: Restrict)
 
   organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   register     PosRegister               @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
@@ -3722,26 +3730,30 @@ model PosOrder {
 
 /// A sold line, with the menu item, price and chosen options as they were at the sale.
 model PosOrderLine {
-  id               String   @id @default(uuid(7)) @db.Uuid
-  organizationId   String   @map("organization_id") @db.Uuid
-  orderId          String   @map("order_id") @db.Uuid
-  lineNo           Int      @map("line_no")
-  menuItemId       String   @map("menu_item_id") @db.Uuid
+  id               String        @id @default(uuid(7)) @db.Uuid
+  organizationId   String        @map("organization_id") @db.Uuid
+  orderId          String        @map("order_id") @db.Uuid
+  lineNo           Int           @map("line_no")
+  menuItemId       String        @map("menu_item_id") @db.Uuid
   name             String
-  quantity         Decimal  @db.Decimal(20, 6)
+  quantity         Decimal       @db.Decimal(20, 6)
   /// Per item including the options' price changes, as the price was entered (incl. or excl. VAT).
-  unitPrice        Decimal  @map("unit_price") @db.Decimal(19, 4)
-  priceIncludesTax Boolean  @map("price_includes_tax")
+  unitPrice        Decimal       @map("unit_price") @db.Decimal(19, 4)
+  priceIncludesTax Boolean       @map("price_includes_tax")
   /// The check line it paid (POS2a).
-  tabLineId        String?  @map("tab_line_id") @db.Uuid
+  tabLineId        String?       @map("tab_line_id") @db.Uuid
+  /// Taken off this line (promotion plus its share of the order discount), incl. VAT.
+  discountAmount   Decimal       @default(0) @map("discount_amount") @db.Decimal(19, 4)
+  promotionId      String?       @map("promotion_id") @db.Uuid
+  promotion        PosPromotion? @relation(fields: [organizationId, promotionId], references: [organizationId, id], onDelete: Restrict)
   /// [{ optionId, name, priceDelta }]
-  options          Json     @default("[]")
-  taxCodeId        String?  @map("tax_code_id") @db.Uuid
-  taxRate          Decimal? @map("tax_rate") @db.Decimal(7, 6)
-  netAmount        Decimal  @map("net_amount") @db.Decimal(19, 4)
-  taxAmount        Decimal  @map("tax_amount") @db.Decimal(19, 4)
-  grossAmount      Decimal  @map("gross_amount") @db.Decimal(19, 4)
-  refundedQuantity Decimal  @default(0) @map("refunded_quantity") @db.Decimal(20, 6)
+  options          Json          @default("[]")
+  taxCodeId        String?       @map("tax_code_id") @db.Uuid
+  taxRate          Decimal?      @map("tax_rate") @db.Decimal(7, 6)
+  netAmount        Decimal       @map("net_amount") @db.Decimal(19, 4)
+  taxAmount        Decimal       @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount      Decimal       @map("gross_amount") @db.Decimal(19, 4)
+  refundedQuantity Decimal       @default(0) @map("refunded_quantity") @db.Decimal(20, 6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   order        PosOrder     @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
@@ -4296,4 +4308,56 @@ model PaymentLink {
   @@unique([organizationId, providerInvoiceId])
   @@index([organizationId, tabId])
   @@map("payment_links")
+}
+
+enum DiscountKind {
+  PERCENT
+  AMOUNT
+}
+
+/// An automatic percentage off items or categories at set times (POS5a, ADR-067). Fixed once created.
+model PosPromotion {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  name           String
+  percent        Decimal        @db.Decimal(5, 2)
+  categoryIds    String[]       @map("category_ids") @db.Uuid
+  itemIds        String[]       @map("item_ids") @db.Uuid
+  channels       SalesChannel[]
+  weekdays       Int[]
+  startTime      String?        @map("start_time")
+  endTime        String?        @map("end_time")
+  validFrom      DateTime       @map("valid_from") @db.Date
+  validTo        DateTime?      @map("valid_to") @db.Date
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  archivedAt     DateTime?      @map("archived_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  orderLines   PosOrderLine[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, archivedAt])
+  @@map("pos_promotions")
+}
+
+/// A coupon code for a discount on the whole order.
+model PosCoupon {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  code           String
+  kind           DiscountKind
+  value          Decimal      @db.Decimal(19, 4)
+  validFrom      DateTime     @map("valid_from") @db.Date
+  validTo        DateTime?    @map("valid_to") @db.Date
+  maxUses        Int?         @map("max_uses")
+  uses           Int          @default(0)
+  archivedAt     DateTime?    @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  orders       PosOrder[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("pos_coupons")
 }

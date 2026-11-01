@@ -1448,6 +1448,45 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   and is tested against a simulated Moyasar. Test with a Moyasar test key
   before going live.
 
+### ADR-067 Discounts, promotions and coupons — Accepted (POS5a)
+
+- **Promotions** take a percentage off chosen menu items or categories,
+  optionally by channel, ISO weekday, a local time window at the branch
+  (an end before the start runs past midnight) and dates. When several fit
+  an item, the highest percentage applies; promotions do not stack.
+- A promotion is **never edited, only archived** (database trigger): tills
+  queue orders offline priced with the promotions they had loaded, so the
+  server applies the promotions that were live at the order's `menuAsOf`
+  (created before it, not archived before it), at the time each item was
+  ordered — the order time at the counter, the time the item was added on a
+  check (a happy hour still applies when the check is paid later).
+- **Order discounts** come off the whole order after promotions: a
+  **manual** percentage or amount needs the new permission `pos.discount`
+  (administrators, operations and branch managers) and a reason; a
+  **coupon** code (percentage or amount, dates, optional maximum uses) can
+  be used by any cashier. One order discount per order; an amount larger
+  than the order is capped at the order.
+- The order discount is spread over the lines in proportion to what is left
+  of each after its promotion (the last line takes the rounding), and each
+  line's VAT is taken out of its discounted amount: VAT is charged on what
+  the guest pays. Stored per line (`discount_amount`, `promotion_id`) and
+  per order (`promo_discount`, `order_discount`, reason, coupon). Refunds,
+  credit notes and the ZATCA invoice use the discounted line amounts
+  (invoice line price = discounted net ÷ quantity).
+- An order discounted to nothing takes **no payment** (it still uses stock,
+  goes to the kitchen and is counted in the shift); any other order still
+  needs payments equal to its total.
+- The same pure rules (`modules/pos/discounts.ts`) run on the till and the
+  server, so the till shows the total the server charges; a till that
+  crosses a promotion's start or end between showing and paying is told to
+  check the new total.
+- Coupons are **checked online** when the cashier applies them and taken
+  (locked, use counted) inside the order's transaction; codes are not sent
+  to devices in advance. An order queued offline with a coupon that is used
+  up by the time it syncs is refused and listed for the cashier.
+- Pay by QR (ADR-066) applies promotions but no order discount.
+- Shift X/Z reports show promotions and order discounts given.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

@@ -74,6 +74,21 @@ export default async function OrderPage({
                   </Badge>
                 ),
               },
+              ...(o.promoDiscount.gt(0)
+                ? [{ label: t("pos.promotions"), value: m(o.promoDiscount) }]
+                : []),
+              ...(o.orderDiscount.gt(0)
+                ? [
+                    {
+                      label: t("pos.discount"),
+                      value: `${m(o.orderDiscount)} · ${
+                        o.coupon
+                          ? t("pos.couponApplied", { code: o.coupon.code })
+                          : o.discountReason
+                      }`,
+                    },
+                  ]
+                : []),
               { label: t("pos.netSales"), value: m(o.netAmount) },
               { label: t("pos.vat"), value: m(o.taxAmount) },
               { label: t("pos.total"), value: m(o.grossAmount) },
@@ -93,6 +108,7 @@ export default async function OrderPage({
                 <Th>{t("pos.item")}</Th>
                 <Th>{t("pos.quantity")}</Th>
                 <Th>{t("pos.unitPrice")}</Th>
+                <Th>{t("pos.discount")}</Th>
                 <Th>{t("pos.vat")}</Th>
                 <Th>{t("pos.total")}</Th>
               </tr>
@@ -115,6 +131,7 @@ export default async function OrderPage({
                   </Td>
                   <Td className="ltr-value tabular-nums">{l.quantity.toFixed()}</Td>
                   <Td>{m(l.unitPrice)}</Td>
+                  <Td>{l.discountAmount.gt(0) ? m(l.discountAmount) : "—"}</Td>
                   <Td>{m(l.taxAmount)}</Td>
                   <Td>{m(l.grossAmount)}</Td>
                 </tr>

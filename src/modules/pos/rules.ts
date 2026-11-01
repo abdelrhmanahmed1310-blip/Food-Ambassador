@@ -42,7 +42,8 @@ export function checkPayments(
   payments: readonly PaymentInput[],
 ): { problems: PaymentProblem[]; change: Decimal } {
   const problems: PaymentProblem[] = [];
-  if (payments.length === 0 || payments.some((p) => !p.amount.gt(0)))
+  // An order discounted to nothing (ADR-067) takes no payment; any other needs one.
+  if ((payments.length === 0 && !total.isZero()) || payments.some((p) => !p.amount.gt(0)))
     problems.push("PAYMENT_EMPTY");
   const sum = payments.reduce((a, p) => a.plus(p.amount), new Decimal(0));
   if (!sum.equals(total)) problems.push("PAYMENT_TOTAL_MISMATCH");

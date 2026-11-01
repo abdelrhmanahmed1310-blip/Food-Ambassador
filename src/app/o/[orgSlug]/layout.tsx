@@ -51,6 +51,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     pos.items.push({ href: `${base}/pos/floor`, label: t("posFloor") });
   if (holdsAnyGrant(ctx.grants, "pos.kitchen") || hasPermission(ctx.grants, "pos.manage"))
     pos.items.push({ href: `${base}/pos/kitchen`, label: t("posKitchen") });
+  if (hasPermission(ctx.grants, "menu.view"))
+    pos.items.push({ href: `${base}/pos/promotions`, label: t("posPromotions") });
   if (holdsAnyGrant(ctx.grants, "inventory.adjust"))
     pos.items.push({ href: `${base}/pos/shortfalls`, label: t("posShortfalls") });
   if (hasPermission(ctx.grants, "payments.manage"))

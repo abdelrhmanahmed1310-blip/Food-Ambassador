@@ -7,6 +7,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { Decimal } from "@/lib/decimal";
 import { lineAmounts, splitEvenly } from "@/modules/pos/rules";
+import {
+  DiscountPanel,
+  discountPayload,
+  priceWithDiscounts,
+  type DiscountChoice,
+} from "./discount-panel";
 import { named, OptionsDialog, type MenuItemView } from "./till";
 
 /** A check as plain values (server Decimals arrive as strings). */
@@ -35,6 +41,8 @@ export interface CheckView {
     includesTax: boolean | null;
     taxRate: string | null;
     gross: string | null;
+    /** Promotion on the item as ordered (ADR-067). */
+    promotion: { name: string; percent: string } | null;
     voidReason: string | null;
     /** From the kitchen screens (POS2b): preparing until bumped, then ready. */
     kitchen: "PREPARING" | "READY" | null;
@@ -43,7 +51,7 @@ export interface CheckView {
   otherTabs: Array<{ id: string; label: string }>;
   freeTables: Array<{ id: string; code: string }>;
   registers: Array<{ id: string; label: string }>;
-  can: { serve: boolean; pay: boolean; void: boolean; open: boolean };
+  can: { serve: boolean; pay: boolean; void: boolean; open: boolean; discount: boolean };
   /** Pay by QR (Moyasar) is set up for the organization (ADR-066). */
   onlinePayments: boolean;
 }
@@ -90,6 +98,7 @@ export function CheckScreen({
     createLink: (input: unknown) => Promise<Result>;
     refreshLink: (linkId: string) => Promise<Result>;
     cancelLink: (linkId: string) => Promise<Result>;
+    coupon: (registerId: string, code: string) => Promise<Result>;
   };
 }) {
   const t = useTranslations();
@@ -173,6 +182,7 @@ export function CheckScreen({
   const [method, setMethod] = useState<"CASH" | "CARD" | "QR">("CARD");
   const [link, setLink] = useState<{ id: string; url: string; qr: string } | null>(null);
   const [tendered, setTendered] = useState("");
+  const [discount, setDiscount] = useState<DiscountChoice>(null);
   const [registerId, setRegisterId] = useState(check.registers[0]?.id ?? "");
   const orderId = useRef<string | null>(null);
   const payable = check.lines.filter((l) => new Decimal(l.remaining).gt(0));
@@ -190,19 +200,27 @@ export function CheckScreen({
             .filter((l) => /^\d+(\.\d+)?$/.test(chosen[l.id] ?? "") && Number(chosen[l.id]) > 0)
             .map((l) => ({ line: l, quantity: new Decimal(chosen[l.id]) }));
   const priced = selection.every((s) => s.line.unitPrice !== null);
-  const total = selection.reduce(
-    (a, s) =>
-      a.plus(
-        lineAmounts(
+  // Pay by QR takes promotions but no order discount (ADR-067).
+  const orderDiscount = method === "QR" ? null : discount;
+  const discounted = priceWithDiscounts(
+    selection.map((s) => {
+      const rate = s.line.taxRate === null ? null : new Decimal(s.line.taxRate);
+      return {
+        gross: lineAmounts(
           new Decimal(s.line.unitPrice ?? 0),
           s.quantity,
           s.line.includesTax ?? true,
-          s.line.taxRate === null ? null : new Decimal(s.line.taxRate),
+          rate,
           check.currency,
         ).gross,
-      ),
-    new Decimal(0),
+        rate,
+        promoPercent: s.line.promotion ? new Decimal(s.line.promotion.percent) : null,
+      };
+    }),
+    orderDiscount,
+    check.currency,
   );
+  const total = discounted.total;
   const split = total.gt(0) ? splitEvenly(total, parts, check.currency) : [];
   const pay = () => {
     if (!registerId) return;
@@ -229,6 +247,7 @@ export function CheckScreen({
             amount: amount.toFixed(),
             ...(cashTendered ? { tendered: cashTendered.toFixed() } : {}),
           })),
+          ...discountPayload(orderDiscount),
           expectedTotal: total.toFixed(),
         }),
       (r) => {
@@ -236,6 +255,7 @@ export function CheckScreen({
         setChosen({});
         setTendered("");
         setParts(1);
+        setDiscount(null);
         const change = new Decimal(String(r.data?.change ?? "0"));
         setNotice(
           [
@@ -343,6 +363,14 @@ export function CheckScreen({
                         <span className="ltr-value text-sm tabular-nums">
                           {l.gross ? fmt(l.gross) : t("pos.notOnSale")}
                         </span>
+                        {l.promotion && l.status !== "VOIDED" ? (
+                          <span className="bg-success-surface rounded px-1 text-xs">
+                            {t("pos.promotionTag", {
+                              name: l.promotion.name,
+                              percent: l.promotion.percent,
+                            })}
+                          </span>
+                        ) : null}
                         {editable &&
                         l.status === "PENDING" &&
                         new Decimal(l.paidQuantity).isZero() ? (
@@ -580,6 +608,30 @@ export function CheckScreen({
                   </label>
                 ) : null}
               </div>
+              {method !== "QR" && selection.length > 0 ? (
+                <DiscountPanel
+                  idPrefix="check"
+                  canDiscount={check.can.discount}
+                  choice={discount}
+                  onChange={(c) => {
+                    setDiscount(c);
+                    orderId.current = null;
+                  }}
+                  lookup={(code) => actions.coupon(registerId, code)}
+                />
+              ) : null}
+              {discounted.promoDiscount.gt(0) ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">{t("pos.promotions")}</span>
+                  <span className="ltr-value tabular-nums">−{fmt(discounted.promoDiscount)}</span>
+                </div>
+              ) : null}
+              {discounted.orderDiscount.gt(0) ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">{t("pos.discount")}</span>
+                  <span className="ltr-value tabular-nums">−{fmt(discounted.orderDiscount)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-xl font-semibold">
                 <span>{t("pos.total")}</span>
                 <span className="ltr-value tabular-nums" data-testid="check-total">
@@ -647,7 +699,7 @@ export function CheckScreen({
                 <button
                   type="button"
                   className={`${buttonClass("primary")} min-h-12 w-full`}
-                  disabled={pending || !priced || !total.gt(0) || !registerId}
+                  disabled={pending || !priced || selection.length === 0 || !registerId}
                   onClick={pay}
                 >
                   {pending ? t("common.saving") : t("pos.takePayment")}

@@ -5,6 +5,7 @@ import { Decimal, decimalString } from "@/lib/decimal";
 import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { decryptSecret, encryptSecret, integrationKey } from "@/modules/integrations/crypto";
+import { applyDiscounts } from "@/modules/pos/discounts";
 import { lineAmounts } from "@/modules/pos/rules";
 import { getTab, payTab } from "@/modules/pos/tables";
 import { uuidSchema } from "@/modules/shared/schemas";
@@ -136,20 +137,26 @@ export async function createPaymentLink(
         })
       : tab.lines.filter((l) => l.remaining.gt(0)).map((l) => ({ line: l, quantity: l.remaining }));
   if (chosen.length === 0) throw businessRuleViolation("NOTHING_TO_PAY", "Nothing is left to pay");
-  let total = new Decimal(0);
-  for (const c of chosen) {
+  for (const c of chosen)
     if (!c.line.unitPrice)
       throw businessRuleViolation("MENU_ITEM_NOT_SOLD", "An item is not on sale");
-    total = total.plus(
-      lineAmounts(
-        c.line.unitPrice,
+  // As the order will be priced: promotions on the items, no order discount (ADR-067).
+  const total = applyDiscounts(
+    chosen.map((c) => ({
+      gross: lineAmounts(
+        c.line.unitPrice!,
         c.quantity,
         c.line.includesTax ?? true,
         c.line.taxRate === null ? null : dec(c.line.taxRate),
         ctx.baseCurrency,
       ).gross,
-    );
-  }
+      rate: c.line.taxRate === null ? null : dec(c.line.taxRate),
+      promoPercent: c.line.promotion ? dec(c.line.promotion.percent) : null,
+    })),
+    null,
+    ctx.baseCurrency,
+  ).lines.reduce((a, l) => a.plus(l.gross), new Decimal(0));
+  if (total.isZero()) throw businessRuleViolation("NOTHING_TO_PAY", "Nothing is left to pay");
   if (!total.equals(dec(input.expectedTotal)))
     throw businessRuleViolation("ORDER_PRICES_CHANGED", "Prices changed; refresh the check", {
       total: total.toFixed(),

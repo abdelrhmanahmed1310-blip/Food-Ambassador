@@ -14,6 +14,7 @@ import {
   addLinesAction,
   cancelAction,
   cancelLinkAction,
+  couponAction,
   createLinkAction,
   mergeAction,
   moveAction,
@@ -67,6 +68,7 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
       includesTax: l.includesTax,
       taxRate: l.taxRate,
       gross: l.gross?.toFixed() ?? null,
+      promotion: l.promotion,
       voidReason: l.voidReason,
       kitchen: l.kitchen,
     })),
@@ -77,7 +79,13 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
     })),
     freeTables: tab.freeTables,
     registers: tab.registers.map((r) => ({ id: r.id, label: `${r.code} — ${r.name}` })),
-    can: { serve: tab.can.serve, pay: tab.can.pay, void: tab.can.void, open },
+    can: {
+      serve: tab.can.serve,
+      pay: tab.can.pay,
+      void: tab.can.void,
+      discount: tab.can.discount,
+      open,
+    },
     onlinePayments: (await paymentProvider(ctx)) !== null,
   };
   const bind = <A extends unknown[], R>(fn: (orgSlug: string, ...args: A) => R) =>
@@ -121,6 +129,7 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
           createLink: bind(createLinkAction).bind(null, tab.id),
           refreshLink: bind(refreshLinkAction),
           cancelLink: bind(cancelLinkAction),
+          coupon: bind(couponAction),
         }}
       />
     </div>

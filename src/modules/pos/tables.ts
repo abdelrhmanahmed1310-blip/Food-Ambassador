@@ -14,6 +14,8 @@ import { withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
 import { createTicketsInTx, lineStatusesInTx, markVoidedInTx } from "./kitchen";
 import { checkSettled, remainingQuantity } from "./rules";
+import { promotionFor, saleMoment } from "./discounts";
+import { loadPromotionsInTx } from "./promotions";
 import {
   explodeUseInTx,
   loadRegister,
@@ -61,6 +63,7 @@ function abilities(ctx: TenantContext, branchId: string) {
     serve,
     pay: sell,
     void: hasPermission(ctx.grants, "pos.void", site),
+    discount: hasPermission(ctx.grants, "pos.discount", site),
     see: serve || sell || hasPermission(ctx.grants, "pos.view", site),
   };
 }
@@ -720,6 +723,8 @@ const paySchema = z.object({
     .max(200)
     .default([]),
   payments: orderSchema.shape.payments,
+  discount: orderSchema.shape.discount,
+  couponCode: orderSchema.shape.couponCode,
   expectedTotal: orderSchema.shape.expectedTotal,
 });
 
@@ -800,6 +805,8 @@ export async function payTab(ctx: TenantContext, tabId: string, rawInput: unknow
           optionIds: c.line.optionIds,
         })),
         payments: input.payments,
+        discount: input.discount,
+        couponCode: input.couponCode,
         expectedTotal: input.expectedTotal,
       });
       if (!order.success) throw validationFailed(order.error);
@@ -807,6 +814,8 @@ export async function payTab(ctx: TenantContext, tabId: string, rawInput: unknow
         tabId: tab.id,
         warehouseId: tab.warehouseId,
         tabLineIds: chosen.map((c) => c.line.id),
+        // Promotions apply as at the time each item was ordered (a happy hour).
+        lineTimes: chosen.map((c) => c.line.createdAt),
       });
       for (const c of chosen)
         await tx.posTabLine.update({
@@ -856,6 +865,19 @@ export async function getTab(ctx: TenantContext, tabId: string) {
     const date = businessDate(tab.branch.timeZone ?? ctx.timeZone);
     const now = new Date();
     const kitchen = await lineStatusesInTx(tx, ctx, tab.id);
+    const promotions = await loadPromotionsInTx(tx, ctx, now);
+    const categories = new Map(
+      (
+        await tx.menuItem.findMany({
+          where: {
+            organizationId: ctx.organizationId,
+            id: { in: tab.lines.map((l) => l.menuItemId) },
+          },
+          select: { id: true, categoryId: true },
+        })
+      ).map((i) => [i.id, i.categoryId]),
+    );
+    const tz = tab.branch.timeZone ?? ctx.timeZone;
     const lines = [];
     for (const l of tab.lines) {
       // Priced one by one so an item withdrawn from the menu shows as a problem, not an error.
@@ -869,6 +891,11 @@ export async function getTab(ctx: TenantContext, tabId: string) {
         asOf: now,
       }).catch(() => null);
       const line = priced?.lines[0];
+      const promotion = promotionFor(
+        { id: l.menuItemId, categoryId: categories.get(l.menuItemId) ?? "" },
+        saleMoment(tab.channel, tz, l.createdAt),
+        promotions,
+      );
       const remaining = remainingQuantity({
         status: l.status,
         quantity: dec(l.quantity),
@@ -883,6 +910,10 @@ export async function getTab(ctx: TenantContext, tabId: string) {
         includesTax: line?.priceIncludesTax ?? null,
         taxRate: line?.taxRate ?? null,
         gross: line ? dec(line.grossAmount) : null,
+        /** Promotion on this item as ordered (ADR-067); the payment applies it. */
+        promotion: promotion
+          ? { name: promotion.name, percent: promotion.percent.toFixed() }
+          : null,
         kitchen: kitchen.get(l.id) ?? null,
       });
     }

@@ -6,8 +6,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useLocale, useTranslations } from "next-intl";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { Decimal } from "@/lib/decimal";
+import { couponAction } from "@/app/o/[orgSlug]/pos/tables-actions";
+import { promotionFor, saleMoment } from "@/modules/pos/discounts";
 import { lineAmounts } from "@/modules/pos/rules";
 import type { TillData } from "@/modules/pos/service";
+import {
+  DiscountPanel,
+  discountPayload,
+  priceWithDiscounts,
+  type DiscountChoice,
+} from "./discount-panel";
 import {
   listOrders,
   removeOrder,
@@ -26,6 +34,8 @@ type Done =
   | { queued: true; change: string };
 
 const SYNC_EVERY_MS = 15_000;
+const CLOCK_EVERY_MS = 30_000;
+const now = () => new Date();
 const REFRESH_MENU_EVERY_MS = 5 * 60_000;
 
 interface CartLine {
@@ -79,6 +89,9 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   const [queue, setQueue] = useState<QueuedOrder[]>([]);
   const [online, setOnline] = useState(true);
   const [signedOut, setSignedOut] = useState(false);
+  const [discount, setDiscount] = useState<DiscountChoice>(null);
+  // Promotions depend on the time of day: re-evaluated every half minute and at payment.
+  const [clock, setClock] = useState(now);
   const register = data.register.id;
   const cashier = data.cashierUserId;
 
@@ -121,17 +134,42 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
     };
   }, [sync]);
 
-  const amounts = cart.map((l) =>
-    lineAmounts(
-      l.unit,
-      new Decimal(l.quantity),
-      l.item.includesTax,
-      l.item.taxRate === null ? null : new Decimal(l.item.taxRate),
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date()), CLOCK_EVERY_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  /** The cart as the server prices it at `at`: promotions, then the order discount (ADR-067). */
+  const priceAt = (at: Date) => {
+    const moment = saleMoment(channel, data.timeZone, at);
+    const promotions = data.promotions.map((p) => ({ ...p, percent: new Decimal(p.percent) }));
+    return priceWithDiscounts(
+      cart.map((l) => {
+        const rate = l.item.taxRate === null ? null : new Decimal(l.item.taxRate);
+        const promo = promotionFor(
+          { id: l.item.id, categoryId: l.item.category.id },
+          moment,
+          promotions,
+        );
+        return {
+          gross: lineAmounts(
+            l.unit,
+            new Decimal(l.quantity),
+            l.item.includesTax,
+            rate,
+            data.currency,
+          ).gross,
+          rate,
+          promoPercent: promo?.percent ?? null,
+        };
+      }),
+      discount,
       data.currency,
-    ),
-  );
-  const total = amounts.reduce((a, x) => a.plus(x.gross), new Decimal(0));
-  const tax = amounts.reduce((a, x) => a.plus(x.tax), new Decimal(0));
+    );
+  };
+  const priced = priceAt(clock);
+  const amounts = priced.lines;
+  const { total, tax } = priced;
   const tenderedValue = /^\d+(\.\d+)?$/.test(tendered) ? new Decimal(tendered) : null;
   const change = tenderedValue && tenderedValue.gte(total) ? tenderedValue.minus(total) : null;
 
@@ -140,6 +178,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
     setPaying(null);
     setTendered("");
     setCard(noCard);
+    setDiscount(null);
     setError(null);
     orderId.current = null;
   };
@@ -174,7 +213,14 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
         .filter((l) => l.quantity > 0),
     );
 
-  const pay = (method: "CASH" | "CARD") => {
+  const pay = (method: "CASH" | "CARD" | null) => {
+    const at = new Date();
+    if (!priceAt(at).total.equals(total)) {
+      // A promotion started or ended since the total was shown.
+      setClock(at);
+      setError(t("pos.promotionsChanged"));
+      return;
+    }
     if (method === "CASH" && (!tenderedValue || tenderedValue.lt(total))) {
       setError(t("pos.tenderedTooLow"));
       return;
@@ -186,25 +232,31 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
       shiftId: data.shift?.id,
       menuAsOf: data.menuAsOf,
       cashierUserId: data.cashierUserId,
-      orderedAt: new Date().toISOString(),
+      orderedAt: at.toISOString(),
       channel,
       lines: cart.map((l) => ({
         itemId: l.item.id,
         quantity: String(l.quantity),
         optionIds: l.optionIds,
       })),
+      ...discountPayload(discount),
+      // An order discounted to nothing takes no payment.
       payments: [
-        method === "CASH"
-          ? { method, amount: total.toFixed(), tendered: tenderedValue!.toFixed() }
-          : {
-              method,
-              amount: total.toFixed(),
-              ...(card.scheme ? { cardScheme: card.scheme } : {}),
-              ...(card.approvalCode.trim() ? { approvalCode: card.approvalCode.trim() } : {}),
-              ...(card.last4 ? { cardLast4: card.last4 } : {}),
-              ...(/^\d+(\.\d+)?$/.test(card.tip) && Number(card.tip) > 0 ? { tip: card.tip } : {}),
-            },
-      ],
+        method === null
+          ? null
+          : method === "CASH"
+            ? { method, amount: total.toFixed(), tendered: tenderedValue!.toFixed() }
+            : {
+                method,
+                amount: total.toFixed(),
+                ...(card.scheme ? { cardScheme: card.scheme } : {}),
+                ...(card.approvalCode.trim() ? { approvalCode: card.approvalCode.trim() } : {}),
+                ...(card.last4 ? { cardLast4: card.last4 } : {}),
+                ...(/^\d+(\.\d+)?$/.test(card.tip) && Number(card.tip) > 0
+                  ? { tip: card.tip }
+                  : {}),
+              },
+      ].filter((p) => p !== null),
       expectedTotal: total.toFixed(),
     };
     const queued: QueuedOrder = {
@@ -423,7 +475,35 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
             ))}
           </ul>
         )}
+        {cart.length > 0 ? (
+          <DiscountPanel
+            idPrefix="till"
+            canDiscount={data.canDiscount}
+            choice={discount}
+            onChange={(c) => {
+              setDiscount(c);
+              orderId.current = null;
+            }}
+            lookup={(code) => couponAction(orgSlug, data.register.id, code)}
+          />
+        ) : null}
         <dl className="border-border space-y-1 border-t pt-3 text-sm">
+          {priced.promoDiscount.gt(0) ? (
+            <div className="flex justify-between">
+              <dt className="text-muted">{t("pos.promotions")}</dt>
+              <dd className="ltr-value tabular-nums" data-testid="till-promotions">
+                −{fmt(priced.promoDiscount)}
+              </dd>
+            </div>
+          ) : null}
+          {priced.orderDiscount.gt(0) ? (
+            <div className="flex justify-between">
+              <dt className="text-muted">{t("pos.discount")}</dt>
+              <dd className="ltr-value tabular-nums" data-testid="till-discount">
+                −{fmt(priced.orderDiscount)}
+              </dd>
+            </div>
+          ) : null}
           {tax.gt(0) ? (
             <div className="flex justify-between">
               <dt className="text-muted">{t("pos.vat")}</dt>
@@ -442,7 +522,18 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
             {error}
           </p>
         ) : null}
-        {cart.length > 0 && paying === null ? (
+        {cart.length > 0 && paying === null && total.isZero() ? (
+          <button
+            type="button"
+            className={`${buttonClass("primary")} min-h-14 w-full`}
+            disabled={pending}
+            aria-busy={pending}
+            onClick={() => pay(null)}
+          >
+            {pending ? t("common.saving") : t("pos.nothingToPayComplete")}
+          </button>
+        ) : null}
+        {cart.length > 0 && paying === null && !total.isZero() ? (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"

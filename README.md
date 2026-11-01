@@ -47,7 +47,11 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > paid orders that use stock through recipes, voids, refunds, X/Z reports and
 > 80 mm receipts — and an installable cashier app (POS1c) that keeps selling
 > without a connection and sends its queued orders when back online, with
-> Android and iOS store app projects (POS1d, [docs/MOBILE_RELEASE.md](docs/MOBILE_RELEASE.md)). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Android and iOS store app projects (POS1d, [docs/MOBILE_RELEASE.md](docs/MOBILE_RELEASE.md)), then tables, checks and
+> kitchen screens (POS2), card payments with settlement matching and pay by
+> QR (POS3, Moyasar — not yet validated against Moyasar), ZATCA Phase 2
+> simplified invoices (POS4a — not yet validated against ZATCA), and
+> discounts: timed promotions, coupons and manual discounts (POS5a). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

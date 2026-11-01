@@ -1084,3 +1084,22 @@ Migrations `20261126090000_pos3b_payment_links`, `20261126100000_pos3b_link_card
   RECORDED | FAILED | CANCELLED (`paid_at` ⇔ PAID or RECORDED), provider
   payment id, `card_scheme`, `card_last4` (4 digits), `problem` (why a
   paid link was not recorded).
+
+### Discounts, promotions and coupons (POS5a, ADR-067)
+
+Migration `20261127090000_pos5a_discounts`; new tables have row-level security.
+
+- **pos_promotions**: `name`, `percent` (0 < p ≤ 100), `category_ids` and
+  `item_ids` (at least one), `channels` and `weekdays` (1–7; empty = all),
+  `start_time`/`end_time` (both or neither, HH:MM), `valid_from`,
+  `valid_to`, `archived_at`. Immutable except `archived_at` (trigger).
+- **pos_coupons**: `code` (UQ per organization, A–Z 0–9 -, 3–30), `kind`
+  PERCENT | AMOUNT, `value` > 0 (≤ 100 for PERCENT), `valid_from`,
+  `valid_to`, `max_uses`, `uses` ≤ `max_uses`, `archived_at`. Only `uses`
+  and `archived_at` change (trigger).
+- **pos_orders** gains `promo_discount` ≥ 0, `order_discount` ≥ 0,
+  `discount_reason` and `coupon_id` (FK with the organization); an order
+  discount has a reason or a coupon (CHECK).
+- **pos_order_lines** gains `discount_amount` ≥ 0 (incl. VAT) and
+  `promotion_id` (FK with the organization). Line net/VAT/gross are after
+  discounts.

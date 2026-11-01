@@ -134,7 +134,8 @@
     "posKitchen": "Kitchen screens",
     "zatca": "E-invoicing (ZATCA)",
     "posSettlements": "Card settlements",
-    "onlinePayments": "Online payments"
+    "onlinePayments": "Online payments",
+    "posPromotions": "Promotions"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -224,7 +225,8 @@
     "implausibleEnergy": "Higher than any food can have per 100 g.",
     "chooseRecipeOrProduct": "Choose a recipe or a product (one of them).",
     "comboUsesComponents": "A combo uses its items, not a recipe or product.",
-    "secretKeyMode": "The key does not match the mode (sk_test_ for test, sk_live_ for live)."
+    "secretKeyMode": "The key does not match the mode (sk_test_ for test, sk_live_ for live).",
+    "discountAndCoupon": "Use either a coupon or a manual discount, not both."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -473,7 +475,11 @@
     "PAYMENT_PROVIDER_MISSING": "Set up online payments first.",
     "PAYMENT_PROVIDER_FAILED": "The payment provider did not accept the request (status {status}).",
     "PAYMENT_AMOUNT_DIFFERS": "The provider reports another amount; check the payment in Moyasar's dashboard.",
-    "PAYMENT_LINK_DONE": "This QR is no longer open."
+    "PAYMENT_LINK_DONE": "This QR is no longer open.",
+    "COUPON_UNKNOWN": "This coupon is not valid.",
+    "COUPON_EXPIRED": "This coupon is not valid today.",
+    "COUPON_USED_UP": "This coupon has been used up.",
+    "COUPON_NOTHING_OFF": "This coupon takes nothing off this order."
   },
   "notFound": {
     "title": "Page not found",
@@ -692,7 +698,8 @@
       "pos.manage": "Set up registers",
       "pos.view": "See point-of-sale orders and shift reports",
       "pos.tables": "Serve tables: open checks, add items, send to the kitchen",
-      "pos.kitchen": "Kitchen screens: see tickets and bump them"
+      "pos.kitchen": "Kitchen screens: see tickets and bump them",
+      "pos.discount": "Give discounts on orders"
     }
   },
   "audit": {
@@ -2922,7 +2929,29 @@
     "qrCheckNow": "Check now",
     "qrCancel": "Cancel QR",
     "qrPaid": "Paid by QR — recorded on the check.",
-    "qrNotPaid": "The QR payment did not go through; take payment another way."
+    "qrNotPaid": "The QR payment did not go through; take payment another way.",
+    "discount": "Discount",
+    "couponCode": "Coupon code",
+    "applyCoupon": "Apply",
+    "manualDiscount": "Manual discount",
+    "discountKind": "Type",
+    "discountKinds": {
+      "PERCENT": "Percent off",
+      "AMOUNT": "Amount off"
+    },
+    "discountValue": "Value",
+    "discountReason": "Reason",
+    "applyDiscount": "Apply discount",
+    "discountInvalid": "Enter a value above zero (at most 100 for a percentage).",
+    "discountNeedsReason": "Give a reason for the discount.",
+    "couponApplied": "Coupon {code}",
+    "discountApplied": "Discount: {reason}",
+    "removeDiscount": "Remove",
+    "promotions": "Promotions",
+    "promotionsChanged": "A promotion started or ended; check the new total and take the payment again.",
+    "nothingToPayComplete": "Complete (nothing to pay)",
+    "promotionTag": "{name} −{percent} %",
+    "orderDiscounts": "Order discounts"
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
@@ -3028,5 +3057,48 @@
     "secretKeyHint": "From Moyasar's dashboard (Settings → API keys): sk_test_… or sk_live_…. Stored encrypted and never shown again.",
     "notSet": "Not set up — pay by QR is not offered.",
     "savedAt": "Key saved {date}."
+  },
+  "promotions": {
+    "title": "Promotions and coupons",
+    "intro": "Promotions take a percentage off chosen items or categories at set times; coupons take a discount off the whole order. The till and checks apply them; a promotion cannot be edited once created (orders on tills may already use it), only archived.",
+    "promotions": "Promotions",
+    "none": "No promotions yet.",
+    "name": "Name",
+    "percent": "Percent off",
+    "appliesTo": "Applies to",
+    "when": "When",
+    "archived": "Archived",
+    "ended": "Ended",
+    "active": "Active",
+    "archive": "Archive",
+    "archiveConfirm": "Archive this promotion? Tills stop applying it.",
+    "archiveCouponConfirm": "Archive this coupon? It can no longer be used.",
+    "add": "Add promotion",
+    "coupons": "Coupons",
+    "noCoupons": "No coupons yet.",
+    "code": "Code",
+    "codeHint": "3 to 30 letters, digits or dashes.",
+    "uses": "Uses",
+    "addCoupon": "Add coupon",
+    "validFrom": "From",
+    "validTo": "Until",
+    "startTime": "From time",
+    "endTime": "Until time",
+    "timeHint": "HH:MM at the branch; an end before the start runs past midnight.",
+    "categories": "Menu categories",
+    "items": "Menu items",
+    "channels": "Channels",
+    "weekdays": "Days",
+    "weekdayNames": {
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday",
+      "7": "Sunday"
+    },
+    "emptyMeansAll": "No channel or day ticked means every channel or every day. When several promotions fit an item, the highest percentage applies.",
+    "maxUses": "Maximum uses"
   }
 }

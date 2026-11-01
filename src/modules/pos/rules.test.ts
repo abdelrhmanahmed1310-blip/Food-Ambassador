@@ -49,7 +49,15 @@ describe("POS amounts (ADR-059)", () => {
     expect(
       checkPayments(d("115"), [{ method: "CARD", amount: d("115"), tendered: d("120") }]).problems,
     ).toEqual(["PAYMENT_CHANGE_ON_CARD"]);
-    expect(checkPayments(d("0"), []).problems).toContain("PAYMENT_EMPTY");
+    expect(checkPayments(d("10"), []).problems).toContain("PAYMENT_EMPTY");
+    expect(checkPayments(d("10"), [{ method: "CASH", amount: d("0") }]).problems).toContain(
+      "PAYMENT_EMPTY",
+    );
+    // An order discounted to nothing takes no payment (ADR-067), and no zero payment.
+    expect(checkPayments(d("0"), []).problems).toEqual([]);
+    expect(checkPayments(d("0"), [{ method: "CASH", amount: d("0") }]).problems).toContain(
+      "PAYMENT_EMPTY",
+    );
   });
 
   it("expects float + cash sales − cash refunds + pay-ins − pay-outs in the drawer", () => {

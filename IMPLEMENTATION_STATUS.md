@@ -1,23 +1,58 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS3b pay by QR — Q-15 decided for Saudi Arabia)
+Last updated: 2026-11-01 (POS5a discounts, promotions and coupons)
 
 ## Summary
 
-| Milestone                     | Status                                                                                                                                                                                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                                    |
-| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                                    |
-| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                                    |
-| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                            |
-| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                              |
-| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                                   |
-| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                                 |
-| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                                     |
-| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA          |
-| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                |
-| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                           |
-| POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa) |
+| Milestone                     | Status                                                                                                                                                                                                                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                                                              |
+| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                                                              |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                                                              |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                                                      |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                                                        |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                                                             |
+| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                                                           |
+| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                                                               |
+| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA                                    |
+| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                          |
+| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                     |
+| POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts** done |
+
+## POS5a — Discounts, promotions and coupons (delivered)
+
+Rules: DECISIONS.md ADR-067.
+
+| Area             | What works                                                                                                                    | Where                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Promotions       | % off items or categories by channel, weekday, hours (past midnight too) and dates; best one wins; archived, never edited     | `/pos/promotions`, `pos/promotions.ts` |
+| Coupons          | Code, % or amount, dates, maximum uses; checked online on the till or check, use counted in the order's transaction           | `/pos/promotions`, till, check screen  |
+| Manual discounts | % or amount off the order with a reason; needs `pos.discount` (admins, operations and branch managers)                        | till, check screen                     |
+| Pricing          | Promotion, then the order discount spread over the lines; VAT on the discounted amount; same rules on the till and the server | `pos/discounts.ts`                     |
+| Offline          | Promotions as loaded on the till (`menuAsOf`), at the time each item was ordered (checks: when the item was added)            | `recordOrderInTx`                      |
+| Records          | Per line discount and promotion, per order promotions, order discount, reason, coupon; receipt, order page, X/Z report        | receipt, order page, shift report      |
+| Nothing to pay   | An order discounted to nothing is completed without a payment                                                                 | till                                   |
+
+Checks: `pnpm check` pass (unit 44 files / 240 tests; new: promotion
+matching, discount spreading and VAT, the local time at the branch, and
+payments for an order discounted to nothing — the old rule that an order
+always needs a payment was changed on purpose for 100 % discounts and its
+test updated to the new rule); `pnpm test:integration` 46 files / 293 tests
+pass (12 new: promotion and VAT, a till showing the undiscounted total
+refused, days/hours/best promotion, offline orders priced with the
+promotions the till had, promotions immutable, promotions on a check paid
+later, manual discount needs `pos.discount` and a reason and is spread,
+refund of a discounted line, discount capped at the order and no payment,
+shift report, coupon used up, unknown/future/archived/duplicate coupons,
+coupon and manual discount together refused, other organizations cannot
+see or use promotions and coupons — RLS included); `pnpm test:e2e`
+51 tests pass (new: promotion, coupon, coupon used up, 100 % manual discount,
+receipt).
+
+Limitations: one promotion per item (no stacking, no "buy X get Y" or
+bundle prices yet); coupons need the till online when applied; pay by QR
+takes no order discount; discounts are not yet in the food cost and sales
+reports beyond the shift report.
 
 ## POS3b — Pay by QR with Moyasar (built; Moyasar validation pending)
 
