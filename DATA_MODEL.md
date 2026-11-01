@@ -943,3 +943,21 @@ row-level security.
   (`attachment_id` PK, `data` BYTEA; a trigger checks the size). Both have
   row-level security.
 - **document_sequences**: (organization_id, document_type, year) PK, next_value.
+
+## 12. Point of sale (POS1a, ADR-058)
+
+Migration `20261120090000_pos1a_menu`; all tables have row-level security.
+
+- **menu_categories**: names, `sort_order`, `archived_at`.
+- **menu_items**: `code` (UQ per organization), names, description,
+  category, `kind` ITEM | COMBO, `recipe_id` (a dish) _or_ `product_id` with
+  `product_quantity` for items, neither for combos (CHECK), `tax_code_id`,
+  `sort_order`, `archived_at`.
+- **menu_item_prices** (append-only): item, `channel` DINE_IN | TAKEAWAY |
+  DELIVERY, `branch_id` (null = all branches), `price` ≥ 0, `includes_tax`,
+  `effective_from`; UQ (item, channel, branch, date) NULLS NOT DISTINCT.
+- **modifier_groups** (`min_select` ≤ `max_select` ≤ 20) and
+  **modifier_options** (`price_delta`, optional recipe _or_ product with
+  `quantity`); **menu_item_modifier_groups** links them to items.
+- **combo_components** (combo, component item, quantity > 0; not itself).
+- **menu_item_unavailable**: (item, branch) where it is not offered.

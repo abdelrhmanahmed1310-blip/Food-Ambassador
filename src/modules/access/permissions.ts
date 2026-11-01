@@ -55,6 +55,8 @@ export const PERMISSIONS = [
   "b2b.manage",
   "integrations.manage",
   "fx.manage",
+  "menu.view",
+  "menu.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -99,6 +101,7 @@ export const ORGANIZATION_READ_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "catalog.view",
   "suppliers.view",
   "recipes.view",
+  "menu.view",
 ]);
 
 export function isPermission(value: string): value is Permission {
@@ -156,6 +159,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "menu.view",
+      "menu.manage",
       ...VIEW_SITES,
       "warehouses.manage",
       "members.view",
@@ -267,6 +272,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
     permissions: [
+      "menu.view",
       ...VIEW_SITES,
       "audit.view",
       ...VIEW_STOCK,
@@ -292,6 +298,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "menu.view",
       ...VIEW_SITES,
       "branches.manage",
       "warehouses.manage",
@@ -328,6 +335,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Read-only Analyst",
     description: "Read-only access to operational data.",
     permissions: [
+      "menu.view",
       ...VIEW_SITES,
       ...VIEW_STOCK,
       "inventory.valuation.view",

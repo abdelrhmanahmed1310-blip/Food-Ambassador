@@ -155,6 +155,14 @@ model Organization {
   attachments            Attachment[]
   fxRevaluations         FxRevaluation[]
   fxRevaluationLines     FxRevaluationLine[]
+  menuCategories         MenuCategory[]
+  menuItems              MenuItem[]
+  menuItemPrices         MenuItemPrice[]
+  modifierGroups         ModifierGroup[]
+  modifierOptions        ModifierOption[]
+  menuItemModifierGroups MenuItemModifierGroup[]
+  comboComponents        ComboComponent[]
+  menuItemUnavailable    MenuItemUnavailable[]
   stockCountApprovals    StockCountApproval[]
   purchaseOrderLines     PurchaseOrderLine[]
   goodsReceipts          GoodsReceipt[]
@@ -380,6 +388,9 @@ model Branch {
   safetyRecords     FoodSafetyRecord[]
   checklistRuns     ChecklistRun[]
   nonConformances   NonConformance[]
+
+  menuItemPrices      MenuItemPrice[]
+  menuItemUnavailable MenuItemUnavailable[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -623,6 +634,9 @@ model Product {
   productionOrders     ProductionOrder[]
   salesOrderLines      SalesOrderLine[]
   salesInvoiceLines    SalesInvoiceLine[]
+
+  menuItems       MenuItem[]
+  modifierOptions ModifierOption[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -1823,6 +1837,8 @@ model Recipe {
   labels           RecipeLabel[]
   outputProduct    Product?           @relation("RecipeOutput", fields: [organizationId, outputProductId], references: [organizationId, id], onDelete: Restrict)
   productionOrders ProductionOrder[]
+  menuItems        MenuItem[]
+  modifierOptions  ModifierOption[]
   taxCode          TaxCode?           @relation("RecipeTaxCode", fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
   salesLines       SalesLine[]
 
@@ -2450,6 +2466,8 @@ model TaxCode {
   settlements        SupplierSettlement[]
   salesOrderLines    SalesOrderLine[]
   salesInvoiceLines  SalesInvoiceLine[]
+
+  menuItems MenuItem[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3346,4 +3364,186 @@ model OutboundDelivery {
   @@unique([organizationId, connectorId, eventKey])
   @@index([status, nextAttemptAt])
   @@map("outbound_deliveries")
+}
+
+// ─── POS1a: menu (ADR-058) ───
+
+enum SalesChannel {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum MenuItemKind {
+  /// Sold as one thing: uses a recipe (dish) or a stock product.
+  ITEM
+  /// A set of other items sold together at its own price.
+  COMBO
+}
+
+model MenuCategory {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  nameAr         String?   @map("name_ar")
+  sortOrder      Int       @default(0) @map("sort_order")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  items        MenuItem[]
+
+  @@unique([organizationId, id])
+  @@map("menu_categories")
+}
+
+/// What a cashier sells. Uses a recipe or a product (ITEM), or other items (COMBO).
+model MenuItem {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  code            String
+  name            String
+  nameAr          String?      @map("name_ar")
+  description     String?
+  categoryId      String       @map("category_id") @db.Uuid
+  kind            MenuItemKind @default(ITEM)
+  recipeId        String?      @map("recipe_id") @db.Uuid
+  productId       String?      @map("product_id") @db.Uuid
+  /// Product items: quantity used per item sold, in the product's base unit.
+  productQuantity Decimal?     @map("product_quantity") @db.Decimal(20, 6)
+  /// Sales tax code; null = the recipe's, else the organization's default.
+  taxCodeId       String?      @map("tax_code_id") @db.Uuid
+  sortOrder       Int          @default(0) @map("sort_order")
+  archivedAt      DateTime?    @map("archived_at") @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  category       MenuCategory            @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  recipe         Recipe?                 @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+  product        Product?                @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  taxCode        TaxCode?                @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+  prices         MenuItemPrice[]
+  modifierGroups MenuItemModifierGroup[]
+  components     ComboComponent[]        @relation("Combo")
+  usedInCombos   ComboComponent[]        @relation("ComboComponent")
+  unavailable    MenuItemUnavailable[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@index([organizationId, categoryId])
+  @@map("menu_items")
+}
+
+/// Price of an item on a channel from a date; branch = null applies to all branches.
+/// Append-only: a change is a new row with a later date.
+model MenuItemPrice {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  itemId          String       @map("item_id") @db.Uuid
+  channel         SalesChannel
+  branchId        String?      @map("branch_id") @db.Uuid
+  price           Decimal      @db.Decimal(19, 4)
+  /// Entered including VAT (the organization's setting at the time).
+  includesTax     Boolean      @map("includes_tax")
+  effectiveFrom   DateTime     @map("effective_from") @db.Date
+  createdByUserId String       @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  item         MenuItem     @relation(fields: [organizationId, itemId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch?      @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, itemId])
+  @@map("menu_item_prices")
+}
+
+/// Choices added to an item (size, extras, without onion…).
+model ModifierGroup {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  nameAr         String?   @map("name_ar")
+  /// How many options must / may be chosen.
+  minSelect      Int       @default(0) @map("min_select")
+  maxSelect      Int       @default(1) @map("max_select")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  options      ModifierOption[]
+  items        MenuItemModifierGroup[]
+
+  @@unique([organizationId, id])
+  @@map("modifier_groups")
+}
+
+/// One option: a price change and, optionally, what it uses from stock.
+model ModifierOption {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  groupId        String    @map("group_id") @db.Uuid
+  name           String
+  nameAr         String?   @map("name_ar")
+  /// Added to the item price (may be 0 or negative), in the price's terms (incl./excl. VAT).
+  priceDelta     Decimal   @default(0) @map("price_delta") @db.Decimal(19, 4)
+  /// Uses this recipe or product per option chosen (quantity in recipe portions / product base unit).
+  recipeId       String?   @map("recipe_id") @db.Uuid
+  productId      String?   @map("product_id") @db.Uuid
+  quantity       Decimal?  @db.Decimal(20, 6)
+  sortOrder      Int       @default(0) @map("sort_order")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  group        ModifierGroup @relation(fields: [organizationId, groupId], references: [organizationId, id], onDelete: Restrict)
+  recipe       Recipe?       @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, groupId])
+  @@map("modifier_options")
+}
+
+model MenuItemModifierGroup {
+  organizationId String @map("organization_id") @db.Uuid
+  itemId         String @map("item_id") @db.Uuid
+  groupId        String @map("group_id") @db.Uuid
+  sortOrder      Int    @default(0) @map("sort_order")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  item         MenuItem      @relation(fields: [organizationId, itemId], references: [organizationId, id], onDelete: Restrict)
+  group        ModifierGroup @relation(fields: [organizationId, groupId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, itemId, groupId])
+  @@map("menu_item_modifier_groups")
+}
+
+/// The items a combo contains.
+model ComboComponent {
+  organizationId String  @map("organization_id") @db.Uuid
+  comboId        String  @map("combo_id") @db.Uuid
+  componentId    String  @map("component_id") @db.Uuid
+  quantity       Decimal @default(1) @db.Decimal(20, 6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  combo        MenuItem     @relation("Combo", fields: [organizationId, comboId], references: [organizationId, id], onDelete: Restrict)
+  component    MenuItem     @relation("ComboComponent", fields: [organizationId, componentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, comboId, componentId])
+  @@map("combo_components")
+}
+
+/// An item not offered (or sold out) at a branch.
+model MenuItemUnavailable {
+  organizationId String   @map("organization_id") @db.Uuid
+  itemId         String   @map("item_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  item         MenuItem     @relation(fields: [organizationId, itemId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, itemId, branchId])
+  @@map("menu_item_unavailable")
 }

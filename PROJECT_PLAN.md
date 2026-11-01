@@ -362,6 +362,13 @@ testing against the provider's real sandbox.
 
 ## POS1 — POS core
 
+Split (ADR-057): **POS1a menu ✅** (categories, items from recipes or
+products, combos, modifiers, channel and branch prices, availability);
+**POS1b selling** (shifts, cash drawer, orders, payments, receipts, voids and
+refunds, stock use); **POS1c cashier app** (installable on tablet and phone,
+offline queue, sync); **POS1d store apps** (Capacitor wrappers, needs
+developer accounts).
+
 Sellable menu (categories, items, modifiers, combos) linked to recipes;
 prices per branch and channel; order engine (dine-in, takeaway, delivery);
 cashier app as an installable web app with an offline order queue and

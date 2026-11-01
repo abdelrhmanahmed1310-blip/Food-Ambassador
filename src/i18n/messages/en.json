@@ -124,7 +124,8 @@
     "customers": "Customers",
     "integrations": "Integrations",
     "approvalSettings": "Approvals",
-    "exchangeRates": "Exchange rates"
+    "exchangeRates": "Exchange rates",
+    "menu": "Menu"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -203,7 +204,7 @@
     "rejectedExceedsReceived": "Rejected cannot be more than received.",
     "nothingSelected": "Select at least one line.",
     "limitRequired": "Set at least one limit.",
-    "maxBelowMin": "The maximum must not be below the minimum.",
+    "maxBelowMin": "\"At most\" cannot be below \"at least\".",
     "notForYesNo": "Yes/no items have no range.",
     "invalidAccountCode": "Use letters, digits, spaces, dots, dashes or slashes (up to 40).",
     "invalidPeriod": "The end date is before the start date.",
@@ -211,7 +212,9 @@
     "exceedsFat": "Cannot be more than the fat.",
     "exceedsCarbohydrate": "Cannot be more than the carbohydrate.",
     "over100g": "Cannot be more than 100 g in 100 g.",
-    "implausibleEnergy": "Higher than any food can have per 100 g."
+    "implausibleEnergy": "Higher than any food can have per 100 g.",
+    "chooseRecipeOrProduct": "Choose a recipe or a product (one of them).",
+    "comboUsesComponents": "A combo uses its items, not a recipe or product."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -408,7 +411,11 @@
     "NOTHING_TO_REVALUE": "There are no open foreign-currency balances on this date.",
     "REVALUATION_CANCELLED": "This revaluation is already cancelled.",
     "ATTACHMENT_INFECTED": "The file contains malware and was not stored.",
-    "ATTACHMENT_SCAN_FAILED": "The virus scanner is not available right now, so the file was not stored. Try again later."
+    "ATTACHMENT_SCAN_FAILED": "The virus scanner is not available right now, so the file was not stored. Try again later.",
+    "MENU_RECIPE_NOT_DISH": "Choose an active dish recipe.",
+    "MENU_KIND_FIXED": "An item cannot become a combo, or a combo an item.",
+    "MENU_NOT_COMBO": "Only combos contain other items.",
+    "MENU_COMBO_IN_COMBO": "A combo cannot contain another combo."
   },
   "notFound": {
     "title": "Page not found",
@@ -615,7 +622,9 @@
       "b2b.view": "View B2B customers, orders and invoices",
       "b2b.manage": "Manage B2B customers, orders, deliveries, invoices and receipts",
       "integrations.manage": "Set up integrations (webhooks and connectors)",
-      "fx.manage": "Maintain exchange rates"
+      "fx.manage": "Maintain exchange rates",
+      "menu.view": "See the menu and its prices",
+      "menu.manage": "Change the menu, modifiers and prices"
     }
   },
   "audit": {
@@ -2468,5 +2477,92 @@
       "PAYABLE": "Payables difference (+ = loss)",
       "RECEIVABLE": "Receivables difference (+ = gain)"
     }
+  },
+  "menu": {
+    "title": "Menu",
+    "intro": "What the point of sale sells: items that use a dish recipe or a stock product, combos of items, modifiers, and prices per channel (and branch when it differs).",
+    "modifiers": "Modifiers",
+    "modifiersIntro": "Choices added to items — sizes, extras, \"without…\". Each option can change the price and use stock.",
+    "newItem": "New menu item",
+    "noCategories": "No menu categories yet.",
+    "noCategoriesHint": "Add a category below, then its items.",
+    "noItems": "No items in this category.",
+    "addCategory": "Add category",
+    "name": "Name",
+    "nameAr": "Name (Arabic)",
+    "sortOrder": "Order",
+    "code": "Code",
+    "category": "Category",
+    "kind": "Type",
+    "kinds": {
+      "ITEM": "Item",
+      "COMBO": "Combo"
+    },
+    "uses": "Uses",
+    "usesRecipe": "Recipe",
+    "usesProduct": "Stock product",
+    "comboHint": "A combo is made of other items (add them after creating it).",
+    "recipe": "Dish recipe",
+    "recipeHint": "Selling it uses the recipe's ingredients from stock.",
+    "product": "Product",
+    "productQuantity": "Quantity per item sold",
+    "productQuantityHint": "In the product's base unit; 1 if empty.",
+    "taxCode": "VAT code",
+    "taxCodeHint": "Empty = the recipe's code, else the default sales code.",
+    "taxDefault": "Default",
+    "description": "Description",
+    "addPrice": "Add price",
+    "channel": "Channel",
+    "channels": {
+      "DINE_IN": "Dine-in",
+      "TAKEAWAY": "Takeaway",
+      "DELIVERY": "Delivery"
+    },
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "priceIn": "Price ({currency})",
+    "priceInclVat": "Including VAT (organization setting).",
+    "priceExclVat": "Excluding VAT (organization setting).",
+    "price": "Price",
+    "inclVat": "incl. VAT",
+    "exclVat": "excl. VAT",
+    "effectiveFrom": "From",
+    "prices": "Prices",
+    "noPrices": "No prices yet: the item is not sold on any channel.",
+    "attachGroup": "Add modifier group",
+    "modifierGroup": "Modifier group",
+    "modifierGroups": "Modifier groups",
+    "noGroups": "No modifier groups.",
+    "selectRange": "choose {min}–{max}",
+    "addComponent": "Add item",
+    "component": "Item",
+    "quantity": "Quantity",
+    "components": "Items in the combo",
+    "noComponents": "No items in this combo yet.",
+    "remove": "Remove",
+    "addGroup": "Add modifier group",
+    "minSelect": "At least",
+    "maxSelect": "At most",
+    "addOption": "Add option",
+    "optionName": "Option",
+    "priceDelta": "Price change",
+    "priceDeltaHint": "Added to the item price; negative to reduce.",
+    "optionQuantity": "Uses (quantity)",
+    "optionQuantityHint": "Recipe portions or product base units per option chosen.",
+    "noOptions": "No options yet.",
+    "usesStock": "uses {what} × {qty}",
+    "archived": "Archived",
+    "archive": "Archive",
+    "restore": "Restore",
+    "status": "Status",
+    "availability": "Branches",
+    "everywhere": "Offered at every branch.",
+    "notAt": "Not offered at",
+    "noBranches": "No branches yet.",
+    "offered": "Offered",
+    "notOffered": "Not offered",
+    "offer": "Offer here",
+    "stopOffering": "Stop offering here",
+    "edit": "Edit item"
   }
 }

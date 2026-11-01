@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-10-31 (open items closed: revaluation, foreign landed costs and B2B, B2B export, virus scanning)
+Last updated: 2026-11-01 (POS1a menu; Q-16 decided)
 
 ## Summary
 
@@ -17,7 +17,40 @@ Last updated: 2026-10-31 (open items closed: revaluation, foreign landed costs a
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | Not started (POS in scope since ADR-022)                                                                                                                                                                              |
+| POS1 – POS5                   | In progress — **POS1a menu** done; POS1b selling, POS1c cashier app, POS1d store apps next                                                                                                                            |
+
+## POS1a — Menu (delivered)
+
+Rules: DECISIONS.md ADR-057 (devices, Q-16), ADR-058 (menu).
+
+| Area         | What works                                                                                                        | Where                                 |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Categories   | Names in English and Arabic, order, archive                                                                       | `/menu`                               |
+| Items        | From a dish recipe or a stock product (quantity); combos of items, one level; VAT code; archive                   | `/menu/items/[id]`, `menu/service.ts` |
+| Prices       | Per channel, optionally per branch, dated and append-only; branch price wins; no price = not sold on that channel | item page, `menu/rules.ts`            |
+| Modifiers    | Groups with at-least / at-most; options with price change and optional stock use                                  | `/menu/modifiers`                     |
+| Availability | Item not offered at a branch; `menuForBranch` for the cashier app                                                 | item page                             |
+
+Checks: `pnpm check` pass (unit 38 files / 207 tests, 3 new: price
+resolution by channel, branch and date; modifier at-least / at-most and
+unknown options; price changes never below zero; build);
+`pnpm test:integration` 39 files / 248 tests pass (6 new: dish or product
+items, preparations and recipe-plus-product refused, unique codes, kind
+fixed, database CHECK; channel, branch and dated prices, duplicate date
+refused, history cannot be changed, no delivery price = not on the delivery
+menu; modifier limits and stock-using options; combos of items only, one
+level; withdrawn at one branch, archived everywhere; branch managers read
+only, warehouse staff no access, other organizations see nothing);
+`pnpm test:e2e` 42 tests pass (new: category, item from a product, dine-in
+and takeaway prices, modifier group attached, branch availability toggled).
+
+Found and fixed: the attachment purge test expected "nothing purged" on a
+file's last retention day, but the job runs for all organizations and the
+test database had older files from earlier runs; the test now checks that
+this file is kept that day and purged the next.
+
+Limitations: nothing is sold yet (POS1b); no images, time-based menus or
+happy-hour prices; store apps wait for developer accounts (ADR-057).
 
 ## Open items closed before POS (delivered)
 

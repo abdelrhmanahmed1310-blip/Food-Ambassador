@@ -195,9 +195,13 @@ describe("attachments (ADR-051, Q-08)", () => {
     const a = await uploadAttachment(ctx, po(), { name: "old.pdf", bytes: pdf("old") });
     const row = await getDb().attachment.findUniqueOrThrow({ where: { id: a.id } });
     const dayAfter = addDays(row.retainUntil.toISOString().slice(0, 10), 1);
+    // On its last retention day it is kept (the job runs for all organizations,
+    // so other files may be purged; this one must not be).
+    await purgeExpiredAttachments({ today: row.retainUntil.toISOString().slice(0, 10) });
     expect(
-      (await purgeExpiredAttachments({ today: row.retainUntil.toISOString().slice(0, 10) })).purged,
-    ).toBe(0);
+      (await getDb().attachment.findUniqueOrThrow({ where: { id: a.id } })).purgedAt,
+    ).toBeNull();
+    expect(await getDb().attachmentContent.count({ where: { attachmentId: a.id } })).toBe(1);
     const { purged } = await purgeExpiredAttachments({ today: dayAfter });
     expect(purged).toBeGreaterThanOrEqual(1);
     const after = await getDb().attachment.findUniqueOrThrow({ where: { id: a.id } });

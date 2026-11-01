@@ -1108,6 +1108,46 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   currencies (with `b2b.view`); each line is for one supplier or one
   customer (CHECK), and the run keeps payables and receivables totals apart.
 
+### ADR-057 POS devices: tablets, web app and mobile app from one codebase — Accepted (Q-16)
+
+- **Decision (Q-16):** the point of sale runs on **tablets, in the browser
+  (web app) and on phones (mobile app)**.
+- **How:** one responsive, installable web app (PWA) for the cashier screens:
+  tablet layout first, phone layout for waiters and small counters, and the
+  same pages in a desktop browser. It works offline with a local order queue
+  that syncs idempotently when the connection returns (POS1c).
+- **App stores:** iOS and Android apps are the same web app wrapped with
+  Capacitor (POS1d), so there is one codebase and no feature drift. Building
+  and publishing them needs Apple and Google developer accounts and a
+  macOS / Android build machine, which this environment does not have; the
+  wrapper is added and tested when those exist.
+- **Printing (default until told otherwise):** 80 mm receipts printed from
+  the browser print dialog; direct ESC/POS printing and cash drawers come with
+  the native wrapper or a print bridge, tested on real hardware first.
+
+### ADR-058 POS menu — Accepted (POS1a)
+
+- **Menu categories** and **menu items** (code, names, category, order, VAT
+  code). An **item** uses exactly one active **dish recipe** (its
+  ingredients are used from stock when sold) or one **stock product** (with a
+  quantity in its base unit, default 1). A **combo** is made of items (one
+  level: no combo in a combo) and has its own price. Database CHECKs hold
+  these rules too.
+- **Prices** per **channel** (dine-in, takeaway, delivery), optionally per
+  **branch**, from a date; append-only (trigger), entered including or
+  excluding VAT according to the organization's setting at the time. The
+  price in effect is the branch's own, else the all-branches one; no price on
+  a channel = not sold there. Kept apart from recipe prices, which drive the
+  food-cost report (ADR-032).
+- **Modifier groups** (choose at least / at most) with **options**: a price
+  change (may be negative; the line never goes below zero) and optionally a
+  recipe or product used per option (quantity required).
+- An item can be **withdrawn at a branch** (not offered or sold out) or
+  archived everywhere. `menuForBranch` gives what a branch sells on a channel
+  today, for the cashier app.
+- Permissions: `menu.view` (organization-wide read, like recipes) and
+  `menu.manage` (admins and operations managers).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -1127,23 +1167,23 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 
 ## Open questions
 
-| ID   | Question                                                                                                                                                                | Needed by                 |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                | M3                        |
-| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.             | M5 (labels), M8 (hosting) |
-| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                              | M8 (pilot)                |
-| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                            |
-| Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050).           |
-| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                 | M7                        |
-| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                | M1 (nice to know)         |
-| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051).                                                                                             |
-| Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                           |
-| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                | M2 (before pilot)         |
-| Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).            |
-| Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                 |
-| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                  | M3                        |
-| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                          | —                         |
-| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                          | POS3                      |
-| Q-16 | POS devices: which hardware (iPad/Android tablets, Windows terminals), receipt printers and cash drawers must be supported, and how long must the cashier work offline? | POS1                      |
-| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                           | POS4                      |
-| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                    | POS5                      |
+| ID   | Question                                                                                                                                                                                    | Needed by                 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                                    | M3                        |
+| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.                                 | M5 (labels), M8 (hosting) |
+| Q-03 | Hosting provider and region / data-residency requirements.                                                                                                                                  | M8 (pilot)                |
+| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                                                |
+| Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050).                               |
+| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                                     | M7                        |
+| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                                    | M1 (nice to know)         |
+| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051).                                                                                                                 |
+| Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                                               |
+| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                                    | M2 (before pilot)         |
+| Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).                                |
+| Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                                     |
+| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                                      | M3                        |
+| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                                              | —                         |
+| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                                              | POS3                      |
+| Q-16 | ~~POS devices~~ — **Decided:** tablets, web app and mobile app from one installable web app; store apps by wrapping it (ADR-057). Printers: 80 mm via the browser until hardware is chosen. |
+| Q-17 | First market for live POS sales (decides which e-invoicing system POS4 builds first: ZATCA, Egypt ETA, UAE). Related to Q-02.                                                               | POS4                      |
+| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                                        | POS5                      |
