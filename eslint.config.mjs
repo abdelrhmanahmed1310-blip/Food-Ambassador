@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "src/generated/**",
     "playwright-report/**",
     "test-results/**",
+    // The store apps are a separate project with their own tooling (ADR-061).
+    "mobile/**",
   ]),
 ]);
 

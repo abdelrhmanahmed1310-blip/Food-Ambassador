@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Food Ambassador</string>
+    <string name="title_activity_main">Food Ambassador</string>
+    <string name="package_name">com.example.foodambassador</string>
+    <string name="custom_url_scheme">com.example.foodambassador</string>
+</resources>

@@ -49,7 +49,8 @@
     "noLocation": "No location (warehouse level)",
     "allWarehouses": "All warehouses",
     "allStatuses": "All statuses",
-    "select": "Select…"
+    "select": "Select…",
+    "printInBrowser": "Printing is not available in the store app yet — open this page in the browser or the installed web app to print."
   },
   "locale": {
     "en": "English",

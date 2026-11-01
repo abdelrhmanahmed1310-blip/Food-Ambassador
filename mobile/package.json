@@ -1,0 +1,20 @@
+{
+  "name": "food-ambassador-mobile",
+  "private": true,
+  "description": "App Store and Google Play shells for the Food Ambassador web app (DECISIONS.md ADR-061).",
+  "scripts": {
+    "configure": "node scripts/configure.mjs",
+    "sync": "node scripts/configure.mjs && cap sync",
+    "assets": "capacitor-assets generate --android --ios --iconBackgroundColor '#1f6f43' --splashBackgroundColor '#f6f7f5'"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.0",
+    "typescript": "5.9.3"
+  }
+}
