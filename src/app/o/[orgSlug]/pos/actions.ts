@@ -86,6 +86,7 @@ export async function refundOrderAction(
       registerId: values.registerId,
       method: values.method,
       reason: values.reason,
+      ...(values.reference?.trim() ? { reference: values.reference.trim() } : {}),
       lines,
     });
   });

@@ -175,6 +175,8 @@ model Organization {
   zatcaSettings          ZatcaSettings?
   zatcaDevices           ZatcaDevice[]
   zatcaDocuments         ZatcaDocument[]
+  cardSettlementBatches  CardSettlementBatch[]
+  cardSettlementLines    CardSettlementLine[]
   posShifts              PosShift[]
   posCashMovements       PosCashMovement[]
   posOrders              PosOrder[]
@@ -3764,10 +3766,18 @@ model PosPayment {
   tendered       Decimal?         @db.Decimal(19, 4)
   change         Decimal?         @db.Decimal(19, 4)
   reference      String?
+  /// Card details from the terminal slip (POS3a); never the full card number.
+  cardScheme     CardScheme?      @map("card_scheme")
+  terminalId     String?          @map("terminal_id")
+  approvalCode   String?          @map("approval_code")
+  cardLast4      String?          @map("card_last4")
+  /// Tip added on the card, on top of the amount; not a sale, no VAT.
+  tip            Decimal          @default(0) @db.Decimal(19, 4)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  order        PosOrder     @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
+  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order           PosOrder             @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict)
+  settlementLines CardSettlementLine[]
 
   @@index([organizationId, orderId])
   @@map("pos_payments")
@@ -3787,6 +3797,8 @@ model PosRefund {
   /// [{ orderLineId, quantity, gross, tax }]
   lines           Json
   reason          String
+  /// Card refunds: the terminal's reference for the refund.
+  reference       String?
   createdByUserId String           @map("created_by_user_id") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -4165,4 +4177,58 @@ model ZatcaDocument {
   @@index([organizationId, orderId])
   @@index([status, nextAttemptAt])
   @@map("zatca_documents")
+}
+
+enum CardScheme {
+  MADA
+  VISA
+  MASTERCARD
+  AMEX
+  OTHER
+}
+
+enum SettlementMatch {
+  MATCHED
+  AMOUNT_MISMATCH
+  UNMATCHED
+}
+
+/// An acquirer settlement file imported for reconciliation (POS3a, ADR-065).
+model CardSettlementBatch {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  fileName         String   @map("file_name")
+  sha256           String
+  lineCount        Int      @map("line_count")
+  importedByUserId String   @map("imported_by_user_id") @db.Uuid
+  importedAt       DateTime @default(now()) @map("imported_at") @db.Timestamptz(3)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  lines        CardSettlementLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, sha256])
+  @@map("card_settlement_batches")
+}
+
+/// One settled card transaction, matched to the POS card payment it pays out.
+model CardSettlementLine {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  batchId         String          @map("batch_id") @db.Uuid
+  transactionDate DateTime        @map("transaction_date") @db.Date
+  terminalId      String?         @map("terminal_id")
+  approvalCode    String          @map("approval_code")
+  /// Charged to the card (sale share plus tip).
+  amount          Decimal         @db.Decimal(19, 4)
+  fee             Decimal         @default(0) @db.Decimal(19, 4)
+  paymentId       String?         @map("payment_id") @db.Uuid
+  match           SettlementMatch
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  batch        CardSettlementBatch @relation(fields: [organizationId, batchId], references: [organizationId, id], onDelete: Restrict)
+  payment      PosPayment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, transactionDate])
+  @@map("card_settlement_lines")
 }

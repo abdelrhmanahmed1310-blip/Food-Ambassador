@@ -134,6 +134,24 @@ export default async function OrderPage({
                       {t("pos.tendered")} {m(p.tendered)} · {t("pos.change")} {m(p.change ?? 0)}
                     </span>
                   ) : null}
+                  {p.method === "CARD" && (p.cardScheme || p.approvalCode || p.cardLast4) ? (
+                    <span className="text-muted" data-testid="card-details">
+                      {" · "}
+                      {[
+                        p.cardScheme ? t(`pos.cardSchemes.${p.cardScheme}`) : null,
+                        p.cardLast4 ? `•••• ${p.cardLast4}` : null,
+                        p.approvalCode ? `${t("pos.approvalCode")} ${p.approvalCode}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  ) : null}
+                  {p.tip.gt(0) ? (
+                    <span className="text-muted">
+                      {" · "}
+                      {t("pos.tip")} {m(p.tip)}
+                    </span>
+                  ) : null}
                 </span>
                 {m(p.amount)}
               </li>
@@ -142,7 +160,8 @@ export default async function OrderPage({
               <li key={r.id} className="flex justify-between gap-2 py-2">
                 <span>
                   <span className="ltr-value font-mono">{r.number}</span> ·{" "}
-                  {t(`pos.methods.${r.method}`)} · {r.reason}
+                  {t(`pos.methods.${r.method}`)}
+                  {r.reference ? ` (${r.reference})` : ""} · {r.reason}
                 </span>
                 <span className="text-danger">−{m(r.amount)}</span>
               </li>

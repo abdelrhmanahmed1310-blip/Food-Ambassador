@@ -132,7 +132,8 @@
     "posShortfalls": "نواقص المخزون",
     "posFloor": "مخطط الصالة",
     "posKitchen": "شاشات المطبخ",
-    "zatca": "الفوترة الإلكترونية"
+    "zatca": "الفوترة الإلكترونية",
+    "posSettlements": "تسويات البطاقات"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -462,7 +463,11 @@
     "ZATCA_NEEDS_SAR": "الفوترة الإلكترونية لهيئة الزكاة للمنشآت التي عملتها الأساسية الريال السعودي.",
     "ZATCA_DEVICE_EXISTS": "نقطة البيع هذه مربوطة بالفعل.",
     "ZATCA_SETUP_INCOMPLETE": "سجّل في ضريبة القيمة المضافة في السعودية وأكمل بيانات الفوترة الإلكترونية أولًا.",
-    "ZATCA_ONBOARDING_FAILED": "رفضت الهيئة {step} (الحالة {status}). تحقق من الرمز والبيانات ثم أعد المحاولة."
+    "ZATCA_ONBOARDING_FAILED": "رفضت الهيئة {step} (الحالة {status}). تحقق من الرمز والبيانات ثم أعد المحاولة.",
+    "PAYMENT_CARD_DETAILS_ON_CASH": "بيانات البطاقة والبقشيش للدفع بالبطاقة فقط.",
+    "SETTLEMENT_FILE_TOO_LARGE": "حجم الملف أكبر من 2 ميجابايت.",
+    "SETTLEMENT_FILE_INVALID": "في ملف التسوية خطأ في السطر {line} ({column}).",
+    "SETTLEMENT_FILE_EMPTY": "الملف لا يحتوي على أسطر."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -2888,7 +2893,22 @@
     "targetMinutes": "الدقائق المستهدفة",
     "targetMinutesHint": "تنبّه الشاشة عند 75 % وتعلّم التذكرة متأخرة عند الهدف.",
     "voidedTag": "ملغى",
-    "waiting": "الانتظار"
+    "waiting": "الانتظار",
+    "cardDetails": "بيانات البطاقة من الإيصال (اختياري)",
+    "cardScheme": "البطاقة",
+    "cardSchemes": {
+      "MADA": "مدى",
+      "VISA": "فيزا",
+      "MASTERCARD": "ماستركارد",
+      "AMEX": "أمريكان إكسبريس",
+      "OTHER": "أخرى"
+    },
+    "approvalCode": "رمز الموافقة",
+    "cardLast4": "آخر 4 أرقام",
+    "tip": "البقشيش",
+    "cardTips": "بقشيش البطاقات (ليس مبيعات)",
+    "cardRefundReference": "مرجع استرداد البطاقة",
+    "cardRefundReferenceHint": "من الجهاز، لاسترداد البطاقات."
   },
   "zatca": {
     "title": "الفوترة الإلكترونية (هيئة الزكاة)",
@@ -2949,5 +2969,35 @@
     },
     "attempts": "({count} محاولات)",
     "reportResult": "بُلّغ {reported}، رُفض {rejected}، لإعادة المحاولة {retrying}."
+  },
+  "settlements": {
+    "title": "تسويات البطاقات",
+    "intro": "مبيعات البطاقات مقابل ما دفعه البنك المحصّل: استورد ملف التسوية وتُطابق كل عملية مسوّاة مع دفعة البطاقة التي تخصها، برمز الموافقة والمبلغ.",
+    "summary": "الفترة",
+    "cardSales": "مبيعات البطاقات (مع البقشيش)",
+    "settled": "المسوّى",
+    "fees": "الرسوم",
+    "matched": "مطابق",
+    "unsettledCount": "دفعات بطاقة غير مسوّاة",
+    "differences": "الفروقات",
+    "date": "التاريخ",
+    "settledAmount": "المسوّى",
+    "saleAmount": "البيع",
+    "result": "النتيجة",
+    "matches": {
+      "MATCHED": "مطابق",
+      "AMOUNT_MISMATCH": "مبلغ مختلف",
+      "UNMATCHED": "لا يوجد بيع"
+    },
+    "unsettled": "دفعات بطاقة لم تُسوَّ بعد",
+    "allSettled": "كل دفعات البطاقة في الفترة مسوّاة.",
+    "noApprovalCode": "بلا رمز موافقة",
+    "overdue": "أكثر من {days} أيام",
+    "import": "استيراد ملف تسوية",
+    "file": "ملف التسوية (CSV)",
+    "fileHint": "الأعمدة: date (YYYY-MM-DD)، approval_code، amount؛ اختياريًا terminal_id، fee. حتى 2 ميجابايت.",
+    "providerNote": "يعمل مع أي بنك محصّل يصدّر التسويات؛ الربط المباشر بمزوّد الدفع يأتي مع اختياره (Q-15).",
+    "imported": "استُورد {lines} سطر: {matched} مطابق، {mismatched} بمبلغ مختلف، {unmatched} بلا بيع.",
+    "lines": "{count, plural, one {# سطر} other {# أسطر}}"
   }
 }

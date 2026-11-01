@@ -53,7 +53,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M10  | Integrations                | M7                               | Framework complete (connectors open)                                                                                     |
 | POS1 | Core                        | M4                               | ✅ Complete — POS1a menu, POS1b selling, POS1c cashier app, POS1d store app projects (publishing: Q-19)                  |
 | POS2 | Floor & kitchen             | POS1                             | ✅ Complete — POS2a floor and tables, POS2b kitchen display                                                              |
-| POS3 | Payments                    | POS1, Q-15                       | Planned                                                                                                                  |
+| POS3 | Payments                    | POS1, Q-15                       | In progress — POS3a card details, tips and settlement reconciliation ✅; POS3b terminal/gateway connection waits on Q-15 |
 | POS4 | Tax & e-invoicing           | POS1, Q-17 (Saudi Arabia)        | In progress — POS4a ZATCA simplified documents built (sandbox validation pending); POS4b standard invoices and clearance |
 | POS5 | Customer channels           | POS1–POS4                        | Planned                                                                                                                  |
 

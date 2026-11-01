@@ -1056,3 +1056,18 @@ Migration `20261124090000_pos4a_zatca`; all tables have row-level security.
   REPORTED_WITH_WARNINGS | REJECTED, `attempts`, `next_attempt_at`,
   `response` (ZATCA's answer), `reported_at`. Only the reporting fields can
   change (trigger); rows cannot be deleted.
+
+### Card payments and settlements (POS3a, ADR-065)
+
+Migration `20261125090000_pos3a_payments`; new tables have row-level security.
+
+- **pos_payments** gains `card_scheme` (MADA | VISA | MASTERCARD | AMEX |
+  OTHER), `terminal_id`, `approval_code` (1–12 letters or digits),
+  `card_last4` (exactly 4 digits) and `tip` ≥ 0 — all only on card
+  payments (CHECK). **pos_refunds** gains `reference`.
+- **card_settlement_batches**: imported settlement files — file name,
+  `sha256` (UQ per organization), line count, imported by and at.
+- **card_settlement_lines**: batch, `transaction_date`, `terminal_id`,
+  `approval_code`, `amount` > 0, `fee` ≥ 0, `payment_id` and `match`
+  MATCHED | AMOUNT_MISMATCH | UNMATCHED (UNMATCHED ⇔ no payment); one line
+  per payment (partial unique index). Insert-only.

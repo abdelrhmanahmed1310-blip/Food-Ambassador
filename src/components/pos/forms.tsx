@@ -182,6 +182,13 @@ export function RefundForm({
           required
         />
         <TextField name="reason" label={t("pos.reason")} required />
+        <TextField
+          name="reference"
+          label={t("pos.cardRefundReference")}
+          hint={t("pos.cardRefundReferenceHint")}
+          dir="ltr"
+          optionalLabel={t("common.optional")}
+        />
       </div>
     </ActionForm>
   );

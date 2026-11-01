@@ -270,7 +270,7 @@ async function shiftTotals(
     }),
     tx.posPayment.findMany({
       where: { organizationId: org, order: { shiftId: shift.id, status: "PAID" } },
-      select: { method: true, amount: true, order: { select: { createdAt: true } } },
+      select: { method: true, amount: true, tip: true, order: { select: { createdAt: true } } },
     }),
     tx.posRefund.findMany({
       where: { organizationId: org, shiftId: shift.id },
@@ -325,6 +325,8 @@ async function shiftTotals(
     ),
     cash,
     card,
+    /** Card tips: owed to staff, not sales (ADR-065). */
+    tips: sum(payments, (p) => p.tip),
     refunds: { count: refunds.length, amount: sum(refunds, (r) => r.amount) },
     payIns,
     payOuts,
@@ -450,6 +452,22 @@ export const orderSchema = z.object({
         amount: positiveMoney,
         tendered: positiveMoney.optional(),
         reference: optionalText(60),
+        /** From the card terminal's slip (POS3a); only the last 4 digits of the card. */
+        cardScheme: z
+          .enum(["MADA", "VISA", "MASTERCARD", "AMEX", "OTHER"], { error: "invalidOption" })
+          .optional(),
+        terminalId: optionalText(20),
+        approvalCode: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9]{1,12}$/, { error: "invalid" })
+          .optional(),
+        cardLast4: z
+          .string()
+          .regex(/^\d{4}$/, { error: "invalid" })
+          .optional(),
+        /** Tip charged on the card on top of the amount: not a sale, no VAT. */
+        tip: money.optional(),
       }),
     )
     .min(1, { error: "required" })
@@ -842,7 +860,21 @@ export async function recordOrderInTx(
     amount: toDecimal(p.amount),
     tendered: p.tendered === undefined ? undefined : toDecimal(p.tendered),
     reference: p.reference,
+    card: {
+      cardScheme: p.cardScheme ?? null,
+      terminalId: p.terminalId ?? null,
+      approvalCode: p.approvalCode ?? null,
+      cardLast4: p.cardLast4 ?? null,
+    },
+    tip: toDecimal(p.tip ?? "0"),
   }));
+  for (const [index, p] of payments.entries())
+    if (p.method === "CASH" && (p.tip.gt(0) || Object.values(p.card).some((v) => v !== null)))
+      throw businessRuleViolation(
+        "PAYMENT_CARD_DETAILS_ON_CASH",
+        "Card details and tips belong to card payments",
+        { field: `payments.${index}` },
+      );
   const pay = checkPayments(gross, payments);
   if (pay.problems.length > 0)
     throw businessRuleViolation(pay.problems[0], "The payments do not settle the order", {
@@ -913,6 +945,8 @@ export async function recordOrderInTx(
       tendered: p.tendered?.toFixed() ?? null,
       change: p.tendered ? p.tendered.minus(p.amount).toFixed() : null,
       reference: p.reference ?? null,
+      ...p.card,
+      tip: p.tip.toFixed(),
     })),
   });
   let cost = zero();
@@ -1056,6 +1090,8 @@ const refundSchema = z.object({
   registerId: uuidSchema,
   method: z.enum(["CASH", "CARD"], { error: "invalidOption" }),
   reason: requiredText(500),
+  /** Card refunds: the terminal's reference. */
+  reference: optionalText(40),
   lines: z
     .array(
       z.object({ orderLineId: uuidSchema, quantity: decimalString({ maxScale: 3, min: "0" }) }),
@@ -1148,6 +1184,7 @@ export async function refundOrder(ctx: TenantContext, orderId: string, rawInput:
           tax: p.tax.toFixed(),
         })),
         reason: input.reason,
+        reference: input.method === "CARD" ? (input.reference ?? null) : null,
         createdByUserId: ctx.userId,
       },
       select: { id: true, number: true },

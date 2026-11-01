@@ -89,6 +89,7 @@ export async function ShiftTotals({
             : []),
           { label: t("pos.cardSales"), value: m(totals.card.sales) },
           { label: t("pos.cardRefunds"), value: m(totals.card.refunds) },
+          { label: t("pos.cardTips"), value: m(totals.tips) },
         ]}
       />
     </div>

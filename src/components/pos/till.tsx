@@ -69,6 +69,9 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   const [choosing, setChoosing] = useState<Item | null>(null);
   const [paying, setPaying] = useState<"CASH" | "CARD" | null>(null);
   const [tendered, setTendered] = useState("");
+  // From the terminal slip (all optional): scheme, approval code, last 4 digits, tip.
+  const noCard = { scheme: "", approvalCode: "", last4: "", tip: "" };
+  const [card, setCard] = useState(noCard);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
   const [pending, startTransition] = useTransition();
@@ -136,6 +139,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
     setCart([]);
     setPaying(null);
     setTendered("");
+    setCard(noCard);
     setError(null);
     orderId.current = null;
   };
@@ -192,7 +196,14 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
       payments: [
         method === "CASH"
           ? { method, amount: total.toFixed(), tendered: tenderedValue!.toFixed() }
-          : { method, amount: total.toFixed() },
+          : {
+              method,
+              amount: total.toFixed(),
+              ...(card.scheme ? { cardScheme: card.scheme } : {}),
+              ...(card.approvalCode.trim() ? { approvalCode: card.approvalCode.trim() } : {}),
+              ...(card.last4 ? { cardLast4: card.last4 } : {}),
+              ...(/^\d+(\.\d+)?$/.test(card.tip) && Number(card.tip) > 0 ? { tip: card.tip } : {}),
+            },
       ],
       expectedTotal: total.toFixed(),
     };
@@ -506,6 +517,74 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
         {paying === "CARD" && cart.length > 0 ? (
           <div className="space-y-2">
             <p className="text-muted text-sm">{t("pos.cardHint")}</p>
+            <details className="text-sm">
+              <summary className="cursor-pointer">{t("pos.cardDetails")}</summary>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="card-scheme" className="mb-1 block">
+                    {t("pos.cardScheme")}
+                  </label>
+                  <select
+                    id="card-scheme"
+                    className={inputClass}
+                    value={card.scheme}
+                    onChange={(e) => setCard((c) => ({ ...c, scheme: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {(["MADA", "VISA", "MASTERCARD", "AMEX", "OTHER"] as const).map((x) => (
+                      <option key={x} value={x}>
+                        {t(`pos.cardSchemes.${x}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="card-approval" className="mb-1 block">
+                    {t("pos.approvalCode")}
+                  </label>
+                  <input
+                    id="card-approval"
+                    className={inputClass}
+                    dir="ltr"
+                    maxLength={12}
+                    value={card.approvalCode}
+                    onChange={(e) => setCard((c) => ({ ...c, approvalCode: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="card-last4" className="mb-1 block">
+                    {t("pos.cardLast4")}
+                  </label>
+                  <input
+                    id="card-last4"
+                    className={inputClass}
+                    dir="ltr"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={card.last4}
+                    onChange={(e) =>
+                      setCard((c) => ({
+                        ...c,
+                        last4: e.target.value.replace(/\D/g, "").slice(0, 4),
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label htmlFor="card-tip" className="mb-1 block">
+                    {t("pos.tip")}
+                  </label>
+                  <input
+                    id="card-tip"
+                    className={inputClass}
+                    dir="ltr"
+                    inputMode="decimal"
+                    value={card.tip}
+                    onChange={(e) => setCard((c) => ({ ...c, tip: e.target.value.trim() }))}
+                  />
+                </div>
+              </div>
+            </details>
             <div className="flex gap-2">
               <button
                 type="button"

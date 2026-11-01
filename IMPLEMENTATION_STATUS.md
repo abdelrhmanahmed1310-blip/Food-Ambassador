@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS4a ZATCA e-invoicing; Q-17 decided: Saudi Arabia)
+Last updated: 2026-11-01 (POS3a card payments and settlements; POS4a ZATCA)
 
 ## Summary
 
@@ -17,7 +17,42 @@ Last updated: 2026-11-01 (POS4a ZATCA e-invoicing; Q-17 decided: Saudi Arabia)
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | POS1 and POS2 complete. **POS4a** ZATCA simplified e-invoicing built — **sandbox validation pending** (host blocked in development). POS3 payments: provider-neutral part next; provider connector waits on Q-15      |
+| POS1 – POS5                   | POS1 and POS2 complete. **POS4a** ZATCA simplified e-invoicing built — sandbox validation pending. **POS3a** card details, tips and settlement reconciliation done; POS3b provider connection waits on Q-15           |
+
+## POS3a — Card payments and settlements (delivered)
+
+Rules: DECISIONS.md ADR-065. The terminal/gateway connection (POS3b) waits
+on Q-15.
+
+| Area         | What works                                                                                                                                            | Where                                    |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Card details | Scheme, terminal, approval code and last 4 digits from the slip on card payments (optional); never on cash                                            | till, order page, `pos_payments`         |
+| No card data | A database CHECK allows exactly 4 digits — a full card number cannot be stored                                                                        | migration                                |
+| Tips         | On card payments, outside sales and VAT; card tips on the X/Z report                                                                                  | till, shift report                       |
+| Card refunds | The terminal's refund reference                                                                                                                       | refund form                              |
+| Settlements  | Import the acquirer's CSV once; matched by approval code, terminal and amount within 2 days; differences, sales without a payout (after 3 days), fees | `/pos/settlements`, `pos/settlements.ts` |
+
+Checks: `pnpm check` pass (unit 42 files / 233 tests, 3 new: matching by
+code and amount with each payment used once, terminals and the two-day
+window, the settlement file and its errors); `pnpm test:integration` 44
+files / 278 tests pass (2 new: card details and tip stored, the tip not a
+sale, card details or tips on cash refused, a 16-digit "last 4" refused by
+the service and by the database, tips on the shift, the card refund
+reference; import refused for cashiers and for a bad file, matched /
+different amount / no such sale, the same file twice refused, period
+totals, fees and payments not settled, a payment paid out once, other
+organizations see nothing); `pnpm test:e2e` 49 tests pass (new: a card sale
+with scheme, approval code, last 4 and tip shown on the order; the
+acquirer's file uploaded and the payment matched, nothing left unsettled).
+
+Found and fixed: the till's card fields were labelled by wrapping the
+inputs, so the scheme list's accessible name included every option; they
+now have explicit labels.
+
+Limitations: no connection to a terminal or gateway yet (the amount is
+keyed on the terminal and confirmed on the till); split payments on a
+check do not take card details; one settlement file format (CSV with the
+documented columns) until the acquirer is chosen.
 
 ## POS4a — ZATCA e-invoicing, simplified documents (built; ZATCA validation pending)
 

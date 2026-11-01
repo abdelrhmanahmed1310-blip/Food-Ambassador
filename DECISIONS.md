@@ -1390,6 +1390,31 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   zero-rated or exempt items, and the API responses. Use the developer
   portal or simulation environment until then.
 
+### ADR-065 Card payments and settlement reconciliation — Accepted (POS3a)
+
+- POS3 is split: **POS3a** (this ADR) needs no payment provider; **POS3b**,
+  the terminal or gateway connection (payment sent to the terminal, result
+  back, provider refunds), waits on **Q-15** (provider and terminals per
+  market).
+- **Card details** may be recorded on a card payment from the terminal slip:
+  scheme (mada, Visa, Mastercard, American Express, other), terminal ID,
+  approval code and the **last 4 digits only** — a database CHECK refuses
+  anything else, so a full card number can never be stored (no card data in
+  scope of PCI DSS). None of these are allowed on cash payments.
+- **Tips** on card payments are charged on top of the order: they are not
+  sales and carry no VAT; the shift report shows them separately (owed to
+  staff). Cash tips are not recorded.
+- Card **refunds** may record the terminal's refund reference.
+- **Settlement reconciliation** (`payments.manage`): finance imports the
+  acquirer's settlement file (CSV: date, approval code, amount; optional
+  terminal and fee; up to 2 MB; the same file cannot be imported twice).
+  Each settled line is matched to an unsettled card payment with the same
+  approval code, the same terminal when both are known and within 2 days:
+  equal amount (sale share + tip) = matched, otherwise "different amount";
+  no candidate = "no such sale". A payment is paid out once (unique index).
+  The period report shows card sales, tips, settled amount, fees,
+  differences and card payments not settled (flagged after 3 days).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

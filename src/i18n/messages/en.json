@@ -132,7 +132,8 @@
     "posShortfalls": "Stock shortfalls",
     "posFloor": "Floor plan",
     "posKitchen": "Kitchen screens",
-    "zatca": "E-invoicing (ZATCA)"
+    "zatca": "E-invoicing (ZATCA)",
+    "posSettlements": "Card settlements"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -462,7 +463,11 @@
     "ZATCA_NEEDS_SAR": "ZATCA e-invoicing is for organizations whose base currency is the Saudi riyal.",
     "ZATCA_DEVICE_EXISTS": "This register is already onboarded.",
     "ZATCA_SETUP_INCOMPLETE": "Register for VAT in Saudi Arabia and complete the e-invoicing details first.",
-    "ZATCA_ONBOARDING_FAILED": "ZATCA refused the {step} (status {status}). Check the OTP and details, then try again."
+    "ZATCA_ONBOARDING_FAILED": "ZATCA refused the {step} (status {status}). Check the OTP and details, then try again.",
+    "PAYMENT_CARD_DETAILS_ON_CASH": "Card details and tips belong to card payments.",
+    "SETTLEMENT_FILE_TOO_LARGE": "The file is larger than 2 MB.",
+    "SETTLEMENT_FILE_INVALID": "The settlement file has an error on line {line} ({column}).",
+    "SETTLEMENT_FILE_EMPTY": "The file has no lines."
   },
   "notFound": {
     "title": "Page not found",
@@ -2888,7 +2893,22 @@
     "targetMinutes": "Target minutes",
     "targetMinutesHint": "The screen warns at 75 % and marks a ticket late at the target.",
     "voidedTag": "VOID",
-    "waiting": "Waiting"
+    "waiting": "Waiting",
+    "cardDetails": "Card details from the slip (optional)",
+    "cardScheme": "Card",
+    "cardSchemes": {
+      "MADA": "mada",
+      "VISA": "Visa",
+      "MASTERCARD": "Mastercard",
+      "AMEX": "American Express",
+      "OTHER": "Other"
+    },
+    "approvalCode": "Approval code",
+    "cardLast4": "Last 4 digits",
+    "tip": "Tip",
+    "cardTips": "Card tips (not sales)",
+    "cardRefundReference": "Card refund reference",
+    "cardRefundReferenceHint": "From the terminal, for card refunds."
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
@@ -2949,5 +2969,35 @@
     },
     "attempts": "({count} attempts)",
     "reportResult": "Reported {reported}, rejected {rejected}, to retry {retrying}."
+  },
+  "settlements": {
+    "title": "Card settlements",
+    "intro": "Card sales against what the acquirer paid out: import the acquirer's settlement file and each settled transaction is matched to the card payment it pays, by approval code and amount.",
+    "summary": "Period",
+    "cardSales": "Card sales (incl. tips)",
+    "settled": "Settled",
+    "fees": "Fees",
+    "matched": "Matched",
+    "unsettledCount": "Card payments not settled",
+    "differences": "Differences",
+    "date": "Date",
+    "settledAmount": "Settled",
+    "saleAmount": "Sale",
+    "result": "Result",
+    "matches": {
+      "MATCHED": "Matched",
+      "AMOUNT_MISMATCH": "Different amount",
+      "UNMATCHED": "No such sale"
+    },
+    "unsettled": "Card payments not settled yet",
+    "allSettled": "Every card payment in the period is settled.",
+    "noApprovalCode": "no approval code",
+    "overdue": "over {days} days",
+    "import": "Import a settlement file",
+    "file": "Settlement file (CSV)",
+    "fileHint": "Columns: date (YYYY-MM-DD), approval_code, amount; optional terminal_id, fee. Up to 2 MB.",
+    "providerNote": "Works with any acquirer that exports settlements; a direct connection to your payment provider comes with its selection (Q-15).",
+    "imported": "{lines} lines imported: {matched} matched, {mismatched} with a different amount, {unmatched} without a sale.",
+    "lines": "{count, plural, one {# line} other {# lines}}"
   }
 }

@@ -53,6 +53,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     pos.items.push({ href: `${base}/pos/kitchen`, label: t("posKitchen") });
   if (holdsAnyGrant(ctx.grants, "inventory.adjust"))
     pos.items.push({ href: `${base}/pos/shortfalls`, label: t("posShortfalls") });
+  if (hasPermission(ctx.grants, "payments.manage"))
+    pos.items.push({ href: `${base}/pos/settlements`, label: t("posSettlements") });
   const inventory: NavSection = { title: t("inventorySection"), items: [] };
   if (holdsAnyGrant(ctx.grants, "inventory.view")) {
     inventory.items.push(
