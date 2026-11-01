@@ -45,7 +45,8 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > point of sale has started: a menu (POS1a) and selling (POS1b) — registers,
 > shifts with cash counts, a cashier screen for tablet, phone and browser,
 > paid orders that use stock through recipes, voids, refunds, X/Z reports and
-> 80 mm receipts. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> 80 mm receipts — and an installable cashier app (POS1c) that keeps selling
+> without a connection and sends its queued orders when back online. See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

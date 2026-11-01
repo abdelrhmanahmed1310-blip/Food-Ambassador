@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ClearOfflinePages } from "@/components/pos/offline-support";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("common");
   return (
     <div className="flex flex-1 flex-col">
+      <ClearOfflinePages />
       <header className="flex items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="font-semibold">
           {t("appName")}

@@ -1,18 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { Decimal } from "@/lib/decimal";
 import { lineAmounts } from "@/modules/pos/rules";
 import type { TillData } from "@/modules/pos/service";
+import {
+  listOrders,
+  removeOrder,
+  saveOrder,
+  sendOrder,
+  syncPending,
+  type QueuedOrder,
+} from "./queue";
 
 type Channel = TillData["channels"][number]["channel"];
 type Item = TillData["channels"][number]["items"][number];
-type SubmitResult =
-  | { ok: true; id: string; number: string; gross: string; change: string; shortfalls: number }
-  | { ok: false; error: string };
+/** The last sale: recorded by the server, or kept on this device until it can be sent. */
+type Done =
+  | { queued: false; id: string; number: string; change: string; shortfalls: number }
+  | { queued: true; change: string };
+
+const SYNC_EVERY_MS = 15_000;
+const REFRESH_MENU_EVERY_MS = 5 * 60_000;
 
 interface CartLine {
   key: string;
@@ -27,21 +40,15 @@ const named = (x: { name: string; nameAr: string | null }, locale: string) =>
   (locale === "ar" && x.nameAr) || x.name;
 
 /**
- * The cashier screen (ADR-059). Prices, options and VAT come from the server
- * for today; the total shown is the one the server recomputes and checks. One
- * order id is kept per submission, so retrying after a lost response cannot
- * charge twice.
+ * The cashier screen (ADR-059, ADR-060). Prices, options and VAT come from
+ * the server; the total shown is the one the server recomputes and checks.
+ * Every paid order is saved on the device first and sent at once; without a
+ * connection it waits in the queue and is sent later, oldest first. The order
+ * id from the device makes every resend safe.
  */
-export function Till({
-  orgSlug,
-  data,
-  submit,
-}: {
-  orgSlug: string;
-  data: TillData;
-  submit: (payload: unknown) => Promise<SubmitResult>;
-}) {
+export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   const t = useTranslations();
+  const router = useRouter();
   const locale = useLocale();
   const money = useMemo(
     () =>
@@ -62,9 +69,53 @@ export function Till({
   const [paying, setPaying] = useState<"CASH" | "CARD" | null>(null);
   const [tendered, setTendered] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<Extract<SubmitResult, { ok: true }> | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
   const [pending, startTransition] = useTransition();
   const orderId = useRef<string | null>(null);
+  const [queue, setQueue] = useState<QueuedOrder[]>([]);
+  const [online, setOnline] = useState(true);
+  const [signedOut, setSignedOut] = useState(false);
+  const register = data.register.id;
+  const cashier = data.cashierUserId;
+
+  const reloadQueue = useCallback(async () => {
+    try {
+      setQueue(await listOrders(register, cashier));
+    } catch {
+      setQueue([]);
+    }
+  }, [register, cashier]);
+
+  const sync = useCallback(async () => {
+    try {
+      await syncPending(register, cashier, (s) => setSignedOut(s.signedOut));
+    } catch {
+      // Storage unavailable: nothing is queued on this device.
+    }
+    await reloadQueue();
+  }, [register, cashier, reloadQueue]);
+
+  // Send what is waiting now, every few seconds, and as soon as the connection is back.
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    const first = window.setTimeout(() => {
+      update();
+      void sync();
+    }, 0);
+    const timer = window.setInterval(() => void sync(), SYNC_EVERY_MS);
+    const back = () => {
+      update();
+      void sync();
+    };
+    window.addEventListener("online", back);
+    window.addEventListener("offline", update);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+      window.removeEventListener("online", back);
+      window.removeEventListener("offline", update);
+    };
+  }, [sync]);
 
   const amounts = cart.map((l) =>
     lineAmounts(
@@ -127,6 +178,10 @@ export function Till({
     const payload = {
       orderId: orderId.current,
       registerId: data.register.id,
+      shiftId: data.shift?.id,
+      menuAsOf: data.menuAsOf,
+      cashierUserId: data.cashierUserId,
+      orderedAt: new Date().toISOString(),
       channel,
       lines: cart.map((l) => ({
         itemId: l.item.id,
@@ -140,20 +195,54 @@ export function Till({
       ],
       expectedTotal: total.toFixed(),
     };
+    const queued: QueuedOrder = {
+      orderId: payload.orderId,
+      orgSlug,
+      registerId: data.register.id,
+      cashierUserId: data.cashierUserId,
+      payload,
+      total: total.toFixed(),
+      takenAt: payload.orderedAt,
+      status: "pending",
+      attempts: 0,
+    };
+    const changeGiven = method === "CASH" ? tenderedValue!.minus(total).toFixed() : "0";
     setError(null);
     startTransition(async () => {
+      let stored = true;
       try {
-        const r = await submit(payload);
-        if (r.ok) {
-          reset();
-          setDone(r);
-        } else setError(r.error);
+        await saveOrder(queued);
       } catch {
-        // Lost connection: the same order id is sent again on retry.
-        setError(t("pos.retry"));
+        stored = false; // No device storage (private window): send directly only.
       }
+      const r = await sendOrder(queued);
+      if (r.outcome === "recorded") {
+        if (stored) await removeOrder(queued.orderId);
+        reset();
+        setDone({ queued: false, ...r });
+      } else if (r.outcome === "refused") {
+        // Refused at once: nothing was recorded; the cashier corrects the order.
+        if (stored) await removeOrder(queued.orderId);
+        setError(r.error);
+      } else if (stored) {
+        reset();
+        setDone({ queued: true, change: changeGiven });
+        if (r.outcome === "signedOut") setSignedOut(true);
+      } else setError(t("pos.retry"));
+      await reloadQueue();
     });
   };
+
+  // Pick up price and menu changes while idle (the screen then prices with the new menu).
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (cart.length === 0 && navigator.onLine && !choosing) router.refresh();
+    }, REFRESH_MENU_EVERY_MS);
+    return () => window.clearInterval(timer);
+  }, [cart.length, choosing, router]);
+
+  const waiting = queue.filter((o) => o.status === "pending");
+  const refused = queue.filter((o) => o.status === "refused");
 
   if (!data.shift)
     return (
@@ -170,6 +259,23 @@ export function Till({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_24rem]">
+      <SyncStatus
+        online={online}
+        signedOut={signedOut}
+        waiting={waiting.length}
+        refused={refused}
+        fmt={fmt}
+        onRetry={async (o) => {
+          await saveOrder({ ...o, status: "pending", error: undefined });
+          await sync();
+        }}
+        onDiscard={async (o) => {
+          if (!window.confirm(t("pos.discardConfirm"))) return;
+          await removeOrder(o.orderId);
+          await reloadQueue();
+        }}
+        onSync={() => void sync()}
+      />
       <section aria-label={t("pos.items")} className="space-y-3">
         <div role="tablist" aria-label={t("pos.channel")} className="flex flex-wrap gap-2">
           {channels.map((c) => (
@@ -238,25 +344,31 @@ export function Till({
         <h2 className="text-lg font-semibold">{t("pos.order")}</h2>
         {done ? (
           <div role="status" className="border-success/40 bg-success-surface rounded-md border p-3">
-            <p className="font-medium">{t("pos.paid", { number: done.number })}</p>
+            <p className="font-medium">
+              {done.queued ? t("pos.savedOnDevice") : t("pos.paid", { number: done.number })}
+            </p>
             {new Decimal(done.change).gt(0) ? (
               <p className="text-2xl font-semibold">
                 {t("pos.giveChange")}{" "}
                 <span className="ltr-value tabular-nums">{fmt(new Decimal(done.change))}</span>
               </p>
             ) : null}
-            {done.shortfalls > 0 ? (
+            {!done.queued && done.shortfalls > 0 ? (
               <p className="bg-warning-surface rounded px-2 py-1 text-sm">
                 {t("pos.shortfallNote")}
               </p>
             ) : null}
-            <Link
-              href={`/o/${orgSlug}/pos/orders/${done.id}/receipt`}
-              target="_blank"
-              className="text-primary text-sm hover:underline"
-            >
-              {t("pos.printReceipt")}
-            </Link>
+            {done.queued ? (
+              <p className="text-muted text-sm">{t("pos.receiptAfterSync")}</p>
+            ) : (
+              <Link
+                href={`/o/${orgSlug}/pos/orders/${done.id}/receipt`}
+                target="_blank"
+                className="text-primary text-sm hover:underline"
+              >
+                {t("pos.printReceipt")}
+              </Link>
+            )}
           </div>
         ) : null}
         {cart.length === 0 ? (
@@ -537,6 +649,93 @@ function OptionsDialog({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Connection and queue state, and orders the server refused (with their reason). */
+function SyncStatus({
+  online,
+  signedOut,
+  waiting,
+  refused,
+  fmt,
+  onRetry,
+  onDiscard,
+  onSync,
+}: {
+  online: boolean;
+  signedOut: boolean;
+  waiting: number;
+  refused: QueuedOrder[];
+  fmt: (d: Decimal) => string;
+  onRetry: (o: QueuedOrder) => Promise<void>;
+  onDiscard: (o: QueuedOrder) => Promise<void>;
+  onSync: () => void;
+}) {
+  const t = useTranslations();
+  return (
+    <div className="space-y-2 lg:col-span-2" data-testid="sync-status">
+      <div role="status" className="flex flex-wrap items-center gap-2 text-sm">
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium ${
+            online ? "bg-success-surface text-success" : "bg-warning-surface"
+          }`}
+        >
+          {online ? t("pos.online") : t("pos.offline")}
+        </span>
+        {waiting > 0 ? (
+          <>
+            <span>{t("pos.waitingToSync", { count: waiting })}</span>
+            <button type="button" className="text-primary hover:underline" onClick={onSync}>
+              {t("pos.syncNow")}
+            </button>
+          </>
+        ) : (
+          <span className="text-muted">{t("pos.allSynced")}</span>
+        )}
+      </div>
+      {signedOut && waiting > 0 ? (
+        <p role="alert" className="bg-warning-surface rounded px-3 py-2 text-sm">
+          {t("pos.signInToSync")}
+        </p>
+      ) : null}
+      {refused.length > 0 ? (
+        <div role="alert" className="border-danger/40 bg-danger-surface rounded-md border p-3">
+          <p className="text-danger text-sm font-medium">
+            {t("pos.refusedOrders", { count: refused.length })}
+          </p>
+          <ul className="mt-2 space-y-2 text-sm">
+            {refused.map((o) => (
+              <li key={o.orderId} className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  <span className="ltr-value tabular-nums">{fmt(new Decimal(o.total))}</span>
+                  {" · "}
+                  <span className="ltr-value">{new Date(o.takenAt).toLocaleTimeString()}</span>
+                  {" · "}
+                  {o.error}
+                </span>
+                <span className="flex gap-2">
+                  <button
+                    type="button"
+                    className={buttonClass("secondary")}
+                    onClick={() => void onRetry(o)}
+                  >
+                    {t("pos.retrySend")}
+                  </button>
+                  <button
+                    type="button"
+                    className={buttonClass("danger")}
+                    onClick={() => void onDiscard(o)}
+                  >
+                    {t("pos.discard")}
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

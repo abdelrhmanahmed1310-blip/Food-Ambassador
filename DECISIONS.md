@@ -1204,6 +1204,56 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   `pos.sell` and `menu.view`; cashiers use the register's warehouse stock
   through `pos.sell` without being able to browse inventory.
 
+### ADR-060 Cashier app offline — Accepted (POS1c)
+
+- **Installable web app** (ADR-057): a web app manifest (standalone, icons
+  including a maskable one) and a service worker, so the app installs from
+  the browser on tablets, phones and desktops. Store apps remain POS1d.
+- **Service worker scope is deliberately small**: build files
+  (`/_next/static`, content-hashed) cache-first; the till page
+  (`/o/…/pos/registers/…/sell`) network-first with the last copy used when
+  offline; manifest and icons. Every other page and every API call goes to
+  the network as usual. Cached till pages hold the menu and register name,
+  never sales; they are deleted on the sign-in page (after sign-out).
+- **Every paid order is saved on the device first** (IndexedDB) and then
+  sent to `POST /o/<org>/pos/sync`; it leaves the device only when the
+  server has it (or answers that it already does). Without a connection the
+  cashier keeps selling; the screen shows online/offline, how many orders
+  wait, and sends them oldest first every 15 s, when the connection returns
+  or on "Send now". The device-generated order id makes every resend safe.
+- The sync endpoint is a route handler, not a Server Action, so queued orders
+  still send after a new version is deployed (and native apps can use it,
+  POS1d). It uses the session cookie and accepts only same-origin JSON
+  requests (Origin check and JSON content type) — a cross-site form can send
+  neither.
+- **Priced as the till saw it**: the device sends the time its menu was
+  loaded (`menuAsOf`); prices created after it, and items, options,
+  categories and modifier groups withdrawn after it, do not apply to that
+  order. The menu time must fall within the order's shift (not before it
+  opened, not after the order), so an old menu cannot be replayed to get old
+  prices. The till reloads its menu every 5 minutes while idle.
+- **Orders belong to the shift they were taken in**: the device sends its
+  shift. An order taken before the shift closed but sent after is still
+  recorded in that shift; the Z report keeps the expected cash recorded at
+  the close and lists "orders sent after closing" and their cash separately,
+  which explains the cash difference. An order timed after the close is
+  refused. The register page warns when the device still holds orders for
+  that register before the shift is closed.
+- **Only the person who took the order sends it**: queued orders carry the
+  cashier's user id; under another person's session they are not sent (the
+  server also refuses them) and wait for that cashier to sign in again. A
+  signed-out device keeps everything.
+- **Refused orders are never dropped silently**: an order refused on its
+  first send (nothing recorded) returns to the cashier with the reason, as
+  before. One refused later (e.g. sold offline after the shift was closed
+  elsewhere) is listed on the till with the reason, to retry or — after
+  confirmation — discard.
+- Not in POS1c: printing a receipt for an order still on the device (it can
+  be printed once sent); background sync while the app is closed; stock and
+  shortfalls are posted when the order reaches the server, not when it was
+  sold; tax rates are taken by date only (a rate added later for the same
+  day would apply).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

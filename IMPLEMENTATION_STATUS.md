@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS1b selling)
+Last updated: 2026-11-01 (POS1c cashier app)
 
 ## Summary
 
@@ -17,7 +17,49 @@ Last updated: 2026-11-01 (POS1b selling)
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | In progress — **POS1a menu** and **POS1b selling** done; POS1c installable cashier app with offline queue, POS1d store apps next                                                                                      |
+| POS1 – POS5                   | In progress — **POS1a menu**, **POS1b selling** and **POS1c installable cashier app with offline queue** done; POS1d store apps (needs developer accounts) next                                                       |
+
+## POS1c — Cashier app, offline (delivered)
+
+Rules: DECISIONS.md ADR-060 (offline), ADR-057 (devices).
+
+| Area            | What works                                                                                                                                                                        | Where                                     |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Install         | Web app manifest (standalone, icons incl. maskable, theme colour, Apple touch icon); installs from the browser on tablet, phone, desktop                                          | `app/manifest.ts`, `public/icons`         |
+| Offline loading | Service worker: build files cache-first, the till page network-first with the last copy offline; nothing else cached; cleared on sign-in page                                     | `public/sw.js`, `pos/offline-support.tsx` |
+| Order queue     | Every paid order saved in IndexedDB first, sent at once, kept until the server has it; sent oldest first every 15 s, on reconnect or "Send now"                                   | `pos/queue.ts`, till status bar           |
+| Sync endpoint   | `POST /o/<org>/pos/sync`: session cookie, same-origin JSON only, idempotent by order id; works across deployments                                                                 | `pos/sync/route.ts`                       |
+| Pricing         | Priced with the menu the till loaded (`menuAsOf`, within the shift); later prices and withdrawals do not apply; menu refreshed every 5 minutes when idle                          | `pos/service.ts`, `pos/rules.ts`          |
+| Late orders     | Orders taken before the close but sent after are kept in their shift; the Z report keeps the expected cash at close and lists them separately; register page warns before closing | `/pos/shifts/[id]`, `/pos/registers/[id]` |
+| Who sends       | Only the cashier who took an order sends it; another session leaves it waiting; refused orders listed with their reason to retry or discard                                       | till                                      |
+
+Checks: `pnpm check` pass (unit 39 files / 216 tests, 5 new: order and menu
+times within the shift including late sync, refused times, things archived
+after the menu time still on sale, what the device does with each sync
+response); `pnpm test:integration` 40 files / 259 tests pass (2 new: priced with the menu
+the till loaded despite a later price and a withdrawn item, current menu
+without it, a menu from before the shift refused, someone else's order
+refused, menu time in the audit; an order taken before the close recorded in
+the closed shift as late with its cash, expected cash at close unchanged,
+resend returns the same order, an order after the close refused, another
+register's shift not found); `pnpm test:e2e` 44 tests pass (new: manifest
+served; service worker controls the till; a card sale with the network off is
+kept on the device; the till reloads offline with the order still waiting;
+back online it is sent and appears in the shift; repeated 3× without a
+failure).
+
+Found and fixed: a POS1b test picked "any order" to check that amounts are
+fixed in the database; with device-generated ids it sometimes picked a
+voided one, where setting "voided" again changes nothing. It now picks a
+paid order; the database rule is unchanged.
+
+Limitations: no receipt for an order still on the device; no background
+sync while the app is closed (it resumes when the till is opened); stock is
+used when the order reaches the server; tax rates by date only; a device
+offline when the shift is closed elsewhere keeps selling into the closed
+shift and those orders are refused and listed on the till; one browser
+profile per device holds its own queue (clearing site data deletes unsent
+orders — the till warns via the waiting count). Store apps: POS1d.
 
 ## POS1b — Selling (delivered)
 

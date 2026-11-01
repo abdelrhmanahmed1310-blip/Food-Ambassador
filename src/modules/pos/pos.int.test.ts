@@ -11,6 +11,7 @@ import {
   createMenuCategory,
   createMenuItem,
   createModifierGroup,
+  setMenuItemArchived,
 } from "@/modules/menu/service";
 import { activateVersion, addIngredient, createRecipe } from "@/modules/recipes/recipes";
 import { createBranch } from "@/modules/sites/branches";
@@ -417,8 +418,9 @@ describe("access and integrity", () => {
   });
 
   it("keeps a paid order's amounts fixed in the database", async () => {
+    // A paid order (ids come from devices, so pick by status, not by id order).
     const o = await getDb().posOrder.findFirstOrThrow({
-      where: { organizationId: ctx.organizationId },
+      where: { organizationId: ctx.organizationId, status: "PAID" },
     });
     await expect(
       withTenantTx(ctx.organizationId, (tx) =>
@@ -430,5 +432,112 @@ describe("access and integrity", () => {
         tx.posOrder.update({ where: { id: o.id }, data: { status: "VOIDED" } }),
       ),
     ).rejects.toThrow(); // a void needs its reason
+  });
+});
+
+describe("orders queued on the device (ADR-060)", () => {
+  it("prices with the menu the till loaded, never one from before the shift", async () => {
+    const till = (
+      await createRegister(ctx, { branchId, warehouseId: kitchen, code: "TILL9", name: "Till 9" })
+    ).id;
+    const shift = await openShift(ctx, till, { openingFloat: "0" });
+    const menuAsOf = new Date().toISOString();
+    const base = () => ({
+      ...sale({ registerId: till, expectedTotal: "115" }),
+      shiftId: shift.id,
+      cashierUserId: ctx.userId,
+    });
+    // A new branch price and an archived item after the till loaded its menu.
+    await new Promise((r) => setTimeout(r, 20));
+    await addMenuItemPrice(ctx, burger, {
+      channel: "DINE_IN",
+      branchId,
+      price: "230",
+      effectiveFrom: businessDate(ctx.timeZone),
+    });
+    await setMenuItemArchived(ctx, cola, true);
+    const queued = await submitOrder(ctx, { ...base(), menuAsOf });
+    expect(queued.gross.toFixed()).toBe("115");
+    const withCola = await submitOrder(ctx, {
+      ...base(),
+      menuAsOf,
+      lines: [{ itemId: cola, quantity: "1", optionIds: [] }],
+      payments: [{ method: "CARD", amount: "11.5" }],
+      expectedTotal: "11.5",
+    });
+    expect(withCola.gross.toFixed()).toBe("11.5");
+    // Without the menu time the current menu applies: the new price, no cola.
+    await expectAppError(submitOrder(ctx, base()), "BUSINESS_RULE_VIOLATION");
+    await expectAppError(
+      submitOrder(ctx, {
+        ...base(),
+        lines: [{ itemId: cola, quantity: "1", optionIds: [] }],
+        payments: [{ method: "CARD", amount: "11.5" }],
+        expectedTotal: "11.5",
+      }),
+      "BUSINESS_RULE_VIOLATION",
+    );
+    // A menu time from before the shift opened is refused.
+    await expectAppError(
+      submitOrder(ctx, { ...base(), menuAsOf: new Date(Date.now() - 86_400_000).toISOString() }),
+      "BUSINESS_RULE_VIOLATION",
+    );
+    // Someone else's queued order is not sent under this session.
+    await expectAppError(
+      submitOrder(ctx, { ...base(), menuAsOf, cashierUserId: randomUUID() }),
+      "FORBIDDEN",
+    );
+    const audit = await getDb().auditEvent.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, entityId: queued.id, action: "pos_order.paid" },
+    });
+    expect(audit.changes).toMatchObject({ menuAsOf, syncedAfterShiftClosed: false });
+    await setMenuItemArchived(ctx, cola, false);
+  });
+
+  it("records an order taken before the close in its shift, shown as sent late", async () => {
+    const till = (
+      await createRegister(ctx, { branchId, warehouseId: kitchen, code: "TILL8", name: "Till 8" })
+    ).id;
+    const shift = await openShift(ctx, till, { openingFloat: "10" });
+    const takenAt = new Date().toISOString();
+    const payload = {
+      ...sale({
+        registerId: till,
+        payments: [{ method: "CASH", amount: "230", tendered: "250" }],
+        expectedTotal: "230",
+      }),
+      shiftId: shift.id,
+      menuAsOf: takenAt,
+      orderedAt: takenAt,
+      cashierUserId: ctx.userId,
+    };
+    await closeShift(ctx, shift.id, { countedCash: "240" });
+    const late = await submitOrder(ctx, payload);
+    expect(late.duplicate).toBe(false);
+    const report = await getShift(ctx, shift.id);
+    expect(report.orders.map((o) => o.id)).toContain(late.id);
+    expect(report.totals.late.count).toBe(1);
+    expect(report.totals.late.cash.toFixed()).toBe("230");
+    // What was recorded at the close does not change.
+    expect(report.expectedCash?.toFixed()).toBe("10");
+    expect(report.cashDifference?.toFixed()).toBe("230");
+    // Sent again: the same order.
+    expect((await submitOrder(ctx, payload)).duplicate).toBe(true);
+    // Taken after the close (the device did not know): refused, kept on the device.
+    await expectAppError(
+      submitOrder(ctx, {
+        ...payload,
+        orderId: randomUUID(),
+        orderedAt: new Date(Date.now() + 60_000).toISOString(),
+      }),
+      "BUSINESS_RULE_VIOLATION",
+    );
+    // A shift of another register is not found.
+    const other = (await listRegisters(ctx)).find((r) => r.id === register)!.shifts[0];
+    if (other)
+      await expectAppError(
+        submitOrder(ctx, { ...payload, orderId: randomUUID(), shiftId: other.id }),
+        "NOT_FOUND",
+      );
   });
 });

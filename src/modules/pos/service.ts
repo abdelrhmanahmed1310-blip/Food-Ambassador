@@ -24,7 +24,14 @@ import {
   notFound,
   validationFailed,
 } from "@/server/errors";
-import { checkPayments, expectedCash, lineAmounts, refundPortion } from "./rules";
+import {
+  checkPayments,
+  expectedCash,
+  lineAmounts,
+  liveAt,
+  orderTimeProblem,
+  refundPortion,
+} from "./rules";
 
 /**
  * Point-of-sale selling (DECISIONS.md ADR-059): registers, shifts with cash
@@ -237,13 +244,14 @@ export async function addCashMovement(ctx: TenantContext, shiftId: string, rawIn
 async function shiftTotals(
   tx: Tx,
   ctx: TenantContext,
-  shift: { id: string; openingFloat: unknown },
+  shift: { id: string; openingFloat: unknown; closedAt?: Date | null },
 ) {
   const org = ctx.organizationId;
   const [orders, payments, refunds, movements] = await inSequence([
     tx.posOrder.findMany({
       where: { organizationId: org, shiftId: shift.id },
       select: {
+        createdAt: true,
         status: true,
         channel: true,
         netAmount: true,
@@ -254,7 +262,7 @@ async function shiftTotals(
     }),
     tx.posPayment.findMany({
       where: { organizationId: org, order: { shiftId: shift.id, status: "PAID" } },
-      select: { method: true, amount: true },
+      select: { method: true, amount: true, order: { select: { createdAt: true } } },
     }),
     tx.posRefund.findMany({
       where: { organizationId: org, shiftId: shift.id },
@@ -312,6 +320,21 @@ async function shiftTotals(
     refunds: { count: refunds.length, amount: sum(refunds, (r) => r.amount) },
     payIns,
     payOuts,
+    /** Orders taken in the shift but synced after it closed (queued offline, ADR-060). */
+    late: (() => {
+      const closedAt = shift.closedAt;
+      if (!closedAt) return { count: 0, gross: zero(), cash: zero() };
+      const isLate = (d: Date) => d.getTime() > closedAt.getTime();
+      const lateOrders = paid.filter((o) => isLate(o.createdAt));
+      return {
+        count: lateOrders.length,
+        gross: sum(lateOrders, (o) => o.grossAmount),
+        cash: sum(
+          payments.filter((p) => p.method === "CASH" && isLate(p.order.createdAt)),
+          (p) => p.amount,
+        ),
+      };
+    })(),
     expectedCash: expectedCash({
       openingFloat: dec(shift.openingFloat as Decimal),
       cashSales: cash.sales,
@@ -422,17 +445,33 @@ const orderSchema = z.object({
   expectedTotal: money.optional(),
   /** When the order was taken on the device (offline orders, POS1c); default now. */
   orderedAt: z.iso.datetime({ offset: true }).optional(),
+  /** The shift the device sold in; an order queued offline may arrive after it closed. */
+  shiftId: uuidSchema.optional(),
+  /** When the device loaded its menu: prices and items are taken as they were then (ADR-060). */
+  menuAsOf: z.iso.datetime({ offset: true }).optional(),
+  /** Who took the order on the device; it is recorded only under that person's session. */
+  cashierUserId: uuidSchema.optional(),
   note: optionalText(300),
 });
 
 type MenuLoad = Awaited<ReturnType<typeof loadMenuItems>>;
 
-async function loadMenuItems(tx: Tx, ctx: TenantContext, ids: string[], branchId: string) {
+/** Menu items as they were on a menu loaded at `asOf`: later prices and withdrawals do not apply. */
+async function loadMenuItems(
+  tx: Tx,
+  ctx: TenantContext,
+  ids: string[],
+  branchId: string,
+  asOf: Date,
+) {
+  const live = { OR: [{ archivedAt: null }, { archivedAt: { gt: asOf } }] };
   return tx.menuItem.findMany({
     where: { organizationId: ctx.organizationId, id: { in: ids } },
     include: {
       category: { select: { archivedAt: true } },
-      prices: { where: { OR: [{ branchId: null }, { branchId }] } },
+      prices: {
+        where: { OR: [{ branchId: null }, { branchId }], createdAt: { lte: asOf } },
+      },
       recipe: {
         select: {
           id: true,
@@ -447,7 +486,7 @@ async function loadMenuItems(tx: Tx, ctx: TenantContext, ids: string[], branchId
           group: {
             include: {
               options: {
-                where: { archivedAt: null },
+                where: live,
                 include: {
                   recipe: {
                     select: {
@@ -479,7 +518,7 @@ async function loadMenuItems(tx: Tx, ctx: TenantContext, ids: string[], branchId
           },
         },
       },
-      unavailable: { where: { branchId } },
+      unavailable: { where: { branchId, createdAt: { lte: asOf } } },
     },
   });
 }
@@ -527,25 +566,38 @@ export async function submitOrder(ctx: TenantContext, rawInput: unknown) {
           shortfalls: 0,
           duplicate: true,
         };
+      if (input.cashierUserId && input.cashierUserId !== ctx.userId)
+        throw forbidden("This order was taken by someone else; they must be signed in to send it");
       const register = await loadRegister(tx, ctx, input.registerId);
       assertPermission(ctx.grants, "pos.sell", site(register));
-      const shift = await tx.posShift.findFirst({
-        where: { organizationId: org, registerId: register.id, status: "OPEN" },
-      });
-      if (!shift)
+      const shift = input.shiftId
+        ? await tx.posShift.findFirst({
+            where: { organizationId: org, id: input.shiftId, registerId: register.id },
+          })
+        : await tx.posShift.findFirst({
+            where: { organizationId: org, registerId: register.id, status: "OPEN" },
+          });
+      if (!shift) {
+        if (input.shiftId) throw notFound("Shift");
         throw businessRuleViolation("SHIFT_NOT_OPEN", "Open a shift on this register first");
+      }
       const now = new Date();
       const orderedAt = input.orderedAt ? new Date(input.orderedAt) : now;
-      if (
-        orderedAt.getTime() > now.getTime() + 5 * 60_000 ||
-        orderedAt < new Date(shift.openedAt.getTime() - 5 * 60_000)
-      )
+      const asOf = input.menuAsOf ? new Date(input.menuAsOf) : now;
+      const timeProblem = orderTimeProblem({
+        orderedAt,
+        menuAsOf: asOf,
+        now,
+        openedAt: shift.openedAt,
+        closedAt: shift.status === "CLOSED" ? shift.closedAt : null,
+      });
+      if (timeProblem)
         throw businessRuleViolation(
-          "ORDER_TIME_OUTSIDE_SHIFT",
-          "The order time is outside the open shift",
-          {
-            field: "orderedAt",
-          },
+          timeProblem,
+          timeProblem === "ORDER_TIME_OUTSIDE_SHIFT"
+            ? "The order time is outside the shift"
+            : "The menu time is not within the shift",
+          { field: "orderedAt" },
         );
       const tz = register.branch.timeZone ?? ctx.timeZone;
       const date = businessDate(tz, orderedAt);
@@ -557,6 +609,7 @@ export async function submitOrder(ctx: TenantContext, rawInput: unknown) {
             ctx,
             [...new Set(input.lines.map((l) => l.itemId))],
             register.branchId,
+            asOf,
           )
         ).map((i) => [i.id, i]),
       );
@@ -605,7 +658,12 @@ export async function submitOrder(ctx: TenantContext, rawInput: unknown) {
       for (const [index, l] of input.lines.entries()) {
         const field = `lines.${index}.itemId`;
         const item = items.get(l.itemId);
-        if (!item || item.archivedAt || item.category.archivedAt || item.unavailable.length > 0)
+        if (
+          !item ||
+          !liveAt(item.archivedAt, asOf) ||
+          !liveAt(item.category.archivedAt, asOf) ||
+          item.unavailable.length > 0
+        )
           throw businessRuleViolation("MENU_ITEM_NOT_SOLD", "This item is not on sale here", {
             field,
           });
@@ -625,7 +683,7 @@ export async function submitOrder(ctx: TenantContext, rawInput: unknown) {
             "This item has no price on this channel",
             { field },
           );
-        const groups = item.modifierGroups.filter((m) => !m.group.archivedAt);
+        const groups = item.modifierGroups.filter((m) => liveAt(m.group.archivedAt, asOf));
         const problems = checkSelection(
           groups.map((m) => ({
             groupId: m.groupId,
@@ -797,6 +855,9 @@ export async function submitOrder(ctx: TenantContext, rawInput: unknown) {
         lines: lines.length,
         payments: payments.map((p) => ({ method: p.method, amount: p.amount.toFixed() })),
         shortfalls: plan.shortages.length,
+        orderedAt: orderedAt.toISOString(),
+        menuAsOf: asOf.toISOString(),
+        syncedAfterShiftClosed: shift.status === "CLOSED",
       });
       return {
         id: input.orderId,
@@ -1193,6 +1254,9 @@ export async function tillData(ctx: TenantContext, registerId: string) {
     shift: reg.shift,
     currency: ctx.baseCurrency,
     date,
+    /** When this menu was read; queued orders are priced as of this time (ADR-060). */
+    menuAsOf: new Date().toISOString(),
+    cashierUserId: ctx.userId,
     channels: SALES_CHANNELS.map((channel, index) => ({
       channel,
       items: menus[index].map((i) => ({

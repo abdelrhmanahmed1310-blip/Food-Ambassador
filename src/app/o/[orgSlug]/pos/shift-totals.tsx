@@ -16,7 +16,12 @@ export async function ShiftTotals({
   totals: Totals;
   openingFloat: { toString(): string };
   currency: string;
-  counted?: { counted: { toString(): string }; difference: { toString(): string } } | null;
+  counted?: {
+    counted: { toString(): string };
+    difference: { toString(): string };
+    /** Expected cash as recorded when the shift closed. */
+    expected: { toString(): string };
+  } | null;
 }) {
   const [t, fmt] = await Promise.all([getTranslations(), moneyFormatter(currency)]);
   const m = (v: { toString(): string }) => (
@@ -59,11 +64,27 @@ export async function ShiftTotals({
           { label: t("pos.cashRefunds"), value: m(totals.cash.refunds) },
           { label: t("pos.movementKinds.PAY_IN"), value: m(totals.payIns) },
           { label: t("pos.movementKinds.PAY_OUT"), value: m(totals.payOuts) },
-          { label: t("pos.expectedCash"), value: <strong>{m(totals.expectedCash)}</strong> },
+          {
+            label: t("pos.expectedCash"),
+            value: <strong>{m(counted ? counted.expected : totals.expectedCash)}</strong>,
+          },
           ...(counted
             ? [
                 { label: t("pos.countedCashLabel"), value: m(counted.counted) },
                 { label: t("pos.difference"), value: <strong>{m(counted.difference)}</strong> },
+              ]
+            : []),
+          ...(totals.late.count > 0
+            ? [
+                {
+                  label: t("pos.lateOrders"),
+                  value: (
+                    <span data-testid="late-orders">
+                      {totals.late.count} · {m(totals.late.gross)}
+                    </span>
+                  ),
+                },
+                { label: t("pos.lateCash"), value: m(totals.late.cash) },
               ]
             : []),
           { label: t("pos.cardSales"), value: m(totals.card.sales) },

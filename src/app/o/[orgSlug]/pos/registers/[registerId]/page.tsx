@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { CashMovementForm, CloseShiftForm, OpenShiftForm } from "@/components/pos/forms";
+import { PendingSyncNotice } from "@/components/pos/pending-notice";
 import {
   Badge,
   Card,
@@ -88,6 +89,7 @@ export default async function RegisterPage({
                   />
                 </Card>
                 <Card title={t("pos.closeShift")}>
+                  <PendingSyncNotice registerId={r.id} />
                   <CloseShiftForm
                     action={closeShiftAction.bind(null, orgSlug, shift.id)}
                     currency={ctx.baseCurrency}

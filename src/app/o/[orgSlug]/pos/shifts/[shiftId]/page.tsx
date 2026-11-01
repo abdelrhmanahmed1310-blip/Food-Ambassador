@@ -47,8 +47,8 @@ export default async function ShiftPage({
             openingFloat={s.openingFloat}
             currency={ctx.baseCurrency}
             counted={
-              s.countedCash && s.cashDifference
-                ? { counted: s.countedCash, difference: s.cashDifference }
+              s.countedCash && s.cashDifference && s.expectedCash
+                ? { counted: s.countedCash, difference: s.cashDifference, expected: s.expectedCash }
                 : null
             }
           />

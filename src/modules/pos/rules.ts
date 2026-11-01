@@ -92,3 +92,53 @@ export function refundPortion(
     tax: roundToCurrency(line.tax.times(share), currency),
   };
 }
+
+/** Clock difference tolerated between a device and the server. */
+export const CLOCK_TOLERANCE_MS = 5 * 60_000;
+
+export type OrderTimeProblem = "ORDER_TIME_OUTSIDE_SHIFT" | "MENU_TIME_INVALID";
+
+/**
+ * When an order may be recorded in a shift (ADR-060): taken while the shift
+ * was open — after it opened and, for a shift already closed, before it
+ * closed (an order queued offline and synced late). The menu the device
+ * priced it with must have been loaded during the shift and before the order.
+ */
+export function orderTimeProblem(input: {
+  orderedAt: Date;
+  menuAsOf: Date;
+  now: Date;
+  openedAt: Date;
+  closedAt: Date | null;
+}): OrderTimeProblem | null {
+  const t = CLOCK_TOLERANCE_MS;
+  const { orderedAt, menuAsOf, now, openedAt, closedAt } = input;
+  if (orderedAt.getTime() > now.getTime() + t) return "ORDER_TIME_OUTSIDE_SHIFT";
+  if (orderedAt.getTime() < openedAt.getTime() - t) return "ORDER_TIME_OUTSIDE_SHIFT";
+  if (closedAt && orderedAt.getTime() > closedAt.getTime()) return "ORDER_TIME_OUTSIDE_SHIFT";
+  if (menuAsOf.getTime() > now.getTime() + t) return "MENU_TIME_INVALID";
+  if (menuAsOf.getTime() > orderedAt.getTime() + t) return "MENU_TIME_INVALID";
+  if (menuAsOf.getTime() < openedAt.getTime() - t) return "MENU_TIME_INVALID";
+  return null;
+}
+
+/** Whether something archived at `archivedAt` was still on sale on a menu loaded at `asOf`. */
+export function liveAt(archivedAt: Date | null, asOf: Date): boolean {
+  return archivedAt === null || archivedAt.getTime() > asOf.getTime();
+}
+
+export type SyncOutcome = "recorded" | "refused" | "retry" | "signedOut";
+
+/**
+ * What the device does with a sync response: keep a queued order until the
+ * server has it (or a duplicate says it already does), set it aside with the
+ * reason when the server refuses it, and keep retrying on network or server
+ * errors. A sign-in page, 401 or 403 (signed out, or someone else signed in)
+ * pauses syncing; nothing is dropped.
+ */
+export function syncOutcome(status: number | null, json: boolean): SyncOutcome {
+  if (status === null || status >= 500 || status === 429) return "retry";
+  if (status === 401 || status === 403 || !json) return "signedOut";
+  if (status === 200 || status === 409) return "recorded";
+  return "refused";
+}

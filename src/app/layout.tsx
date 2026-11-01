@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { directionOf, isLocale, DEFAULT_LOCALE } from "@/i18n/config";
@@ -9,8 +9,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { default: "Food Ambassador", template: "%s · Food Ambassador" },
     description: t("description"),
+    applicationName: "Food Ambassador",
+    appleWebApp: { capable: true, title: "Food Ambassador", statusBarStyle: "default" },
+    icons: { apple: "/icons/apple-touch-icon.png" },
   };
 }
+
+export const viewport: Viewport = {
+  themeColor: "#1f6f43",
+  width: "device-width",
+  initialScale: 1,
+};
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const raw = await getLocale();

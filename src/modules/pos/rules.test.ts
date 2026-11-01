@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
-import { checkPayments, expectedCash, lineAmounts, refundPortion } from "./rules";
+import {
+  checkPayments,
+  expectedCash,
+  lineAmounts,
+  liveAt,
+  orderTimeProblem,
+  refundPortion,
+  syncOutcome,
+} from "./rules";
 
 const d = (v: string) => new Decimal(v);
 
@@ -63,5 +71,56 @@ describe("POS amounts (ADR-059)", () => {
     expect([rest.gross.toFixed(), rest.tax.toFixed()]).toEqual(["66.67", "8.69"]); // totals exactly 100 / 13.04
     expect(refundPortion(line, after, d("3"), "EGP")).toBeNull(); // more than is left
     expect(refundPortion(line, none, d("0"), "EGP")).toBeNull();
+  });
+});
+
+describe("offline orders (ADR-060)", () => {
+  const at = (m: number) => new Date(Date.UTC(2026, 10, 1, 10, m));
+  const base = { openedAt: at(0), now: at(50), closedAt: null as Date | null };
+  it("accepts an order taken in the shift, late sync included, with a menu from the shift", () => {
+    expect(orderTimeProblem({ ...base, orderedAt: at(20), menuAsOf: at(5) })).toBeNull();
+    expect(
+      orderTimeProblem({ ...base, closedAt: at(30), orderedAt: at(25), menuAsOf: at(1) }),
+    ).toBeNull();
+  });
+  it("refuses orders after the close, before the open or in the future", () => {
+    expect(
+      orderTimeProblem({ ...base, closedAt: at(30), orderedAt: at(31), menuAsOf: at(1) }),
+    ).toBe("ORDER_TIME_OUTSIDE_SHIFT");
+    expect(
+      orderTimeProblem({
+        ...base,
+        orderedAt: new Date(at(0).getTime() - 6 * 60_000),
+        menuAsOf: at(0),
+      }),
+    ).toBe("ORDER_TIME_OUTSIDE_SHIFT");
+    expect(orderTimeProblem({ ...base, orderedAt: at(56), menuAsOf: at(1) })).toBe(
+      "ORDER_TIME_OUTSIDE_SHIFT",
+    );
+  });
+  it("refuses a menu time from before the shift or after the order", () => {
+    const before = new Date(at(0).getTime() - 60 * 60_000);
+    expect(orderTimeProblem({ ...base, orderedAt: at(20), menuAsOf: before })).toBe(
+      "MENU_TIME_INVALID",
+    );
+    expect(orderTimeProblem({ ...base, orderedAt: at(10), menuAsOf: at(20) })).toBe(
+      "MENU_TIME_INVALID",
+    );
+  });
+  it("treats things archived after the menu time as still on sale", () => {
+    expect(liveAt(null, at(10))).toBe(true);
+    expect(liveAt(at(11), at(10))).toBe(true);
+    expect(liveAt(at(10), at(10))).toBe(false);
+  });
+  it("keeps queued orders until the server has them", () => {
+    expect(syncOutcome(200, true)).toBe("recorded");
+    expect(syncOutcome(409, true)).toBe("recorded");
+    expect(syncOutcome(422, true)).toBe("refused");
+    expect(syncOutcome(404, true)).toBe("refused");
+    expect(syncOutcome(null, false)).toBe("retry");
+    expect(syncOutcome(503, false)).toBe("retry");
+    expect(syncOutcome(401, true)).toBe("signedOut");
+    expect(syncOutcome(403, true)).toBe("signedOut"); // another user is signed in
+    expect(syncOutcome(200, false)).toBe("signedOut"); // redirected to the sign-in page
   });
 });

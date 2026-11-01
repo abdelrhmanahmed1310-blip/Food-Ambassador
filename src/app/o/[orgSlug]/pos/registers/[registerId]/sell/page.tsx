@@ -1,12 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { OfflineSupport } from "@/components/pos/offline-support";
 import { Till } from "@/components/pos/till";
 import { LinkButton } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
 import { tillData } from "@/modules/pos/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
-import { submitOrderAction } from "../../../actions";
 
 /** The cashier screen: works on a tablet, a phone or a desktop browser (ADR-057). */
 export default async function SellPage({
@@ -33,7 +33,8 @@ export default async function SellPage({
           {t("pos.shiftAndCash")}
         </LinkButton>
       </div>
-      <Till orgSlug={orgSlug} data={data} submit={submitOrderAction.bind(null, orgSlug)} />
+      <OfflineSupport />
+      <Till orgSlug={orgSlug} data={data} />
     </div>
   );
 }

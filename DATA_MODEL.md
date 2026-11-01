@@ -992,3 +992,9 @@ Migration `20261121090000_pos1b_selling`; all tables have row-level security.
 - **pos_consumption_shortfalls**: order, warehouse, product, `quantity` not
   on hand when sold, `status` OPEN | POSTED | CANCELLED, `document_id` when
   posted, `resolved_at`.
+
+POS1c (ADR-060) adds no tables: orders queued on a device are kept in the
+browser's IndexedDB (`food-ambassador-pos`, store `orders`: order id,
+register, cashier, payload, status pending | refused, reason) until the
+server has them. An order sent after its shift closed is recognised by
+`pos_orders.created_at` > `pos_shifts.closed_at`.

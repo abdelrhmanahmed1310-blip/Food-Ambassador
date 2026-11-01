@@ -439,7 +439,8 @@
     "ORDER_REFUNDED": "Part of this order was refunded; refund the rest instead of voiding.",
     "REFUND_OTHER_BRANCH": "Refund at a register of the order's branch.",
     "REFUND_EXCEEDS_LINE": "More than is left to refund on this line.",
-    "NOTHING_TO_REFUND": "Enter a quantity to refund."
+    "NOTHING_TO_REFUND": "Enter a quantity to refund.",
+    "MENU_TIME_INVALID": "The till's menu is not from this shift; reload the till."
   },
   "notFound": {
     "title": "Page not found",
@@ -2694,7 +2695,7 @@
     "paid": "Order {number} paid.",
     "shortfallNote": "Some stock was not on hand in the system; it is listed under stock shortfalls.",
     "printReceipt": "Print receipt",
-    "retry": "No response — check the connection and try again. The order will not be charged twice.",
+    "retry": "No connection and this device cannot store orders (private window?). Check the connection and try again.",
     "noOpenShift": "Open a shift on this register first.",
     "orderTitle": "Order {number}",
     "receipt": "Receipt",
@@ -2729,6 +2730,21 @@
     "shortfallsIntro": "Sales used more than the system showed on hand. Record the stock that was really there (receipt, transfer or adjustment), then post these.",
     "noShortfalls": "No stock shortfalls.",
     "product": "Product",
-    "postShortfalls": "Post where stock is now available"
+    "postShortfalls": "Post where stock is now available",
+    "savedOnDevice": "Paid — saved on this device. It will be sent when the connection is back.",
+    "receiptAfterSync": "The receipt can be printed once the order is sent.",
+    "online": "Online",
+    "offline": "Offline",
+    "waitingToSync": "{count, plural, one {# order waiting to be sent} other {# orders waiting to be sent}}",
+    "syncNow": "Send now",
+    "allSynced": "All orders sent",
+    "signInToSync": "Orders on this device are waiting for the cashier who took them to sign in again.",
+    "refusedOrders": "{count, plural, one {# order was refused by the server} other {# orders were refused by the server}} — check with a manager before discarding.",
+    "retrySend": "Try again",
+    "discard": "Discard",
+    "discardConfirm": "Discard this order from this device? It will not be recorded. Record it again on the till if the money was taken.",
+    "pendingBeforeClose": "{count, plural, one {This device still has # order for this register that has not been sent.} other {This device still has # orders for this register that have not been sent.}} Go online and let them send before closing; orders sent later are still added to this shift.",
+    "lateOrders": "Orders sent after closing",
+    "lateCash": "Their cash (not in the count above)"
   }
 }
