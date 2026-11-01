@@ -36,6 +36,8 @@ export interface CheckView {
     taxRate: string | null;
     gross: string | null;
     voidReason: string | null;
+    /** From the kitchen screens (POS2b): preparing until bumped, then ready. */
+    kitchen: "PREPARING" | "READY" | null;
   }>;
   orders: Array<{ id: string; number: string; gross: string }>;
   otherTabs: Array<{ id: string; label: string }>;
@@ -251,7 +253,11 @@ export function CheckScreen({
           ? l.hold
             ? t("pos.lineStatuses.HELD")
             : t("pos.lineStatuses.PENDING")
-          : t("pos.lineStatuses.SENT");
+          : l.kitchen === "READY"
+            ? t("pos.lineStatuses.READY")
+            : l.kitchen === "PREPARING"
+              ? t("pos.lineStatuses.PREPARING")
+              : t("pos.lineStatuses.SENT");
   const courses = [...new Set(check.lines.map((l) => l.course))].sort();
   const [voiding, setVoiding] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState("");

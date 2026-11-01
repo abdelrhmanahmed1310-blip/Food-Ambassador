@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS2a floor and tables)
+Last updated: 2026-11-01 (POS2b kitchen display)
 
 ## Summary
 
@@ -17,7 +17,41 @@ Last updated: 2026-11-01 (POS2a floor and tables)
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | POS1 complete (menu, selling, offline cashier app, store app projects — publishing waits on Q-19). **POS2a floor and tables** done; POS2b kitchen display next                                                        |
+| POS1 – POS5                   | POS1 complete (store publishing waits on Q-19). **POS2 complete**: floor and tables, kitchen display. POS3 payments (Q-15) and POS4 e-invoicing (Q-17) wait on decisions                                              |
+
+## POS2b — Kitchen display (delivered)
+
+Rules: DECISIONS.md ADR-063.
+
+| Area           | What works                                                                                                                               | Where                                   |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Stations       | Per branch with a target time; one default station per branch (`pos.manage`)                                                             | `/pos/kitchen/setup`                    |
+| Routing        | By menu category or by item (item wins), else the default station, else no ticket                                                        | `pos/kitchen-rules.ts` `stationFor`     |
+| Tickets        | Created when check items are sent and when a counter order is paid (offline orders when they sync); one per station per event            | `pos/kitchen.ts` `createTicketsInTx`    |
+| Kitchen screen | Oldest first, waiting time against the target (warning from 75 %, late at the target), bump, recall the last bumped; refreshes every 5 s | `/pos/kitchen/[stationId]`              |
+| Status back    | Check items: preparing / ready; floor plan: tickets in the kitchen per table; register: preparing / ready per counter order              | check screen, floor plan, register page |
+| Voids          | A voided check item or counter order stays on its ticket, struck through                                                                 | `markVoidedInTx`                        |
+| Prep times     | Count, average, 90th percentile and late tickets over the last 24 hours per station                                                      | station screen                          |
+| Access         | New `pos.kitchen` permission and **Kitchen** role; screens limited to the user's branches                                                | `access/permissions.ts`, migration      |
+
+Checks: `pnpm check` pass (unit 40 files / 222 tests, 3 new: routing by
+item, category, default or none; warning and late thresholds; count,
+average and 90th percentile); `pnpm test:integration` 42 files / 270
+tests pass (4 new: one default station per branch, unique codes, routes by
+category or item replacing each other, one route per category, route
+removal, waiters cannot set up stations; a sent check makes one ticket per
+station with label, guests, note and seat, items preparing until bumped
+then ready, double bump harmless, recall, prep time counted, voided item
+struck through; a counter order makes a ticket and shows preparing then
+ready on the shift, its void strikes the items; no station = no ticket,
+kitchen staff of another branch, cashiers and other organizations cannot
+see or bump); `pnpm test:e2e` 47 tests pass (new: set up a default station,
+send a check item, see it on the station's screen, bump it, recall offered,
+the check shows it ready; repeated 3× without a failure).
+
+Limitations: no "served" step or item-level bump; screens poll every few
+seconds (no push); no kitchen printers yet (hardware, Q-16); prep times are
+the last 24 hours, not a chosen period.
 
 ## POS2a — Floor and tables (delivered)
 

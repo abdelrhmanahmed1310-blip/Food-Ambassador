@@ -168,6 +168,10 @@ model Organization {
   posTables              PosTable[]
   posTabs                PosTab[]
   posTabLines            PosTabLine[]
+  kitchenStations        KitchenStation[]
+  kitchenRoutes          KitchenRoute[]
+  kitchenTickets         KitchenTicket[]
+  kitchenTicketItems     KitchenTicketItem[]
   posShifts              PosShift[]
   posCashMovements       PosCashMovement[]
   posOrders              PosOrder[]
@@ -404,10 +408,11 @@ model Branch {
   menuItemPrices      MenuItemPrice[]
   menuItemUnavailable MenuItemUnavailable[]
 
-  posRegisters PosRegister[]
-  posFloors    PosFloor[]
-  posTables    PosTable[]
-  posTabs      PosTab[]
+  posRegisters    PosRegister[]
+  posFloors       PosFloor[]
+  posTables       PosTable[]
+  posTabs         PosTab[]
+  kitchenStations KitchenStation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3413,8 +3418,9 @@ model MenuCategory {
   archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  items        MenuItem[]
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  items         MenuItem[]
+  kitchenRoutes KitchenRoute[]
 
   @@unique([organizationId, id])
   @@map("menu_categories")
@@ -3452,6 +3458,7 @@ model MenuItem {
   usedInCombos   ComboComponent[]        @relation("ComboComponent")
   unavailable    MenuItemUnavailable[]
   posTabLines    PosTabLine[]
+  kitchenRoutes  KitchenRoute[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3942,4 +3949,104 @@ model PosTabLine {
   @@unique([tabId, lineNo])
   @@index([organizationId, tabId])
   @@map("pos_tab_lines")
+}
+
+enum KitchenTicketStatus {
+  OPEN
+  DONE
+}
+
+/// A kitchen station of a branch with its screen (POS2b, ADR-063).
+model KitchenStation {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  code           String
+  name           String
+  /// Minutes a ticket should take; the screen warns before and marks it late after.
+  targetMinutes  Int       @default(12) @map("target_minutes")
+  /// Receives items no route sends elsewhere.
+  isDefault      Boolean   @default(false) @map("is_default")
+  sortOrder      Int       @default(0) @map("sort_order")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch          @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  routes       KitchenRoute[]
+  tickets      KitchenTicket[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, code])
+  @@map("kitchen_stations")
+}
+
+/// Sends a menu category, or one item, to a station at a branch.
+model KitchenRoute {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  stationId      String   @map("station_id") @db.Uuid
+  categoryId     String?  @map("category_id") @db.Uuid
+  menuItemId     String?  @map("menu_item_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  station      KitchenStation @relation(fields: [organizationId, stationId], references: [organizationId, id], onDelete: Cascade)
+  category     MenuCategory?  @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  menuItem     MenuItem?      @relation(fields: [organizationId, menuItemId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, branchId, categoryId])
+  @@unique([organizationId, branchId, menuItemId])
+  @@map("kitchen_routes")
+}
+
+/// What one station must prepare from one send (a check) or one counter order.
+model KitchenTicket {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  branchId       String              @map("branch_id") @db.Uuid
+  stationId      String              @map("station_id") @db.Uuid
+  tabId          String?             @map("tab_id") @db.Uuid
+  orderId        String?             @map("order_id") @db.Uuid
+  /// Table, check name or order number, as shown to the kitchen.
+  label          String
+  guests         Int?
+  status         KitchenTicketStatus @default(OPEN)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  bumpedAt       DateTime?           @map("bumped_at") @db.Timestamptz(3)
+  bumpedByUserId String?             @map("bumped_by_user_id") @db.Uuid
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  station      KitchenStation      @relation(fields: [organizationId, stationId], references: [organizationId, id], onDelete: Restrict)
+  items        KitchenTicketItem[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, stationId, status])
+  @@index([organizationId, tabId])
+  @@index([organizationId, orderId])
+  @@map("kitchen_tickets")
+}
+
+model KitchenTicketItem {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  ticketId       String    @map("ticket_id") @db.Uuid
+  tabLineId      String?   @map("tab_line_id") @db.Uuid
+  orderLineId    String?   @map("order_line_id") @db.Uuid
+  name           String
+  quantity       Decimal   @db.Decimal(20, 6)
+  options        Json
+  note           String?
+  seat           Int?
+  course         Int?
+  /// Set when the item was voided after it reached the kitchen.
+  voidedAt       DateTime? @map("voided_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  ticket       KitchenTicket @relation(fields: [organizationId, ticketId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, tabLineId])
+  @@index([organizationId, orderLineId])
+  @@map("kitchen_ticket_items")
 }

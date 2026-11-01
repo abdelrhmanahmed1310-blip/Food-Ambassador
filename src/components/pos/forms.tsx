@@ -298,3 +298,73 @@ export function OpenTabForm({
     </ActionForm>
   );
 }
+
+export function StationForm({ action, branches }: { action: Action; branches: Option[] }) {
+  const t = useTranslations();
+  return (
+    <ActionForm action={action} submitLabel={t("pos.addStation")} pendingLabel={t("common.saving")}>
+      <div className="grid gap-4 sm:grid-cols-4">
+        <SelectField name="branchId" label={t("pos.branch")} options={branches} required />
+        <TextField name="code" label={t("pos.code")} dir="ltr" required />
+        <TextField name="name" label={t("pos.name")} required />
+        <TextField
+          name="targetMinutes"
+          label={t("pos.targetMinutes")}
+          hint={t("pos.targetMinutesHint")}
+          inputMode="numeric"
+          dir="ltr"
+          defaultValue="12"
+          required
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="isDefault" />
+        {t("pos.defaultStation")}
+      </label>
+    </ActionForm>
+  );
+}
+
+/** Route a menu category, or one item, to a station. */
+export function RouteForm({
+  action,
+  categories,
+  items,
+}: {
+  action: Action;
+  categories: Option[];
+  items: Option[];
+}) {
+  const t = useTranslations();
+  const [by, setBy] = useState<"category" | "item">("category");
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("pos.addRoute")}
+      pendingLabel={t("common.saving")}
+      submitVariant="secondary"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="route-by" className="mb-1 block text-sm font-medium">
+            {t("pos.routeBy")}
+          </label>
+          <select
+            id="route-by"
+            className={inputClass}
+            value={by}
+            onChange={(e) => setBy(e.target.value as "category" | "item")}
+          >
+            <option value="category">{t("pos.routeByCategory")}</option>
+            <option value="item">{t("pos.routeByItem")}</option>
+          </select>
+        </div>
+        {by === "category" ? (
+          <SelectField name="categoryId" label={t("menu.category")} options={categories} required />
+        ) : (
+          <SelectField name="menuItemId" label={t("pos.item")} options={items} required />
+        )}
+      </div>
+    </ActionForm>
+  );
+}

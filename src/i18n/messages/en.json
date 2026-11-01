@@ -130,7 +130,8 @@
     "posSection": "Sales",
     "pos": "Point of sale",
     "posShortfalls": "Stock shortfalls",
-    "posFloor": "Floor plan"
+    "posFloor": "Floor plan",
+    "posKitchen": "Kitchen screens"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -454,7 +455,9 @@
     "CHECK_PARTLY_PAID": "Part of a check is already paid.",
     "CHECK_HAS_SENT_ITEMS": "The kitchen has items of this check; void them first.",
     "NOTHING_TO_PAY": "Nothing is left to pay.",
-    "CHECK_ITEM_OVERPAID": "More than is left on this item."
+    "CHECK_ITEM_OVERPAID": "More than is left on this item.",
+    "STATION_DEFAULT_TAKEN": "This branch already has a default station.",
+    "TICKET_NOT_BUMPED": "This ticket is still on the screen."
   },
   "notFound": {
     "title": "Page not found",
@@ -611,7 +614,8 @@
       "branch_manager": "Branch Manager",
       "analyst": "Read-only Analyst",
       "cashier": "Cashier",
-      "waiter": "Waiter"
+      "waiter": "Waiter",
+      "kitchen": "Kitchen"
     },
     "permissionLabels": {
       "org.settings.manage": "Manage organization settings",
@@ -671,7 +675,8 @@
       "pos.refund": "Refund orders",
       "pos.manage": "Set up registers",
       "pos.view": "See point-of-sale orders and shift reports",
-      "pos.tables": "Serve tables: open checks, add items, send to the kitchen"
+      "pos.tables": "Serve tables: open checks, add items, send to the kitchen",
+      "pos.kitchen": "Kitchen screens: see tickets and bump them"
     }
   },
   "audit": {
@@ -2804,7 +2809,9 @@
       "PAID": "Paid",
       "PENDING": "Not sent",
       "SENT": "Sent to kitchen",
-      "VOIDED": "Voided"
+      "VOIDED": "Voided",
+      "PREPARING": "Preparing",
+      "READY": "Ready"
     },
     "merge": "Merge",
     "mergeConfirm": "Move all items of this check to the chosen one and close this check?",
@@ -2847,6 +2854,35 @@
     "unsentCount": "{count, plural, one {# not sent} other {# not sent}}",
     "voidItem": "Void",
     "paymentMethod": "Payment method",
-    "payAtRegister": "Register"
+    "payAtRegister": "Register",
+    "addRoute": "Add route",
+    "addStation": "Add station",
+    "bump": "Bump — ready",
+    "defaultStation": "Default station (gets everything not routed elsewhere)",
+    "inKitchenCount": "{count, plural, one {# in the kitchen} other {# in the kitchen}}",
+    "kitchen": "Kitchen",
+    "kitchenIntro": "Each station's screen shows its tickets, oldest first. Bump a ticket when it is ready; waiters and cashiers see it as ready.",
+    "kitchenScreens": "Kitchen screens",
+    "kitchenSetup": "Stations and routing",
+    "kitchenSetupIntro": "Stations per branch and what each prepares: by menu category, or by item. Items no route sends anywhere go to the default station, or make no ticket when there is none.",
+    "noPrepTimes": "No tickets bumped in the last 24 hours.",
+    "noRoutes": "No routes yet.",
+    "noStations": "No kitchen stations yet.",
+    "noStationsHint": "Add stations under Stations and routing.",
+    "noTickets": "No tickets — all caught up.",
+    "openTickets": "{count, plural, one {# open ticket} other {# open tickets}}",
+    "prepStats": "Last 24 hours: {count} tickets, average {average} min, 90 % within {p90} min, {late} late.",
+    "recall": "Recall {label}",
+    "removeRoute": "Remove",
+    "routeBy": "Route by",
+    "routeByCategory": "Menu category",
+    "routeByItem": "One item",
+    "routeCategory": "Category: {name}",
+    "routeItem": "Item: {name}",
+    "targetIs": "target {minutes} min",
+    "targetMinutes": "Target minutes",
+    "targetMinutesHint": "The screen warns at 75 % and marks a ticket late at the target.",
+    "voidedTag": "VOID",
+    "waiting": "Waiting"
   }
 }

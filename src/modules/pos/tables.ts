@@ -12,6 +12,7 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
+import { createTicketsInTx, lineStatusesInTx, markVoidedInTx } from "./kitchen";
 import { checkSettled, remainingQuantity } from "./rules";
 import {
   explodeUseInTx,
@@ -196,6 +197,16 @@ export async function floorPlan(ctx: TenantContext) {
       },
       orderBy: [{ branch: { code: "asc" } }, { sortOrder: "asc" }, { name: "asc" }],
     });
+    const openTabIds = floors.flatMap((f) => f.tables.flatMap((t) => t.tabs.map((x) => x.id)));
+    const preparing = new Map(
+      (
+        await tx.kitchenTicket.groupBy({
+          by: ["tabId"],
+          where: { organizationId: ctx.organizationId, tabId: { in: openTabIds }, status: "OPEN" },
+          _count: { _all: true },
+        })
+      ).map((g) => [g.tabId!, g._count._all]),
+    );
     const barTabs = await tx.posTab.findMany({
       where: {
         organizationId: ctx.organizationId,
@@ -226,6 +237,7 @@ export async function floorPlan(ctx: TenantContext) {
                   openedAt: tab.openedAt,
                   pending: tab.lines.filter((l) => l.status === "PENDING").length,
                   sent: tab.lines.filter((l) => l.status === "SENT").length,
+                  preparing: preparing.get(tab.id) ?? 0,
                 }
               : null,
           };
@@ -485,11 +497,31 @@ export async function sendTab(ctx: TenantContext, tabId: string, rawInput: unkno
       where: { organizationId: ctx.organizationId, id: { in: toSend.map((l) => l.id) } },
       data: { status: "SENT", sentAt: now, sentByUserId: ctx.userId, hold: false },
     });
+    const tickets = await createTicketsInTx(
+      tx,
+      ctx,
+      {
+        branchId: tab.branchId,
+        tabId: tab.id,
+        label: tab.table?.code ?? tab.label ?? tab.number,
+        guests: tab.guests,
+      },
+      toSend.map((l) => ({
+        tabLineId: l.id,
+        menuItemId: l.menuItemId,
+        name: l.name,
+        quantity: dec(l.quantity),
+        options: Array.isArray(l.optionNames) ? (l.optionNames as string[]) : [],
+        note: l.note,
+        seat: l.seat,
+        course: l.course,
+      })),
+    );
     await audit(tx, ctx, "pos_tab", tab.id, "sent", {
       course: course ?? null,
       lines: toSend.map((l) => l.lineNo),
     });
-    return { sent: toSend.length, lineIds: toSend.map((l) => l.id), sentAt: now };
+    return { sent: toSend.length, lineIds: toSend.map((l) => l.id), sentAt: now, tickets };
   });
 }
 
@@ -560,6 +592,7 @@ export async function voidTabLine(ctx: TenantContext, lineId: string, rawInput: 
         wasteDocId,
       },
     });
+    await markVoidedInTx(tx, ctx, { tabLineIds: [line.id] });
     await audit(tx, ctx, "pos_tab", tab.id, "item_voided", {
       lineNo: line.lineNo,
       name: line.name,
@@ -822,6 +855,7 @@ export async function getTab(ctx: TenantContext, tabId: string) {
     const tab = await loadTab(tx, ctx, tabId);
     const date = businessDate(tab.branch.timeZone ?? ctx.timeZone);
     const now = new Date();
+    const kitchen = await lineStatusesInTx(tx, ctx, tab.id);
     const lines = [];
     for (const l of tab.lines) {
       // Priced one by one so an item withdrawn from the menu shows as a problem, not an error.
@@ -849,6 +883,7 @@ export async function getTab(ctx: TenantContext, tabId: string) {
         includesTax: line?.priceIncludesTax ?? null,
         taxRate: line?.taxRate ?? null,
         gross: line ? dec(line.grossAmount) : null,
+        kitchen: kitchen.get(l.id) ?? null,
       });
     }
     const orders = await tx.posOrder.findMany({

@@ -109,6 +109,7 @@ export default async function RegisterPage({
                       <Th>{t("menu.channel")}</Th>
                       <Th>{t("pos.total")}</Th>
                       <Th>{t("pos.status")}</Th>
+                      <Th>{t("pos.kitchen")}</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -141,6 +142,13 @@ export default async function RegisterPage({
                                 ? t("pos.statuses.REFUNDED")
                                 : t("pos.statuses.PAID")}
                           </Badge>
+                        </Td>
+                        <Td>
+                          {o.kitchen ? (
+                            <Badge tone={o.kitchen === "READY" ? "success" : "warning"}>
+                              {t(`pos.lineStatuses.${o.kitchen}`)}
+                            </Badge>
+                          ) : null}
                         </Td>
                       </tr>
                     ))}

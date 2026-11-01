@@ -20,6 +20,7 @@ import { loadRecipeStructureInTx } from "@/modules/recipes/costs";
 import { explodeRecipe } from "@/modules/recipes/explode";
 import { codeSchema, optionalText, requiredText, uuidSchema } from "@/modules/shared/schemas";
 import { loadTaxContextInTx } from "@/modules/tax/service";
+import { createTicketsInTx, markVoidedInTx, orderStatusesInTx } from "./kitchen";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
@@ -407,10 +408,15 @@ export async function getShift(ctx: TenantContext, shiftId: string) {
         orderBy: { createdAt: "asc" },
       }),
     ]);
+    const kitchen = await orderStatusesInTx(
+      tx,
+      ctx,
+      orders.map((o) => o.id),
+    );
     return {
       ...s,
       totals,
-      orders,
+      orders: orders.map((o) => ({ ...o, kitchen: kitchen.get(o.id) ?? null })),
       movements,
       can: {
         sell: s.status === "OPEN" && hasPermission(ctx.grants, "pos.sell", site(s.register)),
@@ -877,6 +883,26 @@ export async function recordOrderInTx(
       tabLineId: tab?.tabLineIds[i] ?? null,
     })),
   });
+  // A counter order goes to the kitchen now; a check's items went when they were sent.
+  if (!tab) {
+    const created = await tx.posOrderLine.findMany({
+      where: { organizationId: org, orderId: input.orderId },
+      select: { id: true, menuItemId: true, name: true, quantity: true, options: true },
+      orderBy: { lineNo: "asc" },
+    });
+    await createTicketsInTx(
+      tx,
+      ctx,
+      { branchId: register.branchId, orderId: input.orderId, label: number },
+      created.map((l) => ({
+        orderLineId: l.id,
+        menuItemId: l.menuItemId,
+        name: l.name,
+        quantity: dec(l.quantity),
+        options: (l.options as Array<{ name: string }>).map((o) => o.name),
+      })),
+    );
+  }
   await tx.posPayment.createMany({
     data: payments.map((p) => ({
       organizationId: org,
@@ -1002,6 +1028,7 @@ export async function voidOrder(ctx: TenantContext, orderId: string, rawInput: u
       where: { organizationId: ctx.organizationId, orderId: o.id, status: "OPEN" },
       data: { status: "CANCELLED", resolvedAt: new Date() },
     });
+    await markVoidedInTx(tx, ctx, { orderLineIds: o.lines.map((l) => l.id) });
     await tx.posOrder.update({
       where: { id: o.id },
       data: {

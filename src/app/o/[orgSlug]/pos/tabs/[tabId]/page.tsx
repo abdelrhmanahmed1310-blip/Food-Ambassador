@@ -64,6 +64,7 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
       taxRate: l.taxRate,
       gross: l.gross?.toFixed() ?? null,
       voidReason: l.voidReason,
+      kitchen: l.kitchen,
     })),
     orders: tab.orders.map((o) => ({ id: o.id, number: o.number, gross: o.grossAmount.toFixed() })),
     otherTabs: tab.otherTabs.map((o) => ({

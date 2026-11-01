@@ -1316,6 +1316,38 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   offline like counter sales (ADR-060). The floor plan and the check screen
   refresh by themselves.
 
+### ADR-063 Kitchen display — Accepted (POS2b)
+
+- **Stations** per branch (code, name, target minutes 1–240, sort order);
+  at most one **default** station per branch (partial unique index). Set up
+  with `pos.manage`.
+- **Routing**: a menu **item** route wins over its **category** route, which
+  wins over the branch's default station; with none, the item makes no
+  ticket (e.g. drinks served from the bar without a screen). One route per
+  category and per item at a branch; setting a new one replaces the old.
+- **Tickets** are created in the same transaction as the event that puts
+  food in the kitchen: **sending** check items (ADR-062) and **paying a
+  counter order** (ADR-059 — including orders sent later from an offline
+  till, ADR-060, which reach the kitchen when they sync). One ticket per
+  station per event; items keep name, quantity, options, note, seat and
+  course as sent. Paying a check makes no ticket (its items were sent).
+- Items **voided** after reaching the kitchen (a check item, or a voided
+  counter order) stay on the ticket struck through, so the cook stops.
+- **Kitchen screen** per station (`pos.kitchen`, new **Kitchen** role):
+  open tickets oldest first, refreshed every 5 seconds; each shows the time
+  waited against the station's target — warning from 75 %, late at the
+  target. **Bump** marks a ticket ready (a second tap does nothing);
+  **recall** brings the last bumped ticket back.
+- **Status back**: a check item is "preparing" until every ticket holding
+  it is bumped, then "ready"; the floor plan shows how many tickets each
+  table has in the kitchen; the register's order list shows preparing or
+  ready for counter orders.
+- **Preparation times**: sent to bumped, per station — count, average,
+  90th percentile and late tickets over the last 24 hours on the station's
+  screen.
+- Not in POS2b: a "served" step, item-level bumping, kitchen printers
+  (needs hardware, Q-16), and push updates (screens poll).
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

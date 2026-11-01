@@ -1021,3 +1021,18 @@ Migration `20261122090000_pos2a_tables`; all tables have row-level security.
   voided line stays voided.
 - **pos_orders.tab_id** and **pos_order_lines.tab_line_id** link the orders
   that paid a check to it.
+
+### Kitchen display (POS2b, ADR-063)
+
+Migration `20261123090000_pos2b_kitchen`; all tables have row-level security.
+
+- **kitchen_stations**: branch, `code` (UQ per branch), name,
+  `target_minutes` 1–240, `is_default` (at most one active default per
+  branch), `sort_order`, `archived_at`.
+- **kitchen_routes**: branch, station, exactly one of `category_id` /
+  `menu_item_id` (CHECK); UQ (branch, category) and (branch, item).
+- **kitchen_tickets**: branch, station, exactly one of `tab_id` /
+  `order_id` (CHECK), `label` (table, check name or order number),
+  `guests`, `status` OPEN | DONE (DONE ⇔ `bumped_at`), bumped by.
+- **kitchen_ticket_items**: ticket, exactly one of `tab_line_id` /
+  `order_line_id`, name, quantity, options, note, seat, course, `voided_at`.

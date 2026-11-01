@@ -70,6 +70,11 @@ export default async function FloorPlanPage({ params }: PageProps<"/o/[orgSlug]/
                         {t("pos.guestsCount", { count: tb.tab.guests })} ·{" "}
                         {t("pos.minutes", { count: minutes(tb.tab.openedAt) })}
                       </span>
+                      {tb.tab.preparing > 0 ? (
+                        <span className="bg-surface-muted rounded px-1 text-xs">
+                          {t("pos.inKitchenCount", { count: tb.tab.preparing })}
+                        </span>
+                      ) : null}
                       {tb.tab.pending > 0 ? (
                         <span className="bg-warning-surface rounded px-1 text-xs">
                           {t("pos.unsentCount", { count: tb.tab.pending })}

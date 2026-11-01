@@ -36,14 +36,11 @@ async function menuItem(
   await expect(page.getByRole("cell", { name: new RegExp(`EGP\\s?${price}\\.00`) })).toBeVisible();
 }
 
-test("table service: floor, check with a held course, fire, pay one seat then the rest", async ({
-  browser,
-}) => {
-  test.setTimeout(180_000);
-  const { context, page } = await newClient(browser);
+/** A branch with a kitchen, cola (25) and soup (40), a register with an open shift, floor "Main hall" with T1. */
+async function setUpRestaurant(page: Page, label: string) {
   const slug = await signUp(page, {
     name: "Owner",
-    email: uniqueEmail("tables"),
+    email: uniqueEmail(label),
     organization: "Table Foods",
   });
   await page.goto(`/o/${slug}/branches/new`);
@@ -85,6 +82,16 @@ test("table service: floor, check with a held course, fire, pay one seat then th
   await floor.getByLabel("Seats").fill("4");
   await floor.getByRole("button", { name: "Add table" }).click();
   await expect(floor.getByText("T1")).toBeVisible();
+
+  return slug;
+}
+
+test("table service: floor, check with a held course, fire, pay one seat then the rest", async ({
+  browser,
+}) => {
+  test.setTimeout(180_000);
+  const { context, page } = await newClient(browser);
+  const slug = await setUpRestaurant(page, "tables");
 
   // Seat two guests at T1.
   await page.goto(`/o/${slug}/pos/floor`);
@@ -133,5 +140,45 @@ test("table service: floor, check with a held course, fire, pay one seat then th
 
   await page.goto(`/o/${slug}/pos/floor`);
   await expect(page.getByRole("link", { name: "Table T1, free" })).toBeVisible();
+  await context.close();
+});
+
+test("kitchen display: a sent item appears on its station, is bumped, and shows ready on the check", async ({
+  browser,
+}) => {
+  test.setTimeout(180_000);
+  const { context, page } = await newClient(browser);
+  const slug = await setUpRestaurant(page, "kitchen");
+  await page.goto(`/o/${slug}/pos/kitchen/setup`);
+  await page.getByLabel("Code", { exact: true }).fill("GRILL");
+  await page.getByLabel("Name", { exact: true }).fill("Grill");
+  await page.getByLabel(/Default station/).check();
+  await page.getByRole("button", { name: "Add station" }).click();
+  await expect(page.getByTestId("station-GRILL")).toBeVisible();
+
+  await page.goto(`/o/${slug}/pos/floor`);
+  await page.getByRole("link", { name: "Table T1, free" }).click();
+  await expect(page).toHaveURL(/\/pos\/tables\//);
+  await page.waitForLoadState("load");
+  await page.getByRole("button", { name: "Open check" }).click();
+  await expect(page).toHaveURL(/\/pos\/tabs\//);
+  const check = page.url();
+  const add = page.getByRole("region", { name: "Add items" });
+  await add.getByRole("button", { name: /Soup/ }).click();
+  await page.getByRole("button", { name: "Add 1 item to the check" }).click();
+  await page.getByRole("button", { name: "Send 1 item to the kitchen" }).click();
+  await expect(page.getByTestId("check-line-1").getByTestId("line-status")).toHaveText("Preparing");
+
+  await page.goto(`/o/${slug}/pos/kitchen`);
+  await page.getByRole("link", { name: /Grill/ }).click();
+  const ticket = page.getByTestId("ticket-T1");
+  await expect(ticket).toContainText("Soup");
+  await expect(ticket).toHaveAttribute("data-urgency", "ok");
+  await ticket.getByRole("button", { name: "Bump — ready" }).click();
+  await expect(page.getByText("No tickets — all caught up.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Recall T1" })).toBeVisible();
+
+  await page.goto(check);
+  await expect(page.getByTestId("check-line-1").getByTestId("line-status")).toHaveText("Ready");
   await context.close();
 });

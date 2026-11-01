@@ -52,7 +52,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | M9   | Central kitchen & B2B       | M4, M6                           | Complete                                                                                                |
 | M10  | Integrations                | M7                               | Framework complete (connectors open)                                                                    |
 | POS1 | Core                        | M4                               | ✅ Complete — POS1a menu, POS1b selling, POS1c cashier app, POS1d store app projects (publishing: Q-19) |
-| POS2 | Floor & kitchen             | POS1                             | In progress — POS2a floor and tables ✅; POS2b kitchen display next                                     |
+| POS2 | Floor & kitchen             | POS1                             | ✅ Complete — POS2a floor and tables, POS2b kitchen display                                             |
 | POS3 | Payments                    | POS1, Q-15                       | Planned                                                                                                 |
 | POS4 | Tax & e-invoicing           | POS1, Q-17                       | Planned                                                                                                 |
 | POS5 | Customer channels           | POS1–POS4                        | Planned                                                                                                 |
@@ -381,7 +381,7 @@ stock through its recipes via the ledger. Payments recorded as cash or
 
 Split (ADR-062): **POS2a floor and tables ✅** (floors, tables, checks with
 seats, courses and notes, hold and fire, void with waste, move, merge, pay
-by items, seats or evenly); **POS2b kitchen display** (stations, routing,
+by items, seats or evenly); **POS2b kitchen display ✅** (stations, routing,
 bump times, ready status to waiter and cashier).
 
 Floor plans and tables, waiter app, course and seat handling, split and
