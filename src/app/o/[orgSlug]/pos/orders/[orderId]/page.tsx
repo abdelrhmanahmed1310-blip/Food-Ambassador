@@ -117,6 +117,7 @@ export default async function OrderPage({
                   ]
                 : []),
               ...(o.voidReason ? [{ label: t("pos.voidReason"), value: o.voidReason }] : []),
+              ...(o.note ? [{ label: t("pos.note"), value: <bdi>{o.note}</bdi> }] : []),
             ]}
           />
         </Card>

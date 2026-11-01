@@ -56,6 +56,7 @@ export async function ShiftTotals({
             ),
           },
           { label: t("pos.giftCardPayments"), value: m(totals.giftCards.redeemed) },
+          { label: t("pos.platformPayments"), value: m(totals.platforms) },
           { label: t("pos.promotions"), value: m(totals.discounts.promotions) },
           {
             label: t("pos.orderDiscounts"),

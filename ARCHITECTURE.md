@@ -59,6 +59,7 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ pos/                  # registers, shifts, orders, checks and tables, kitchen screens, settlements,
 │  │  │                        #   discounts.ts (pure promotions/discount rules, shared with the till), promotions.ts,
 │  │  │                        #   customers.ts + gift-cards.ts (loyalty-rules.ts pure)
+│  │  ├─ delivery/             # delivery platform orders: adapters (per platform → canonical), mapping, acceptance
 │  │  ├─ zatca/                # ZATCA Phase 2: invoice XML, signing, QR, device onboarding, reporting
 │  │  ├─ payments/             # online payment provider (Moyasar) and pay-by-QR links
 │  │  ├─ integrations/         # connectors, sealed credentials, signed webhooks, outbox

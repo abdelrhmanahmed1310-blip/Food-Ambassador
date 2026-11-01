@@ -359,6 +359,11 @@ async function shiftTotals(
     ),
     cash,
     card,
+    /** Delivery orders paid to the platforms, settled by them later (ADR-069). */
+    platforms: sum(
+      payments.filter((p) => p.method === "DELIVERY_PLATFORM"),
+      (p) => p.amount,
+    ),
     giftCards: {
       soldCash: giftSold("CASH"),
       soldCard: giftSold("CARD"),
@@ -662,7 +667,15 @@ export interface LineInput {
 export async function priceLinesInTx(
   tx: Tx,
   ctx: TenantContext,
-  a: { lines: LineInput[]; channel: SalesChannel; branchId: string; date: string; asOf: Date },
+  a: {
+    lines: LineInput[];
+    channel: SalesChannel;
+    branchId: string;
+    date: string;
+    asOf: Date;
+    /** Per line: the unit price (VAT included, options included) a delivery platform charged. */
+    unitPrices?: Array<string | undefined>;
+  },
 ) {
   const items = new Map(
     (
@@ -723,16 +736,19 @@ export async function priceLinesInTx(
       throw businessRuleViolation("MENU_ITEM_NOT_SOLD", "This item is not on sale here", {
         field,
       });
-    const price = resolvePrice(
-      item.prices.map((p) => ({
-        channel: p.channel,
-        branchId: p.branchId,
-        price: dec(p.price),
-        includesTax: p.includesTax,
-        effectiveFrom: p.effectiveFrom.toISOString().slice(0, 10),
-      })),
-      { channel: a.channel, branchId: a.branchId, date: a.date },
-    );
+    const charged = a.unitPrices?.[index];
+    const price = charged
+      ? { price: toDecimal(charged), includesTax: true }
+      : resolvePrice(
+          item.prices.map((p) => ({
+            channel: p.channel,
+            branchId: p.branchId,
+            price: dec(p.price),
+            includesTax: p.includesTax,
+            effectiveFrom: p.effectiveFrom.toISOString().slice(0, 10),
+          })),
+          { channel: a.channel, branchId: a.branchId, date: a.date },
+        );
     if (!price)
       throw businessRuleViolation("MENU_ITEM_NOT_SOLD", "This item has no price on this channel", {
         field,
@@ -755,10 +771,13 @@ export async function priceLinesInTx(
     const options = [...new Set(l.optionIds)].map((id) =>
       groups.flatMap((m) => m.group.options).find((o) => o.id === id)!,
     );
-    const unit = unitPrice(
-      price.price,
-      options.map((o) => dec(o.priceDelta)),
-    );
+    // A platform's price already includes the options.
+    const unit = charged
+      ? price.price
+      : unitPrice(
+          price.price,
+          options.map((o) => dec(o.priceDelta)),
+        );
     const quantity = toDecimal(l.quantity);
     const resolved = taxes.resolve(item.taxCodeId ?? item.recipe?.taxCodeId, a.date);
     if (resolved && !resolved.ok)
@@ -858,7 +877,13 @@ export async function recordOrderInTx(
   tx: Tx,
   ctx: TenantContext,
   input: OrderInput,
-  tab?: { tabId: string; warehouseId: string; tabLineIds: string[]; lineTimes: Date[] },
+  tab?: { tabId: string; warehouseId: string; tabLineIds: string[]; lineTimes: Date[] } | null,
+  /**
+   * Orders from a delivery platform (ADR-069), built by the server only: the
+   * platform's prices, its restaurant-funded discount, and payment to the
+   * platform. Never reachable from a device's request.
+   */
+  platform?: { unitPrices: string[]; discountReason: string; label: string },
 ) {
   const org = ctx.organizationId;
   // A retry of an order already recorded returns it unchanged.
@@ -917,10 +942,12 @@ export async function recordOrderInTx(
     branchId: register.branchId,
     date,
     asOf,
+    unitPrices: platform?.unitPrices,
   });
   const { recipeUse, productUse } = priced;
   // Discounts (ADR-067): promotions live on the till's menu, at the time each item was ordered.
-  const promotions = await loadPromotionsInTx(tx, ctx, asOf);
+  // A platform's prices are final: our promotions do not apply to them.
+  const promotions = platform ? [] : await loadPromotionsInTx(tx, ctx, asOf);
   const categories = new Map(
     (
       await tx.menuItem.findMany({
@@ -962,7 +989,7 @@ export async function recordOrderInTx(
     };
   }
   if (input.discount) {
-    assertPermission(ctx.grants, "pos.discount", site(register));
+    if (!platform) assertPermission(ctx.grants, "pos.discount", site(register));
     orderDiscount = { kind: input.discount.kind, value: toDecimal(input.discount.value) };
   } else if (input.couponCode) {
     const c = await takeCouponInTx(tx, ctx, input.couponCode, date);
@@ -1089,7 +1116,7 @@ export async function recordOrderInTx(
     await createTicketsInTx(
       tx,
       ctx,
-      { branchId: register.branchId, orderId: input.orderId, label: number },
+      { branchId: register.branchId, orderId: input.orderId, label: platform?.label ?? number },
       created.map((l) => ({
         orderLineId: l.id,
         menuItemId: l.menuItemId,

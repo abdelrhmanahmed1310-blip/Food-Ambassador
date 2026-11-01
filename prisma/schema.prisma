@@ -186,6 +186,8 @@ model Organization {
   loyaltyEntries          LoyaltyEntry[]
   giftCards               GiftCard[]
   giftCardEntries         GiftCardEntry[]
+  deliveryOrders          DeliveryOrder[]
+  deliveryItemMaps        DeliveryItemMap[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
   posOrders               PosOrder[]
@@ -3318,6 +3320,8 @@ model CustomerReceiptAllocation {
 enum ConnectorKind {
   INBOUND_SALES_WEBHOOK
   OUTBOUND_WEBHOOK
+  /// Orders from a delivery platform for one branch (POS5c, ADR-069).
+  DELIVERY_ORDERS
 }
 
 enum ConnectorStatus {
@@ -3355,9 +3359,11 @@ model Connector {
   secretRotatedAt DateTime?       @map("secret_rotated_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  events       IntegrationEvent[]
-  deliveries   OutboundDelivery[]
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  events         IntegrationEvent[]
+  deliveries     OutboundDelivery[]
+  deliveryOrders DeliveryOrder[]
+  itemMaps       DeliveryItemMap[]
 
   @@unique([organizationId, id])
   @@map("connectors")
@@ -3722,14 +3728,15 @@ model PosOrder {
   customer         PosCustomer?   @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
   loyaltyPoints    Int            @default(0) @map("loyalty_points")
 
-  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  register     PosRegister               @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
-  shift        PosShift                  @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
-  lines        PosOrderLine[]
-  payments     PosPayment[]
-  refunds      PosRefund[]
-  shortfalls   PosConsumptionShortfall[]
-  tab          PosTab?                   @relation(fields: [organizationId, tabId], references: [organizationId, id], onDelete: Restrict)
+  organization  Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  register      PosRegister               @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
+  shift         PosShift                  @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
+  lines         PosOrderLine[]
+  payments      PosPayment[]
+  refunds       PosRefund[]
+  shortfalls    PosConsumptionShortfall[]
+  deliveryOrder DeliveryOrder?
+  tab           PosTab?                   @relation(fields: [organizationId, tabId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3779,6 +3786,8 @@ enum PosPaymentMethod {
   CARD
   /// Paid from a gift card's balance (POS5b, ADR-068).
   GIFT_CARD
+  /// Paid to the delivery platform, which settles with the restaurant (POS5c, ADR-069).
+  DELIVERY_PLATFORM
 }
 
 model PosPayment {
@@ -4493,4 +4502,82 @@ model GiftCardEntry {
 
   @@index([organizationId, giftCardId])
   @@map("gift_card_entries")
+}
+
+// ─── Delivery platforms (POS5c, ADR-069) ───
+
+enum DeliveryPlatform {
+  HUNGERSTATION
+  JAHEZ
+  KEETA
+  OTHER
+}
+
+enum DeliveryOrderStatus {
+  /// Waiting for the branch to accept or reject.
+  PENDING
+  /// Items without a menu item: someone maps them, then it can be accepted.
+  NEEDS_MAPPING
+  ACCEPTED
+  REJECTED
+  /// Cancelled by the platform.
+  CANCELLED
+}
+
+/// An order received from a delivery platform; becomes a POS order when accepted.
+model DeliveryOrder {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  organizationId  String              @map("organization_id") @db.Uuid
+  connectorId     String              @map("connector_id") @db.Uuid
+  platform        DeliveryPlatform
+  /// The platform's order id (unique per connector).
+  externalId      String              @map("external_id")
+  /// The platform's short code the rider shows, if any.
+  displayCode     String?             @map("display_code")
+  status          DeliveryOrderStatus
+  /// The order in the canonical format, without customer contact details.
+  payload         Json
+  total           Decimal             @db.Decimal(19, 4)
+  /// First name or label for the kitchen; no phone or address is kept.
+  customerName    String?             @map("customer_name")
+  placedAt        DateTime            @map("placed_at") @db.Timestamptz(3)
+  receivedAt      DateTime            @default(now()) @map("received_at") @db.Timestamptz(3)
+  decidedAt       DateTime?           @map("decided_at") @db.Timestamptz(3)
+  decidedByUserId String?             @map("decided_by_user_id") @db.Uuid
+  /// Why it could not be accepted, or what needs a person after a cancellation.
+  problem         String?
+  posOrderId      String?             @map("pos_order_id") @db.Uuid
+  posOrder        PosOrder?           @relation(fields: [organizationId, posOrderId], references: [organizationId, id], onDelete: Restrict)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  connector    Connector    @relation(fields: [organizationId, connectorId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([connectorId, externalId])
+  @@unique([organizationId, posOrderId])
+  @@index([organizationId, status, receivedAt])
+  @@map("delivery_orders")
+}
+
+enum DeliveryMapKind {
+  ITEM
+  OPTION
+}
+
+/// A platform's item or modifier id → our menu item or option.
+model DeliveryItemMap {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  connectorId    String          @map("connector_id") @db.Uuid
+  kind           DeliveryMapKind
+  externalId     String          @map("external_id")
+  /// Menu item (ITEM) or modifier option (OPTION).
+  targetId       String          @map("target_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  connector    Connector    @relation(fields: [organizationId, connectorId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([connectorId, kind, externalId])
+  @@map("delivery_item_maps")
 }

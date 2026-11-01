@@ -1124,3 +1124,19 @@ Migration `20261128090000_pos5b_customers`; new tables have row-level security.
 - **pos_payments** gains method GIFT_CARD with `gift_card_id` (⇔);
   **pos_refunds** are CASH or CARD only. **pos_orders** gains `customer_id`
   and `loyalty_points` (spent; needs a customer).
+
+### Delivery platform orders (POS5c, ADR-069)
+
+Migration `20261129090000_pos5c_delivery`; new tables have row-level security.
+
+- **connectors** gains kind DELIVERY_ORDERS; config `{ platform, registerId,
+branchId, warehouseId, autoAccept }`.
+- **delivery_orders**: connector, `platform` HUNGERSTATION | JAHEZ | KEETA |
+  OTHER, `external_id` (UQ per connector), `display_code`, `status` PENDING |
+  NEEDS_MAPPING | ACCEPTED (⇒ POS order) | REJECTED | CANCELLED, `payload`
+  (canonical order without contact details), `total` ≥ 0, `customer_name`,
+  `placed_at`, decision, `problem`, `pos_order_id` (UQ, FK with the
+  organization). Only the decision fields change (trigger).
+- **delivery_item_maps**: connector, `kind` ITEM | OPTION, `external_id`
+  (UQ per connector and kind) → `target_id` (menu item or modifier option).
+- **pos_payments** gains method DELIVERY_PLATFORM (needs a reference).

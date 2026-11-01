@@ -137,7 +137,8 @@
     "onlinePayments": "المدفوعات الإلكترونية",
     "posPromotions": "العروض",
     "posCustomers": "العملاء",
-    "posGiftCards": "بطاقات الهدية"
+    "posGiftCards": "بطاقات الهدية",
+    "posDelivery": "طلبات التوصيل"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -490,7 +491,12 @@
     "POINTS_NOT_ENOUGH": "لا يملك العميل هذه النقاط.",
     "POINTS_MORE_THAN_ORDER": "قيمة هذه النقاط أكبر من الطلب.",
     "GIFT_CARD_UNKNOWN": "بطاقة الهدية هذه غير صالحة.",
-    "GIFT_CARD_BALANCE_LOW": "تبقّى في بطاقة الهدية {balance} فقط."
+    "GIFT_CARD_BALANCE_LOW": "تبقّى في بطاقة الهدية {balance} فقط.",
+    "DELIVERY_ITEMS_UNMAPPED": "بعض الأصناف غير مربوطة بالقائمة: {items} {options}",
+    "DELIVERY_MODIFIER_QUANTITY": "طُلبت إضافة أكثر من مرة؛ القائمة تقبل كل خيار مرة واحدة.",
+    "DELIVERY_ORDER_CLOSED": "طلب التوصيل هذا لم يعد مفتوحًا.",
+    "DELIVERY_TOTAL_DIFFERS": "إجمالي المنصة ({total}) لا يطابق أصنافها ({items}).",
+    "DELIVERY_CREATOR_LACKS_ACCESS": "لا يمكنك البيع على هذه النقطة، لذلك لا يمكن للموصل الذي تنشئه ذلك أيضًا."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -2430,7 +2436,8 @@
     "retry": "إعادة المحاولة",
     "kinds": {
       "INBOUND_SALES_WEBHOOK": "خطاف ويب وارد للمبيعات",
-      "OUTBOUND_WEBHOOK": "خطاف ويب صادر للأحداث"
+      "OUTBOUND_WEBHOOK": "خطاف ويب صادر للأحداث",
+      "DELIVERY_ORDERS": "طلبات منصات التوصيل"
     },
     "statuses": {
       "ACTIVE": "نشط",
@@ -2740,7 +2747,8 @@
       "CASH": "نقدًا",
       "CARD": "بطاقة",
       "QR": "الدفع عبر الرمز",
-      "GIFT_CARD": "بطاقة هدية"
+      "GIFT_CARD": "بطاقة هدية",
+      "DELIVERY_PLATFORM": "منصة توصيل"
     },
     "tendered": "النقد المستلم",
     "change": "الباقي",
@@ -2997,7 +3005,8 @@
     "pointsEarned": "النقاط المكتسبة",
     "giftCardsSoldCash": "بطاقات هدية مبيعة (نقدًا)",
     "giftCardsSoldCard": "بطاقات هدية مبيعة (بطاقة)",
-    "giftCardPayments": "مدفوع ببطاقات الهدية"
+    "giftCardPayments": "مدفوع ببطاقات الهدية",
+    "platformPayments": "مدفوع لمنصات التوصيل"
   },
   "zatca": {
     "title": "الفوترة الإلكترونية (هيئة الزكاة)",
@@ -3207,5 +3216,62 @@
     "active": "نشطة",
     "block": "إيقاف",
     "blockConfirm": "إيقاف هذه البطاقة؟ لن يمكن استخدامها بعد ذلك."
+  },
+  "delivery": {
+    "title": "طلبات التوصيل",
+    "intro": "طلبات منصات التوصيل لفروعك. قبول الطلب يسجله على نقطة البيع ويرسله إلى المطبخ ويخصم مخزونه. تُطبق أسعار المنصة، والدفع للمنصة.",
+    "setup": "إعداد المنصات",
+    "waiting": "بانتظار القبول ({count})",
+    "noneWaiting": "لا توجد طلبات بالانتظار.",
+    "recent": "الأحدث",
+    "noneYet": "لا توجد طلبات توصيل بعد.",
+    "accept": "قبول",
+    "reject": "رفض",
+    "rejectReason": "السبب",
+    "mapItems": "ربط الأصناف بالقائمة",
+    "askManagerToMap": "يحتاج المدير إلى ربط هذه الأصناف بالقائمة.",
+    "statuses": {
+      "PENDING": "بالانتظار",
+      "NEEDS_MAPPING": "يحتاج ربطًا",
+      "ACCEPTED": "مقبول",
+      "REJECTED": "مرفوض",
+      "CANCELLED": "ملغى"
+    },
+    "platforms": {
+      "HUNGERSTATION": "هنقرستيشن",
+      "JAHEZ": "جاهز",
+      "KEETA": "كيتا",
+      "OTHER": "منصة أخرى"
+    },
+    "setupTitle": "منصات التوصيل",
+    "setupIntro": "موصل واحد لكل منصة ونقطة بيع. أعطِ عنوانه ومفتاح التوقيع للمنصة أو لوسيط التكامل؛ تصل الطلبات بالصيغة الموحدة (docs/DELIVERY.md).",
+    "connectors": "الموصلات",
+    "noConnectors": "لم تُربط أي منصة توصيل بعد.",
+    "connectorName": "الاسم",
+    "platform": "المنصة",
+    "register": "نقطة البيع",
+    "registerHint": "تُسجل الطلبات على الوردية المفتوحة لهذه النقطة.",
+    "autoAccept": "قبول الطلبات تلقائيًا عندما تكون كل الأصناف مربوطة والوردية مفتوحة",
+    "autoAcceptShort": "تلقائي",
+    "mappings": "الربط",
+    "addConnector": "ربط منصة",
+    "howItConnects": "طريقة ربط كل منصة",
+    "native": "تكامل مباشر.",
+    "canonicalOnly": "عبر الصيغة الموحدة (مباشرة أو عبر وسيط)؛ يُضاف التكامل المباشر عند توفر مواصفات الشريك وبيئة الاختبار لدى المنصة.",
+    "mappingIntro": "اربط معرّفات أصناف المنصة وإضافاتها بقائمتك. يمكن قبول الطلبات المنتظرة بعد الربط.",
+    "endpointAndSecret": "العنوان والمفتاح",
+    "toMap": "بانتظار الربط",
+    "map": "ربط",
+    "mapKind": "النوع",
+    "mapKinds": {
+      "ITEM": "صنف",
+      "OPTION": "إضافة"
+    },
+    "externalId": "معرّف المنصة",
+    "target": "صنف أو خيار في القائمة",
+    "noMappings": "لا يوجد ربط بعد.",
+    "addMapping": "ربط معرّف",
+    "unmap": "إزالة",
+    "voidNeeded": "ألغته المنصة بعد إغلاق ورديته: استرد الطلب من صفحته."
   }
 }

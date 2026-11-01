@@ -1,23 +1,63 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS5b customers, loyalty and gift cards)
+Last updated: 2026-11-01 (POS5c delivery platform orders — Q-18 decided)
 
 ## Summary
 
-| Milestone                     | Status                                                                                                                                                                                                                                                                                             |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                                                                                                        |
-| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                                                                                                        |
-| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                                                                                                        |
-| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                                                                                                |
-| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                                                                                                  |
-| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                                                                                                       |
-| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                                                                                                     |
-| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                                                                                                         |
-| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA                                                                              |
-| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                    |
-| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                               |
-| POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done |
+| Milestone                     | Status                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                                                                                                                                                                                           |
+| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                                                                                                                                                                                           |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                                                                                                                                                                                           |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                                                                                                                                                                                   |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                                                                                                                                                                                     |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                                                                                                                                                                                          |
+| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                                                                                                                                                                                        |
+| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                                                                                                                                                                                            |
+| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA                                                                                                                                                                 |
+| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                       |
+| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                  |
+| POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) |
+
+## POS5c — Delivery platform orders (built; native adapters pending platform specifications)
+
+Rules: DECISIONS.md ADR-069; format: docs/DELIVERY.md. Q-18 decided:
+HungerStation, Jahez, Keeta, plug and play.
+
+| Area       | What works                                                                                                      | Where                                     |
+| ---------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Connectors | One per platform and register; address and secret shown once; disable, rotate, request log (integrations page)  | `/pos/delivery/setup`                     |
+| Adapters   | Registry per platform; canonical format for all today; native adapter = one file once a spec is available       | `delivery/adapters.ts`                    |
+| Mapping    | Platform item and modifier ids → menu items and options; ids waiting for a mapping listed                       | `/pos/delivery/setup/<connector>`         |
+| Orders     | Waiting / needs mapping / accepted / rejected / cancelled; accept or reject (with reason); refreshes every 10 s | `/pos/delivery`                           |
+| Recording  | POS order with the platform's prices and discount, paid to the platform, kitchen ticket, stock, VAT, ZATCA      | `acceptDeliveryOrder` → `recordOrderInTx` |
+| Automatic  | Optional auto-accept when mapped and a shift is open; otherwise waits with the reason                           | connector setting                         |
+| Cancelling | Platform cancellation closes a waiting order or voids an accepted one in its open shift                         | `order.cancelled`                         |
+
+**Not tested against HungerStation, Jahez or Keeta**: their partner APIs
+need onboarding (and `api-docs.mykeeta.com` is not reachable from the
+development environment). No native adapter is claimed; all three connect
+through the canonical format (directly or via middleware) until their
+specifications and sandboxes are available.
+
+Checks: `pnpm check` pass (unit 46 files / 247 tests; new: the canonical
+format for every platform, no adapter claimed native, ids still to map);
+`pnpm test:integration` 48 files / 310 tests pass (7 new: unsigned and malformed requests
+refused; unmapped order waits, mapping moves it on, accepted with the
+platform's prices, discount, VAT and platform payment; the same platform
+order not taken twice; a wrong total kept with its reason, rejected;
+auto-accept with a kitchen ticket, cancellation voids it, platform money
+apart in the shift; devices cannot send a platform payment; other
+organizations cannot see, accept or map); `pnpm test:e2e` 53 tests pass (new:
+connect HungerStation in the UI, a signed order arrives, map its item,
+accept, see the POS order).
+
+Also: the inbound checks were moved into one shared function for sales and
+delivery connectors; the order page shows the order's note.
+
+Limitations: no status sent back to the platforms (accepted, ready,
+rejected) and no menu sync until native adapters exist; platform payouts
+are not reconciled yet; each modifier option once per item.
 
 ## POS5b — Customers, loyalty points and gift cards (delivered)
 

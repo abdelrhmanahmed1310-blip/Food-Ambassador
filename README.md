@@ -51,7 +51,7 @@ traceability, point of sale, sales/invoice workflows and analytics.
 > kitchen screens (POS2), card payments with settlement matching and pay by
 > QR (POS3, Moyasar — not yet validated against Moyasar), ZATCA Phase 2
 > simplified invoices (POS4a — not yet validated against ZATCA), and
-> discounts: timed promotions, coupons and manual discounts (POS5a), customers with loyalty points and gift cards (POS5b). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> discounts: timed promotions, coupons and manual discounts (POS5a), customers with loyalty points and gift cards (POS5b), and delivery platform orders (POS5c, [docs/DELIVERY.md](docs/DELIVERY.md)). See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 | Document                                                   | Contents                                                      |
 | ---------------------------------------------------------- | ------------------------------------------------------------- |

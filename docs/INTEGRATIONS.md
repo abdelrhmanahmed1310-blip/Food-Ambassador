@@ -1,5 +1,7 @@
 # Integrations
 
+Delivery platform orders use the same inbound checks: see [DELIVERY.md](DELIVERY.md).
+
 Food Ambassador talks to other systems through **connectors** (Settings →
 Integrations, owners and admins only, permission `integrations.manage`).
 Rules: DECISIONS.md ADR-048.

@@ -21,7 +21,7 @@ type Option = { value: string; label: string };
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
 /** Shown once after create or rotate: the secret is not retrievable later. */
-function SecretOnce({ secret, endpoint }: { secret: string; endpoint?: string }) {
+export function SecretOnce({ secret, endpoint }: { secret: string; endpoint?: string }) {
   const t = useTranslations("integrations");
   return (
     <div className="border-warning/40 bg-warning-surface space-y-3 rounded-md border p-3">

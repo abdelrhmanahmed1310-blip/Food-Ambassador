@@ -408,19 +408,51 @@ export interface InboundResult {
   body: Record<string, unknown>;
 }
 
-/**
- * Handle POST /api/integrations/inbound/<publicId>. The body is verified
- * (HMAC over timestamp + body, 5-minute window), deduplicated by the
- * Idempotency-Key header, and posted through the normal sales import as the
- * connector's creator — with that person's current permissions.
- */
-export async function handleInboundSales(input: {
+export type InboundInput = {
   publicId: string;
   body: string;
   headers: { timestamp: string | null; signature: string | null; idempotencyKey: string | null };
-}): Promise<InboundResult> {
-  if (!/^[A-Za-z0-9_-]{24,64}$/.test(input.publicId))
-    return { status: 404, body: { error: "notFound" } };
+};
+
+type InboundLog = (
+  status: "ACCEPTED" | "REJECTED" | "DUPLICATE",
+  outcome: Record<string, unknown>,
+) => Promise<unknown>;
+
+/** The kind of connector behind an inbound URL (to route the request), or null. */
+export async function inboundKind(publicId: string) {
+  if (!/^[A-Za-z0-9_-]{24,64}$/.test(publicId)) return null;
+  const c = await withSystemTx((tx) =>
+    tx.connector.findUnique({ where: { publicId }, select: { kind: true } }),
+  );
+  return c?.kind ?? null;
+}
+
+/**
+ * The checks every inbound request goes through (ADR-048): an unguessable
+ * URL, a rate limit, an active connector of the expected kind, the HMAC
+ * over timestamp + body within 5 minutes, an Idempotency-Key (a repeat of an
+ * accepted request returns its outcome), and the creator's current access.
+ * Every request is logged.
+ */
+export async function verifyInbound(
+  input: InboundInput,
+  kind: "INBOUND_SALES_WEBHOOK" | "DELIVERY_ORDERS",
+): Promise<
+  | { ok: false; result: InboundResult }
+  | {
+      ok: true;
+      connector: { id: string; organizationId: string; config: unknown; name: string };
+      ctx: TenantContext;
+      idem: string;
+      log: InboundLog;
+    }
+> {
+  const fail = (status: number, body: Record<string, unknown>) => ({
+    ok: false as const,
+    result: { status, body },
+  });
+  if (!/^[A-Za-z0-9_-]{24,64}$/.test(input.publicId)) return fail(404, { error: "notFound" });
   // Looked up by an unguessable id before any tenant is known.
   const connector = await withSystemTx((tx) =>
     tx.connector.findUnique({
@@ -428,13 +460,11 @@ export async function handleInboundSales(input: {
       include: { organization: { select: { slug: true } } },
     }),
   );
-  if (!connector || connector.kind !== "INBOUND_SALES_WEBHOOK")
-    return { status: 404, body: { error: "notFound" } };
+  if (!connector || connector.kind !== kind) return fail(404, { error: "notFound" });
   const limit = await consumeRateLimit(`inbound:${connector.id}`, { window: 60, max: 120 });
-  if (!limit.allowed)
-    return { status: 429, body: { error: "rateLimited", retryAfter: limit.retryAfter } };
+  if (!limit.allowed) return fail(429, { error: "rateLimited", retryAfter: limit.retryAfter });
   const org = connector.organizationId;
-  const log = (status: "ACCEPTED" | "REJECTED" | "DUPLICATE", outcome: Record<string, unknown>) =>
+  const log: InboundLog = (status, outcome) =>
     withTenantTx(org, (tx) =>
       tx.integrationEvent.create({
         data: {
@@ -450,7 +480,7 @@ export async function handleInboundSales(input: {
     );
   if (connector.status !== "ACTIVE") {
     await log("REJECTED", { error: "connectorDisabled" });
-    return { status: 403, body: { error: "connectorDisabled" } };
+    return fail(403, { error: "connectorDisabled" });
   }
   const check = verifySignature({
     secret: decryptSecret(connector.secretSealed, key()),
@@ -461,12 +491,12 @@ export async function handleInboundSales(input: {
   });
   if (check !== "OK") {
     await log("REJECTED", { error: `signature${check}` });
-    return { status: 401, body: { error: "invalidSignature", reason: check } };
+    return fail(401, { error: "invalidSignature", reason: check });
   }
   const idem = input.headers.idempotencyKey;
   if (!idem || !/^[\w.:-]{8,120}$/.test(idem)) {
     await log("REJECTED", { error: "idempotencyKeyRequired" });
-    return { status: 400, body: { error: "idempotencyKeyRequired" } };
+    return fail(400, { error: "idempotencyKeyRequired" });
   }
   const previous = await withTenantTx(org, (tx) =>
     tx.integrationEvent.findFirst({
@@ -480,8 +510,28 @@ export async function handleInboundSales(input: {
   );
   if (previous) {
     await log("DUPLICATE", { original: previous.id });
-    return { status: 200, body: { duplicate: true, ...(previous.outcome as object) } };
+    return fail(200, { duplicate: true, ...(previous.outcome as object) });
   }
+  // Act as the person who set the connector up, with their current access.
+  const ctx = await withSystemTx((tx) =>
+    resolveTenantContext(tx, connector.createdByUserId, connector.organization.slug),
+  );
+  if (!ctx) {
+    await log("REJECTED", { error: "creatorNoAccess" });
+    return fail(403, { error: "creatorNoAccess" });
+  }
+  return { ok: true, connector, ctx, idem, log };
+}
+
+/**
+ * Handle POST /api/integrations/inbound/<publicId> for a sales connector:
+ * after the inbound checks, the lines are posted through the normal sales
+ * import as the connector's creator — with that person's current permissions.
+ */
+export async function handleInboundSales(input: InboundInput): Promise<InboundResult> {
+  const v = await verifyInbound(input, "INBOUND_SALES_WEBHOOK");
+  if (!v.ok) return v.result;
+  const { connector, ctx, idem, log } = v;
   let parsed: z.infer<typeof inboundBody>;
   try {
     const json = inboundBody.safeParse(JSON.parse(input.body));
@@ -490,14 +540,6 @@ export async function handleInboundSales(input: {
   } catch {
     await log("REJECTED", { error: "invalidBody" });
     return { status: 400, body: { error: "invalidBody" } };
-  }
-  // Act as the person who set the connector up, with their current access.
-  const ctx = await withSystemTx((tx) =>
-    resolveTenantContext(tx, connector.createdByUserId, connector.organization.slug),
-  );
-  if (!ctx) {
-    await log("REJECTED", { error: "creatorNoAccess" });
-    return { status: 403, body: { error: "creatorNoAccess" } };
   }
   const cols = [
     "date",

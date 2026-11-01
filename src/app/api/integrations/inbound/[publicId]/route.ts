@@ -1,8 +1,10 @@
-import { handleInboundSales } from "@/modules/integrations/service";
+import { handleDeliveryInbound } from "@/modules/delivery/service";
+import { handleInboundSales, inboundKind } from "@/modules/integrations/service";
 import { logger } from "@/server/logger";
 
-// Signed inbound sales webhook (docs/INTEGRATIONS.md, ADR-048). Thin: reads
-// the raw body (the signature covers its exact bytes) and hands over.
+// Signed inbound webhooks (docs/INTEGRATIONS.md, ADR-048): sales, and
+// delivery platform orders (docs/DELIVERY.md, ADR-069). Thin: reads the raw
+// body (the signature covers its exact bytes) and hands over by connector kind.
 export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 900_000;
@@ -17,7 +19,7 @@ export async function POST(request: Request, context: { params: Promise<{ public
   if (Buffer.byteLength(body) > MAX_BYTES)
     return Response.json({ error: "bodyTooLarge" }, { status: 413, headers: noStore });
   try {
-    const result = await handleInboundSales({
+    const input = {
       publicId,
       body,
       headers: {
@@ -25,7 +27,11 @@ export async function POST(request: Request, context: { params: Promise<{ public
         signature: request.headers.get("x-fa-signature"),
         idempotencyKey: request.headers.get("idempotency-key"),
       },
-    });
+    };
+    const result =
+      (await inboundKind(publicId)) === "DELIVERY_ORDERS"
+        ? await handleDeliveryInbound(input)
+        : await handleInboundSales(input);
     return Response.json(result.body, { status: result.status, headers: noStore });
   } catch (e) {
     logger.error("inbound webhook failed", { error: e instanceof Error ? e.message : "error" });

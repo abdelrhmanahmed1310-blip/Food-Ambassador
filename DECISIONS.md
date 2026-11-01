@@ -1525,6 +1525,49 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - ZATCA payment means: 48 card, 10 cash, 1 (not defined) when only gift
   cards paid or nothing was due.
 
+### ADR-069 Delivery platform orders: plug-and-play adapters — Accepted (POS5c; native adapters pending platform specifications)
+
+- **Q-18 decided:** HungerStation, Jahez and Keeta first, and any platform
+  with the same concept through the same design.
+- **What is public:** HungerStation's partner API and Jahez's integration API
+  are given to integrators on request (Delivery Hero integration team;
+  integration@jahez.net); Keeta publishes an Open Delivery–based API whose
+  credentials follow an NDA. None of them could be read or tested from the
+  development environment, so **no platform payload format is invented**.
+- **Design:** a delivery connector (one per platform and register) receives
+  signed, idempotent requests at its inbound address (ADR-048 checks,
+  shared with the sales webhook). An **adapter** per platform turns the
+  request into **canonical events** (`order.placed`, `order.cancelled`;
+  docs/DELIVERY.md). Today every platform uses the canonical format —
+  directly, or through integration middleware that many restaurants already
+  use. A native adapter is one file implementing `parse` (and the platform's
+  signature check) from its specification; it is marked native only after
+  testing against the platform's sandbox. Everything after the adapter is
+  shared.
+- **Item mapping:** platform item ids → menu items, modifier ids → modifier
+  options, per connector (`menu.manage`). An order with unmapped ids waits
+  as NEEDS_MAPPING and lists them; mapping moves it to PENDING.
+- **Accepting** (cashier with `pos.sell` at the register's branch, or
+  automatically when set and possible) records a POS order whose id is the
+  delivery order's (retry-safe): channel DELIVERY, the **platform's prices**
+  (VAT included; our promotions do not apply), the restaurant-funded
+  discount as the order discount, one payment `DELIVERY_PLATFORM` with the
+  reference `<platform>:<order id>`, a kitchen ticket labelled with the
+  platform and its code, stock, VAT and ZATCA as any order. Devices can
+  never send a platform payment. A total that does not equal the items less
+  the discount is refused with its reason. Rejecting needs a reason.
+- **Cancellation by the platform** closes a waiting order, voids an
+  accepted one while its shift is open, and otherwise marks it for a
+  manager to refund.
+- **Privacy:** only a first name or label is kept for the counter; no phone
+  or address is stored.
+- Platform money is shown apart in the shift report (owed by the platforms,
+  not cash or card). ZATCA payment means for such orders: 1 (not defined) —
+  to confirm when ZATCA validation runs.
+- Not yet: telling the platform that an order was accepted, is ready or was
+  rejected (needs each platform's API — a native adapter — or the
+  middleware); menu sync to platforms; reconciliation of platform payouts.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

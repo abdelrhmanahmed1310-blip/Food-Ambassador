@@ -44,7 +44,8 @@ export default async function ConnectorPage({
       ? format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone })
       : "—";
   const config = c.config as { warehouseId?: string; url?: string; events?: string[] };
-  const inbound = c.kind === "INBOUND_SALES_WEBHOOK";
+  // Sales and delivery connectors receive requests at their endpoint (ADR-048, ADR-069).
+  const inbound = c.kind !== "OUTBOUND_WEBHOOK";
   const next = c.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
   return (
     <>

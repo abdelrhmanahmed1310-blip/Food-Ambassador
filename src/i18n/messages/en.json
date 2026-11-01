@@ -137,7 +137,8 @@
     "onlinePayments": "Online payments",
     "posPromotions": "Promotions",
     "posCustomers": "Customers",
-    "posGiftCards": "Gift cards"
+    "posGiftCards": "Gift cards",
+    "posDelivery": "Delivery orders"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -490,7 +491,12 @@
     "POINTS_NOT_ENOUGH": "The customer does not have these points.",
     "POINTS_MORE_THAN_ORDER": "These points are worth more than the order.",
     "GIFT_CARD_UNKNOWN": "This gift card is not valid.",
-    "GIFT_CARD_BALANCE_LOW": "The gift card has only {balance} left."
+    "GIFT_CARD_BALANCE_LOW": "The gift card has only {balance} left.",
+    "DELIVERY_ITEMS_UNMAPPED": "Some items are not mapped to the menu: {items} {options}",
+    "DELIVERY_MODIFIER_QUANTITY": "A modifier is ordered more than once; the menu takes each option once.",
+    "DELIVERY_ORDER_CLOSED": "This delivery order is no longer open.",
+    "DELIVERY_TOTAL_DIFFERS": "The platform's total ({total}) does not match its items ({items}).",
+    "DELIVERY_CREATOR_LACKS_ACCESS": "You cannot sell at this register, so a connector you create cannot either."
   },
   "notFound": {
     "title": "Page not found",
@@ -2430,7 +2436,8 @@
     "retry": "Retry",
     "kinds": {
       "INBOUND_SALES_WEBHOOK": "Inbound sales webhook",
-      "OUTBOUND_WEBHOOK": "Outbound event webhook"
+      "OUTBOUND_WEBHOOK": "Outbound event webhook",
+      "DELIVERY_ORDERS": "Delivery platform orders"
     },
     "statuses": {
       "ACTIVE": "Active",
@@ -2740,7 +2747,8 @@
       "CASH": "Cash",
       "CARD": "Card",
       "QR": "Pay by QR",
-      "GIFT_CARD": "Gift card"
+      "GIFT_CARD": "Gift card",
+      "DELIVERY_PLATFORM": "Delivery platform"
     },
     "tendered": "Cash received",
     "change": "Change",
@@ -2997,7 +3005,8 @@
     "pointsEarned": "Points earned",
     "giftCardsSoldCash": "Gift cards sold (cash)",
     "giftCardsSoldCard": "Gift cards sold (card)",
-    "giftCardPayments": "Paid by gift card"
+    "giftCardPayments": "Paid by gift card",
+    "platformPayments": "Paid to delivery platforms"
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
@@ -3207,5 +3216,62 @@
     "active": "Active",
     "block": "Block",
     "blockConfirm": "Block this card? It can no longer be spent."
+  },
+  "delivery": {
+    "title": "Delivery orders",
+    "intro": "Orders from delivery platforms for your branches. Accepting an order records it on the register, sends it to the kitchen and uses its stock. The platform's prices apply; it is paid to the platform.",
+    "setup": "Set up platforms",
+    "waiting": "Waiting ({count})",
+    "noneWaiting": "No orders waiting.",
+    "recent": "Recent",
+    "noneYet": "No delivery orders yet.",
+    "accept": "Accept",
+    "reject": "Reject",
+    "rejectReason": "Reason",
+    "mapItems": "Map the items to the menu",
+    "askManagerToMap": "A manager needs to map these items to the menu.",
+    "statuses": {
+      "PENDING": "Waiting",
+      "NEEDS_MAPPING": "Needs mapping",
+      "ACCEPTED": "Accepted",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled"
+    },
+    "platforms": {
+      "HUNGERSTATION": "HungerStation",
+      "JAHEZ": "Jahez",
+      "KEETA": "Keeta",
+      "OTHER": "Other platform"
+    },
+    "setupTitle": "Delivery platforms",
+    "setupIntro": "One connector per platform and register. Give its address and signing secret to the platform or to your integration middleware; orders arrive in the canonical format (docs/DELIVERY.md).",
+    "connectors": "Connectors",
+    "noConnectors": "No delivery platforms connected yet.",
+    "connectorName": "Name",
+    "platform": "Platform",
+    "register": "Register",
+    "registerHint": "Orders are recorded on this register's open shift.",
+    "autoAccept": "Accept orders automatically when every item is mapped and a shift is open",
+    "autoAcceptShort": "Automatic",
+    "mappings": "Mappings",
+    "addConnector": "Connect a platform",
+    "howItConnects": "How each platform connects",
+    "native": "Native integration.",
+    "canonicalOnly": "Through the canonical format (directly or via middleware); the native integration is added once the platform's partner specification and test access are available.",
+    "mappingIntro": "Map the platform's item and modifier ids to your menu. Orders waiting for a mapping can be accepted once it is done.",
+    "endpointAndSecret": "Address and secret",
+    "toMap": "Waiting for a mapping",
+    "map": "Map",
+    "mapKind": "Type",
+    "mapKinds": {
+      "ITEM": "Item",
+      "OPTION": "Modifier"
+    },
+    "externalId": "Platform id",
+    "target": "Menu item or option",
+    "noMappings": "Nothing mapped yet.",
+    "addMapping": "Map an id",
+    "unmap": "Remove",
+    "voidNeeded": "Cancelled by the platform after its shift closed: refund the order from its page."
   }
 }
