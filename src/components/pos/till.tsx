@@ -18,7 +18,8 @@ import {
 } from "./queue";
 
 type Channel = TillData["channels"][number]["channel"];
-type Item = TillData["channels"][number]["items"][number];
+export type MenuItemView = TillData["channels"][number]["items"][number];
+type Item = MenuItemView;
 /** The last sale: recorded by the server, or kept on this device until it can be sent. */
 type Done =
   | { queued: false; id: string; number: string; change: string; shortfalls: number }
@@ -36,7 +37,7 @@ interface CartLine {
   unit: Decimal;
 }
 
-const named = (x: { name: string; nameAr: string | null }, locale: string) =>
+export const named = (x: { name: string; nameAr: string | null }, locale: string) =>
   (locale === "ar" && x.nameAr) || x.name;
 
 /**
@@ -553,7 +554,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   );
 }
 
-function OptionsDialog({
+export function OptionsDialog({
   item,
   fmt,
   onCancel,

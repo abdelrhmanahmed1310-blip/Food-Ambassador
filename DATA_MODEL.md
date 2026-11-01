@@ -998,3 +998,26 @@ browser's IndexedDB (`food-ambassador-pos`, store `orders`: order id,
 register, cashier, payload, status pending | refused, reason) until the
 server has them. An order sent after its shift closed is recognised by
 `pos_orders.created_at` > `pos_shifts.closed_at`.
+
+### Tables and checks (POS2a, ADR-062)
+
+Migration `20261122090000_pos2a_tables`; all tables have row-level security.
+
+- **pos_floors**: branch, `warehouse_id` (the kitchen's stock), name (UQ per
+  branch), `sort_order`, `archived_at`.
+- **pos_tables**: floor, branch, `code` (UQ per branch), `seats` 1–50,
+  `grid_x`/`grid_y` 0–39, `archived_at`.
+- **pos_tabs** (checks): `number` (TAB-), branch, warehouse, `table_id` or a
+  `label`, `guests`, `channel`, `status` OPEN | CLOSED | CANCELLED | MERGED
+  (CHECKs tie `closed_at`, `merged_into_tab_id`, `cancel_reason` to the
+  status), waiter, opened/closed. One OPEN check per table (partial unique
+  index).
+- **pos_tab_lines**: check, `line_no` (UQ per check), menu item, name,
+  `quantity`, `option_ids`, `option_names`, `seat`, `course` 1–9, `note`,
+  `hold`, `status` PENDING | SENT | VOIDED, sent/voided by and at,
+  `void_reason`, `waste_doc_id` (write-off of a voided sent item),
+  `paid_quantity` ≤ `quantity`. Triggers: only PENDING unpaid lines can be
+  deleted; a sent line's item, options, quantity and send time are fixed; a
+  voided line stays voided.
+- **pos_orders.tab_id** and **pos_order_lines.tab_line_id** link the orders
+  that paid a check to it.

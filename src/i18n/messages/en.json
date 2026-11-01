@@ -129,7 +129,8 @@
     "menu": "Menu",
     "posSection": "Sales",
     "pos": "Point of sale",
-    "posShortfalls": "Stock shortfalls"
+    "posShortfalls": "Stock shortfalls",
+    "posFloor": "Floor plan"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -441,7 +442,19 @@
     "REFUND_OTHER_BRANCH": "Refund at a register of the order's branch.",
     "REFUND_EXCEEDS_LINE": "More than is left to refund on this line.",
     "NOTHING_TO_REFUND": "Enter a quantity to refund.",
-    "MENU_TIME_INVALID": "The till's menu is not from this shift; reload the till."
+    "MENU_TIME_INVALID": "The till's menu is not from this shift; reload the till.",
+    "TABLE_HAS_OPEN_CHECK": "This table already has an open check.",
+    "CHECK_NEEDS_TABLE_OR_NAME": "Choose a table or give the check a name.",
+    "CHECK_CLOSED": "This check is closed.",
+    "CHECK_ITEM_FIXED": "This item is paid or voided.",
+    "CHECK_ITEM_SENT": "The kitchen has this item; void it with a reason.",
+    "NOTHING_TO_SEND": "There is nothing to send.",
+    "CHECK_ITEM_NOT_SENT": "Only items sent to the kitchen are voided; take back an unsent item.",
+    "CHECK_MERGE_SELF": "Choose another check.",
+    "CHECK_PARTLY_PAID": "Part of a check is already paid.",
+    "CHECK_HAS_SENT_ITEMS": "The kitchen has items of this check; void them first.",
+    "NOTHING_TO_PAY": "Nothing is left to pay.",
+    "CHECK_ITEM_OVERPAID": "More than is left on this item."
   },
   "notFound": {
     "title": "Page not found",
@@ -597,7 +610,8 @@
       "finance": "Finance",
       "branch_manager": "Branch Manager",
       "analyst": "Read-only Analyst",
-      "cashier": "Cashier"
+      "cashier": "Cashier",
+      "waiter": "Waiter"
     },
     "permissionLabels": {
       "org.settings.manage": "Manage organization settings",
@@ -656,7 +670,8 @@
       "pos.void": "Void paid orders in an open shift",
       "pos.refund": "Refund orders",
       "pos.manage": "Set up registers",
-      "pos.view": "See point-of-sale orders and shift reports"
+      "pos.view": "See point-of-sale orders and shift reports",
+      "pos.tables": "Serve tables: open checks, add items, send to the kitchen"
     }
   },
   "audit": {
@@ -982,7 +997,8 @@
       "LOST_IN_TRANSIT": "Lost in transit",
       "SHORT_SHIPPED": "Short-shipped",
       "SALES": "Sales",
-      "PRODUCTION": "Production"
+      "PRODUCTION": "Production",
+      "PREPARED_NOT_SOLD": "Prepared, not sold"
     },
     "valuationTitle": "Stock value",
     "valuationHint": "Moving weighted average cost per product and warehouse, in {currency}.",
@@ -2746,6 +2762,91 @@
     "discardConfirm": "Discard this order from this device? It will not be recorded. Record it again on the till if the money was taken.",
     "pendingBeforeClose": "{count, plural, one {This device still has # order for this register that has not been sent.} other {This device still has # orders for this register that have not been sent.}} Go online and let them send before closing; orders sent later are still added to this shift.",
     "lateOrders": "Orders sent after closing",
-    "lateCash": "Their cash (not in the count above)"
+    "lateCash": "Their cash (not in the count above)",
+    "addFloor": "Add floor",
+    "addItems": "Add items",
+    "addTable": "Add table",
+    "addToCheck": "Add {count, plural, one {# item} other {# items}} to the check",
+    "cancel": "Cancel check",
+    "cancelCheck": "Cancel the check",
+    "checkActions": "Table",
+    "checkClosed": "Check closed",
+    "checkItems": "Check",
+    "checkName": "Name (bar, pick-up)",
+    "checkStatuses": {
+      "OPEN": "Open",
+      "CLOSED": "Closed",
+      "CANCELLED": "Cancelled",
+      "MERGED": "Merged"
+    },
+    "column": "Column",
+    "course": "Course",
+    "courseN": "Course {n}",
+    "eachPays": "Each pays",
+    "fireCourse": "Fire course {n}",
+    "floorName": "Floor name",
+    "floorPlan": "Floor plan",
+    "floorPlanIntro": "Tap a free table to seat guests, or an occupied one to open its check. Refreshes by itself.",
+    "floorsIntro": "Dining areas and their tables. Each floor's kitchen uses stock from one warehouse of the branch.",
+    "floorsTitle": "Floors and tables",
+    "free": "Free",
+    "gridAt": "column {x}, row {y}",
+    "gridHint": "Position on the plan, counting from 0.",
+    "guests": "Guests",
+    "guestsCount": "{count, plural, one {# guest} other {# guests}}",
+    "holdItem": "Hold",
+    "itemNotPriced": "An item is not on sale any more; void or take it back first.",
+    "kitchenFrom": "kitchen stock from {warehouse}",
+    "kitchenWarehouse": "Kitchen stock warehouse",
+    "kitchenWarehouseHint": "What the kitchen cooks for this floor is used from here.",
+    "lineStatuses": {
+      "HELD": "Held",
+      "PAID": "Paid",
+      "PENDING": "Not sent",
+      "SENT": "Sent to kitchen",
+      "VOIDED": "Voided"
+    },
+    "merge": "Merge",
+    "mergeConfirm": "Move all items of this check to the chosen one and close this check?",
+    "mergeInto": "Merge into another check",
+    "minutes": "{count, plural, one {# min} other {# min}}",
+    "move": "Move",
+    "moveToTable": "Move to table",
+    "namedChecks": "Checks without a table",
+    "noCheckItems": "No items yet.",
+    "noFloors": "No floors yet.",
+    "noFloorsHint": "Add floors and tables under Floors and tables.",
+    "noNamedChecks": "No open checks without a table.",
+    "noTables": "No tables on this floor yet.",
+    "notOnSale": "Not on sale",
+    "note": "Note",
+    "openCheck": "Open check",
+    "paidQty": "{quantity} paid",
+    "payCheck": "Payment",
+    "payModes": {
+      "all": "Everything left",
+      "items": "Choose items",
+      "seat": "By seat"
+    },
+    "payWhat": "What to pay",
+    "removeTable": "Remove",
+    "row": "Row",
+    "seat": "Seat",
+    "seatN": "Seat {n}",
+    "seats": "Seats",
+    "seatsCount": "{count, plural, one {# seat} other {# seats}}",
+    "sendToKitchen": "Send {count, plural, one {# item} other {# items}} to the kitchen",
+    "sentCount": "{count, plural, one {# item sent} other {# items sent}} to the kitchen.",
+    "shared": "Shared",
+    "splitInto": "Split into",
+    "tableBusy": "Table {code}, check {number}",
+    "tableCode": "Table",
+    "tableFree": "Table {code}, free",
+    "tableTitle": "Table {code}",
+    "takeBack": "Take back",
+    "unsentCount": "{count, plural, one {# not sent} other {# not sent}}",
+    "voidItem": "Void",
+    "paymentMethod": "Payment method",
+    "payAtRegister": "Register"
   }
 }

@@ -22,6 +22,8 @@ export const WRITE_OFF_REASONS = [
   "SPOILED",
   "CONTAMINATED",
   "RECALLED",
+  /** Made by the kitchen for a check item that was then voided (ADR-062). */
+  "PREPARED_NOT_SOLD",
   "OTHER",
 ] as const;
 export const STATUS_REASONS = [

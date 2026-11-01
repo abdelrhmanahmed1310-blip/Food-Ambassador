@@ -1,0 +1,128 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import type { ActionState } from "@/components/forms/action-state";
+import {
+  addTabLines,
+  cancelTab,
+  createFloor,
+  createTable,
+  mergeTabs,
+  moveTab,
+  openTab,
+  payTab,
+  removeTabLine,
+  sendTab,
+  setTableArchived,
+  updateTabLine,
+  voidTabLine,
+} from "@/modules/pos/tables";
+import type { TenantContext } from "@/modules/tenancy/context";
+import { requireTenant } from "@/modules/tenancy/require-tenant";
+import { errorToState, formValues } from "@/server/actions/handle";
+import { tenantMutation } from "@/server/actions/tenant";
+
+type S = ActionState;
+
+export async function createFloorAction(orgSlug: string, previous: S, formData: FormData) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await createFloor(ctx, formValues(formData));
+  });
+}
+
+export async function createTableAction(
+  orgSlug: string,
+  floorId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await createTable(ctx, floorId, formValues(formData));
+  });
+}
+
+export async function setTableArchivedAction(
+  orgSlug: string,
+  tableId: string,
+  archived: boolean,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    setTableArchived(ctx, tableId, archived),
+  );
+}
+
+/** Open a check at a table, or a named check without one, and go to it. */
+export async function openTabAction(orgSlug: string, previous: S, formData: FormData) {
+  let id = "";
+  const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    id = (await openTab(ctx, formValues(formData))).id;
+  });
+  if (state.ok) redirect(`/o/${orgSlug}/pos/tabs/${id}`);
+  return state;
+}
+
+export type CheckResult =
+  { ok: true; data?: Record<string, unknown> } | { ok: false; error: string };
+
+/** The check screen calls these with data; errors come back localized. */
+async function run(
+  orgSlug: string,
+  fn: (ctx: TenantContext) => Promise<Record<string, unknown> | void>,
+): Promise<CheckResult> {
+  const ctx = await requireTenant(orgSlug);
+  try {
+    const data = (await fn(ctx)) ?? undefined;
+    revalidatePath(`/o/${orgSlug}/pos`, "layout");
+    return { ok: true, data };
+  } catch (error) {
+    const state = await errorToState(error, {});
+    return {
+      ok: false,
+      error: Object.values(state.fieldErrors ?? {})[0] ?? state.formError ?? "",
+    };
+  }
+}
+
+export async function addLinesAction(orgSlug: string, tabId: string, input: unknown) {
+  return run(orgSlug, async (ctx) => {
+    await addTabLines(ctx, tabId, input);
+  });
+}
+export async function updateLineAction(orgSlug: string, lineId: string, input: unknown) {
+  return run(orgSlug, (ctx) => updateTabLine(ctx, lineId, input));
+}
+export async function removeLineAction(orgSlug: string, lineId: string) {
+  return run(orgSlug, (ctx) => removeTabLine(ctx, lineId));
+}
+export async function sendAction(orgSlug: string, tabId: string, input: unknown) {
+  return run(orgSlug, async (ctx) => {
+    const r = await sendTab(ctx, tabId, input);
+    return { sent: r.sent };
+  });
+}
+export async function voidLineAction(orgSlug: string, lineId: string, input: unknown) {
+  return run(orgSlug, (ctx) => voidTabLine(ctx, lineId, input));
+}
+export async function moveAction(orgSlug: string, tabId: string, input: unknown) {
+  return run(orgSlug, (ctx) => moveTab(ctx, tabId, input));
+}
+export async function mergeAction(orgSlug: string, tabId: string, input: unknown) {
+  return run(orgSlug, (ctx) => mergeTabs(ctx, tabId, input));
+}
+export async function cancelAction(orgSlug: string, tabId: string, input: unknown) {
+  return run(orgSlug, (ctx) => cancelTab(ctx, tabId, input));
+}
+export async function payAction(orgSlug: string, tabId: string, input: unknown) {
+  return run(orgSlug, async (ctx) => {
+    const r = await payTab(ctx, tabId, input);
+    return {
+      id: r.id,
+      number: r.number,
+      closed: r.closed,
+      change: "change" in r && r.change ? r.change.toFixed() : "0",
+    };
+  });
+}

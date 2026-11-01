@@ -96,17 +96,24 @@ export async function planConsumptionInTx(
   return { picks, shortages };
 }
 
-/** Post the planned picks as one CONSUMPTION document. */
+/**
+ * Post the planned picks as one CONSUMPTION document (sales), or as a
+ * WRITE_OFF when food was made and not sold (a voided kitchen item, ADR-062),
+ * so it appears with waste.
+ */
 export async function postConsumptionInTx(
   tx: Tx,
   ctx: TenantContext,
   warehouse: WarehouseInfo,
   picks: Awaited<ReturnType<typeof planConsumptionInTx>>["picks"],
   note: string,
+  as: { waste?: boolean } = {},
 ) {
   const id = uuidv7();
+  const movementType = as.waste ? ("WRITE_OFF" as const) : ("CONSUMPTION" as const);
+  const reasonCode = as.waste ? "PREPARED_NOT_SOLD" : "SALES";
   const lines: PostingLine[] = picks.map((p, i) => ({
-    movementType: "CONSUMPTION",
+    movementType,
     warehouseId: warehouse.id,
     locationId: p.locationId,
     productId: p.productId,
@@ -115,14 +122,14 @@ export async function postConsumptionInTx(
     quantityDelta: p.quantity.negated(),
     enteredQuantity: p.quantity.negated(),
     enteredUomId: p.uomId,
-    reasonCode: "SALES",
+    reasonCode,
     note,
     postingKey: `consumption:${id}:${i + 1}`,
   }));
   const result = await postDocument(
     tx,
     ctx,
-    { id, type: "CONSUMPTION", warehouseId: warehouse.id, reasonCode: "SALES", note },
+    { id, type: movementType, warehouseId: warehouse.id, reasonCode, note },
     lines,
     { year: Number(todayFor(warehouse).slice(0, 4)) },
   );

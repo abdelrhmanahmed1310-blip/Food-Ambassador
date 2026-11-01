@@ -62,6 +62,7 @@ export const PERMISSIONS = [
   "pos.refund",
   "pos.manage",
   "pos.view",
+  "pos.tables",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -96,6 +97,7 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "pos.void",
   "pos.refund",
   "pos.view",
+  "pos.tables",
   "production.view",
   "production.manage",
 ]);
@@ -173,6 +175,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "pos.refund",
       "pos.manage",
       "pos.view",
+      "pos.tables",
       "menu.view",
       "menu.manage",
       ...VIEW_SITES,
@@ -317,6 +320,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "pos.void",
       "pos.refund",
       "pos.view",
+      "pos.tables",
       "menu.view",
       ...VIEW_SITES,
       "branches.manage",
@@ -379,6 +383,14 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     description:
       "Sells at the point of sale and runs their own shift (usually granted at branch scope).",
     permissions: ["pos.sell", "menu.view"],
+    organizationScopeOnly: false,
+  },
+  {
+    key: "waiter",
+    name: "Waiter",
+    description:
+      "Opens checks at tables, adds items and sends them to the kitchen (usually granted at branch scope).",
+    permissions: ["pos.tables", "menu.view"],
     organizationScopeOnly: false,
   },
 ];

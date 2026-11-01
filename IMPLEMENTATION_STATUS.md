@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS1d store apps)
+Last updated: 2026-11-01 (POS2a floor and tables)
 
 ## Summary
 
@@ -17,7 +17,51 @@ Last updated: 2026-11-01 (POS1d store apps)
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | POS1 **complete**: menu, selling, installable cashier app with offline queue, store app shells for Android and iOS (publishing waits on developer accounts, Q-19). POS2 floor and kitchen next                        |
+| POS1 – POS5                   | POS1 complete (menu, selling, offline cashier app, store app projects — publishing waits on Q-19). **POS2a floor and tables** done; POS2b kitchen display next                                                        |
+
+## POS2a — Floor and tables (delivered)
+
+Rules: DECISIONS.md ADR-062.
+
+| Area          | What works                                                                                                                         | Where                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Setup         | Floors per branch with the kitchen's stock warehouse; tables with seats and grid position (`pos.manage`)                           | `/pos/floors`                          |
+| Floor plan    | Tables on their grid: free, or the open check with guests, minutes open and unsent items; checks without a table; refreshes itself | `/pos/floor`                           |
+| Checks        | Open at a table (one open check per table) or by name; items with seat, course, note and hold; send; fire a course                 | `/pos/tabs/[id]`, `pos/tables.ts`      |
+| Sent items    | Fixed in the database; voided with a reason (`pos.void`) and written off as "prepared, not sold" (shows with waste)                | `voidTabLine`, new write-off reason    |
+| Paying        | Everything left, chosen items, one seat, or split evenly into several payments; each payment is an ordinary order with its receipt | `payTab`, `pos/rules.ts` `splitEvenly` |
+| Table actions | Move to a free table, merge before paying, cancel a check nobody paid                                                              | check screen                           |
+| Access        | New `pos.tables` permission and **Waiter** role; cashiers (`pos.sell`) see and pay checks but do not add items                     | `access/permissions.ts`, migration     |
+
+Checks: `pnpm check` pass (unit 39 files / 219 tests, 3 new: what is left
+to pay, when a check is settled, even split to the cent adding up exactly);
+`pnpm test:integration` 41 files / 266 tests pass (7 new: floor warehouse
+in its branch, duplicate table code, waiters cannot set up floors; one open
+check per table, hold and fire a course, nothing to send, sent items fixed
+in the service and the database; void needs `pos.void`, writes off the
+stock as PREPARED_NOT_SOLD, not twice; pay a seat, then one item, then the
+rest — check closes, stock used from the floor's warehouse, order linked to
+check and line, retry pays nothing twice, over-payment refused, refund of a
+check order; even split into three card payments; move, merge with guests
+and renumbered items, named check, cancel only without sent items; other
+branch and other organization see nothing, cashiers pay but cannot add
+items); `pnpm test:e2e` 46 tests pass (new: set up a floor and table, seat
+guests, add a drink for seat 1 and a held second course for seat 2, send,
+fire the course, pay seat 1 by card, pay the rest in cash with change, the
+table is free again; repeated 5× without a failure).
+
+Found and fixed while testing: the order engine was split into pricing,
+stock use and recording steps so checks reuse it (counter-sale tests
+unchanged and passing); the pay panel's method field reused the refund
+label — it now has its own. The new E2E test first clicked "Open check"
+before the page was interactive (after a full page load from a link
+clicked before hydration), which does nothing; it now waits for the page to
+load, as after `page.goto`.
+
+Limitations: checks need a connection (not queued offline); kitchen
+tickets, stations and ready status are POS2b; a check shows today's price
+and is priced when paid; merging is only before any payment; no drag-and-
+drop floor editor (grid positions are entered).
 
 ## POS1d — Store apps (delivered as buildable projects)
 

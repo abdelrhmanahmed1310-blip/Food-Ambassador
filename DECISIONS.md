@@ -1282,6 +1282,40 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   change under `mobile/`. Signing and store upload need the organization's
   developer accounts (docs/MOBILE_RELEASE.md) and are not automated yet.
 
+### ADR-062 Tables and checks — Accepted (POS2a)
+
+- POS2 is split: **POS2a floor and tables** (this ADR) and **POS2b kitchen
+  display** (stations, routing, bump times, ready status).
+- **Floors** belong to a branch and name the warehouse their kitchen uses;
+  **tables** sit on a floor's grid (column, row) with a seat count. Set up
+  with `pos.manage`.
+- A **check** (tab) is opened at a free table (one open check per table,
+  unique index) or with a name and no table (bar, pick-up). Waiters
+  (`pos.tables`, new **Waiter** role) add items with seat, course (1–9),
+  note and "hold"; **send** sends every unsent item not on hold; **fire
+  course N** sends that course's items. Unsent items can be changed or taken
+  back; a **sent item cannot change** (database trigger) — it is **voided**
+  with a reason (`pos.void`), and what it used is **written off** as
+  "prepared, not sold" (a WRITE_OFF in the stock ledger, so it shows with
+  waste). Seats and notes may change until paid.
+- **Paying** (`pos.sell`, at a register with an open shift in the check's
+  branch) records an ordinary order (ADR-059) through the same engine, so
+  prices, VAT, stock use, receipts, voids, refunds and reports are unchanged;
+  order and order lines keep the check and check line they paid. Stock is
+  used at payment, from the floor's kitchen warehouse. Ways to pay:
+  everything left; chosen items and quantities; one seat's items (several
+  receipts); split evenly = one order with several payments that add up to
+  the cent. The check closes when every item not voided is paid. A retry
+  with the same order id returns the same order and pays nothing twice.
+- Prices: a check shows today's menu price; the order is priced when paid
+  (and refused if the total changed since the screen was loaded).
+- **Move** a check to a free table; **merge** a check into another of the
+  same branch before anything is paid (guests added, items renumbered);
+  **cancel** a check nobody paid once no sent item remains.
+- Checks need the server (shared across devices); they are not queued
+  offline like counter sales (ADR-060). The floor plan and the check screen
+  refresh by themselves.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

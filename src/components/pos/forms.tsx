@@ -186,3 +186,115 @@ export function RefundForm({
     </ActionForm>
   );
 }
+
+/** A dining area of a branch; its kitchen uses stock from one warehouse of the branch. */
+export function FloorForm({
+  action,
+  branches,
+}: {
+  action: Action;
+  branches: Array<{ id: string; label: string; warehouses: Option[] }>;
+}) {
+  const t = useTranslations();
+  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const warehouses = branches.find((b) => b.id === branchId)?.warehouses ?? [];
+  return (
+    <ActionForm action={action} submitLabel={t("pos.addFloor")} pendingLabel={t("common.saving")}>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField name="name" label={t("pos.floorName")} required />
+        <div>
+          <label htmlFor="floor-branch" className="mb-1 block text-sm font-medium">
+            {t("pos.branch")}
+          </label>
+          <select
+            id="floor-branch"
+            name="branchId"
+            className={inputClass}
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+          >
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <SelectField
+          key={branchId}
+          name="warehouseId"
+          label={t("pos.kitchenWarehouse")}
+          hint={t("pos.kitchenWarehouseHint")}
+          options={warehouses}
+          required
+        />
+      </div>
+    </ActionForm>
+  );
+}
+
+export function TableForm({ action }: { action: Action }) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("pos.addTable")}
+      pendingLabel={t("common.saving")}
+      submitVariant="secondary"
+    >
+      <div className="grid gap-4 sm:grid-cols-4">
+        <TextField name="code" label={t("pos.tableCode")} dir="ltr" required />
+        <TextField name="seats" label={t("pos.seats")} inputMode="numeric" dir="ltr" required />
+        <TextField
+          name="gridX"
+          label={t("pos.column")}
+          hint={t("pos.gridHint")}
+          inputMode="numeric"
+          dir="ltr"
+          defaultValue="0"
+          required
+        />
+        <TextField
+          name="gridY"
+          label={t("pos.row")}
+          inputMode="numeric"
+          dir="ltr"
+          defaultValue="0"
+          required
+        />
+      </div>
+    </ActionForm>
+  );
+}
+
+/** Open a check at a table (tableId) or a named one without a table (branchId + label). */
+export function OpenTabForm({
+  action,
+  tableId,
+  branchId,
+  seats,
+}: {
+  action: Action;
+  tableId?: string;
+  branchId?: string;
+  seats?: number;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm action={action} submitLabel={t("pos.openCheck")} pendingLabel={t("common.saving")}>
+      {tableId ? <input type="hidden" name="tableId" value={tableId} /> : null}
+      {branchId ? <input type="hidden" name="branchId" value={branchId} /> : null}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {tableId ? null : <TextField name="label" label={t("pos.checkName")} required />}
+        <TextField
+          name="guests"
+          label={t("pos.guests")}
+          inputMode="numeric"
+          dir="ltr"
+          defaultValue={seats ? String(Math.min(seats, 2)) : "1"}
+          required
+        />
+      </div>
+    </ActionForm>
+  );
+}

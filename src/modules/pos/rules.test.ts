@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
   checkPayments,
+  checkSettled,
   expectedCash,
   lineAmounts,
   liveAt,
   orderTimeProblem,
   refundPortion,
+  remainingQuantity,
+  splitEvenly,
   syncOutcome,
 } from "./rules";
 
@@ -122,5 +125,35 @@ describe("offline orders (ADR-060)", () => {
     expect(syncOutcome(401, true)).toBe("signedOut");
     expect(syncOutcome(403, true)).toBe("signedOut"); // another user is signed in
     expect(syncOutcome(200, false)).toBe("signedOut"); // redirected to the sign-in page
+  });
+});
+
+describe("checks (ADR-062)", () => {
+  const line = (status: "PENDING" | "SENT" | "VOIDED", q: string, paid: string) => ({
+    status,
+    quantity: d(q),
+    paidQuantity: d(paid),
+  });
+  it("counts what is left to pay, nothing on voided items", () => {
+    expect(remainingQuantity(line("SENT", "3", "1")).toFixed()).toBe("2");
+    expect(remainingQuantity(line("VOIDED", "2", "0")).toFixed()).toBe("0");
+  });
+  it("settles a check when every live item is paid", () => {
+    expect(checkSettled([line("SENT", "2", "2"), line("VOIDED", "1", "0")])).toBe(true);
+    expect(checkSettled([line("SENT", "2", "1")])).toBe(false);
+    expect(checkSettled([line("PENDING", "1", "0")])).toBe(false);
+    expect(checkSettled([line("VOIDED", "1", "0")])).toBe(false); // nothing was sold
+    expect(checkSettled([])).toBe(false);
+  });
+  it("splits evenly to the cent, the parts adding up exactly", () => {
+    expect(splitEvenly(d("100"), 3, "SAR").map((x) => x.toFixed(2))).toEqual([
+      "33.34",
+      "33.33",
+      "33.33",
+    ]);
+    expect(splitEvenly(d("10.005"), 2, "KWD").map((x) => x.toFixed(3))).toEqual(["5.003", "5.002"]);
+    const parts = splitEvenly(d("241.5"), 4, "EGP");
+    expect(parts.reduce((a, x) => a.plus(x), d("0")).toFixed()).toBe("241.5");
+    expect(() => splitEvenly(d("1"), 0, "SAR")).toThrow();
   });
 });

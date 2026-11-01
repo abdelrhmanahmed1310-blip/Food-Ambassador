@@ -1,5 +1,5 @@
 import { Decimal } from "@/lib/decimal";
-import { roundToCurrency, taxFromGross, taxFromNet } from "@/modules/tax/rules";
+import { currencyDecimals, roundToCurrency, taxFromGross, taxFromNet } from "@/modules/tax/rules";
 
 /** Point-of-sale rules (DECISIONS.md ADR-059). Pure; shared by the server and the cashier app. */
 
@@ -141,4 +141,36 @@ export function syncOutcome(status: number | null, json: boolean): SyncOutcome {
   if (status === 401 || status === 403 || !json) return "signedOut";
   if (status === 200 || status === 409) return "recorded";
   return "refused";
+}
+
+// ─── Checks (POS2a, ADR-062) ───
+
+export interface CheckLineState {
+  status: "PENDING" | "SENT" | "VOIDED";
+  quantity: Decimal;
+  paidQuantity: Decimal;
+}
+
+/** What is still to pay on a check line (nothing on a voided one). */
+export function remainingQuantity(line: CheckLineState): Decimal {
+  return line.status === "VOIDED" ? new Decimal(0) : line.quantity.minus(line.paidQuantity);
+}
+
+/** A check is settled when it has items and every one not voided is fully paid. */
+export function checkSettled(lines: readonly CheckLineState[]): boolean {
+  const live = lines.filter((l) => l.status !== "VOIDED");
+  return live.length > 0 && live.every((l) => remainingQuantity(l).isZero());
+}
+
+/**
+ * Split an amount into `parts` payments in the currency's smallest unit; the
+ * first parts take the extra cents so the parts always add up exactly.
+ */
+export function splitEvenly(total: Decimal, parts: number, currency: string): Decimal[] {
+  if (!Number.isInteger(parts) || parts < 1 || parts > 50) throw new RangeError("parts");
+  const step = new Decimal(10).pow(-currencyDecimals(currency));
+  const units = total.div(step).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
+  const base = units.divToInt(parts);
+  const extra = units.minus(base.times(parts)).toNumber();
+  return Array.from({ length: parts }, (_, i) => base.plus(i < extra ? 1 : 0).times(step));
 }

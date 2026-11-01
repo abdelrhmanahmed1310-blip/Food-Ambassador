@@ -164,6 +164,10 @@ model Organization {
   comboComponents        ComboComponent[]
   menuItemUnavailable    MenuItemUnavailable[]
   posRegisters           PosRegister[]
+  posFloors              PosFloor[]
+  posTables              PosTable[]
+  posTabs                PosTab[]
+  posTabLines            PosTabLine[]
   posShifts              PosShift[]
   posCashMovements       PosCashMovement[]
   posOrders              PosOrder[]
@@ -401,6 +405,9 @@ model Branch {
   menuItemUnavailable MenuItemUnavailable[]
 
   posRegisters PosRegister[]
+  posFloors    PosFloor[]
+  posTables    PosTable[]
+  posTabs      PosTab[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -455,6 +462,8 @@ model Warehouse {
   salesOrders      SalesOrder[]
 
   posRegisters PosRegister[]
+  posFloors    PosFloor[]
+  posTabs      PosTab[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3442,6 +3451,7 @@ model MenuItem {
   components     ComboComponent[]        @relation("Combo")
   usedInCombos   ComboComponent[]        @relation("ComboComponent")
   unavailable    MenuItemUnavailable[]
+  posTabLines    PosTabLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3676,6 +3686,8 @@ model PosOrder {
   voidedByUserId   String?        @map("voided_by_user_id") @db.Uuid
   voidReason       String?        @map("void_reason")
   voidDocId        String?        @map("void_doc_id") @db.Uuid
+  /// The check (POS2a) this order paid all or part of.
+  tabId            String?        @map("tab_id") @db.Uuid
 
   organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   register     PosRegister               @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
@@ -3684,6 +3696,7 @@ model PosOrder {
   payments     PosPayment[]
   refunds      PosRefund[]
   shortfalls   PosConsumptionShortfall[]
+  tab          PosTab?                   @relation(fields: [organizationId, tabId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3704,6 +3717,8 @@ model PosOrderLine {
   /// Per item including the options' price changes, as the price was entered (incl. or excl. VAT).
   unitPrice        Decimal  @map("unit_price") @db.Decimal(19, 4)
   priceIncludesTax Boolean  @map("price_includes_tax")
+  /// The check line it paid (POS2a).
+  tabLineId        String?  @map("tab_line_id") @db.Uuid
   /// [{ optionId, name, priceDelta }]
   options          Json     @default("[]")
   taxCodeId        String?  @map("tax_code_id") @db.Uuid
@@ -3799,4 +3814,132 @@ model PosConsumptionShortfall {
 
   @@index([organizationId, status])
   @@map("pos_consumption_shortfalls")
+}
+
+enum PosTabStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+  MERGED
+}
+
+enum PosTabLineStatus {
+  PENDING
+  SENT
+  VOIDED
+}
+
+/// A dining area of a branch with its tables; its kitchen uses stock from one warehouse (ADR-062).
+model PosFloor {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  warehouseId    String    @map("warehouse_id") @db.Uuid
+  name           String
+  sortOrder      Int       @default(0) @map("sort_order")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  tables       PosTable[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, name])
+  @@map("pos_floors")
+}
+
+/// A table on a floor plan; position in grid cells.
+model PosTable {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  floorId        String    @map("floor_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  code           String
+  seats          Int
+  gridX          Int       @map("grid_x")
+  gridY          Int       @map("grid_y")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  floor        PosFloor     @relation(fields: [organizationId, floorId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  tabs         PosTab[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, code])
+  @@map("pos_tables")
+}
+
+/// An open check: items added during the meal, sent to the kitchen, paid whole or in parts (ADR-062).
+model PosTab {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  number          String
+  branchId        String       @map("branch_id") @db.Uuid
+  warehouseId     String       @map("warehouse_id") @db.Uuid
+  tableId         String?      @map("table_id") @db.Uuid
+  /// Name for a check without a table (bar, pick-up).
+  label           String?
+  guests          Int
+  channel         SalesChannel @default(DINE_IN)
+  status          PosTabStatus @default(OPEN)
+  waiterUserId    String       @map("waiter_user_id") @db.Uuid
+  openedAt        DateTime     @default(now()) @map("opened_at") @db.Timestamptz(3)
+  closedAt        DateTime?    @map("closed_at") @db.Timestamptz(3)
+  mergedIntoTabId String?      @map("merged_into_tab_id") @db.Uuid
+  cancelReason    String?      @map("cancel_reason")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  table        PosTable?    @relation(fields: [organizationId, tableId], references: [organizationId, id], onDelete: Restrict)
+  lines        PosTabLine[]
+  orders       PosOrder[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, branchId, status])
+  @@map("pos_tabs")
+}
+
+/// An item on a check. PENDING until sent to the kitchen; a sent item is removed only by voiding it.
+model PosTabLine {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  tabId           String           @map("tab_id") @db.Uuid
+  lineNo          Int              @map("line_no")
+  menuItemId      String           @map("menu_item_id") @db.Uuid
+  name            String
+  quantity        Decimal          @db.Decimal(20, 6)
+  optionIds       String[]         @map("option_ids") @db.Uuid
+  /// Option names as chosen, for the kitchen and the screen.
+  optionNames     Json             @map("option_names")
+  seat            Int?
+  course          Int              @default(1)
+  note            String?
+  /// Held lines wait for their course to be fired.
+  hold            Boolean          @default(false)
+  status          PosTabLineStatus @default(PENDING)
+  sentAt          DateTime?        @map("sent_at") @db.Timestamptz(3)
+  sentByUserId    String?          @map("sent_by_user_id") @db.Uuid
+  voidedAt        DateTime?        @map("voided_at") @db.Timestamptz(3)
+  voidedByUserId  String?          @map("voided_by_user_id") @db.Uuid
+  voidReason      String?          @map("void_reason")
+  /// Write-off of what the kitchen had made, when a sent item is voided.
+  wasteDocId      String?          @map("waste_doc_id") @db.Uuid
+  paidQuantity    Decimal          @default(0) @map("paid_quantity") @db.Decimal(20, 6)
+  createdByUserId String           @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  tab          PosTab       @relation(fields: [organizationId, tabId], references: [organizationId, id], onDelete: Restrict)
+  menuItem     MenuItem     @relation(fields: [organizationId, menuItemId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([tabId, lineNo])
+  @@index([organizationId, tabId])
+  @@map("pos_tab_lines")
 }

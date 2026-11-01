@@ -129,7 +129,8 @@
     "menu": "القائمة",
     "posSection": "المبيعات",
     "pos": "نقطة البيع",
-    "posShortfalls": "نواقص المخزون"
+    "posShortfalls": "نواقص المخزون",
+    "posFloor": "مخطط الصالة"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -441,7 +442,19 @@
     "REFUND_OTHER_BRANCH": "نفّذ الاسترداد على نقطة بيع في فرع الطلب.",
     "REFUND_EXCEEDS_LINE": "أكثر مما تبقى للاسترداد في هذا البند.",
     "NOTHING_TO_REFUND": "أدخل كمية للاسترداد.",
-    "MENU_TIME_INVALID": "قائمة شاشة البيع ليست من هذه الوردية؛ أعد تحميل الشاشة."
+    "MENU_TIME_INVALID": "قائمة شاشة البيع ليست من هذه الوردية؛ أعد تحميل الشاشة.",
+    "TABLE_HAS_OPEN_CHECK": "لهذه الطاولة حساب مفتوح بالفعل.",
+    "CHECK_NEEDS_TABLE_OR_NAME": "اختر طاولة أو أعطِ الحساب اسمًا.",
+    "CHECK_CLOSED": "هذا الحساب مغلق.",
+    "CHECK_ITEM_FIXED": "هذا الصنف مدفوع أو ملغى.",
+    "CHECK_ITEM_SENT": "الصنف لدى المطبخ؛ ألغه مع ذكر السبب.",
+    "NOTHING_TO_SEND": "لا يوجد ما يُرسل.",
+    "CHECK_ITEM_NOT_SENT": "تُلغى فقط الأصناف المرسلة للمطبخ؛ استرجع الصنف غير المرسل.",
+    "CHECK_MERGE_SELF": "اختر حسابًا آخر.",
+    "CHECK_PARTLY_PAID": "جزء من الحساب مدفوع بالفعل.",
+    "CHECK_HAS_SENT_ITEMS": "لدى المطبخ أصناف من هذا الحساب؛ ألغها أولًا.",
+    "NOTHING_TO_PAY": "لم يتبقَّ شيء للدفع.",
+    "CHECK_ITEM_OVERPAID": "أكثر مما تبقى على هذا الصنف."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -597,7 +610,8 @@
       "finance": "المالية",
       "branch_manager": "مدير الفرع",
       "analyst": "محلل (قراءة فقط)",
-      "cashier": "كاشير"
+      "cashier": "كاشير",
+      "waiter": "نادل"
     },
     "permissionLabels": {
       "org.settings.manage": "إدارة إعدادات المؤسسة",
@@ -656,7 +670,8 @@
       "pos.void": "إلغاء الطلبات المدفوعة في وردية مفتوحة",
       "pos.refund": "استرداد الطلبات",
       "pos.manage": "إعداد أجهزة الكاشير",
-      "pos.view": "عرض طلبات نقطة البيع وتقارير الورديات"
+      "pos.view": "عرض طلبات نقطة البيع وتقارير الورديات",
+      "pos.tables": "خدمة الطاولات: فتح الحسابات وإضافة الأصناف وإرسالها للمطبخ"
     }
   },
   "audit": {
@@ -982,7 +997,8 @@
       "LOST_IN_TRANSIT": "فقد أثناء النقل",
       "SHORT_SHIPPED": "شحن ناقص",
       "SALES": "المبيعات",
-      "PRODUCTION": "إنتاج"
+      "PRODUCTION": "إنتاج",
+      "PREPARED_NOT_SOLD": "حُضّر ولم يُبع"
     },
     "valuationTitle": "قيمة المخزون",
     "valuationHint": "متوسط التكلفة المرجّح المتحرك لكل منتج ومستودع، بعملة {currency}.",
@@ -2746,6 +2762,91 @@
     "discardConfirm": "حذف هذا الطلب من هذا الجهاز؟ لن يُسجَّل. سجّله مرة أخرى على شاشة البيع إذا تم استلام المبلغ.",
     "pendingBeforeClose": "{count, plural, one {لا يزال على هذا الجهاز # طلب لنقطة البيع هذه لم يُرسل.} other {لا يزال على هذا الجهاز # طلبات لنقطة البيع هذه لم تُرسل.}} اتصل بالشبكة ودعها تُرسل قبل الإغلاق؛ الطلبات المرسلة لاحقًا تُضاف إلى هذه الوردية.",
     "lateOrders": "طلبات أُرسلت بعد الإغلاق",
-    "lateCash": "نقدها (غير محتسب في العد أعلاه)"
+    "lateCash": "نقدها (غير محتسب في العد أعلاه)",
+    "addFloor": "إضافة صالة",
+    "addItems": "إضافة أصناف",
+    "addTable": "إضافة طاولة",
+    "addToCheck": "إضافة {count, plural, one {# صنف} other {# أصناف}} إلى الحساب",
+    "cancel": "إلغاء الحساب",
+    "cancelCheck": "إلغاء الحساب",
+    "checkActions": "الطاولة",
+    "checkClosed": "أُغلق الحساب",
+    "checkItems": "الحساب",
+    "checkName": "الاسم (بار، استلام)",
+    "checkStatuses": {
+      "OPEN": "مفتوح",
+      "CLOSED": "مغلق",
+      "CANCELLED": "ملغى",
+      "MERGED": "مدمج"
+    },
+    "column": "العمود",
+    "course": "الطبق",
+    "courseN": "الطبق {n}",
+    "eachPays": "يدفع كل شخص",
+    "fireCourse": "إطلاق الطبق {n}",
+    "floorName": "اسم الصالة",
+    "floorPlan": "مخطط الصالة",
+    "floorPlanIntro": "اضغط طاولة فارغة لإجلاس الضيوف، أو مشغولة لفتح حسابها. يتحدث تلقائيًا.",
+    "floorsIntro": "صالات الطعام وطاولاتها. مطبخ كل صالة يستخدم المخزون من أحد مستودعات الفرع.",
+    "floorsTitle": "الصالات والطاولات",
+    "free": "فارغة",
+    "gridAt": "العمود {x}، الصف {y}",
+    "gridHint": "الموضع على المخطط، يبدأ من 0.",
+    "guests": "الضيوف",
+    "guestsCount": "{count, plural, one {# ضيف} other {# ضيوف}}",
+    "holdItem": "تعليق",
+    "itemNotPriced": "صنف لم يعد معروضًا للبيع؛ ألغه أو استرجعه أولًا.",
+    "kitchenFrom": "مخزون المطبخ من {warehouse}",
+    "kitchenWarehouse": "مستودع مخزون المطبخ",
+    "kitchenWarehouseHint": "ما يطبخه المطبخ لهذه الصالة يُستهلك من هنا.",
+    "lineStatuses": {
+      "HELD": "معلّق",
+      "PAID": "مدفوع",
+      "PENDING": "لم يُرسل",
+      "SENT": "أُرسل للمطبخ",
+      "VOIDED": "ملغى"
+    },
+    "merge": "دمج",
+    "mergeConfirm": "نقل كل أصناف هذا الحساب إلى الحساب المختار وإغلاق هذا الحساب؟",
+    "mergeInto": "الدمج في حساب آخر",
+    "minutes": "{count, plural, one {# د} other {# د}}",
+    "move": "نقل",
+    "moveToTable": "النقل إلى طاولة",
+    "namedChecks": "حسابات بلا طاولة",
+    "noCheckItems": "لا توجد أصناف بعد.",
+    "noFloors": "لا توجد صالات بعد.",
+    "noFloorsHint": "أضف الصالات والطاولات من «الصالات والطاولات».",
+    "noNamedChecks": "لا توجد حسابات مفتوحة بلا طاولة.",
+    "noTables": "لا توجد طاولات في هذه الصالة بعد.",
+    "notOnSale": "غير معروض للبيع",
+    "note": "ملاحظة",
+    "openCheck": "فتح حساب",
+    "paidQty": "{quantity} مدفوع",
+    "payCheck": "الدفع",
+    "payModes": {
+      "all": "كل المتبقي",
+      "items": "اختيار أصناف",
+      "seat": "حسب المقعد"
+    },
+    "payWhat": "ما سيُدفع",
+    "removeTable": "إزالة",
+    "row": "الصف",
+    "seat": "المقعد",
+    "seatN": "المقعد {n}",
+    "seats": "المقاعد",
+    "seatsCount": "{count, plural, one {# مقعد} other {# مقاعد}}",
+    "sendToKitchen": "إرسال {count, plural, one {# صنف} other {# أصناف}} إلى المطبخ",
+    "sentCount": "{count, plural, one {أُرسل # صنف} other {أُرسلت # أصناف}} إلى المطبخ.",
+    "shared": "مشترك",
+    "splitInto": "التقسيم على",
+    "tableBusy": "الطاولة {code}، الحساب {number}",
+    "tableCode": "الطاولة",
+    "tableFree": "الطاولة {code}، فارغة",
+    "tableTitle": "الطاولة {code}",
+    "takeBack": "استرجاع",
+    "unsentCount": "{count, plural, one {# لم يُرسل} other {# لم تُرسل}}",
+    "voidItem": "إلغاء",
+    "paymentMethod": "طريقة الدفع",
+    "payAtRegister": "نقطة البيع"
   }
 }
