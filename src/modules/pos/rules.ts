@@ -3,7 +3,7 @@ import { currencyDecimals, roundToCurrency, taxFromGross, taxFromNet } from "@/m
 
 /** Point-of-sale rules (DECISIONS.md ADR-059). Pure; shared by the server and the cashier app. */
 
-export type PaymentMethod = "CASH" | "CARD";
+export type PaymentMethod = "CASH" | "CARD" | "GIFT_CARD";
 
 /** A line's amounts: the price is per item as entered (incl. or excl. VAT); no rate = no VAT. */
 export function lineAmounts(

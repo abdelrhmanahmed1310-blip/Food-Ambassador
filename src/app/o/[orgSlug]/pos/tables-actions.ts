@@ -19,6 +19,8 @@ import {
   voidTabLine,
 } from "@/modules/pos/tables";
 import { cancelPaymentLink, createPaymentLink, refreshPaymentLink } from "@/modules/payments/links";
+import { createCustomer, findCustomerByPhone } from "@/modules/pos/customers";
+import { giftCardBalance, sellGiftCard } from "@/modules/pos/gift-cards";
 import { couponForRegister } from "@/modules/pos/service";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
@@ -148,4 +150,21 @@ export async function cancelLinkAction(orgSlug: string, linkId: string) {
 /** Look up a coupon for the till or a check before paying (ADR-067). */
 export async function couponAction(orgSlug: string, registerId: string, code: string) {
   return run(orgSlug, (ctx) => couponForRegister(ctx, registerId, code));
+}
+
+/** The till's customer and gift card calls (ADR-068). */
+export async function findCustomerAction(orgSlug: string, phone: string) {
+  return run(orgSlug, (ctx) => findCustomerByPhone(ctx, phone));
+}
+export async function addCustomerAction(orgSlug: string, input: unknown) {
+  return run(orgSlug, (ctx) => createCustomer(ctx, input));
+}
+export async function giftCardBalanceAction(orgSlug: string, code: string) {
+  return run(orgSlug, (ctx) => giftCardBalance(ctx, code));
+}
+export async function sellGiftCardAction(orgSlug: string, input: unknown) {
+  return run(orgSlug, async (ctx) => {
+    const g = await sellGiftCard(ctx, input);
+    return { code: g.code, last4: g.last4, balance: g.balance.toFixed() };
+  });
 }

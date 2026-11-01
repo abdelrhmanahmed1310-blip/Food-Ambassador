@@ -55,7 +55,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | POS2 | Floor & kitchen             | POS1                             | ✅ Complete — POS2a floor and tables, POS2b kitchen display                                                              |
 | POS3 | Payments                    | POS1, Q-15 (Saudi: decided)      | POS3a ✅; POS3b pay by QR with Moyasar built (Moyasar validation pending); terminal ECR per acquirer when known          |
 | POS4 | Tax & e-invoicing           | POS1, Q-17 (Saudi Arabia)        | In progress — POS4a ZATCA simplified documents built (sandbox validation pending); POS4b standard invoices and clearance |
-| POS5 | Customer channels           | POS1–POS4                        | POS5a discounts, promotions and coupons done; customers, loyalty, gift cards, online ordering, kiosk, delivery open      |
+| POS5 | Customer channels           | POS1–POS4                        | POS5a discounts and POS5b customers, loyalty, gift cards done; delivery intake, online ordering, kiosk open              |
 
 ---
 
@@ -411,8 +411,8 @@ website, self-order kiosk, and delivery-platform order intake (Q-18).
 - **POS5a (done, ADR-067):** timed promotions on items and categories,
   coupons, manual order discounts with a reason (`pos.discount`), VAT on
   the discounted amount, shown on receipts and shift reports.
-- **POS5b:** customers and consent, loyalty points, gift cards.
-- **POS5c:** online ordering, self-order kiosk, delivery-platform intake (Q-18).
+- **POS5b (done, ADR-068):** customers and consent, loyalty points, gift cards.
+- **POS5c:** delivery-platform intake (Q-18 decided: HungerStation, Jahez, Keeta via plug-and-play adapters), online ordering, self-order kiosk.
 
 ---
 

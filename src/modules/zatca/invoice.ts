@@ -63,7 +63,8 @@ export interface ZatcaInvoiceInput {
   currency: string;
   seller: ZatcaParty;
   /** 10 cash, 48 card. */
-  paymentMeans: "10" | "48";
+  /** UNTDID 4461 subset accepted by ZATCA (BR-KSA-16): 10 cash, 48 bank card, 1 not defined. */
+  paymentMeans: "1" | "10" | "48";
   lines: ZatcaLine[];
   /** For a credit note: the invoice it corrects, and why (KSA-10). */
   billingReference?: string;

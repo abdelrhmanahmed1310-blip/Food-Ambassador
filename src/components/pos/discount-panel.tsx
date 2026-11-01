@@ -10,6 +10,8 @@ import { applyDiscounts, type PricedLine } from "@/modules/pos/discounts";
 export type DiscountChoice =
   | { type: "manual"; kind: "PERCENT" | "AMOUNT"; value: string; reason: string }
   | { type: "coupon"; code: string; kind: "PERCENT" | "AMOUNT"; value: string }
+  /** Loyalty points spent (ADR-068): an amount off, worth points × point value. */
+  | { type: "points"; points: number; kind: "AMOUNT"; value: string }
   | null;
 
 type Lookup = (
@@ -33,7 +35,9 @@ export const discountPayload = (choice: DiscountChoice) =>
     ? { discount: { kind: choice.kind, value: choice.value, reason: choice.reason } }
     : choice?.type === "coupon"
       ? { couponCode: choice.code }
-      : {};
+      : choice?.type === "points"
+        ? { loyaltyPoints: choice.points }
+        : {};
 
 const NUMBER = /^\d+(\.\d+)?$/;
 
@@ -67,7 +71,9 @@ export function DiscountPanel({
         <span>
           {choice.type === "coupon"
             ? t("couponApplied", { code: choice.code })
-            : t("discountApplied", { reason: choice.reason })}
+            : choice.type === "points"
+              ? t("pointsApplied", { points: choice.points })
+              : t("discountApplied", { reason: choice.reason })}
         </span>
         <button
           type="button"

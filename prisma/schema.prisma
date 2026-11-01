@@ -181,6 +181,11 @@ model Organization {
   paymentLinks            PaymentLink[]
   posPromotions           PosPromotion[]
   posCoupons              PosCoupon[]
+  posCustomers            PosCustomer[]
+  loyaltySettings         LoyaltySettings?
+  loyaltyEntries          LoyaltyEntry[]
+  giftCards               GiftCard[]
+  giftCardEntries         GiftCardEntry[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
   posOrders               PosOrder[]
@@ -3641,6 +3646,7 @@ model PosShift {
   cashMovements PosCashMovement[]
   orders        PosOrder[]
   refunds       PosRefund[]
+  giftCards     GiftCard[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3711,6 +3717,10 @@ model PosOrder {
   discountReason   String?        @map("discount_reason")
   couponId         String?        @map("coupon_id") @db.Uuid
   coupon           PosCoupon?     @relation(fields: [organizationId, couponId], references: [organizationId, id], onDelete: Restrict)
+  /// Customers and loyalty (POS5b, ADR-068): the customer, and points spent as the order discount.
+  customerId       String?        @map("customer_id") @db.Uuid
+  customer         PosCustomer?   @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+  loyaltyPoints    Int            @default(0) @map("loyalty_points")
 
   organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   register     PosRegister               @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
@@ -3767,6 +3777,8 @@ enum PosPaymentMethod {
   CASH
   /// Paid on a separate card terminal (no card data here; POS3 integrates terminals).
   CARD
+  /// Paid from a gift card's balance (POS5b, ADR-068).
+  GIFT_CARD
 }
 
 model PosPayment {
@@ -3787,6 +3799,8 @@ model PosPayment {
   cardLast4      String?          @map("card_last4")
   /// Tip added on the card, on top of the amount; not a sale, no VAT.
   tip            Decimal          @default(0) @db.Decimal(19, 4)
+  giftCardId     String?          @map("gift_card_id") @db.Uuid
+  giftCard       GiftCard?        @relation(fields: [organizationId, giftCardId], references: [organizationId, id], onDelete: Restrict)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -4360,4 +4374,123 @@ model PosCoupon {
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@map("pos_coupons")
+}
+
+// ─── Customers, loyalty and gift cards (POS5b, ADR-068) ───
+
+/// A guest who gave their phone number. Erasing anonymizes the row and keeps the ledger.
+model PosCustomer {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  name             String
+  /// E.164 (+9665…); null once erased.
+  phone            String?
+  email            String?
+  /// Agreed to receive offers (PDPL): when and from whom it was recorded.
+  marketingConsent Boolean   @default(false) @map("marketing_consent")
+  consentAt        DateTime? @map("consent_at") @db.Timestamptz(3)
+  pointsBalance    Int       @default(0) @map("points_balance")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  erasedAt         DateTime? @map("erased_at") @db.Timestamptz(3)
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  orders         PosOrder[]
+  loyaltyEntries LoyaltyEntry[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, phone])
+  @@map("pos_customers")
+}
+
+/// How points are earned and spent; one per organization.
+model LoyaltySettings {
+  organizationId  String   @id @map("organization_id") @db.Uuid
+  enabled         Boolean  @default(false)
+  /// Points per one unit of the base currency paid (after discounts).
+  earnRate        Decimal  @map("earn_rate") @db.Decimal(9, 4)
+  /// Base currency per point when spent.
+  pointValue      Decimal  @map("point_value") @db.Decimal(9, 4)
+  minRedeemPoints Int      @default(0) @map("min_redeem_points")
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("loyalty_settings")
+}
+
+enum LoyaltyEntryKind {
+  EARN
+  REDEEM
+  REVERSAL
+  ADJUSTMENT
+}
+
+/// Insert-only points ledger; the customer's balance is the sum.
+model LoyaltyEntry {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  customerId      String           @map("customer_id") @db.Uuid
+  kind            LoyaltyEntryKind
+  points          Int
+  orderId         String?          @map("order_id") @db.Uuid
+  reason          String?
+  createdByUserId String           @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer     PosCustomer  @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, customerId])
+  @@map("loyalty_entries")
+}
+
+/// Stored value sold to a guest: a liability until spent. The code is kept only as a keyed hash.
+model GiftCard {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  codeHash       String           @map("code_hash")
+  last4          String
+  initialValue   Decimal          @map("initial_value") @db.Decimal(19, 4)
+  balance        Decimal          @db.Decimal(19, 4)
+  currency       String           @db.Char(3)
+  /// The shift it was sold in and how it was paid (counted in that shift's cash).
+  shiftId        String           @map("shift_id") @db.Uuid
+  soldMethod     PosPaymentMethod @map("sold_method")
+  soldByUserId   String           @map("sold_by_user_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  blockedAt      DateTime?        @map("blocked_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shift        PosShift        @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
+  entries      GiftCardEntry[]
+  payments     PosPayment[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, codeHash])
+  @@index([organizationId, shiftId])
+  @@map("gift_cards")
+}
+
+enum GiftCardEntryKind {
+  ISSUE
+  REDEEM
+  REVERSAL
+}
+
+/// Insert-only gift card ledger; the balance is the sum.
+model GiftCardEntry {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  organizationId  String            @map("organization_id") @db.Uuid
+  giftCardId      String            @map("gift_card_id") @db.Uuid
+  kind            GiftCardEntryKind
+  amount          Decimal           @db.Decimal(19, 4)
+  orderId         String?           @map("order_id") @db.Uuid
+  createdByUserId String            @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  giftCard     GiftCard     @relation(fields: [organizationId, giftCardId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, giftCardId])
+  @@map("gift_card_entries")
 }

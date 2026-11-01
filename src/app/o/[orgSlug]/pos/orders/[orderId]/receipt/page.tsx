@@ -99,7 +99,11 @@ export default async function ReceiptPage({
         {o.orderDiscount.gt(0) ? (
           <p className={row}>
             <span>
-              {o.coupon ? t("pos.couponApplied", { code: o.coupon.code }) : t("pos.discount")}
+              {o.coupon
+                ? t("pos.couponApplied", { code: o.coupon.code })
+                : o.loyaltyPoints > 0
+                  ? t("pos.pointsApplied", { points: o.loyaltyPoints })
+                  : t("pos.discount")}
             </span>
             −{m(o.orderDiscount)}
           </p>
@@ -123,7 +127,10 @@ export default async function ReceiptPage({
         {o.payments.map((p) => (
           <div key={p.id}>
             <p className={row}>
-              <span>{t(`pos.methods.${p.method}`)}</span>
+              <span>
+                {t(`pos.methods.${p.method}`)}
+                {p.giftCard ? ` •••• ${p.giftCard.last4}` : ""}
+              </span>
               {m(p.tendered ?? p.amount)}
             </p>
             {p.change && p.change.gt(0) ? (
@@ -134,6 +141,24 @@ export default async function ReceiptPage({
             ) : null}
           </div>
         ))}
+        {o.customer ? (
+          <div className="border-t border-dashed border-black pt-1">
+            <p className={row}>
+              <span>{t("pos.customer")}</span>
+              <bdi>{o.customer.name}</bdi>
+            </p>
+            {o.loyaltyPoints > 0 ? (
+              <p className={row}>
+                <span>{t("pos.pointsSpent")}</span>−{o.loyaltyPoints}
+              </p>
+            ) : null}
+            {o.pointsEarned > 0 ? (
+              <p className={row}>
+                <span>{t("pos.pointsEarned")}</span>+{o.pointsEarned}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {o.refunds.map((r) => (
           <p key={r.id} className={row}>
             <span>

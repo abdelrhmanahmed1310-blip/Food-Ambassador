@@ -1103,3 +1103,24 @@ Migration `20261127090000_pos5a_discounts`; new tables have row-level security.
 - **pos_order_lines** gains `discount_amount` ≥ 0 (incl. VAT) and
   `promotion_id` (FK with the organization). Line net/VAT/gross are after
   discounts.
+
+### Customers, loyalty and gift cards (POS5b, ADR-068)
+
+Migration `20261128090000_pos5b_customers`; new tables have row-level security.
+
+- **pos_customers**: `name`, `phone` (E.164, UQ per organization; null once
+  erased), `email`, `marketing_consent` ⇔ `consent_at`, `points_balance` ≥
+  0, `erased_at` (erased ⇒ no phone, email or consent).
+- **loyalty_settings** (one per organization): `enabled`, `earn_rate` ≥ 0,
+  `point_value` > 0, `min_redeem_points` ≥ 0.
+- **loyalty_entries** (insert-only): customer, `kind` EARN (> 0) | REDEEM
+  (< 0) | REVERSAL | ADJUSTMENT (needs a reason), `points` ≠ 0, order.
+- **gift_cards**: `code_hash` (HMAC, UQ per organization), `last4`,
+  `initial_value` > 0, 0 ≤ `balance` ≤ initial value, currency, the
+  `shift_id` and `sold_method` (CASH | CARD) of its sale, `blocked_at`. Only
+  balance and block change (trigger).
+- **gift_card_entries** (insert-only): ISSUE / REVERSAL (> 0), REDEEM (< 0,
+  with the order).
+- **pos_payments** gains method GIFT_CARD with `gift_card_id` (⇔);
+  **pos_refunds** are CASH or CARD only. **pos_orders** gains `customer_id`
+  and `loyalty_points` (spent; needs a customer).

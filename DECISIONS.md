@@ -1487,6 +1487,44 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - Pay by QR (ADR-066) applies promotions but no order discount.
 - Shift X/Z reports show promotions and order discounts given.
 
+### ADR-068 Customers, loyalty points and gift cards — Accepted (POS5b)
+
+- A **customer** is a guest who gave a phone number (E.164; Saudi numbers
+  may be typed as 05…). Cashiers find a customer by the exact number and
+  may add one at the till (`pos.sell`); the customer list, edits, point
+  corrections and erasure need `customers.view` / `customers.manage`
+  (administrators, operations and branch managers, organization-wide).
+- **Consent (PDPL):** agreement to receive offers is asked, never assumed,
+  and stored with its time. **Erasure** removes name, phone and email for
+  good and sets the points to zero; orders and the points ledger stay,
+  anonymous. Audit entries record no personal data.
+- **Loyalty** (one setting per organization): points per unit of currency
+  paid (after discounts, whole points), the value of a point, and a minimum
+  to spend. Points are kept in an insert-only ledger; the customer's
+  balance is the sum and never below zero. Spending points is the order's
+  discount (an amount off, exclusive with a coupon or manual discount), so
+  VAT is charged on what the guest pays — to be confirmed with the
+  customer's tax adviser before go-live. A void returns spent points and
+  takes back earned ones; a refund takes back the refunded share of what was
+  earned. Points already spent are not taken below zero.
+- **Gift cards** are stored value, a liability: selling one is not a sale
+  (no VAT, no stock) and its money is counted in the shift's cash or card
+  totals; VAT is charged on the orders it pays for (multi-purpose voucher
+  treatment — to be confirmed with the tax adviser). A card is spent as a
+  payment (`GIFT_CARD`), alone or with cash or card; the balance is locked
+  and checked in the order's transaction. A void puts the money back on the
+  card; refunds are paid in cash or by card.
+- The **code is a bearer secret**: 15 random digits and a Luhn check digit,
+  shown once when sold, stored only as an HMAC-SHA256 with the integration
+  key (so `INTEGRATION_ENCRYPTION_KEY` must not change once cards are sold)
+  and the last 4 digits. Finance (`payments.manage`) sees the cards, what
+  is owed on them, and can block a lost card. No expiry is applied (no
+  rule was given).
+- Customers, points, coupons and gift cards need the till **online**; such
+  orders are sent at once and never queued on the device.
+- ZATCA payment means: 48 card, 10 cash, 1 (not defined) when only gift
+  cards paid or nothing was due.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -1525,5 +1563,5 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 | Q-15 | ~~Payment provider and card terminals~~ — **Decided for Saudi Arabia:** acquirer mada terminals recorded on the till (ECR integration per acquirer when known), pay by QR with Moyasar (ADR-066). Other markets open. | POS3                      |
 | Q-16 | ~~POS devices~~ — **Decided:** tablets, web app and mobile app from one installable web app; store apps by wrapping it (ADR-057). Printers: 80 mm via the browser until hardware is chosen.                           |
 | Q-17 | ~~First market for live POS sales~~ — **Decided:** Saudi Arabia; POS4 builds ZATCA Phase 2 first (ADR-064).                                                                                                           | POS4                      |
-| Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                                                                  | POS5                      |
+| Q-18 | ~~Delivery platforms~~ — **Decided:** HungerStation, Jahez and Keeta first, through one plug-and-play adapter design so any platform with the same concept is added as an adapter (POS5c).                            | POS5                      |
 | Q-19 | Store apps: the app id (permanent once published, e.g. `com.<company>.foodambassador`) and who owns the Apple and Google developer accounts (organization enrolment). Needed before the first store upload (ADR-061). | POS1d release             |

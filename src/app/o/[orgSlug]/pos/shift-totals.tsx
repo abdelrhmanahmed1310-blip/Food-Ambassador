@@ -55,6 +55,7 @@ export async function ShiftTotals({
               </>
             ),
           },
+          { label: t("pos.giftCardPayments"), value: m(totals.giftCards.redeemed) },
           { label: t("pos.promotions"), value: m(totals.discounts.promotions) },
           {
             label: t("pos.orderDiscounts"),
@@ -70,6 +71,12 @@ export async function ShiftTotals({
         items={[
           { label: t("pos.openingFloatLabel"), value: m(openingFloat) },
           { label: t("pos.cashSales"), value: m(totals.cash.sales) },
+          ...(totals.giftCards.count > 0
+            ? [
+                { label: t("pos.giftCardsSoldCash"), value: m(totals.giftCards.soldCash) },
+                { label: t("pos.giftCardsSoldCard"), value: m(totals.giftCards.soldCard) },
+              ]
+            : []),
           { label: t("pos.cashRefunds"), value: m(totals.cash.refunds) },
           { label: t("pos.movementKinds.PAY_IN"), value: m(totals.payIns) },
           { label: t("pos.movementKinds.PAY_OUT"), value: m(totals.payOuts) },

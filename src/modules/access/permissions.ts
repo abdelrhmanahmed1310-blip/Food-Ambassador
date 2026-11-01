@@ -65,6 +65,8 @@ export const PERMISSIONS = [
   "pos.tables",
   "pos.kitchen",
   "pos.discount",
+  "customers.view",
+  "customers.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -182,6 +184,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "pos.tables",
       "pos.kitchen",
       "pos.discount",
+      "customers.view",
+      "customers.manage",
       "menu.view",
       "menu.manage",
       ...VIEW_SITES,
@@ -329,6 +333,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "pos.tables",
       "pos.kitchen",
       "pos.discount",
+      "customers.view",
+      "customers.manage",
       "menu.view",
       ...VIEW_SITES,
       "branches.manage",

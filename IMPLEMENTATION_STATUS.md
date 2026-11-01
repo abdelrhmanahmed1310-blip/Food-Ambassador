@@ -1,23 +1,59 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS5a discounts, promotions and coupons)
+Last updated: 2026-11-01 (POS5b customers, loyalty and gift cards)
 
 ## Summary
 
-| Milestone                     | Status                                                                                                                                                                                                                                                   |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                                                              |
-| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                                                              |
-| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                                                              |
-| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                                                      |
-| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                                                        |
-| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                                                             |
-| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                                                           |
-| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                                                               |
-| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA                                    |
-| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                          |
-| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                     |
-| POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts** done |
+| Milestone                     | Status                                                                                                                                                                                                                                                                                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                                                                                                        |
+| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                                                                                                        |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                                                                                                        |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                                                                                                |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                                                                                                  |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                                                                                                       |
+| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                                                                                                     |
+| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                                                                                                         |
+| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA                                                                              |
+| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                    |
+| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                               |
+| POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done |
+
+## POS5b — Customers, loyalty points and gift cards (delivered)
+
+Rules: DECISIONS.md ADR-068.
+
+| Area        | What works                                                                                                                   | Where                           |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Customers   | Found by phone or added at the till; list and search, consent to offers, edit, erase personal data (PDPL)                    | till, `/pos/customers`          |
+| Loyalty     | Points per currency paid, point value, minimum; earn on orders, spend as the order discount; void/refund take back correctly | till, `pos/customers.ts`        |
+| Corrections | Points added or taken with a reason; full history                                                                            | customer page                   |
+| Gift cards  | Sold at the till (cash or card, counted in the shift), code shown once and kept hashed; spent alone or with cash/card        | till, `pos/gift-cards.ts`       |
+| Finance     | Cards, what is still owed (liability), block a lost card                                                                     | `/pos/gift-cards`               |
+| Records     | Customer, points spent and earned, gift card (last 4) on receipts and the order page; gift cards in the X/Z report           | receipt, order page, shift page |
+
+Checks: `pnpm check` pass (unit 45 files / 244 tests; new: points earned,
+valued and taken back on refunds, phone numbers, gift card check digit);
+`pnpm test:integration` 47 files / 303 tests pass (10 new: a cashier adds and finds a
+customer, duplicate and invalid numbers, managers only for the list and
+corrections; earn and spend points with VAT on the paid amount, void returns
+points; too few/too many/worth more than the order refused; refund takes
+back the share; the ledger equals the balance; gift card sold in the shift
+and kept as a hash, paid alone and split with cash, more than the balance
+refused, void returns it; mistyped/unknown/blocked cards refused, finance
+only can block; gift card cash in expected cash and not in sales; erasure;
+other organizations cannot find, change or use customers and cards);
+`pnpm test:e2e` 52 tests pass (new: loyalty settings, customer added at the
+till, gift card sold, points + gift card + card on one order, receipt and
+order page, gift card liability, erasure).
+
+Also fixed: the order page showed "[object Object]" for an order discount
+(POS5a); covered by the new E2E.
+
+Limitations: the check screen does not yet offer customers, points or gift
+cards (the server accepts them on checks); refunds go back in cash or by
+card, not onto a gift card; no expiry on cards or points; VAT treatment of
+points and gift cards to be confirmed with a tax adviser.
 
 ## POS5a — Discounts, promotions and coupons (delivered)
 

@@ -57,7 +57,8 @@ Browser ──HTTPS──> Next.js 16 (App Router, Node runtime)
 │  │  ├─ foodsafety/  traceability/  # food safety records, checklists, NCs; lot trace and recalls
 │  │  ├─ menu/                 # menu categories, items, modifiers, combos, prices by channel/branch (rules.ts pure)
 │  │  ├─ pos/                  # registers, shifts, orders, checks and tables, kitchen screens, settlements,
-│  │  │                        #   discounts.ts (pure promotions/discount rules, shared with the till), promotions.ts
+│  │  │                        #   discounts.ts (pure promotions/discount rules, shared with the till), promotions.ts,
+│  │  │                        #   customers.ts + gift-cards.ts (loyalty-rules.ts pure)
 │  │  ├─ zatca/                # ZATCA Phase 2: invoice XML, signing, QR, device onboarding, reporting
 │  │  ├─ payments/             # online payment provider (Moyasar) and pay-by-QR links
 │  │  ├─ integrations/         # connectors, sealed credentials, signed webhooks, outbox

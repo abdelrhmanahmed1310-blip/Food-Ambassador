@@ -135,7 +135,9 @@
     "zatca": "E-invoicing (ZATCA)",
     "posSettlements": "Card settlements",
     "onlinePayments": "Online payments",
-    "posPromotions": "Promotions"
+    "posPromotions": "Promotions",
+    "posCustomers": "Customers",
+    "posGiftCards": "Gift cards"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -226,7 +228,9 @@
     "chooseRecipeOrProduct": "Choose a recipe or a product (one of them).",
     "comboUsesComponents": "A combo uses its items, not a recipe or product.",
     "secretKeyMode": "The key does not match the mode (sk_test_ for test, sk_live_ for live).",
-    "discountAndCoupon": "Use either a coupon or a manual discount, not both."
+    "discountAndCoupon": "Use either a coupon or a manual discount, not both.",
+    "invalidPhone": "Enter a phone number (05… or +country code).",
+    "invalidGiftCard": "Enter the 16 digits of the gift card."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -253,7 +257,8 @@
     "creditNoteNumberTaken": "This credit note number is already entered for this supplier.",
     "deliveryInvoiced": "This delivery is already invoiced.",
     "revaluationExists": "This date is already revalued.",
-    "duplicate": "This order was already recorded."
+    "duplicate": "This order was already recorded.",
+    "phoneTaken": "A customer already has this phone number."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -479,7 +484,13 @@
     "COUPON_UNKNOWN": "This coupon is not valid.",
     "COUPON_EXPIRED": "This coupon is not valid today.",
     "COUPON_USED_UP": "This coupon has been used up.",
-    "COUPON_NOTHING_OFF": "This coupon takes nothing off this order."
+    "COUPON_NOTHING_OFF": "This coupon takes nothing off this order.",
+    "LOYALTY_OFF": "Loyalty points are not in use.",
+    "POINTS_BELOW_MINIMUM": "Spend at least {minimum} points.",
+    "POINTS_NOT_ENOUGH": "The customer does not have these points.",
+    "POINTS_MORE_THAN_ORDER": "These points are worth more than the order.",
+    "GIFT_CARD_UNKNOWN": "This gift card is not valid.",
+    "GIFT_CARD_BALANCE_LOW": "The gift card has only {balance} left."
   },
   "notFound": {
     "title": "Page not found",
@@ -699,7 +710,9 @@
       "pos.view": "See point-of-sale orders and shift reports",
       "pos.tables": "Serve tables: open checks, add items, send to the kitchen",
       "pos.kitchen": "Kitchen screens: see tickets and bump them",
-      "pos.discount": "Give discounts on orders"
+      "pos.discount": "Give discounts on orders",
+      "customers.view": "See customers and their points",
+      "customers.manage": "Add, edit and erase customers; adjust points"
     }
   },
   "audit": {
@@ -2726,7 +2739,8 @@
     "methods": {
       "CASH": "Cash",
       "CARD": "Card",
-      "QR": "Pay by QR"
+      "QR": "Pay by QR",
+      "GIFT_CARD": "Gift card"
     },
     "tendered": "Cash received",
     "change": "Change",
@@ -2951,7 +2965,39 @@
     "promotionsChanged": "A promotion started or ended; check the new total and take the payment again.",
     "nothingToPayComplete": "Complete (nothing to pay)",
     "promotionTag": "{name} −{percent} %",
-    "orderDiscounts": "Order discounts"
+    "orderDiscounts": "Order discounts",
+    "pointsApplied": "{points} points",
+    "customer": "Customer",
+    "pointsBalance": "{points} points",
+    "removeCustomer": "Remove",
+    "spendPoints": "Points to spend",
+    "pointsRange": "Spend between {min} and {max} points.",
+    "applyPoints": "Use points",
+    "pointsWorth": "Worth {value}",
+    "needsConnection": "Needs a connection.",
+    "customerPhone": "Phone number",
+    "findCustomer": "Find",
+    "customerName": "Customer name",
+    "marketingConsent": "The customer agrees to receive offers",
+    "addCustomer": "Add customer",
+    "giftCardCode": "Gift card code",
+    "giftCardBlocked": "This gift card is blocked.",
+    "giftCardEmpty": "This gift card has nothing left.",
+    "applyGiftCard": "Use card",
+    "sellGiftCard": "Sell a gift card",
+    "giftCardSold": "Gift card sold: {value}",
+    "giftCardCodeOnce": "Give this code to the guest now: it is not shown again.",
+    "done": "Done",
+    "giftCardValue": "Value",
+    "sellGiftCardFor": "Sell for {value}",
+    "giftCardEnding": "Gift card •••• {last4}",
+    "toPay": "To pay",
+    "completeWithGiftCard": "Complete with gift card",
+    "pointsSpent": "Points spent",
+    "pointsEarned": "Points earned",
+    "giftCardsSoldCash": "Gift cards sold (cash)",
+    "giftCardsSoldCard": "Gift cards sold (card)",
+    "giftCardPayments": "Paid by gift card"
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
@@ -3100,5 +3146,66 @@
     },
     "emptyMeansAll": "No channel or day ticked means every channel or every day. When several promotions fit an item, the highest percentage applies.",
     "maxUses": "Maximum uses"
+  },
+  "customers": {
+    "title": "Customers",
+    "intro": "Guests who gave their phone number: their orders and loyalty points. Offers are sent only to customers who agreed. Erasing a customer removes their personal data and keeps the anonymous history.",
+    "add": "Add customer",
+    "name": "Name",
+    "phone": "Phone",
+    "phoneHint": "Saudi numbers as 05…; others with their country code (+…).",
+    "email": "Email",
+    "marketingConsent": "Agrees to receive offers",
+    "adjust": "Adjust points",
+    "pointsChange": "Points to add or take",
+    "pointsChangeHint": "A negative number takes points away.",
+    "loyaltyEnabled": "Customers earn and spend points",
+    "earnRate": "Points per 1 of the currency paid",
+    "earnRateHint": "On what is paid, after discounts.",
+    "pointValue": "Value of one point",
+    "pointValueHint": "Taken off the order when points are spent.",
+    "minRedeem": "Minimum points to spend",
+    "list": "Customers",
+    "none": "No customers yet.",
+    "points": "Points",
+    "consent": "Offers",
+    "since": "Customer since",
+    "consentYes": "Agreed",
+    "consentNo": "Not agreed",
+    "loyalty": "Loyalty points",
+    "loyaltyIntro": "Points spent are a discount on the order: VAT is charged on what the customer pays.",
+    "summary": "Summary",
+    "consentSince": "Agreed on {date}",
+    "orders": "Orders",
+    "pointsHistory": "Points history",
+    "noPoints": "No points yet.",
+    "entryKind": "Change",
+    "entryKinds": {
+      "EARN": "Earned",
+      "REDEEM": "Spent",
+      "REVERSAL": "Reversed",
+      "ADJUSTMENT": "Adjusted"
+    },
+    "edit": "Edit",
+    "erase": "Erase personal data",
+    "eraseHint": "Removes the name, phone number and email for good and sets the points to zero. Orders stay, without the customer's details.",
+    "eraseConfirm": "Erase this customer's personal data? This cannot be undone."
+  },
+  "giftCards": {
+    "title": "Gift cards",
+    "intro": "Gift cards are sold at the till and spent as a payment. What is left on them is owed to the guests (a liability). Selling a card is not a sale: VAT is charged on the orders it pays for.",
+    "summary": "Summary",
+    "count": "Cards",
+    "owed": "Still owed on cards",
+    "list": "Gift cards",
+    "none": "No gift cards sold yet.",
+    "card": "Card",
+    "value": "Value",
+    "balance": "Left",
+    "sold": "Sold",
+    "blocked": "Blocked",
+    "active": "Active",
+    "block": "Block",
+    "blockConfirm": "Block this card? It can no longer be spent."
   }
 }

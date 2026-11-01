@@ -411,7 +411,7 @@ interface IssueInput {
   number: string;
   issuedAt: Date;
   timeZone: string;
-  paymentMeans: "10" | "48";
+  paymentMeans: "1" | "10" | "48";
   lines: ZatcaLine[];
   billingReference?: string;
   reason?: string;
@@ -529,7 +529,12 @@ export async function issueOrderInvoiceInTx(tx: Tx, ctx: TenantContext, orderId:
     number: order.number,
     issuedAt: order.orderedAt,
     timeZone: order.register.branch.timeZone ?? ctx.timeZone,
-    paymentMeans: order.payments.some((p) => p.method === "CARD") ? "48" : "10",
+    // UNTDID 4461: 48 bank card, 10 cash, 1 not defined (only gift cards, or nothing to pay).
+    paymentMeans: order.payments.some((p) => p.method === "CARD")
+      ? "48"
+      : order.payments.some((p) => p.method === "CASH")
+        ? "10"
+        : "1",
     lines: order.lines.map((l) => ({
       name: l.name,
       quantity: dec(l.quantity),
@@ -600,10 +605,16 @@ export async function issueCreditNoteInTx(
     number,
     issuedAt: new Date(),
     timeZone: order.register.branch.timeZone ?? ctx.timeZone,
-    paymentMeans:
-      (a.method ?? (order.payments.some((p) => p.method === "CARD") ? "CARD" : "CASH")) === "CARD"
+    // A refund names its method; a void returns money the way the order was paid.
+    paymentMeans: a.method
+      ? a.method === "CARD"
         ? "48"
-        : "10",
+        : "10"
+      : order.payments.some((p) => p.method === "CARD")
+        ? "48"
+        : order.payments.some((p) => p.method === "CASH")
+          ? "10"
+          : "1",
     lines,
     billingReference: order.number,
     reason: a.reason,

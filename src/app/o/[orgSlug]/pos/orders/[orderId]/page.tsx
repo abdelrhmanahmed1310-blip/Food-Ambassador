@@ -81,11 +81,16 @@ export default async function OrderPage({
                 ? [
                     {
                       label: t("pos.discount"),
-                      value: `${m(o.orderDiscount)} · ${
-                        o.coupon
-                          ? t("pos.couponApplied", { code: o.coupon.code })
-                          : o.discountReason
-                      }`,
+                      value: (
+                        <span data-testid="order-discount">
+                          {m(o.orderDiscount)} ·{" "}
+                          {o.coupon
+                            ? t("pos.couponApplied", { code: o.coupon.code })
+                            : o.loyaltyPoints > 0
+                              ? t("pos.pointsApplied", { points: o.loyaltyPoints })
+                              : o.discountReason}
+                        </span>
+                      ),
                     },
                   ]
                 : []),
@@ -97,6 +102,20 @@ export default async function OrderPage({
                 : []),
               { label: t("pos.stockCost"), value: m(o.costAmount) },
               ...(o.cashierName ? [{ label: t("pos.cashier"), value: o.cashierName }] : []),
+              ...(o.customer
+                ? [
+                    {
+                      label: t("pos.customer"),
+                      value: (
+                        <>
+                          <bdi>{o.customer.name}</bdi>
+                          {o.pointsEarned > 0 ? ` · +${o.pointsEarned}` : ""}
+                          {o.loyaltyPoints > 0 ? ` · −${o.loyaltyPoints}` : ""}
+                        </>
+                      ),
+                    },
+                  ]
+                : []),
               ...(o.voidReason ? [{ label: t("pos.voidReason"), value: o.voidReason }] : []),
             ]}
           />
@@ -145,6 +164,7 @@ export default async function OrderPage({
               <li key={p.id} className="flex justify-between gap-2 py-2">
                 <span>
                   {t(`pos.methods.${p.method}`)}
+                  {p.giftCard ? ` •••• ${p.giftCard.last4}` : ""}
                   {p.tendered ? (
                     <span className="text-muted">
                       {" · "}

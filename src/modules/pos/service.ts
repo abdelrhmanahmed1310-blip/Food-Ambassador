@@ -22,7 +22,15 @@ import { codeSchema, optionalText, requiredText, uuidSchema } from "@/modules/sh
 import { loadTaxContextInTx } from "@/modules/tax/service";
 import { issueCreditNoteInTx, issueOrderInvoiceInTx, receiptQrInTx } from "@/modules/zatca/service";
 import { applyDiscounts, promotionFor, saleMoment, type OrderDiscount } from "./discounts";
+import {
+  loyaltySettingsInTx,
+  orderCustomerInTx,
+  postOrderPointsInTx,
+  reverseOrderPointsInTx,
+} from "./customers";
+import { redeemGiftCardInTx, reverseGiftCardsInTx } from "./gift-cards";
 import { createTicketsInTx, markVoidedInTx, orderStatusesInTx } from "./kitchen";
+import { pointsValue } from "./loyalty-rules";
 import {
   couponCodeSchema,
   loadPromotionsInTx,
@@ -263,7 +271,7 @@ async function shiftTotals(
   shift: { id: string; openingFloat: unknown; closedAt?: Date | null },
 ) {
   const org = ctx.organizationId;
-  const [orders, payments, refunds, movements] = await inSequence([
+  const [orders, payments, refunds, movements, giftCards] = await inSequence([
     tx.posOrder.findMany({
       where: { organizationId: org, shiftId: shift.id },
       select: {
@@ -290,6 +298,10 @@ async function shiftTotals(
       where: { organizationId: org, shiftId: shift.id },
       select: { kind: true, amount: true },
     }),
+    tx.giftCard.findMany({
+      where: { organizationId: org, shiftId: shift.id },
+      select: { soldMethod: true, initialValue: true },
+    }),
   ]);
   const sum = <T>(rows: T[], pick: (r: T) => unknown) =>
     rows.reduce((a, r) => a.plus(dec(pick(r) as Decimal)), zero());
@@ -307,6 +319,12 @@ async function shiftTotals(
   });
   const cash = byMethod("CASH");
   const card = byMethod("CARD");
+  // Gift cards sold in the shift: money taken, not sales (ADR-068).
+  const giftSold = (m: "CASH" | "CARD") =>
+    sum(
+      giftCards.filter((g) => g.soldMethod === m),
+      (g) => g.initialValue,
+    );
   const payIns = sum(
     movements.filter((m) => m.kind === "PAY_IN"),
     (m) => m.amount,
@@ -341,6 +359,16 @@ async function shiftTotals(
     ),
     cash,
     card,
+    giftCards: {
+      soldCash: giftSold("CASH"),
+      soldCard: giftSold("CARD"),
+      count: giftCards.length,
+      /** Orders paid from gift cards (part of the sales above). */
+      redeemed: sum(
+        payments.filter((p) => p.method === "GIFT_CARD"),
+        (p) => p.amount,
+      ),
+    },
     /** Card tips: owed to staff, not sales (ADR-065). */
     tips: sum(payments, (p) => p.tip),
     refunds: { count: refunds.length, amount: sum(refunds, (r) => r.amount) },
@@ -363,7 +391,7 @@ async function shiftTotals(
     })(),
     expectedCash: expectedCash({
       openingFloat: dec(shift.openingFloat as Decimal),
-      cashSales: cash.sales,
+      cashSales: cash.sales.plus(giftSold("CASH")),
       cashRefunds: cash.refunds,
       payIns,
       payOuts,
@@ -465,8 +493,10 @@ export const orderSchema = z
     payments: z
       .array(
         z.object({
-          method: z.enum(["CASH", "CARD"], { error: "invalidOption" }),
+          method: z.enum(["CASH", "CARD", "GIFT_CARD"], { error: "invalidOption" }),
           amount: positiveMoney,
+          /** Gift card payments: the card's code (ADR-068). */
+          giftCardCode: z.string().trim().max(30).optional(),
           tendered: positiveMoney.optional(),
           reference: optionalText(60),
           /** From the card terminal's slip (POS3a); only the last 4 digits of the card. */
@@ -498,6 +528,9 @@ export const orderSchema = z
       .optional(),
     /** A coupon code for a discount on the whole order. */
     couponCode: couponCodeSchema.optional(),
+    /** The customer (POS5b, ADR-068): earns points; may spend points as the order discount. */
+    customerId: uuidSchema.optional(),
+    loyaltyPoints: z.coerce.number().int().min(1).max(10_000_000).optional(),
     /** The total the cashier saw; the order is refused if the server's differs (prices changed). */
     expectedTotal: money.optional(),
     /** When the order was taken on the device (offline orders, POS1c); default now. */
@@ -510,9 +543,13 @@ export const orderSchema = z
     cashierUserId: uuidSchema.optional(),
     note: optionalText(300),
   })
-  .refine((v) => !(v.discount && v.couponCode), {
+  .refine((v) => [v.discount, v.couponCode, v.loyaltyPoints].filter(Boolean).length <= 1, {
     error: "discountAndCoupon",
     path: ["couponCode"],
+  })
+  .refine((v) => !v.loyaltyPoints || v.customerId, {
+    error: "required",
+    path: ["customerId"],
   })
   .refine((v) => v.discount?.kind !== "PERCENT" || toDecimal(v.discount.value).lte(100), {
     error: "invalid",
@@ -901,6 +938,29 @@ export async function recordOrderInTx(
   );
   let orderDiscount: OrderDiscount | null = null;
   let coupon: { id: string } | null = null;
+  const customer = input.customerId
+    ? await orderCustomerInTx(tx, ctx, input.customerId, Boolean(input.loyaltyPoints))
+    : null;
+  if (customer && input.loyaltyPoints) {
+    const loyalty = await loyaltySettingsInTx(tx, ctx);
+    if (!loyalty?.enabled)
+      throw businessRuleViolation("LOYALTY_OFF", "Loyalty points are not in use", {
+        field: "loyaltyPoints",
+      });
+    if (input.loyaltyPoints < loyalty.minRedeemPoints)
+      throw businessRuleViolation("POINTS_BELOW_MINIMUM", "Spend at least the minimum points", {
+        field: "loyaltyPoints",
+        minimum: loyalty.minRedeemPoints,
+      });
+    if (input.loyaltyPoints > customer.pointsBalance)
+      throw businessRuleViolation("POINTS_NOT_ENOUGH", "The customer does not have these points", {
+        field: "loyaltyPoints",
+      });
+    orderDiscount = {
+      kind: "AMOUNT",
+      value: pointsValue(input.loyaltyPoints, loyalty.pointValue, ctx.baseCurrency),
+    };
+  }
   if (input.discount) {
     assertPermission(ctx.grants, "pos.discount", site(register));
     orderDiscount = { kind: input.discount.kind, value: toDecimal(input.discount.value) };
@@ -918,6 +978,14 @@ export async function recordOrderInTx(
     orderDiscount,
     ctx.baseCurrency,
   );
+  if (input.loyaltyPoints && orderDiscount && discounted.orderDiscount.lt(orderDiscount.value))
+    throw businessRuleViolation(
+      "POINTS_MORE_THAN_ORDER",
+      "These points are worth more than the order",
+      {
+        field: "loyaltyPoints",
+      },
+    );
   if (coupon && discounted.orderDiscount.isZero())
     throw businessRuleViolation("COUPON_NOTHING_OFF", "This coupon takes nothing off", {
       field: "couponCode",
@@ -940,6 +1008,7 @@ export async function recordOrderInTx(
     });
   const payments = input.payments.map((p) => ({
     method: p.method,
+    giftCardCode: p.giftCardCode,
     amount: toDecimal(p.amount),
     tendered: p.tendered === undefined ? undefined : toDecimal(p.tendered),
     reference: p.reference,
@@ -951,13 +1020,18 @@ export async function recordOrderInTx(
     },
     tip: toDecimal(p.tip ?? "0"),
   }));
-  for (const [index, p] of payments.entries())
-    if (p.method === "CASH" && (p.tip.gt(0) || Object.values(p.card).some((v) => v !== null)))
+  for (const [index, p] of payments.entries()) {
+    if (p.method !== "CARD" && (p.tip.gt(0) || Object.values(p.card).some((v) => v !== null)))
       throw businessRuleViolation(
         "PAYMENT_CARD_DETAILS_ON_CASH",
         "Card details and tips belong to card payments",
         { field: `payments.${index}` },
       );
+    if ((p.method === "GIFT_CARD") !== Boolean(p.giftCardCode))
+      throw businessRuleViolation("GIFT_CARD_UNKNOWN", "Enter the gift card's code", {
+        field: `payments.${index}.giftCardCode`,
+      });
+  }
   const pay = checkPayments(gross, payments);
   if (pay.problems.length > 0)
     throw businessRuleViolation(pay.problems[0], "The payments do not settle the order", {
@@ -991,6 +1065,8 @@ export async function recordOrderInTx(
       orderDiscount: discounted.orderDiscount.toFixed(),
       discountReason: input.discount?.reason ?? null,
       couponId: coupon?.id ?? null,
+      customerId: customer?.id ?? null,
+      loyaltyPoints: input.loyaltyPoints ?? 0,
       note: input.note,
       cashierUserId: ctx.userId,
     },
@@ -1023,10 +1099,26 @@ export async function recordOrderInTx(
       })),
     );
   }
+  // Gift cards are spent (locked, balance checked) before their payments are written.
+  const giftCardIds: Array<string | null> = [];
+  for (const [index, p] of payments.entries())
+    giftCardIds.push(
+      p.method === "GIFT_CARD"
+        ? await redeemGiftCardInTx(
+            tx,
+            ctx,
+            p.giftCardCode!,
+            p.amount,
+            input.orderId,
+            `payments.${index}.giftCardCode`,
+          )
+        : null,
+    );
   await tx.posPayment.createMany({
-    data: payments.map((p) => ({
+    data: payments.map((p, index) => ({
       organizationId: org,
       orderId: input.orderId,
+      giftCardId: giftCardIds[index],
       method: p.method,
       amount: p.amount.toFixed(),
       tendered: p.tendered?.toFixed() ?? null,
@@ -1058,6 +1150,14 @@ export async function recordOrderInTx(
       where: { id: input.orderId },
       data: { costAmount: cost.toFixed(), consumptionDocId: documentId },
     });
+  const pointsEarned = customer
+    ? await postOrderPointsInTx(tx, ctx, {
+        customerId: customer.id,
+        orderId: input.orderId,
+        redeemed: input.loyaltyPoints ?? 0,
+        paid: gross,
+      })
+    : 0;
   // ZATCA: the signed simplified tax invoice, once the register's unit is onboarded (ADR-064).
   await issueOrderInvoiceInTx(tx, ctx, input.orderId);
   await audit(tx, ctx, "pos_order", input.orderId, "paid", {
@@ -1079,6 +1179,9 @@ export async function recordOrderInTx(
     orderedAt: orderedAt.toISOString(),
     menuAsOf: asOf.toISOString(),
     syncedAfterShiftClosed: shift.status === "CLOSED",
+    ...(customer
+      ? { customer: customer.id, pointsEarned, pointsSpent: input.loyaltyPoints ?? 0 }
+      : {}),
   });
   return {
     id: input.orderId,
@@ -1102,12 +1205,13 @@ async function loadOrder(
     where: { organizationId: ctx.organizationId, id: orderId },
     include: {
       lines: { orderBy: { lineNo: "asc" } },
-      payments: true,
       refunds: { orderBy: { createdAt: "asc" } },
       shortfalls: { include: { product: { select: { sku: true, nameEn: true } } } },
       shift: { select: { id: true, number: true, status: true } },
       register: { select: { id: true, code: true, name: true } },
       coupon: { select: { code: true } },
+      customer: { select: { id: true, name: true, pointsBalance: true } },
+      payments: { include: { giftCard: { select: { last4: true } } } },
     },
   });
   if (!o) throw notFound("Order");
@@ -1164,6 +1268,9 @@ export async function voidOrder(ctx: TenantContext, orderId: string, rawInput: u
       data: { status: "CANCELLED", resolvedAt: new Date() },
     });
     await markVoidedInTx(tx, ctx, { orderLineIds: o.lines.map((l) => l.id) });
+    // Gift cards get their money back; points earned go and points spent come back.
+    await reverseGiftCardsInTx(tx, ctx, o.id);
+    await reverseOrderPointsInTx(tx, ctx, o, null);
     // A reported invoice is corrected by a credit note for the whole order.
     await issueCreditNoteInTx(tx, ctx, { orderId: o.id, reason: parsed.data.reason });
     await tx.posOrder.update({
@@ -1292,6 +1399,7 @@ export async function refundOrder(ctx: TenantContext, orderId: string, rawInput:
         where: { id: p.line.id },
         data: { refundedQuantity: dec(p.line.refundedQuantity).plus(p.quantity).toFixed() },
       });
+    await reverseOrderPointsInTx(tx, ctx, o, amount);
     await tx.posOrder.update({
       where: { id: o.id },
       data: { refundedAmount: dec(o.refundedAmount).plus(amount).toFixed() },
@@ -1336,6 +1444,14 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
       branch,
       cashierName: cashier?.name ?? null,
       eInvoice: await receiptQrInTx(tx, ctx, o.id),
+      pointsEarned: o.customerId
+        ? ((
+            await tx.loyaltyEntry.aggregate({
+              where: { organizationId: ctx.organizationId, orderId: o.id, kind: "EARN" },
+              _sum: { points: true },
+            })
+          )._sum.points ?? 0)
+        : 0,
       can: {
         void:
           o.status === "PAID" &&
@@ -1504,7 +1620,8 @@ export async function tillData(ctx: TenantContext, registerId: string) {
       select: { id: true, number: true },
     });
     const promotions = await loadPromotionsInTx(tx, ctx, new Date());
-    return { ...r, shift, promotions };
+    const loyalty = await loyaltySettingsInTx(tx, ctx);
+    return { ...r, shift, promotions, loyalty };
   });
   const timeZone = reg.branch.timeZone ?? ctx.timeZone;
   const date = businessDate(timeZone);
@@ -1528,6 +1645,13 @@ export async function tillData(ctx: TenantContext, registerId: string) {
     timeZone,
     promotions: reg.promotions.map(promotionForClient),
     canDiscount: hasPermission(ctx.grants, "pos.discount", site(reg)),
+    /** Loyalty points (ADR-068), when the organization uses them. */
+    loyalty: reg.loyalty?.enabled
+      ? {
+          pointValue: reg.loyalty.pointValue.toFixed(),
+          minRedeemPoints: reg.loyalty.minRedeemPoints,
+        }
+      : null,
   };
 }
 

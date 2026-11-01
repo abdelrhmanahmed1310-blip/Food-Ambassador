@@ -6,7 +6,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useLocale, useTranslations } from "next-intl";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { Decimal } from "@/lib/decimal";
-import { couponAction } from "@/app/o/[orgSlug]/pos/tables-actions";
+import {
+  addCustomerAction,
+  couponAction,
+  findCustomerAction,
+  giftCardBalanceAction,
+  sellGiftCardAction,
+} from "@/app/o/[orgSlug]/pos/tables-actions";
 import { promotionFor, saleMoment } from "@/modules/pos/discounts";
 import { lineAmounts } from "@/modules/pos/rules";
 import type { TillData } from "@/modules/pos/service";
@@ -16,6 +22,13 @@ import {
   priceWithDiscounts,
   type DiscountChoice,
 } from "./discount-panel";
+import {
+  CustomerPanel,
+  GiftCardPay,
+  SellGiftCard,
+  type TillCustomer,
+  type TillGiftCard,
+} from "./customer-panel";
 import {
   listOrders,
   removeOrder,
@@ -77,7 +90,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   const [category, setCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [choosing, setChoosing] = useState<Item | null>(null);
-  const [paying, setPaying] = useState<"CASH" | "CARD" | null>(null);
+  const [paying, setPaying] = useState<"CASH" | "CARD" | "GIFT_CARD" | null>(null);
   const [tendered, setTendered] = useState("");
   // From the terminal slip (all optional): scheme, approval code, last 4 digits, tip.
   const noCard = { scheme: "", approvalCode: "", last4: "", tip: "" };
@@ -90,6 +103,8 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   const [online, setOnline] = useState(true);
   const [signedOut, setSignedOut] = useState(false);
   const [discount, setDiscount] = useState<DiscountChoice>(null);
+  const [customer, setCustomer] = useState<TillCustomer | null>(null);
+  const [gift, setGift] = useState<TillGiftCard | null>(null);
   // Promotions depend on the time of day: re-evaluated every half minute and at payment.
   const [clock, setClock] = useState(now);
   const register = data.register.id;
@@ -170,8 +185,11 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   const priced = priceAt(clock);
   const amounts = priced.lines;
   const { total, tax } = priced;
+  // A gift card pays what it can; the rest is paid in cash or by card (ADR-068).
+  const giftAmount = gift ? Decimal.min(new Decimal(gift.balance), total) : new Decimal(0);
+  const due = total.minus(giftAmount);
   const tenderedValue = /^\d+(\.\d+)?$/.test(tendered) ? new Decimal(tendered) : null;
-  const change = tenderedValue && tenderedValue.gte(total) ? tenderedValue.minus(total) : null;
+  const change = tenderedValue && tenderedValue.gte(due) ? tenderedValue.minus(due) : null;
 
   const reset = () => {
     setCart([]);
@@ -179,6 +197,8 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
     setTendered("");
     setCard(noCard);
     setDiscount(null);
+    setCustomer(null);
+    setGift(null);
     setError(null);
     orderId.current = null;
   };
@@ -221,7 +241,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
       setError(t("pos.promotionsChanged"));
       return;
     }
-    if (method === "CASH" && (!tenderedValue || tenderedValue.lt(total))) {
+    if (method === "CASH" && (!tenderedValue || tenderedValue.lt(due))) {
       setError(t("pos.tenderedTooLow"));
       return;
     }
@@ -240,15 +260,19 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
         optionIds: l.optionIds,
       })),
       ...discountPayload(discount),
+      ...(customer ? { customerId: customer.id } : {}),
       // An order discounted to nothing takes no payment.
       payments: [
-        method === null
+        gift && giftAmount.gt(0)
+          ? { method: "GIFT_CARD", amount: giftAmount.toFixed(), giftCardCode: gift.code }
+          : null,
+        method === null || due.isZero()
           ? null
           : method === "CASH"
-            ? { method, amount: total.toFixed(), tendered: tenderedValue!.toFixed() }
+            ? { method, amount: due.toFixed(), tendered: tenderedValue!.toFixed() }
             : {
                 method,
-                amount: total.toFixed(),
+                amount: due.toFixed(),
                 ...(card.scheme ? { cardScheme: card.scheme } : {}),
                 ...(card.approvalCode.trim() ? { approvalCode: card.approvalCode.trim() } : {}),
                 ...(card.last4 ? { cardLast4: card.last4 } : {}),
@@ -270,15 +294,18 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
       status: "pending",
       attempts: 0,
     };
-    const changeGiven = method === "CASH" ? tenderedValue!.minus(total).toFixed() : "0";
+    const changeGiven = method === "CASH" ? tenderedValue!.minus(due).toFixed() : "0";
+    // Gift cards, points and coupons are checked by the server now: such an order is never queued.
+    const onlineOnly = gift !== null || discount?.type === "points" || discount?.type === "coupon";
     setError(null);
     startTransition(async () => {
-      let stored = true;
-      try {
-        await saveOrder(queued);
-      } catch {
-        stored = false; // No device storage (private window): send directly only.
-      }
+      let stored = !onlineOnly;
+      if (stored)
+        try {
+          await saveOrder(queued);
+        } catch {
+          stored = false; // No device storage (private window): send directly only.
+        }
       const r = await sendOrder(queued);
       if (r.outcome === "recorded") {
         if (stored) await removeOrder(queued.orderId);
@@ -476,6 +503,26 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
           </ul>
         )}
         {cart.length > 0 ? (
+          <CustomerPanel
+            online={online}
+            currency={data.currency}
+            customer={customer}
+            onCustomer={(c) => {
+              setCustomer(c);
+              orderId.current = null;
+            }}
+            loyalty={data.loyalty}
+            choice={discount}
+            onChoice={(c) => {
+              setDiscount(c);
+              orderId.current = null;
+            }}
+            find={(phone) => findCustomerAction(orgSlug, phone)}
+            add={(input) => addCustomerAction(orgSlug, input)}
+            fmt={fmt}
+          />
+        ) : null}
+        {cart.length > 0 && discount?.type !== "points" ? (
           <DiscountPanel
             idPrefix="till"
             canDiscount={data.canDiscount}
@@ -516,11 +563,45 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
               {fmt(total)}
             </dd>
           </div>
+          {gift ? (
+            <>
+              <div className="flex justify-between">
+                <dt className="text-muted">
+                  {t("pos.giftCardEnding", { last4: gift.last4 })}{" "}
+                  <button
+                    type="button"
+                    className="text-danger hover:underline"
+                    onClick={() => setGift(null)}
+                  >
+                    {t("pos.removeDiscount")}
+                  </button>
+                </dt>
+                <dd className="ltr-value tabular-nums">−{fmt(giftAmount)}</dd>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <dt>{t("pos.toPay")}</dt>
+                <dd className="ltr-value tabular-nums" data-testid="till-due">
+                  {fmt(due)}
+                </dd>
+              </div>
+            </>
+          ) : null}
         </dl>
         {error ? (
           <p role="alert" className="text-danger text-sm">
             {error}
           </p>
+        ) : null}
+        {cart.length > 0 && paying === null && gift && due.isZero() && !total.isZero() ? (
+          <button
+            type="button"
+            className={`${buttonClass("primary")} min-h-14 w-full`}
+            disabled={pending}
+            aria-busy={pending}
+            onClick={() => pay(null)}
+          >
+            {pending ? t("common.saving") : t("pos.completeWithGiftCard")}
+          </button>
         ) : null}
         {cart.length > 0 && paying === null && total.isZero() ? (
           <button
@@ -533,7 +614,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
             {pending ? t("common.saving") : t("pos.nothingToPayComplete")}
           </button>
         ) : null}
-        {cart.length > 0 && paying === null && !total.isZero() ? (
+        {cart.length > 0 && paying === null && !due.isZero() ? (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -548,6 +629,35 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
               onClick={() => setPaying("CARD")}
             >
               {t("pos.methods.CARD")}
+            </button>
+            {gift ? null : (
+              <button
+                type="button"
+                className={`${buttonClass("secondary")} col-span-2`}
+                onClick={() => setPaying("GIFT_CARD")}
+              >
+                {t("pos.methods.GIFT_CARD")}
+              </button>
+            )}
+          </div>
+        ) : null}
+        {paying === "GIFT_CARD" && cart.length > 0 ? (
+          <div className="space-y-2">
+            <GiftCardPay
+              online={online}
+              check={(code) => giftCardBalanceAction(orgSlug, code)}
+              onApply={(g) => {
+                setGift(g);
+                setPaying(null);
+                orderId.current = null;
+              }}
+            />
+            <button
+              type="button"
+              className={buttonClass("secondary")}
+              onClick={() => setPaying(null)}
+            >
+              {t("common.cancel")}
             </button>
           </div>
         ) : null}
@@ -566,7 +676,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
               onChange={(e) => setTendered(e.target.value.trim())}
             />
             <div className="flex flex-wrap gap-2">
-              {[total, ...[5, 10, 50, 100].map((step) => total.div(step).ceil().times(step))]
+              {[due, ...[5, 10, 50, 100].map((step) => due.div(step).ceil().times(step))]
                 .filter((v, i, all) => all.findIndex((x) => x.equals(v)) === i)
                 .map((v) => (
                   <button
@@ -706,6 +816,15 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
           >
             {t("pos.clear")}
           </button>
+        ) : null}
+        {cart.length === 0 ? (
+          <SellGiftCard
+            online={online}
+            sell={(input) =>
+              sellGiftCardAction(orgSlug, { ...(input as object), registerId: data.register.id })
+            }
+            fmt={fmt}
+          />
         ) : null}
       </section>
 
