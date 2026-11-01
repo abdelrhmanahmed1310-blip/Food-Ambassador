@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS1c cashier app)
+Last updated: 2026-11-01 (POS1d store apps)
 
 ## Summary
 
@@ -17,7 +17,33 @@ Last updated: 2026-11-01 (POS1c cashier app)
 | M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | In progress — **POS1a menu**, **POS1b selling** and **POS1c installable cashier app with offline queue** done; POS1d store apps (needs developer accounts) next                                                       |
+| POS1 – POS5                   | POS1 **complete**: menu, selling, installable cashier app with offline queue, store app shells for Android and iOS (publishing waits on developer accounts, Q-19). POS2 floor and kitchen next                        |
+
+## POS1d — Store apps (delivered as buildable projects)
+
+Rules: DECISIONS.md ADR-061; release steps: docs/MOBILE_RELEASE.md.
+
+| Area          | What works                                                                                                                                 | Where                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Projects      | Capacitor 8 Android and iOS projects loading the hosted web app; own package and lockfile                                                  | `mobile/`                                                    |
+| Configuration | Server URL, app id and version per build; iOS app-bound domain and bundle id applied by `npm run sync`; release builds refuse placeholders | `mobile/capacitor.config.ts`, `mobile/scripts/configure.mjs` |
+| Look          | Icons (incl. Android adaptive) and splash screens (light and dark) from the brand mark; offline first-launch page EN/AR                    | `mobile/assets`, `mobile/www`                                |
+| Builds        | CI builds an Android debug APK (downloadable) and an unsigned iOS simulator build on every change under `mobile/`                          | `.github/workflows/mobile.yml`                               |
+| In the apps   | Same pages and offline till; print buttons say where to print (in-app web views have no print dialog)                                      | `components/ui/print-button.tsx`                             |
+
+Checks: `pnpm check` pass; `pnpm test:e2e` 45 tests pass (new: the same pages in
+the app's web view, print button replaced by where to print; a normal browser
+still prints); mobile workflow passed on its first run (Android debug APK built and
+uploaded as an artifact; iOS simulator build on macOS succeeded). Locally: `cap add`/`cap sync`
+for both platforms, configuration applied and idempotent, release guard
+refuses placeholders. The Android SDK and Xcode are not available in the
+development container, so the native builds are verified in CI only.
+
+Not done (needs the organization): developer accounts, app id (Q-19),
+production URL (Q-03), signing keys, store listings, review submission. Not
+yet in the apps: printing (needs a printer plugin and hardware), card
+terminals (POS3), push notifications, camera barcode scanning. Not tested on
+physical devices.
 
 ## POS1c — Cashier app, offline (delivered)
 
