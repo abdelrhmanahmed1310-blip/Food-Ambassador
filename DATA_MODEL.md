@@ -1140,3 +1140,16 @@ branchId, warehouseId, autoAccept }`.
 - **delivery_item_maps**: connector, `kind` ITEM | OPTION, `external_id`
   (UQ per connector and kind) → `target_id` (menu item or modifier option).
 - **pos_payments** gains method DELIVERY_PLATFORM (needs a reference).
+
+### Online ordering and kiosks (POS5d, ADR-070)
+
+Migration `20261130090000_pos5d_ordering`; the new table has row-level security.
+
+- **ordering_channels**: `kind` WEB | KIOSK, `name`, branch, `channels`
+  (sales channels it takes; WEB never DINE_IN), `auto_send`,
+  `max_order_total`, `public_token` (UQ, the public address), creator,
+  `archived_at`.
+- **pos_tabs** gains `source` STAFF | WEB | KIOSK, `source_channel_id`
+  (⇔ not STAFF), `source_key` (UQ per channel: the guest's resend key),
+  `guest_name`, `guest_phone` (E.164, cleared when the check closes),
+  `guest_token` (UQ, the guest's status address).

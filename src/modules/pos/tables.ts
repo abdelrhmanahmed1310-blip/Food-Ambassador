@@ -7,6 +7,7 @@ import { planConsumptionInTx, postConsumptionInTx } from "@/modules/inventory/co
 import { loadWarehouse } from "@/modules/inventory/context";
 import { nextDocumentNumber } from "@/modules/inventory/posting";
 import { businessDate } from "@/modules/inventory/rules";
+import type { SalesChannel } from "@/modules/menu/rules";
 import { optionalText, requiredText, uuidSchema } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
@@ -261,7 +262,18 @@ const openSchema = z.object({
   guests: z.coerce.number().int().min(1, { error: "invalid" }).max(500, { error: "invalid" }),
 });
 
-export async function openTab(ctx: TenantContext, rawInput: unknown) {
+/** Set by the server for a guest's order from the web or a kiosk (ADR-070); never from a form. */
+export interface TabOrigin {
+  source: "WEB" | "KIOSK";
+  channelId: string;
+  key: string;
+  channel: SalesChannel;
+  guestName: string;
+  guestPhone: string | null;
+  guestToken: string;
+}
+
+export async function openTab(ctx: TenantContext, rawInput: unknown, origin?: TabOrigin) {
   const parsed = openSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const input = parsed.data;
@@ -315,6 +327,17 @@ export async function openTab(ctx: TenantContext, rawInput: unknown) {
           label: input.tableId ? null : (input.label ?? null),
           guests: input.guests,
           waiterUserId: ctx.userId,
+          ...(origin
+            ? {
+                channel: origin.channel,
+                source: origin.source,
+                sourceChannelId: origin.channelId,
+                sourceKey: origin.key,
+                guestName: origin.guestName,
+                guestPhone: origin.guestPhone,
+                guestToken: origin.guestToken,
+              }
+            : {}),
         },
         select: { id: true, number: true },
       });
@@ -702,7 +725,13 @@ export async function cancelTab(ctx: TenantContext, tabId: string, rawInput: unk
     });
     await tx.posTab.update({
       where: { id: tab.id },
-      data: { status: "CANCELLED", cancelReason: parsed.data.reason, closedAt: new Date() },
+      // A guest's phone is kept only while the order is open (ADR-070).
+      data: {
+        status: "CANCELLED",
+        cancelReason: parsed.data.reason,
+        closedAt: new Date(),
+        guestPhone: null,
+      },
     });
     await audit(tx, ctx, "pos_tab", tab.id, "cancelled", { reason: parsed.data.reason });
   });
@@ -836,7 +865,7 @@ export async function payTab(ctx: TenantContext, tabId: string, rawInput: unknow
       if (closed)
         await tx.posTab.update({
           where: { id: tab.id },
-          data: { status: "CLOSED", closedAt: new Date() },
+          data: { status: "CLOSED", closedAt: new Date(), guestPhone: null },
         });
       await audit(tx, ctx, "pos_tab", tab.id, closed ? "paid_closed" : "paid_part", {
         order: result.number,

@@ -138,7 +138,8 @@
     "posPromotions": "Promotions",
     "posCustomers": "Customers",
     "posGiftCards": "Gift cards",
-    "posDelivery": "Delivery orders"
+    "posDelivery": "Delivery orders",
+    "posOnline": "Online and kiosk orders"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -231,7 +232,8 @@
     "secretKeyMode": "The key does not match the mode (sk_test_ for test, sk_live_ for live).",
     "discountAndCoupon": "Use either a coupon or a manual discount, not both.",
     "invalidPhone": "Enter a phone number (05… or +country code).",
-    "invalidGiftCard": "Enter the 16 digits of the gift card."
+    "invalidGiftCard": "Enter the 16 digits of the gift card.",
+    "webNoDineIn": "The web page takes pick-up orders only; eat-in orders are for kiosks."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -496,7 +498,11 @@
     "DELIVERY_MODIFIER_QUANTITY": "A modifier is ordered more than once; the menu takes each option once.",
     "DELIVERY_ORDER_CLOSED": "This delivery order is no longer open.",
     "DELIVERY_TOTAL_DIFFERS": "The platform's total ({total}) does not match its items ({items}).",
-    "DELIVERY_CREATOR_LACKS_ACCESS": "You cannot sell at this register, so a connector you create cannot either."
+    "DELIVERY_CREATOR_LACKS_ACCESS": "You cannot sell at this register, so a connector you create cannot either.",
+    "GUEST_ORDER_RATE_LIMITED": "Too many orders from here; please try again in a few minutes.",
+    "GUEST_ORDER_TOO_LARGE": "This order is larger than can be ordered here (up to {maximum}); please order at the counter.",
+    "ORDERING_NEEDS_FLOOR": "Set up a floor at this branch first: guest orders are checks.",
+    "ORDERING_CREATOR_LACKS_ACCESS": "You cannot open checks at this branch, so a page you create cannot either."
   },
   "notFound": {
     "title": "Page not found",
@@ -3273,5 +3279,79 @@
     "addMapping": "Map an id",
     "unmap": "Remove",
     "voidNeeded": "Cancelled by the platform after its shift closed: refund the order from its page."
+  },
+  "ordering": {
+    "menu": "Menu",
+    "howToEat": "How you eat",
+    "all": "All",
+    "yourOrder": "Your order",
+    "empty": "Choose items from the menu.",
+    "less": "One less {item}",
+    "more": "One more {item}",
+    "total": "Total",
+    "yourName": "Your name",
+    "yourPhone": "Mobile number",
+    "phoneUse": "Used only to reach you about this order.",
+    "note": "Note for the kitchen",
+    "placeOrder": "Place order",
+    "placing": "Placing…",
+    "payAtCounterHint": "You pay when you collect, at the counter.",
+    "nameRequired": "Enter your name.",
+    "phoneRequired": "Enter your mobile number.",
+    "thanks": "Thank you, {name}! Your order number:",
+    "payAtCounter": "Pay at the counter when you collect.",
+    "newOrder": "New order",
+    "followOrder": "Follow your order",
+    "channels": {
+      "TAKEAWAY": "Take away",
+      "DINE_IN": "Eat in",
+      "DELIVERY": "Delivery"
+    },
+    "states": {
+      "RECEIVED": "Received — waiting for the restaurant to accept it",
+      "PREPARING": "Being prepared",
+      "READY": "Ready to collect",
+      "COLLECTED": "Collected — enjoy!",
+      "CANCELLED": "Cancelled"
+    },
+    "steps": {
+      "RECEIVED": "Received",
+      "PREPARING": "Preparing",
+      "READY": "Ready",
+      "COLLECTED": "Collected"
+    },
+    "staffTitle": "Online and kiosk orders",
+    "staffIntro": "Orders guests placed on the web or at a kiosk. Accept to send them to the kitchen; each is a check, paid at the counter.",
+    "setup": "Pages and kiosks",
+    "noneOpen": "No open guest orders.",
+    "accept": "Accept",
+    "reject": "Reject",
+    "rejectReason": "Reason (the guest sees it)",
+    "staffStates": {
+      "NEW": "New",
+      "PREPARING": "In the kitchen",
+      "READY": "Ready"
+    },
+    "kinds": {
+      "WEB": "Web",
+      "KIOSK": "Kiosk"
+    },
+    "setupTitle": "Online ordering and kiosks",
+    "setupIntro": "A public page per branch: the web page for pick-up orders, or a kiosk in the restaurant. Share the web address with guests; open the kiosk address on the kiosk device. Payment is at the counter.",
+    "channelsTitle": "Pages and kiosks",
+    "noChannels": "No pages or kiosks yet.",
+    "addChannel": "Add a page or kiosk",
+    "kind": "Type",
+    "channelName": "Name",
+    "branch": "Branch",
+    "takes": "Takes",
+    "maxOrderTotal": "Largest order",
+    "maxOrderTotalHint": "Orders above this go to the counter.",
+    "autoSend": "Send orders to the kitchen at once, without someone accepting them",
+    "autoSendShort": "Sent to the kitchen at once",
+    "address": "Address",
+    "archive": "Close",
+    "archiveConfirm": "Close this page? Its address stops working.",
+    "archived": "Closed"
   }
 }

@@ -55,7 +55,7 @@ A market goes live on the POS only after its e-invoicing work (POS4) passes.
 | POS2 | Floor & kitchen             | POS1                             | ✅ Complete — POS2a floor and tables, POS2b kitchen display                                                              |
 | POS3 | Payments                    | POS1, Q-15 (Saudi: decided)      | POS3a ✅; POS3b pay by QR with Moyasar built (Moyasar validation pending); terminal ECR per acquirer when known          |
 | POS4 | Tax & e-invoicing           | POS1, Q-17 (Saudi Arabia)        | In progress — POS4a ZATCA simplified documents built (sandbox validation pending); POS4b standard invoices and clearance |
-| POS5 | Customer channels           | POS1–POS4                        | POS5a–POS5c done (native delivery adapters pending specs); online ordering and kiosk open                                |
+| POS5 | Customer channels           | POS1–POS4                        | POS5a–POS5d done (native delivery adapters pending specs; online prepayment pending Moyasar)                             |
 
 ---
 
@@ -413,7 +413,7 @@ website, self-order kiosk, and delivery-platform order intake (Q-18).
   the discounted amount, shown on receipts and shift reports.
 - **POS5b (done, ADR-068):** customers and consent, loyalty points, gift cards.
 - **POS5c (built, ADR-069):** delivery-platform intake — HungerStation, Jahez, Keeta and others through plug-and-play adapters; native adapters wait on each platform's partner specification.
-- **POS5d:** online ordering website, self-order kiosk.
+- **POS5d (done, ADR-070):** online ordering page and self-order kiosk, paid at the counter; online prepayment once Moyasar is validated.
 
 ---
 

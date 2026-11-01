@@ -188,6 +188,7 @@ model Organization {
   giftCardEntries         GiftCardEntry[]
   deliveryOrders          DeliveryOrder[]
   deliveryItemMaps        DeliveryItemMap[]
+  orderingChannels        OrderingChannel[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
   posOrders               PosOrder[]
@@ -424,11 +425,12 @@ model Branch {
   menuItemPrices      MenuItemPrice[]
   menuItemUnavailable MenuItemUnavailable[]
 
-  posRegisters    PosRegister[]
-  posFloors       PosFloor[]
-  posTables       PosTable[]
-  posTabs         PosTab[]
-  kitchenStations KitchenStation[]
+  posRegisters     PosRegister[]
+  posFloors        PosFloor[]
+  posTables        PosTable[]
+  posTabs          PosTab[]
+  orderingChannels OrderingChannel[]
+  kitchenStations  KitchenStation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3934,23 +3936,69 @@ model PosTable {
 }
 
 /// An open check: items added during the meal, sent to the kitchen, paid whole or in parts (ADR-062).
+enum PosTabSource {
+  STAFF
+  WEB
+  KIOSK
+}
+
+enum OrderingChannelKind {
+  WEB
+  KIOSK
+}
+
+/// A public ordering page for one branch: the online ordering site or a self-order kiosk (ADR-070).
+model OrderingChannel {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  organizationId  String              @map("organization_id") @db.Uuid
+  kind            OrderingChannelKind
+  name            String
+  branchId        String              @map("branch_id") @db.Uuid
+  /// Eat in and/or take away (kiosk), take away for pick-up (web).
+  channels        SalesChannel[]
+  /// Send to the kitchen as soon as the guest orders, without a person accepting.
+  autoSend        Boolean             @default(false) @map("auto_send")
+  maxOrderTotal   Decimal?            @map("max_order_total") @db.Decimal(19, 4)
+  /// Random id in the public address; never the database id.
+  publicToken     String              @unique @map("public_token")
+  createdByUserId String              @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  archivedAt      DateTime?           @map("archived_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  tabs         PosTab[]
+
+  @@unique([organizationId, id])
+  @@map("ordering_channels")
+}
+
 model PosTab {
-  id              String       @id @default(uuid(7)) @db.Uuid
-  organizationId  String       @map("organization_id") @db.Uuid
+  id              String           @id @default(uuid(7)) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
   number          String
-  branchId        String       @map("branch_id") @db.Uuid
-  warehouseId     String       @map("warehouse_id") @db.Uuid
-  tableId         String?      @map("table_id") @db.Uuid
+  branchId        String           @map("branch_id") @db.Uuid
+  warehouseId     String           @map("warehouse_id") @db.Uuid
+  tableId         String?          @map("table_id") @db.Uuid
   /// Name for a check without a table (bar, pick-up).
   label           String?
   guests          Int
-  channel         SalesChannel @default(DINE_IN)
-  status          PosTabStatus @default(OPEN)
-  waiterUserId    String       @map("waiter_user_id") @db.Uuid
-  openedAt        DateTime     @default(now()) @map("opened_at") @db.Timestamptz(3)
-  closedAt        DateTime?    @map("closed_at") @db.Timestamptz(3)
-  mergedIntoTabId String?      @map("merged_into_tab_id") @db.Uuid
-  cancelReason    String?      @map("cancel_reason")
+  channel         SalesChannel     @default(DINE_IN)
+  status          PosTabStatus     @default(OPEN)
+  waiterUserId    String           @map("waiter_user_id") @db.Uuid
+  openedAt        DateTime         @default(now()) @map("opened_at") @db.Timestamptz(3)
+  closedAt        DateTime?        @map("closed_at") @db.Timestamptz(3)
+  mergedIntoTabId String?          @map("merged_into_tab_id") @db.Uuid
+  cancelReason    String?          @map("cancel_reason")
+  /// Orders placed by guests (POS5d, ADR-070): the web or kiosk channel, the guest, and the
+  /// guest's status link. The phone is cleared when the check closes.
+  source          PosTabSource     @default(STAFF)
+  sourceChannelId String?          @map("source_channel_id") @db.Uuid
+  sourceKey       String?          @map("source_key")
+  guestName       String?          @map("guest_name")
+  guestPhone      String?          @map("guest_phone")
+  guestToken      String?          @unique @map("guest_token")
+  sourceChannel   OrderingChannel? @relation(fields: [organizationId, sourceChannelId], references: [organizationId, id], onDelete: Restrict)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
@@ -3961,6 +4009,7 @@ model PosTab {
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
+  @@unique([organizationId, sourceChannelId, sourceKey])
   @@index([organizationId, branchId, status])
   @@map("pos_tabs")
 }

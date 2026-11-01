@@ -1568,6 +1568,34 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   rejected (needs each platform's API — a native adapter — or the
   middleware); menu sync to platforms; reconciliation of platform payouts.
 
+### ADR-070 Online ordering and self-order kiosks, paid at the counter — Accepted (POS5d)
+
+- An **ordering channel** is a public page for one branch with an
+  unguessable address: a **web** page for pick-up (take away, or delivery by
+  the restaurant) or a **kiosk** in the restaurant (eat in and/or take
+  away). Set up by `pos.manage`; orders are placed under the creator's
+  access (they must be able to open checks there), like connectors.
+- A guest's order becomes a **named check** at the branch (source WEB or
+  KIOSK, the guest's name, and for the web a mobile number to reach them).
+  Prices, options and VAT always come from the server; an order larger than
+  the page's limit, an item not on sale, or a channel the page does not take
+  is refused and leaves nothing behind. A resend with the same key returns
+  the same order.
+- Staff see open guest orders (`pos.tables`): **accept** sends the items to
+  the kitchen; **reject** cancels the check with a reason the guest sees. A
+  channel may send orders to the kitchen at once (typical for kiosks).
+- **Payment is at the counter**, as for any check (cash, card, gift card,
+  pay by QR). Paying online before ordering waits until Moyasar is
+  validated (ADR-066).
+- The guest follows the order on a **status page** of its own (another
+  unguessable address): received → preparing → ready (kitchen bumped) →
+  collected, or cancelled with the reason.
+- **Abuse limits:** 5 orders per 10 minutes per address on the web (60 on a
+  kiosk), 300 per channel; a maximum order total per page; closing a page
+  stops its address.
+- **Privacy:** the guest's phone is kept only while the order is open and
+  cleared when the check is paid or cancelled.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
