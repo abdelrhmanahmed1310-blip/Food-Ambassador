@@ -6,15 +6,19 @@ import { Badge, LinkButton } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
 import { businessDate } from "@/modules/inventory/rules";
 import { sellableMenu } from "@/modules/pos/service";
+import { paymentProvider } from "@/modules/payments/links";
 import { getTab } from "@/modules/pos/tables";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import {
   addLinesAction,
   cancelAction,
+  cancelLinkAction,
+  createLinkAction,
   mergeAction,
   moveAction,
   payAction,
+  refreshLinkAction,
   removeLineAction,
   sendAction,
   updateLineAction,
@@ -74,6 +78,7 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
     freeTables: tab.freeTables,
     registers: tab.registers.map((r) => ({ id: r.id, label: `${r.code} — ${r.name}` })),
     can: { serve: tab.can.serve, pay: tab.can.pay, void: tab.can.void, open },
+    onlinePayments: (await paymentProvider(ctx)) !== null,
   };
   const bind = <A extends unknown[], R>(fn: (orgSlug: string, ...args: A) => R) =>
     fn.bind(null, orgSlug) as (...args: A) => R;
@@ -113,6 +118,9 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
           merge: bind(mergeAction).bind(null, tab.id),
           cancel: bind(cancelAction).bind(null, tab.id),
           pay: bind(payAction).bind(null, tab.id),
+          createLink: bind(createLinkAction).bind(null, tab.id),
+          refreshLink: bind(refreshLinkAction),
+          cancelLink: bind(cancelLinkAction),
         }}
       />
     </div>

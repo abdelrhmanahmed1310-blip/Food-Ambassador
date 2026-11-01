@@ -182,3 +182,42 @@ test("kitchen display: a sent item appears on its station, is bumped, and shows 
   await expect(page.getByTestId("check-line-1").getByTestId("line-status")).toHaveText("Ready");
   await context.close();
 });
+
+test("pay by QR: the Moyasar key is set up and the check offers QR payment", async ({
+  browser,
+}) => {
+  test.setTimeout(180_000);
+  const { context, page } = await newClient(browser);
+  const slug = await setUpRestaurant(page, "payqr");
+  await page.goto(`/o/${slug}/settings/payments`);
+  await expect(page.getByTestId("provider-status")).toContainText("Not set up");
+  await page.getByLabel("Mode").selectOption("LIVE");
+  await page.getByLabel("Secret API key").fill("sk_test_e2e-not-a-real-key");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("The key does not match the mode")).toBeVisible();
+  await page.getByLabel("Mode").selectOption("TEST");
+  await page.getByLabel("Secret API key").fill("sk_test_e2e-not-a-real-key");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Changes saved.")).toBeVisible();
+  await expect(page.getByTestId("provider-status")).toContainText("Test");
+  await expect(page.getByText("sk_test_e2e-not-a-real-key")).toHaveCount(0);
+
+  await page.goto(`/o/${slug}/pos/floor`);
+  await page.getByRole("link", { name: "Table T1, free" }).click();
+  await expect(page).toHaveURL(/\/pos\/tables\//);
+  await page.waitForLoadState("load");
+  await page.getByRole("button", { name: "Open check" }).click();
+  await expect(page).toHaveURL(/\/pos\/tabs\//);
+  await page
+    .getByRole("region", { name: "Add items" })
+    .getByRole("button", { name: /Cola/ })
+    .click();
+  await page.getByRole("button", { name: "Add 1 item to the check" }).click();
+  const pay = page.getByRole("region", { name: "Payment" });
+  await pay.getByLabel("Payment method").selectOption("QR");
+  await pay.getByRole("button", { name: "Show QR to pay" }).click();
+  // The key is not a real Moyasar key: the provider's refusal is shown, nothing is recorded.
+  await expect(page.getByText(/The payment provider did not accept the request/)).toBeVisible();
+  await expect(page.getByTestId("check-line-1").getByTestId("line-status")).toHaveText("Not sent");
+  await context.close();
+});

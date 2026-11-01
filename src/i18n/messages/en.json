@@ -133,7 +133,8 @@
     "posFloor": "Floor plan",
     "posKitchen": "Kitchen screens",
     "zatca": "E-invoicing (ZATCA)",
-    "posSettlements": "Card settlements"
+    "posSettlements": "Card settlements",
+    "onlinePayments": "Online payments"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -222,7 +223,8 @@
     "over100g": "Cannot be more than 100 g in 100 g.",
     "implausibleEnergy": "Higher than any food can have per 100 g.",
     "chooseRecipeOrProduct": "Choose a recipe or a product (one of them).",
-    "comboUsesComponents": "A combo uses its items, not a recipe or product."
+    "comboUsesComponents": "A combo uses its items, not a recipe or product.",
+    "secretKeyMode": "The key does not match the mode (sk_test_ for test, sk_live_ for live)."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -467,7 +469,11 @@
     "PAYMENT_CARD_DETAILS_ON_CASH": "Card details and tips belong to card payments.",
     "SETTLEMENT_FILE_TOO_LARGE": "The file is larger than 2 MB.",
     "SETTLEMENT_FILE_INVALID": "The settlement file has an error on line {line} ({column}).",
-    "SETTLEMENT_FILE_EMPTY": "The file has no lines."
+    "SETTLEMENT_FILE_EMPTY": "The file has no lines.",
+    "PAYMENT_PROVIDER_MISSING": "Set up online payments first.",
+    "PAYMENT_PROVIDER_FAILED": "The payment provider did not accept the request (status {status}).",
+    "PAYMENT_AMOUNT_DIFFERS": "The provider reports another amount; check the payment in Moyasar's dashboard.",
+    "PAYMENT_LINK_DONE": "This QR is no longer open."
   },
   "notFound": {
     "title": "Page not found",
@@ -2712,7 +2718,8 @@
     "more": "One more {item}",
     "methods": {
       "CASH": "Cash",
-      "CARD": "Card"
+      "CARD": "Card",
+      "QR": "Pay by QR"
     },
     "tendered": "Cash received",
     "change": "Change",
@@ -2908,7 +2915,14 @@
     "tip": "Tip",
     "cardTips": "Card tips (not sales)",
     "cardRefundReference": "Card refund reference",
-    "cardRefundReferenceHint": "From the terminal, for card refunds."
+    "cardRefundReferenceHint": "From the terminal, for card refunds.",
+    "showQr": "Show QR to pay",
+    "qrAlt": "QR code to pay this amount",
+    "qrWaiting": "The guest scans and pays on their phone (mada, Apple Pay, cards). This screen checks the payment by itself.",
+    "qrCheckNow": "Check now",
+    "qrCancel": "Cancel QR",
+    "qrPaid": "Paid by QR — recorded on the check.",
+    "qrNotPaid": "The QR payment did not go through; take payment another way."
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
@@ -2999,5 +3013,20 @@
     "providerNote": "Works with any acquirer that exports settlements; a direct connection to your payment provider comes with its selection (Q-15).",
     "imported": "{lines} lines imported: {matched} matched, {mismatched} with a different amount, {unmatched} without a sale.",
     "lines": "{count, plural, one {# line} other {# lines}}"
+  },
+  "onlinePayments": {
+    "title": "Online payments",
+    "intro": "Pay by QR at the table with Moyasar (Saudi payment gateway): the guest pays on their phone with mada, Apple Pay or a card, and the payment is recorded on the check.",
+    "validationNote": "Not yet tested against Moyasar: the development environment cannot reach it. Use a test key and check a few payments in Moyasar's dashboard before going live.",
+    "account": "Moyasar account",
+    "mode": "Mode",
+    "modes": {
+      "TEST": "Test",
+      "LIVE": "Live"
+    },
+    "secretKey": "Secret API key",
+    "secretKeyHint": "From Moyasar's dashboard (Settings → API keys): sk_test_… or sk_live_…. Stored encrypted and never shown again.",
+    "notSet": "Not set up — pay by QR is not offered.",
+    "savedAt": "Key saved {date}."
   }
 }

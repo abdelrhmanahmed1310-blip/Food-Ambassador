@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { Decimal } from "@/lib/decimal";
@@ -44,6 +44,8 @@ export interface CheckView {
   freeTables: Array<{ id: string; code: string }>;
   registers: Array<{ id: string; label: string }>;
   can: { serve: boolean; pay: boolean; void: boolean; open: boolean };
+  /** Pay by QR (Moyasar) is set up for the organization (ADR-066). */
+  onlinePayments: boolean;
 }
 
 type Result = { ok: true; data?: Record<string, unknown> } | { ok: false; error: string };
@@ -85,6 +87,9 @@ export function CheckScreen({
     merge: (input: unknown) => Promise<Result>;
     cancel: (input: unknown) => Promise<Result>;
     pay: (input: unknown) => Promise<Result>;
+    createLink: (input: unknown) => Promise<Result>;
+    refreshLink: (linkId: string) => Promise<Result>;
+    cancelLink: (linkId: string) => Promise<Result>;
   };
 }) {
   const t = useTranslations();
@@ -165,7 +170,8 @@ export function CheckScreen({
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [paySeat, setPaySeat] = useState("");
   const [parts, setParts] = useState(1);
-  const [method, setMethod] = useState<"CASH" | "CARD">("CARD");
+  const [method, setMethod] = useState<"CASH" | "CARD" | "QR">("CARD");
+  const [link, setLink] = useState<{ id: string; url: string; qr: string } | null>(null);
   const [tendered, setTendered] = useState("");
   const [registerId, setRegisterId] = useState(check.registers[0]?.id ?? "");
   const orderId = useRef<string | null>(null);
@@ -536,10 +542,13 @@ export function CheckScreen({
                   <select
                     className={inputClass}
                     value={method}
-                    onChange={(e) => setMethod(e.target.value as "CASH" | "CARD")}
+                    onChange={(e) => setMethod(e.target.value as "CASH" | "CARD" | "QR")}
                   >
                     <option value="CARD">{t("pos.methods.CARD")}</option>
                     <option value="CASH">{t("pos.methods.CASH")}</option>
+                    {check.onlinePayments ? (
+                      <option value="QR">{t("pos.methods.QR")}</option>
+                    ) : null}
                   </select>
                 </label>
                 {check.registers.length > 1 ? (
@@ -584,14 +593,66 @@ export function CheckScreen({
                 </p>
               ) : null}
               {!priced ? <p className="text-danger text-sm">{t("pos.itemNotPriced")}</p> : null}
-              <button
-                type="button"
-                className={`${buttonClass("primary")} min-h-12 w-full`}
-                disabled={pending || !priced || !total.gt(0) || !registerId}
-                onClick={pay}
-              >
-                {pending ? t("common.saving") : t("pos.takePayment")}
-              </button>
+              {method === "QR" ? (
+                <QrPayment
+                  link={link}
+                  disabled={pending || !priced || !total.gt(0) || !registerId || parts > 1}
+                  onCreate={() =>
+                    act(
+                      () =>
+                        actions.createLink({
+                          registerId,
+                          lines:
+                            mode === "all"
+                              ? []
+                              : selection.map((s) => ({
+                                  tabLineId: s.line.id,
+                                  quantity: s.quantity.toFixed(),
+                                })),
+                          expectedTotal: total.toFixed(),
+                        }),
+                      async (r) => {
+                        const url = String(r.data?.url ?? "");
+                        const QRCode = (await import("qrcode")).default;
+                        setLink({
+                          id: String(r.data?.id),
+                          url,
+                          qr: await QRCode.toDataURL(url, { margin: 1 }),
+                        });
+                      },
+                    )
+                  }
+                  onCheck={async () => {
+                    if (!link) return;
+                    const r = await actions.refreshLink(link.id);
+                    if (!r.ok) setError(r.error);
+                    else if (r.data?.status === "RECORDED") {
+                      setLink(null);
+                      setNotice(t("pos.qrPaid"));
+                      router.refresh();
+                    } else if (r.data?.status === "FAILED" || r.data?.status === "CANCELLED") {
+                      setLink(null);
+                      setError(t("pos.qrNotPaid"));
+                    }
+                  }}
+                  onCancel={() =>
+                    link &&
+                    act(
+                      () => actions.cancelLink(link.id),
+                      () => setLink(null),
+                    )
+                  }
+                />
+              ) : (
+                <button
+                  type="button"
+                  className={`${buttonClass("primary")} min-h-12 w-full`}
+                  disabled={pending || !priced || !total.gt(0) || !registerId}
+                  onClick={pay}
+                >
+                  {pending ? t("common.saving") : t("pos.takePayment")}
+                </button>
+              )}
             </>
           )}
         </section>
@@ -862,6 +923,72 @@ function TableActions({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Pay by QR: the guest scans and pays on their phone (mada, Apple Pay,
+ * cards) at Moyasar; the screen checks every few seconds and the payment is
+ * recorded on the check once confirmed (ADR-066).
+ */
+function QrPayment({
+  link,
+  disabled,
+  onCreate,
+  onCheck,
+  onCancel,
+}: {
+  link: { id: string; url: string; qr: string } | null;
+  disabled: boolean;
+  onCreate: () => void;
+  onCheck: () => Promise<void>;
+  onCancel: () => void;
+}) {
+  const t = useTranslations();
+  const check = useRef(onCheck);
+  useEffect(() => {
+    check.current = onCheck;
+  });
+  useEffect(() => {
+    if (!link) return;
+    const timer = window.setInterval(() => void check.current(), 4000);
+    return () => window.clearInterval(timer);
+  }, [link]);
+  if (!link)
+    return (
+      <button
+        type="button"
+        className={`${buttonClass("primary")} min-h-12 w-full`}
+        disabled={disabled}
+        onClick={onCreate}
+      >
+        {t("pos.showQr")}
+      </button>
+    );
+  return (
+    <div className="space-y-2 text-center" data-testid="qr-payment">
+      {/* eslint-disable-next-line @next/next/no-img-element -- a data URL drawn on the device */}
+      <img src={link.qr} alt={t("pos.qrAlt")} className="mx-auto h-56 w-56" />
+      <p className="text-muted text-sm">{t("pos.qrWaiting")}</p>
+      <p className="text-xs break-all">
+        <a
+          href={link.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-primary hover:underline"
+        >
+          {link.url}
+        </a>
+      </p>
+      <div className="flex justify-center gap-2">
+        <button type="button" className={buttonClass("secondary")} onClick={() => void onCheck()}>
+          {t("pos.qrCheckNow")}
+        </button>
+        <button type="button" className={buttonClass("danger")} onClick={onCancel}>
+          {t("pos.qrCancel")}
+        </button>
+      </div>
     </div>
   );
 }

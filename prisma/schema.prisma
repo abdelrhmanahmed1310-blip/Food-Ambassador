@@ -122,127 +122,129 @@ model Organization {
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships            OrganizationMembership[]
-  roles                  Role[]
-  rolePermissions        RolePermission[]
-  membershipRoles        MembershipRole[]
-  invitations            Invitation[]
-  branches               Branch[]
-  warehouses             Warehouse[]
-  locations              StorageLocation[]
-  auditEvents            AuditEvent[]
-  idempotencyKeys        IdempotencyKey[]
-  units                  UnitOfMeasure[]
-  products               Product[]
-  barcodes               ProductBarcode[]
-  conversions            ProductUomConversion[]
-  lots                   InventoryLot[]
-  documents              InventoryDocument[]
-  ledgerEntries          InventoryLedgerEntry[]
-  balances               StockBalance[]
-  stockCounts            StockCount[]
-  stockCountLines        StockCountLine[]
-  sequences              DocumentSequence[]
-  valuations             StockValuation[]
-  revaluations           StockRevaluation[]
-  suppliers              Supplier[]
-  supplierProducts       SupplierProduct[]
-  procurementSettings    ProcurementSettings?
-  purchaseOrders         PurchaseOrder[]
-  purchaseOrderApprovals PurchaseOrderApproval[]
-  approvalLayers         ApprovalLayer[]
-  exchangeRates          ExchangeRate[]
-  attachments            Attachment[]
-  fxRevaluations         FxRevaluation[]
-  fxRevaluationLines     FxRevaluationLine[]
-  menuCategories         MenuCategory[]
-  menuItems              MenuItem[]
-  menuItemPrices         MenuItemPrice[]
-  modifierGroups         ModifierGroup[]
-  modifierOptions        ModifierOption[]
-  menuItemModifierGroups MenuItemModifierGroup[]
-  comboComponents        ComboComponent[]
-  menuItemUnavailable    MenuItemUnavailable[]
-  posRegisters           PosRegister[]
-  posFloors              PosFloor[]
-  posTables              PosTable[]
-  posTabs                PosTab[]
-  posTabLines            PosTabLine[]
-  kitchenStations        KitchenStation[]
-  kitchenRoutes          KitchenRoute[]
-  kitchenTickets         KitchenTicket[]
-  kitchenTicketItems     KitchenTicketItem[]
-  zatcaSettings          ZatcaSettings?
-  zatcaDevices           ZatcaDevice[]
-  zatcaDocuments         ZatcaDocument[]
-  cardSettlementBatches  CardSettlementBatch[]
-  cardSettlementLines    CardSettlementLine[]
-  posShifts              PosShift[]
-  posCashMovements       PosCashMovement[]
-  posOrders              PosOrder[]
-  posOrderLines          PosOrderLine[]
-  posPayments            PosPayment[]
-  posRefunds             PosRefund[]
-  posShortfalls          PosConsumptionShortfall[]
-  stockCountApprovals    StockCountApproval[]
-  purchaseOrderLines     PurchaseOrderLine[]
-  goodsReceipts          GoodsReceipt[]
-  goodsReceiptLines      GoodsReceiptLine[]
-  productCategories      ProductCategory[]
-  reorderRules           ReorderRule[]
-  stockShipments         StockShipment[]
-  stockShipmentLines     StockShipmentLine[]
-  landedCosts            LandedCost[]
-  landedCostLines        LandedCostLine[]
-  requisitions           PurchaseRequisition[]
-  requisitionLines       PurchaseRequisitionLine[]
-  recipes                Recipe[]
-  recipeVersions         RecipeVersion[]
-  recipeIngredients      RecipeIngredient[]
-  standardCosts          ProductStandardCost[]
-  recipeSnapshots        RecipeCostSnapshot[]
-  recipePrices           RecipePrice[]
-  recipeSettings         RecipeSettings?
-  recalls                Recall[]
-  recallLots             RecallLot[]
-  recallStock            RecallStock[]
-  recallDocuments        RecallDocument[]
-  safetyCheckpoints      SafetyCheckpoint[]
-  safetyRecords          FoodSafetyRecord[]
-  checklistTemplates     ChecklistTemplate[]
-  checklistItems         ChecklistItem[]
-  checklistRuns          ChecklistRun[]
-  checklistAnswers       ChecklistAnswer[]
-  nonConformances        NonConformance[]
-  correctiveActions      CorrectiveAction[]
-  salesImports           SalesImport[]
-  salesLines             SalesLine[]
-  taxCodes               TaxCode[]
-  taxRates               TaxRate[]
-  taxSettings            TaxSettings?
-  supplierInvoices       SupplierInvoice[]
-  supplierInvoiceLines   SupplierInvoiceLine[]
-  supplierSettlements    SupplierSettlement[]
-  settlementAllocations  SettlementAllocation[]
-  accountingSettings     AccountingSettings?
-  allergenDeclarations   AllergenDeclaration[]
-  nutritionProfiles      NutritionProfile[]
-  recipeLabels           RecipeLabel[]
-  referenceFoods         ReferenceFood[]
-  referenceImports       ReferenceImport[]
-  productionOrders       ProductionOrder[]
-  customers              Customer[]
-  salesOrders            SalesOrder[]
-  salesOrderLines        SalesOrderLine[]
-  customerDeliveries     CustomerDelivery[]
-  customerDeliveryLines  CustomerDeliveryLine[]
-  salesInvoices          SalesInvoice[]
-  salesInvoiceLines      SalesInvoiceLine[]
-  customerReceipts       CustomerReceipt[]
-  receiptAllocations     CustomerReceiptAllocation[]
-  connectors             Connector[]
-  integrationEvents      IntegrationEvent[]
-  outboundDeliveries     OutboundDelivery[]
+  memberships             OrganizationMembership[]
+  roles                   Role[]
+  rolePermissions         RolePermission[]
+  membershipRoles         MembershipRole[]
+  invitations             Invitation[]
+  branches                Branch[]
+  warehouses              Warehouse[]
+  locations               StorageLocation[]
+  auditEvents             AuditEvent[]
+  idempotencyKeys         IdempotencyKey[]
+  units                   UnitOfMeasure[]
+  products                Product[]
+  barcodes                ProductBarcode[]
+  conversions             ProductUomConversion[]
+  lots                    InventoryLot[]
+  documents               InventoryDocument[]
+  ledgerEntries           InventoryLedgerEntry[]
+  balances                StockBalance[]
+  stockCounts             StockCount[]
+  stockCountLines         StockCountLine[]
+  sequences               DocumentSequence[]
+  valuations              StockValuation[]
+  revaluations            StockRevaluation[]
+  suppliers               Supplier[]
+  supplierProducts        SupplierProduct[]
+  procurementSettings     ProcurementSettings?
+  purchaseOrders          PurchaseOrder[]
+  purchaseOrderApprovals  PurchaseOrderApproval[]
+  approvalLayers          ApprovalLayer[]
+  exchangeRates           ExchangeRate[]
+  attachments             Attachment[]
+  fxRevaluations          FxRevaluation[]
+  fxRevaluationLines      FxRevaluationLine[]
+  menuCategories          MenuCategory[]
+  menuItems               MenuItem[]
+  menuItemPrices          MenuItemPrice[]
+  modifierGroups          ModifierGroup[]
+  modifierOptions         ModifierOption[]
+  menuItemModifierGroups  MenuItemModifierGroup[]
+  comboComponents         ComboComponent[]
+  menuItemUnavailable     MenuItemUnavailable[]
+  posRegisters            PosRegister[]
+  posFloors               PosFloor[]
+  posTables               PosTable[]
+  posTabs                 PosTab[]
+  posTabLines             PosTabLine[]
+  kitchenStations         KitchenStation[]
+  kitchenRoutes           KitchenRoute[]
+  kitchenTickets          KitchenTicket[]
+  kitchenTicketItems      KitchenTicketItem[]
+  zatcaSettings           ZatcaSettings?
+  zatcaDevices            ZatcaDevice[]
+  zatcaDocuments          ZatcaDocument[]
+  cardSettlementBatches   CardSettlementBatch[]
+  cardSettlementLines     CardSettlementLine[]
+  paymentProviderSettings PaymentProviderSettings?
+  paymentLinks            PaymentLink[]
+  posShifts               PosShift[]
+  posCashMovements        PosCashMovement[]
+  posOrders               PosOrder[]
+  posOrderLines           PosOrderLine[]
+  posPayments             PosPayment[]
+  posRefunds              PosRefund[]
+  posShortfalls           PosConsumptionShortfall[]
+  stockCountApprovals     StockCountApproval[]
+  purchaseOrderLines      PurchaseOrderLine[]
+  goodsReceipts           GoodsReceipt[]
+  goodsReceiptLines       GoodsReceiptLine[]
+  productCategories       ProductCategory[]
+  reorderRules            ReorderRule[]
+  stockShipments          StockShipment[]
+  stockShipmentLines      StockShipmentLine[]
+  landedCosts             LandedCost[]
+  landedCostLines         LandedCostLine[]
+  requisitions            PurchaseRequisition[]
+  requisitionLines        PurchaseRequisitionLine[]
+  recipes                 Recipe[]
+  recipeVersions          RecipeVersion[]
+  recipeIngredients       RecipeIngredient[]
+  standardCosts           ProductStandardCost[]
+  recipeSnapshots         RecipeCostSnapshot[]
+  recipePrices            RecipePrice[]
+  recipeSettings          RecipeSettings?
+  recalls                 Recall[]
+  recallLots              RecallLot[]
+  recallStock             RecallStock[]
+  recallDocuments         RecallDocument[]
+  safetyCheckpoints       SafetyCheckpoint[]
+  safetyRecords           FoodSafetyRecord[]
+  checklistTemplates      ChecklistTemplate[]
+  checklistItems          ChecklistItem[]
+  checklistRuns           ChecklistRun[]
+  checklistAnswers        ChecklistAnswer[]
+  nonConformances         NonConformance[]
+  correctiveActions       CorrectiveAction[]
+  salesImports            SalesImport[]
+  salesLines              SalesLine[]
+  taxCodes                TaxCode[]
+  taxRates                TaxRate[]
+  taxSettings             TaxSettings?
+  supplierInvoices        SupplierInvoice[]
+  supplierInvoiceLines    SupplierInvoiceLine[]
+  supplierSettlements     SupplierSettlement[]
+  settlementAllocations   SettlementAllocation[]
+  accountingSettings      AccountingSettings?
+  allergenDeclarations    AllergenDeclaration[]
+  nutritionProfiles       NutritionProfile[]
+  recipeLabels            RecipeLabel[]
+  referenceFoods          ReferenceFood[]
+  referenceImports        ReferenceImport[]
+  productionOrders        ProductionOrder[]
+  customers               Customer[]
+  salesOrders             SalesOrder[]
+  salesOrderLines         SalesOrderLine[]
+  customerDeliveries      CustomerDelivery[]
+  customerDeliveryLines   CustomerDeliveryLine[]
+  salesInvoices           SalesInvoice[]
+  salesInvoiceLines       SalesInvoiceLine[]
+  customerReceipts        CustomerReceipt[]
+  receiptAllocations      CustomerReceiptAllocation[]
+  connectors              Connector[]
+  integrationEvents       IntegrationEvent[]
+  outboundDeliveries      OutboundDelivery[]
 
   @@map("organizations")
 }
@@ -4231,4 +4233,67 @@ model CardSettlementLine {
 
   @@index([organizationId, transactionDate])
   @@map("card_settlement_lines")
+}
+
+enum PaymentProviderMode {
+  TEST
+  LIVE
+}
+
+enum PaymentLinkStatus {
+  /// Link made; waiting for the customer.
+  CREATED
+  /// Paid at the provider; the order is being recorded.
+  PAID
+  /// Paid and recorded as an order.
+  RECORDED
+  FAILED
+  CANCELLED
+}
+
+/// The organization's online payment provider account (POS3b, ADR-066). Moyasar in Saudi Arabia.
+model PaymentProviderSettings {
+  organizationId  String              @id @map("organization_id") @db.Uuid
+  provider        String              @default("MOYASAR")
+  mode            PaymentProviderMode @default(TEST)
+  /// Secret API key, AES-256-GCM sealed; never shown again.
+  secretKeySealed String              @map("secret_key_sealed")
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("payment_provider_settings")
+}
+
+/// A pay-by-QR link for (part of) a check; recorded as an order once the provider confirms payment.
+model PaymentLink {
+  id                String            @id @default(uuid(7)) @db.Uuid
+  organizationId    String            @map("organization_id") @db.Uuid
+  provider          String
+  providerInvoiceId String            @map("provider_invoice_id")
+  url               String
+  tabId             String            @map("tab_id") @db.Uuid
+  registerId        String            @map("register_id") @db.Uuid
+  /// The order id used when the payment is recorded (a retry records it once).
+  orderId           String            @map("order_id") @db.Uuid
+  /// [{ tabLineId, quantity }] — empty = everything left.
+  lines             Json
+  amount            Decimal           @db.Decimal(19, 4)
+  currency          String
+  status            PaymentLinkStatus @default(CREATED)
+  providerPaymentId String?           @map("provider_payment_id")
+  /// The paying card as reported by the provider (last 4 digits only).
+  cardScheme        CardScheme?       @map("card_scheme")
+  cardLast4         String?           @map("card_last4")
+  /// Why a paid link could not be recorded (needs a manager).
+  problem           String?
+  createdByUserId   String            @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  paidAt            DateTime?         @map("paid_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, providerInvoiceId])
+  @@index([organizationId, tabId])
+  @@map("payment_links")
 }

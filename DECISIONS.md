@@ -1415,6 +1415,39 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   The period report shows card sales, tips, settled amount, fees,
   differences and card payments not settled (flagged after 3 days).
 
+### ADR-066 Payments in Saudi Arabia: terminals by acquirer, pay-by-QR with Moyasar — Accepted (POS3b; Moyasar validation pending)
+
+- **Q-15 decided (Saudi Arabia)** on the user's instruction to choose what
+  fits best:
+  - **In-store cards** use the mada terminal the merchant gets from its own
+    bank or acquirer, recorded on the till with the slip's details (POS3a,
+    ADR-065). This works with every Saudi bank now. A direct terminal (ECR)
+    integration is added for the acquirer a restaurant actually uses (for
+    example Geidea or the bank's provider) once its ECR specification and a
+    test terminal are available — these protocols are per acquirer and not
+    public, so none is built speculatively.
+  - **Pay by QR at the table** (and later online ordering, POS5) uses
+    **Moyasar**: Saudi, SAMA-licensed, mada, Apple Pay, STC Pay and cards,
+    free sandbox, REST API with amounts in halalas.
+  - **SoftPOS** (tap to pay on the Android app) is an option for later.
+- Each organization saves its own Moyasar **secret key** (test `sk_test_` or
+  live `sk_live_`, checked against the mode), sealed with AES-256-GCM and
+  never shown again (`org.settings.manage`).
+- On a check, "Pay by QR" creates a Moyasar invoice for everything left or
+  chosen items (the server prices them and refuses a changed total), shows
+  its QR and link, and checks it every 4 seconds. When Moyasar reports it
+  paid — with the amount the link asked for — the payment is recorded on
+  the check as a card payment (scheme and last 4 digits from Moyasar,
+  reference `moyasar:<payment id>`) through the same check payment (ADR-062),
+  with the order id fixed on the link so it is recorded once. A different
+  amount or a payment that cannot be recorded keeps the reason on the link
+  for a manager. An unpaid link can be cancelled here (the guest must not
+  use it).
+- **Validation status**: `api.moyasar.com` is blocked by the development
+  environment's network policy; the client follows Moyasar's invoices API
+  and is tested against a simulated Moyasar. Test with a Moyasar test key
+  before going live.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)
@@ -1450,7 +1483,7 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 | Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                                                               |
 | Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                                                                | M3                        |
 | Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                                                                        | —                         |
-| Q-15 | Payment provider and card terminals per market (e.g. a local acquirer in KSA, UAE, Egypt)? Needed before POS3.                                                                                                        | POS3                      |
+| Q-15 | ~~Payment provider and card terminals~~ — **Decided for Saudi Arabia:** acquirer mada terminals recorded on the till (ECR integration per acquirer when known), pay by QR with Moyasar (ADR-066). Other markets open. | POS3                      |
 | Q-16 | ~~POS devices~~ — **Decided:** tablets, web app and mobile app from one installable web app; store apps by wrapping it (ADR-057). Printers: 80 mm via the browser until hardware is chosen.                           |
 | Q-17 | ~~First market for live POS sales~~ — **Decided:** Saudi Arabia; POS4 builds ZATCA Phase 2 first (ADR-064).                                                                                                           | POS4                      |
 | Q-18 | Which delivery platforms must send orders into the POS (e.g. HungerStation, Jahez, Talabat, Careem)?                                                                                                                  | POS5                      |

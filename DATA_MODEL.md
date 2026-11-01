@@ -1071,3 +1071,16 @@ Migration `20261125090000_pos3a_payments`; new tables have row-level security.
   `approval_code`, `amount` > 0, `fee` ≥ 0, `payment_id` and `match`
   MATCHED | AMOUNT_MISMATCH | UNMATCHED (UNMATCHED ⇔ no payment); one line
   per payment (partial unique index). Insert-only.
+
+### Pay by QR (POS3b, ADR-066)
+
+Migrations `20261126090000_pos3b_payment_links`, `20261126100000_pos3b_link_card`.
+
+- **payment_provider_settings** (one per organization): `provider`
+  (MOYASAR), `mode` TEST | LIVE, `secret_key_sealed`.
+- **payment_links**: provider invoice id (UQ per organization) and URL,
+  check, register, the `order_id` used when recording, `lines` (empty =
+  everything left), `amount` > 0, currency, `status` CREATED | PAID |
+  RECORDED | FAILED | CANCELLED (`paid_at` ⇔ PAID or RECORDED), provider
+  payment id, `card_scheme`, `card_last4` (4 digits), `problem` (why a
+  paid link was not recorded).

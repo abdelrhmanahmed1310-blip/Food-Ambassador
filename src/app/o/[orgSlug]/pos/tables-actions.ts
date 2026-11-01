@@ -18,6 +18,7 @@ import {
   updateTabLine,
   voidTabLine,
 } from "@/modules/pos/tables";
+import { cancelPaymentLink, createPaymentLink, refreshPaymentLink } from "@/modules/payments/links";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { errorToState, formValues } from "@/server/actions/handle";
@@ -125,4 +126,20 @@ export async function payAction(orgSlug: string, tabId: string, input: unknown) 
       change: "change" in r && r.change ? r.change.toFixed() : "0",
     };
   });
+}
+
+export async function createLinkAction(orgSlug: string, tabId: string, input: unknown) {
+  return run(orgSlug, async (ctx) => {
+    const l = await createPaymentLink(ctx, tabId, input);
+    return { id: l.id, url: l.url, amount: l.amount.toFixed() };
+  });
+}
+export async function refreshLinkAction(orgSlug: string, linkId: string) {
+  return run(orgSlug, async (ctx) => {
+    const l = await refreshPaymentLink(ctx, linkId);
+    return { status: l.status };
+  });
+}
+export async function cancelLinkAction(orgSlug: string, linkId: string) {
+  return run(orgSlug, (ctx) => cancelPaymentLink(ctx, linkId));
 }

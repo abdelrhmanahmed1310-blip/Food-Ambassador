@@ -1,23 +1,56 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-01 (POS3a card payments and settlements; POS4a ZATCA)
+Last updated: 2026-11-01 (POS3b pay by QR — Q-15 decided for Saudi Arabia)
 
 ## Summary
 
-| Milestone                     | Status                                                                                                                                                                                                                |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                           |
-| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                           |
-| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                           |
-| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                   |
-| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                     |
-| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                          |
-| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                        |
-| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                            |
-| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA |
-| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                       |
-| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                  |
-| POS1 – POS5                   | POS1 and POS2 complete. **POS4a** ZATCA simplified e-invoicing built — sandbox validation pending. **POS3a** card details, tips and settlement reconciliation done; POS3b provider connection waits on Q-15           |
+| Milestone                     | Status                                                                                                                                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M0 Repository & architecture  | ✅ Complete                                                                                                                                                                                                                    |
+| M1 Application foundation     | ✅ Complete                                                                                                                                                                                                                    |
+| M2 Inventory MVP              | ✅ Complete                                                                                                                                                                                                                    |
+| M3 Procurement & receiving    | ✅ Complete — M3a valuation, M3b purchasing and receiving, M3c parts 1–4 (categories/reorder, shipments, landed cost, requisitions)                                                                                            |
+| M4 Recipes & food cost        | ✅ Complete — M4a recipes, versions, cost sources, snapshots; M4b prices, food cost targets, simulator, bulk replace, recipe card                                                                                              |
+| M6 Food safety & traceability | ✅ Complete — M6a traceability and recalls; M6b records, checklists, non-conformances and corrective actions                                                                                                                   |
+| M7 Sales & finance            | ✅ Complete — M7a sales import and recipe consumption, VAT setup (KSA, Egypt, GCC), M7b supplier invoices with 3-way match, **M7c payables** (payments, credit notes, balances, aging, export)                                 |
+| M5 Nutrition & allergens      | ✅ Complete — M5a allergens, nutrition, recipe roll-up, matrix, approved labels; **M5b ingredient library** (USDA FDC, Open Food Facts, Wikidata). Open: live lookup, market label layouts                                     |
+| M8 Analytics & pilot          | ✅ Complete — M8a reports, M8b needs attention, **M8c pilot readiness** (backup/restore drill, integrity check, runbooks, security review, onboarding). Open before go-live: pen test, CSP nonces, password reset/2FA          |
+| M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                |
+| M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                           |
+| POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa) |
+
+## POS3b — Pay by QR with Moyasar (built; Moyasar validation pending)
+
+Rules: DECISIONS.md ADR-066. Q-15 decided for Saudi Arabia.
+
+| Area            | What works                                                                                                               | Where                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| Provider key    | Moyasar test or live secret key, checked against the mode, sealed, never shown again                                     | `/settings/payments`              |
+| QR on the check | "Pay by QR" for everything left or chosen items; QR and link; checked every 4 s; cancel an unpaid link                   | check screen, `payments/links.ts` |
+| Recording       | Paid at Moyasar → recorded once on the check as a card payment with scheme, last 4 and the Moyasar reference             | `refreshPaymentLink` → `payTab`   |
+| Safety          | Server-priced amount (changed total refused); amount reported by Moyasar must match; unrecorded payments keep the reason | `payment_links.problem`           |
+
+**Not tested against Moyasar**: `api.moyasar.com` is blocked in the
+development environment. Verified here: halala amounts, reading the paying
+card (last 4 only), and the whole flow against a simulated Moyasar.
+
+Checks: `pnpm check` pass (unit 43 files / 235 tests, 2 new: halala
+amounts and fractions refused, invoice states and the paying card);
+`pnpm test:integration` 45 files / 281 tests pass (3 new, simulated
+Moyasar: provider missing, key/mode check, admins only, key sealed; a
+changed total refused, the amount sent in halalas with Basic auth,
+pending, paid by mada and recorded once with scheme, last 4 and reference,
+the check closed; part of a check, a different amount reported, cancel,
+other organizations cannot see a link); `pnpm test:e2e` 50 tests pass (new:
+key form refuses a key of the wrong mode and saves a test key without
+showing it; the check offers Pay by QR and shows the provider's refusal for
+a key that is not real, recording nothing).
+
+Limitations: pay by QR on checks only (not yet on the counter till);
+links are checked by polling while the check is open (no webhook yet);
+no refunds through Moyasar from here (refund in Moyasar's dashboard and
+record the refund on the order); terminal ECR integration waits on the
+acquirer.
 
 ## POS3a — Card payments and settlements (delivered)
 
