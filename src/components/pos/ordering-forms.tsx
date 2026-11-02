@@ -16,9 +16,14 @@ type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 export function OrderingChannelForm({
   action,
   branches,
+  registers,
+  onlinePayments,
 }: {
   action: Action;
   branches: Array<{ value: string; label: string }>;
+  registers: Array<{ value: string; label: string }>;
+  /** A payment provider is set up (Settings → Online payments). */
+  onlinePayments: boolean;
 }) {
   const t = useTranslations();
   return (
@@ -60,6 +65,67 @@ export function OrderingChannelForm({
         />
       </div>
       <CheckboxField name="autoSend" label={t("ordering.autoSend")} />
+      <fieldset className="border-border space-y-3 rounded-md border p-3">
+        <legend className="px-1 text-sm font-medium">{t("ordering.payment")}</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            name="paymentMode"
+            label={t("ordering.paymentMode")}
+            hint={onlinePayments ? t("ordering.paymentModeHint") : t("ordering.noProvider")}
+            options={(["COUNTER", ...(onlinePayments ? ["ONLINE", "CHOICE"] : [])] as const).map(
+              (m) => ({ value: m, label: t(`ordering.paymentModes.${m}`) }),
+            )}
+          />
+          <SelectField
+            name="registerId"
+            label={t("ordering.paymentRegister")}
+            hint={t("ordering.paymentRegisterHint")}
+            options={registers}
+            placeholder="—"
+          />
+        </div>
+      </fieldset>
+      <fieldset className="border-border space-y-3 rounded-md border p-3">
+        <legend className="px-1 text-sm font-medium">{t("ordering.pickupTimes")}</legend>
+        <CheckboxField name="scheduling" label={t("ordering.scheduling")} />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <TextField
+            name="openFrom"
+            label={t("ordering.openFrom")}
+            hint={t("ordering.timeHint")}
+            dir="ltr"
+            optionalLabel={t("common.optional")}
+          />
+          <TextField
+            name="openTo"
+            label={t("ordering.openTo")}
+            dir="ltr"
+            optionalLabel={t("common.optional")}
+          />
+          <SelectField
+            name="slotMinutes"
+            label={t("ordering.slotMinutes")}
+            options={[5, 10, 15, 20, 30, 60].map((m) => ({ value: String(m), label: String(m) }))}
+            defaultValue="15"
+          />
+          <TextField
+            name="leadMinutes"
+            label={t("ordering.leadMinutes")}
+            hint={t("ordering.leadMinutesHint")}
+            defaultValue="20"
+            dir="ltr"
+            inputMode="numeric"
+          />
+          <TextField
+            name="daysAhead"
+            label={t("ordering.daysAhead")}
+            hint={t("ordering.daysAheadHint")}
+            defaultValue="0"
+            dir="ltr"
+            inputMode="numeric"
+          />
+        </div>
+      </fieldset>
     </ActionForm>
   );
 }

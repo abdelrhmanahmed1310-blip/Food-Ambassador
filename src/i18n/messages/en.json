@@ -502,7 +502,12 @@
     "GUEST_ORDER_RATE_LIMITED": "Too many orders from here; please try again in a few minutes.",
     "GUEST_ORDER_TOO_LARGE": "This order is larger than can be ordered here (up to {maximum}); please order at the counter.",
     "ORDERING_NEEDS_FLOOR": "Set up a floor at this branch first: guest orders are checks.",
-    "ORDERING_CREATOR_LACKS_ACCESS": "You cannot open checks at this branch, so a page you create cannot either."
+    "ORDERING_CREATOR_LACKS_ACCESS": "You cannot open checks at this branch, so a page you create cannot either.",
+    "PICKUP_TIME_GONE": "This pick-up time is no longer available; choose another.",
+    "PICKUP_CLOSED_NOW": "We are closed right now; choose a pick-up time.",
+    "GUEST_ORDER_NOT_PAID": "This order is not paid yet.",
+    "GUEST_ORDER_PAID": "This order is paid online: void its POS order and refund the payment instead.",
+    "GUEST_ORDER_NOT_ACCEPTED": "Accept the order first."
   },
   "notFound": {
     "title": "Page not found",
@@ -3312,7 +3317,9 @@
       "PREPARING": "Being prepared",
       "READY": "Ready to collect",
       "COLLECTED": "Collected — enjoy!",
-      "CANCELLED": "Cancelled"
+      "CANCELLED": "Cancelled",
+      "AWAITING_PAYMENT": "Waiting for your payment",
+      "SCHEDULED": "Accepted — we start it in time for your pick-up"
     },
     "steps": {
       "RECEIVED": "Received",
@@ -3328,7 +3335,9 @@
     "reject": "Reject",
     "rejectReason": "Reason (the guest sees it)",
     "staffStates": {
-      "NEW": "New",
+      "AWAITING_PAYMENT": "Awaiting payment",
+      "RECEIVED": "New",
+      "SCHEDULED": "Accepted — held for its pick-up time",
       "PREPARING": "In the kitchen",
       "READY": "Ready"
     },
@@ -3352,6 +3361,47 @@
     "address": "Address",
     "archive": "Close",
     "archiveConfirm": "Close this page? Its address stops working.",
-    "archived": "Closed"
+    "archived": "Closed",
+    "pickupAt": "Pick-up {time}",
+    "asap": "As soon as possible",
+    "paidOnline": "Paid online",
+    "awaitingPayment": "Awaiting payment",
+    "acceptForLater": "Accept for later",
+    "markReady": "Ready",
+    "markPickedUp": "Handed over",
+    "takePayment": "Take payment at the counter",
+    "promotions": "Promotions",
+    "pickupTime": "Pick-up time",
+    "noSlots": "No pick-up times left today.",
+    "howToPay": "How do you want to pay?",
+    "payAtCounterOption": "At the counter",
+    "payOnlineOption": "Online now (mada, Apple Pay, cards)",
+    "placeAndPay": "Place order and pay",
+    "payOnlineHint": "You pay on the next page; the kitchen starts once the payment is confirmed.",
+    "payNow": "Pay now",
+    "paidOnlineNote": "Paid online: show your order number when you collect.",
+    "payment": "Payment",
+    "paymentMode": "Guests pay",
+    "paymentModeHint": "Online payment goes through Moyasar (Settings → Online payments).",
+    "noProvider": "To take payment online, set up Settings → Online payments first.",
+    "paymentModes": {
+      "COUNTER": "At the counter",
+      "ONLINE": "Online before ordering",
+      "CHOICE": "Guest's choice"
+    },
+    "paymentRegister": "Register for online payments",
+    "paymentRegisterHint": "Online payments are recorded on its open shift.",
+    "pickupTimes": "Pick-up times",
+    "scheduling": "Guests can choose a pick-up time",
+    "openFrom": "Open from",
+    "openTo": "Open until",
+    "timeHint": "HH:MM at the branch; an end before the start runs past midnight.",
+    "slotMinutes": "Slot (minutes)",
+    "leadMinutes": "Preparation time (minutes)",
+    "leadMinutesHint": "The earliest slot is this far from now; held orders go to the kitchen this long before pick-up.",
+    "daysAhead": "Days ahead",
+    "daysAheadHint": "0 = today only (up to 7).",
+    "pickupWindow": "pick-up {from}–{to}",
+    "paymentProblem": "Paid online but not recorded:"
   }
 }

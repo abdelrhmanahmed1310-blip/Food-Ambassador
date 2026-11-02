@@ -80,6 +80,12 @@ test("online ordering: a guest orders on the web and at a kiosk, the branch acce
   await g.reload();
   await expect(g.getByTestId("guest-order-state")).toContainText("Being prepared");
 
+  // No kitchen screen here: the counter marks it ready, and the guest sees it.
+  await card.getByRole("button", { name: "Ready", exact: true }).click();
+  await expect(card).toContainText("Take payment at the counter");
+  await g.reload();
+  await expect(g.getByTestId("guest-order-state")).toContainText("Ready to collect");
+
   // A kiosk order: eat in, no phone, straight to the kitchen; the kiosk is ready for the next guest.
   const k = await guest.newPage();
   await k.goto(kioskPath);

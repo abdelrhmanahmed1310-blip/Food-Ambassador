@@ -413,7 +413,8 @@ website, self-order kiosk, and delivery-platform order intake (Q-18).
   the discounted amount, shown on receipts and shift reports.
 - **POS5b (done, ADR-068):** customers and consent, loyalty points, gift cards.
 - **POS5c (built, ADR-069):** delivery-platform intake — HungerStation, Jahez, Keeta and others through plug-and-play adapters; native adapters wait on each platform's partner specification.
-- **POS5d (done, ADR-070):** online ordering page and self-order kiosk, paid at the counter; online prepayment once Moyasar is validated.
+- **POS5d (done, ADR-070):** online ordering page and self-order kiosk.
+- **POS5e (built, ADR-071):** online prepayment (Moyasar validation pending), pick-up times, promotions on the guest page, manual ready and hand-over.
 
 ---
 

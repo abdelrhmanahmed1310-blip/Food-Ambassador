@@ -58,6 +58,10 @@ export async function createInvoice(
     currency: string;
     description: string;
     metadata: Record<string, string>;
+    /** Where the guest returns after paying (online ordering, ADR-071). */
+    callbackUrl?: string;
+    /** After this the invoice can no longer be paid. */
+    expiresAt?: Date;
   },
 ): Promise<{ id: string; url: string }> {
   const body = await call(fetchImpl, secretKey, "/invoices", {
@@ -67,6 +71,8 @@ export async function createInvoice(
       currency: input.currency,
       description: input.description,
       metadata: input.metadata,
+      ...(input.callbackUrl ? { callback_url: input.callbackUrl } : {}),
+      ...(input.expiresAt ? { expired_at: input.expiresAt.toISOString() } : {}),
     }),
   });
   if (typeof body.id !== "string" || typeof body.url !== "string")

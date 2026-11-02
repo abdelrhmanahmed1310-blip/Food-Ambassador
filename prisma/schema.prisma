@@ -3621,6 +3621,8 @@ model PosRegister {
   orders       PosOrder[]
   zatcaDevice  ZatcaDevice?
 
+  orderingChannels OrderingChannel[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@map("pos_registers")
@@ -3948,6 +3950,12 @@ enum OrderingChannelKind {
 }
 
 /// A public ordering page for one branch: the online ordering site or a self-order kiosk (ADR-070).
+enum GuestPaymentMode {
+  COUNTER
+  ONLINE
+  CHOICE
+}
+
 model OrderingChannel {
   id              String              @id @default(uuid(7)) @db.Uuid
   organizationId  String              @map("organization_id") @db.Uuid
@@ -3959,6 +3967,18 @@ model OrderingChannel {
   /// Send to the kitchen as soon as the guest orders, without a person accepting.
   autoSend        Boolean             @default(false) @map("auto_send")
   maxOrderTotal   Decimal?            @map("max_order_total") @db.Decimal(19, 4)
+  /// How guests pay (ADR-071): at the counter, online before the kitchen starts, or their choice.
+  paymentMode     GuestPaymentMode    @default(COUNTER) @map("payment_mode")
+  /// The register whose open shift records online payments (needed unless COUNTER).
+  registerId      String?             @map("register_id") @db.Uuid
+  register        PosRegister?        @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
+  /// Pick-up times: offered between these local times, in slots, at least this long from now.
+  scheduling      Boolean             @default(false)
+  openFrom        String?             @map("open_from")
+  openTo          String?             @map("open_to")
+  slotMinutes     Int                 @default(15) @map("slot_minutes")
+  leadMinutes     Int                 @default(20) @map("lead_minutes")
+  daysAhead       Int                 @default(0) @map("days_ahead")
   /// Random id in the public address; never the database id.
   publicToken     String              @unique @map("public_token")
   createdByUserId String              @map("created_by_user_id") @db.Uuid
@@ -3998,6 +4018,12 @@ model PosTab {
   guestName       String?          @map("guest_name")
   guestPhone      String?          @map("guest_phone")
   guestToken      String?          @unique @map("guest_token")
+  /// Guest order fulfilment (ADR-071): paid online, pick-up time, accepted, ready, handed over.
+  payOnline       Boolean          @default(false) @map("pay_online")
+  pickupAt        DateTime?        @map("pickup_at") @db.Timestamptz(3)
+  acceptedAt      DateTime?        @map("accepted_at") @db.Timestamptz(3)
+  readyAt         DateTime?        @map("ready_at") @db.Timestamptz(3)
+  pickedUpAt      DateTime?        @map("picked_up_at") @db.Timestamptz(3)
   sourceChannel   OrderingChannel? @relation(fields: [organizationId, sourceChannelId], references: [organizationId, id], onDelete: Restrict)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)

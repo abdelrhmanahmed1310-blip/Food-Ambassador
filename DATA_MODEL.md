@@ -1153,3 +1153,15 @@ Migration `20261130090000_pos5d_ordering`; the new table has row-level security.
   (⇔ not STAFF), `source_key` (UQ per channel: the guest's resend key),
   `guest_name`, `guest_phone` (E.164, cleared when the check closes),
   `guest_token` (UQ, the guest's status address).
+
+### Guest order fulfilment (POS5e, ADR-071)
+
+Migration `20261201090000_pos5e_guest_fulfilment`.
+
+- **ordering_channels** gains `payment_mode` COUNTER | ONLINE | CHOICE
+  (not COUNTER ⇒ `register_id`, FK with the organization), `scheduling`
+  (⇒ `open_from`, `open_to` HH:MM), `slot_minutes` (5, 10, 15, 20, 30, 60),
+  `lead_minutes` 0–240, `days_ahead` 0–7.
+- **pos_tabs** gains `pay_online`, `pickup_at`, `accepted_at`, `ready_at`,
+  `picked_up_at` (staff checks have none; ready and handed over need
+  accepted).

@@ -5,6 +5,8 @@ import {
   acceptGuestOrder,
   archiveOrderingChannel,
   createOrderingChannel,
+  markGuestPickedUp,
+  markGuestReady,
   rejectGuestOrder,
 } from "@/modules/pos/ordering";
 import { formList, formValues } from "@/server/actions/handle";
@@ -52,4 +54,22 @@ export async function rejectGuestAction(
   return tenantMutation(orgSlug, previous, formData, (ctx) =>
     rejectGuestOrder(ctx, tabId, formValues(formData)),
   );
+}
+
+export async function readyGuestAction(
+  orgSlug: string,
+  tabId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) => markGuestReady(ctx, tabId));
+}
+
+export async function pickedUpGuestAction(
+  orgSlug: string,
+  tabId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) => markGuestPickedUp(ctx, tabId));
 }

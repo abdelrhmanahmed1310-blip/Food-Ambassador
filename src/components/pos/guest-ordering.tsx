@@ -5,9 +5,11 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { Decimal } from "@/lib/decimal";
+import { promotionFor, saleMoment } from "@/modules/pos/discounts";
 import { lineAmounts } from "@/modules/pos/rules";
 import type { PublicMenu } from "@/modules/pos/ordering";
 import type { GuestOrderResult } from "@/app/order/actions";
+import { priceWithDiscounts } from "./discount-panel";
 import { named, OptionsDialog, type MenuItemView } from "./till";
 
 interface Line {
@@ -20,6 +22,8 @@ interface Line {
 }
 
 const KIOSK_RESET_MS = 20_000;
+const CLOCK_MS = 30_000;
+const now = () => new Date();
 
 /**
  * The guest's ordering page (ADR-070): the web site for pick-up, or a
@@ -57,20 +61,45 @@ export function GuestOrdering({
   const [pending, start] = useTransition();
   const key = useRef<string | null>(null);
   const kiosk = mode === "KIOSK";
-
-  const total = cart.reduce(
-    (a, l) =>
-      a.plus(
-        lineAmounts(
-          l.unit,
-          new Decimal(l.quantity),
-          l.item.includesTax,
-          l.item.taxRate === null ? null : new Decimal(l.item.taxRate),
-          menu.currency,
-        ).gross,
-      ),
-    new Decimal(0),
+  // Pick-up: as soon as possible (when open) or one of the offered slots.
+  const [pickupAt, setPickupAt] = useState<string>(menu.asap ? "" : (menu.slots[0] ?? ""));
+  const [payOnline, setPayOnline] = useState(menu.paymentMode === "ONLINE");
+  // Promotions depend on the time: re-evaluated every half minute (as the till does).
+  const [clock, setClock] = useState(now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date()), CLOCK_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+  const promotions = useMemo(
+    () => menu.promotions.map((p) => ({ ...p, percent: new Decimal(p.percent) })),
+    [menu.promotions],
   );
+  const moment = saleMoment(channel, menu.timeZone, clock);
+  const promoOf = (item: MenuItemView) =>
+    promotionFor({ id: item.id, categoryId: item.category.id }, moment, promotions);
+  const slotLabel = (iso: string) =>
+    new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: menu.timeZone,
+    }).format(new Date(iso));
+
+  // The total as the server will charge it: menu prices, VAT and today's promotions (ADR-067).
+  const priced = priceWithDiscounts(
+    cart.map((l) => {
+      const rate = l.item.taxRate === null ? null : new Decimal(l.item.taxRate);
+      return {
+        gross: lineAmounts(l.unit, new Decimal(l.quantity), l.item.includesTax, rate, menu.currency)
+          .gross,
+        rate,
+        promoPercent: promoOf(l.item)?.percent ?? null,
+      };
+    }),
+    null,
+    menu.currency,
+  );
+  const total = priced.total;
 
   // A kiosk goes back to the start for the next guest.
   const nextGuest = () => {
@@ -128,6 +157,8 @@ export function GuestOrdering({
         name,
         phone,
         note: note || undefined,
+        ...(pickupAt ? { pickupAt } : {}),
+        payOnline,
         lines: cart.map((l) => ({
           itemId: l.item.id,
           quantity: l.quantity,
@@ -135,6 +166,12 @@ export function GuestOrdering({
         })),
       });
       if (!r.ok) return setError(r.error);
+      // Online payment: to the provider's page; the guest comes back to the status page.
+      if (r.paymentUrl) {
+        key.current = null;
+        window.location.assign(r.paymentUrl);
+        return;
+      }
       key.current = null;
       setPlaced({ number: r.number, guestToken: r.guestToken });
       setCart([]);
@@ -225,9 +262,20 @@ export function GuestOrdering({
                 <span className="font-medium">
                   <bdi>{named(i, locale)}</bdi>
                 </span>
-                <span className="ltr-value text-muted tabular-nums">
-                  {fmt(new Decimal(i.price))}
-                </span>
+                {promoOf(i) ? (
+                  <span className="text-sm">
+                    <span className="ltr-value text-muted tabular-nums line-through">
+                      {fmt(new Decimal(i.price))}
+                    </span>{" "}
+                    <span className="bg-success-surface rounded px-1 text-xs">
+                      −{promoOf(i)!.percent.toFixed()} %
+                    </span>
+                  </span>
+                ) : (
+                  <span className="ltr-value text-muted tabular-nums">
+                    {fmt(new Decimal(i.price))}
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -272,6 +320,14 @@ export function GuestOrdering({
             </li>
           ))}
         </ul>
+        {priced.promoDiscount.gt(0) ? (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted">{t("promotions")}</span>
+            <span className="ltr-value tabular-nums" data-testid="guest-promotions">
+              −{fmt(priced.promoDiscount)}
+            </span>
+          </div>
+        ) : null}
         <div className="flex justify-between text-xl font-semibold">
           <span>{t("total")}</span>
           <span className="ltr-value tabular-nums" data-testid="guest-total">
@@ -310,6 +366,52 @@ export function GuestOrdering({
                 <p className="text-muted mt-1 text-xs">{t("phoneUse")}</p>
               </div>
             )}
+            {menu.slots.length > 0 || !menu.asap ? (
+              <div>
+                <label htmlFor="guest-pickup" className="mb-1 block text-sm font-medium">
+                  {t("pickupTime")}
+                </label>
+                <select
+                  id="guest-pickup"
+                  className={inputClass}
+                  value={pickupAt}
+                  onChange={(e) => setPickupAt(e.target.value)}
+                >
+                  {menu.asap ? <option value="">{t("asap")}</option> : null}
+                  {menu.slots.map((iso) => (
+                    <option key={iso} value={iso}>
+                      {slotLabel(iso)}
+                    </option>
+                  ))}
+                </select>
+                {!menu.asap && menu.slots.length === 0 ? (
+                  <p className="text-danger mt-1 text-xs">{t("noSlots")}</p>
+                ) : null}
+              </div>
+            ) : null}
+            {menu.paymentMode === "CHOICE" ? (
+              <fieldset className="text-sm">
+                <legend className="mb-1 font-medium">{t("howToPay")}</legend>
+                <label className="me-4 inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="pay"
+                    checked={!payOnline}
+                    onChange={() => setPayOnline(false)}
+                  />
+                  {t("payAtCounterOption")}
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="pay"
+                    checked={payOnline}
+                    onChange={() => setPayOnline(true)}
+                  />
+                  {t("payOnlineOption")}
+                </label>
+              </fieldset>
+            ) : null}
             <div>
               <label htmlFor="guest-note" className="mb-1 block text-sm font-medium">
                 {t("note")}
@@ -334,9 +436,11 @@ export function GuestOrdering({
               aria-busy={pending}
               onClick={submit}
             >
-              {pending ? t("placing") : t("placeOrder")}
+              {pending ? t("placing") : payOnline ? t("placeAndPay") : t("placeOrder")}
             </button>
-            <p className="text-muted text-xs">{t("payAtCounterHint")}</p>
+            <p className="text-muted text-xs">
+              {payOnline ? t("payOnlineHint") : t("payAtCounterHint")}
+            </p>
           </div>
         ) : null}
       </section>

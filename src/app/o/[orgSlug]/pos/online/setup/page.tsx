@@ -5,7 +5,9 @@ import { CopyField } from "@/components/forms/fields";
 import { OrderingChannelForm } from "@/components/pos/ordering-forms";
 import { Badge, Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
+import { paymentProvider } from "@/modules/payments/links";
 import { listOrderingChannels } from "@/modules/pos/ordering";
+import { listRegisters } from "@/modules/pos/service";
 import { listBranches } from "@/modules/sites/branches";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { getEnv } from "@/server/env";
@@ -18,10 +20,12 @@ export default async function OnlineSetupPage({
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "pos.manage")) notFound();
-  const [t, channels, branches] = await Promise.all([
+  const [t, channels, branches, registers, provider] = await Promise.all([
     getTranslations(),
     listOrderingChannels(ctx),
     listBranches(ctx),
+    listRegisters(ctx),
+    paymentProvider(ctx),
   ]);
   const base = getEnv().APP_URL;
   return (
@@ -64,6 +68,10 @@ export default async function OnlineSetupPage({
                   <p className="text-muted text-sm">
                     {c.channels.map((ch) => t(`ordering.channels.${ch}`)).join(" · ")}
                     {c.autoSend ? ` · ${t("ordering.autoSendShort")}` : ""}
+                    {` · ${t(`ordering.paymentModes.${c.paymentMode}`)}`}
+                    {c.scheduling
+                      ? ` · ${t("ordering.pickupWindow", { from: c.openFrom ?? "", to: c.openTo ?? "" })}`
+                      : ""}
                   </p>
                 </li>
               ))}
@@ -74,6 +82,11 @@ export default async function OnlineSetupPage({
           <OrderingChannelForm
             action={createChannelAction.bind(null, orgSlug)}
             branches={branches.items.map((b) => ({ value: b.id, label: `${b.code} — ${b.name}` }))}
+            registers={registers.map((r) => ({
+              value: r.id,
+              label: `${r.code} — ${r.name} (${r.branch.name})`,
+            }))}
+            onlinePayments={provider !== null}
           />
         </Card>
       </div>

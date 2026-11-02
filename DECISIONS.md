@@ -1596,6 +1596,41 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - **Privacy:** the guest's phone is kept only while the order is open and
   cleared when the check is paid or cancelled.
 
+### ADR-071 Guest orders: online prepayment, pick-up times, promotions shown, manual ready — Accepted (POS5e; Moyasar validation pending)
+
+- **Payment mode per page:** at the counter, online before ordering, or
+  the guest's choice. Online payment uses the organization's Moyasar key
+  (ADR-066) and a register whose open shift records it. The Moyasar invoice
+  carries the guest's status page as its return address and expires after
+  30 minutes.
+- **The kitchen starts only after the payment is confirmed with Moyasar
+  by the server** (the invoice is read back from Moyasar's API; the guest's
+  return to the page proves nothing). It is then recorded once on the check
+  as a card payment, and — if the page sends orders at once — goes to the
+  kitchen; otherwise staff accept it.
+- **Unpaid orders expire** after 30 minutes and are cancelled. An order
+  whose payment reached Moyasar but could not be recorded (no open shift,
+  another amount) is **never expired**: staff see the reason.
+- A paid online order cannot be rejected: it is voided and refunded
+  (refunds through Moyasar's dashboard until refunds are integrated).
+- **Pick-up times:** a page may offer slots within its opening hours
+  (local time at the branch, past midnight allowed), every 5–60 minutes,
+  at least the preparation time from now, today or up to 7 days ahead; "as
+  soon as possible" is offered while open. The server accepts only an
+  offered slot (5 minutes' grace). Accepted orders for later are **held**
+  and released to the kitchen at their preparation time before pick-up.
+- **Fulfilment is separate from payment:** received → (scheduled) →
+  preparing → ready → collected. Ready comes from the kitchen screens when
+  every ticket is bumped, or from staff ("Ready") where there are none.
+  An order paid at the counter is collected when paid; one paid online is
+  marked handed over by staff. The guest's phone is cleared at hand-over.
+- **Promotions on the guest page** use the same rules as the till and the
+  check (ADR-067), at the time of ordering, so the guest sees the price the
+  counter charges.
+- Not yet: a Moyasar webhook (payments are confirmed when the guest
+  returns or the staff list refreshes), refunds through Moyasar, slot
+  capacity limits, SMS/WhatsApp notices.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

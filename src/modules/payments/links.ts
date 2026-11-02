@@ -91,7 +91,8 @@ const linkSchema = z.object({
     )
     .max(200)
     .default([]),
-  expectedTotal: decimalString({ maxScale: 4, min: "0.01" }),
+  /** The total the screen showed; refused if the server's differs. Optional only for the server's own links. */
+  expectedTotal: decimalString({ maxScale: 4, min: "0.01" }).optional(),
 });
 
 const providerFailed = (error: unknown) =>
@@ -111,10 +112,18 @@ export async function createPaymentLink(
   tabId: string,
   rawInput: unknown,
   fetchImpl: Fetch = fetch,
+  /** Online ordering (ADR-071): the server prices the whole order and sets where the guest returns. */
+  guest?: { callbackUrl: string; expiresAt: Date },
 ) {
   const parsed = linkSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const input = parsed.data;
+  if (!guest && input.expectedTotal === undefined)
+    throw validationFailed(
+      new z.ZodError([
+        { code: "custom", path: ["expectedTotal"], message: "required", input: undefined },
+      ]),
+    );
   const tab = await getTab(ctx, tabId);
   if (tab.status !== "OPEN") throw businessRuleViolation("CHECK_CLOSED", "This check is closed");
   const register = tab.registers.find((r) => r.id === input.registerId);
@@ -157,7 +166,7 @@ export async function createPaymentLink(
     ctx.baseCurrency,
   ).lines.reduce((a, l) => a.plus(l.gross), new Decimal(0));
   if (total.isZero()) throw businessRuleViolation("NOTHING_TO_PAY", "Nothing is left to pay");
-  if (!total.equals(dec(input.expectedTotal)))
+  if (input.expectedTotal !== undefined && !total.equals(dec(input.expectedTotal)))
     throw businessRuleViolation("ORDER_PRICES_CHANGED", "Prices changed; refresh the check", {
       total: total.toFixed(),
     });
@@ -167,6 +176,7 @@ export async function createPaymentLink(
     currency: ctx.baseCurrency,
     description: `${tab.table?.code ?? tab.label ?? ""} ${tab.number}`.trim(),
     metadata: { organization: ctx.organizationSlug, check: tab.number, order: orderId },
+    ...(guest ? { callbackUrl: guest.callbackUrl, expiresAt: guest.expiresAt } : {}),
   }).catch((e) => {
     throw providerFailed(e);
   });

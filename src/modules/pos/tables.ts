@@ -271,6 +271,8 @@ export interface TabOrigin {
   guestName: string;
   guestPhone: string | null;
   guestToken: string;
+  payOnline: boolean;
+  pickupAt: Date | null;
 }
 
 export async function openTab(ctx: TenantContext, rawInput: unknown, origin?: TabOrigin) {
@@ -336,6 +338,8 @@ export async function openTab(ctx: TenantContext, rawInput: unknown, origin?: Ta
                 guestName: origin.guestName,
                 guestPhone: origin.guestPhone,
                 guestToken: origin.guestToken,
+                payOnline: origin.payOnline,
+                pickupAt: origin.pickupAt,
               }
             : {}),
         },
@@ -503,7 +507,13 @@ export async function removeTabLine(ctx: TenantContext, lineId: string) {
  * Send items to the kitchen: every unsent item not on hold, or — firing a
  * course — every unsent item of that course, held or not.
  */
-export async function sendTab(ctx: TenantContext, tabId: string, rawInput: unknown = {}) {
+export async function sendTab(
+  ctx: TenantContext,
+  tabId: string,
+  rawInput: unknown = {},
+  /** A guest order paid online is closed (paid) but still to be prepared (ADR-071). */
+  options: { paidGuestOrder?: boolean } = {},
+) {
   const parsed = z
     .object({ course: z.coerce.number().int().min(1).max(9).optional() })
     .safeParse(rawInput);
@@ -512,7 +522,8 @@ export async function sendTab(ctx: TenantContext, tabId: string, rawInput: unkno
   return withTenantTx(ctx.organizationId, async (tx) => {
     const tab = await loadTab(tx, ctx, tabId, true);
     assertPermission(ctx.grants, "pos.tables", at(tab.branchId));
-    assertOpen(tab);
+    if (!(options.paidGuestOrder && tab.status === "CLOSED" && tab.source !== "STAFF"))
+      assertOpen(tab);
     const toSend = tab.lines.filter(
       (l) => l.status === "PENDING" && (course === undefined ? !l.hold : l.course === course),
     );
