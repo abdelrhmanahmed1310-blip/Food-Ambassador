@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (F1b step 3a currency per company; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-02 (F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,24 @@ Last updated: 2026-11-02 (F1b step 3a currency per company; step 2b ZATCA per co
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F1b steps 3b and 3c — Purchasing, payables and sales in the company's currency (built)
+
+Rules: DECISIONS.md ADR-086. With these, F1 (enterprise layer) is complete.
+
+| Area                   | What works                                                                                                                                                                         | Where                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Purchasing             | Orders (supplier's currency, else the company's), receipts, landed costs and supplier invoices booked in the company's currency; PO approval limits compared in the group currency | `/purchasing`                           |
+| Payables / receivables | Payments, credit notes and customer receipts belong to a company and settle only its invoices (service and database); balances per company with group totals converted             | `/purchasing/payables`, `/b2b/balances` |
+| Per company            | FX revaluation, VAT return (input and output VAT) and accounting journals, each in the company's currency                                                                          | revaluation, `/sales/vat`, exports      |
+| Point of sale          | Till, online ordering, checks, payment links in the branch's company's currency; branch prices only there; options that change the price, points and fixed coupons refused there   | `/pos`, ordering pages                  |
+| Gift cards             | In the selling register's company's currency; spent only in that currency (service and database); owed per currency                                                                | `/pos/gift-cards`                       |
+| Sales imports and B2B  | In the warehouse's company's currency                                                                                                                                              | `/sales`, `/b2b`                        |
+| Group figures          | Overview sales and best sellers, food cost, waste converted at the period's average rate; missing rates named                                                                      | overview, reports                       |
+
+Known limits (ADR-086): card settlement files and delivery payout reconciliation assume one currency per file; per-branch prices for modifier options and multi-currency loyalty are not built.
+
+Checks: `pnpm check` pass (unit 275); `pnpm test:integration` 393/393 pass (new: purchasing flow in EGP — order, receipt and stock in EGP; EGP and USD invoices with the cross rate; balances per company and group total; a payment settles only its company's invoices, also refused by the database; revaluation per company; journal in EGP — and the Cairo till: EGP prices and cost, options that change the price refused, points not spent or earned, a SAR gift card refused, dashboard converted and missing rate named; sales import in EGP). The HR document-expiry test used the UTC date and failed after midnight in Riyadh; it now uses the organization's business date, as the service does. `pnpm test:e2e` 60/60 pass.
 
 ## F1b step 3a — Currency per company: foundation and stock (built)
 
