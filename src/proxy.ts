@@ -4,6 +4,8 @@ import { CLIENT_IP_HEADER, clientIpFrom, trustedHopsFromEnv } from "@/lib/client
 import { contentSecurityPolicy, newNonce } from "@/lib/csp";
 
 const REQUEST_ID_HEADER = "x-request-id";
+/** Routes that send their own, stricter policy (attachment downloads: sandboxed, ADR-051). */
+const OWN_POLICY = /^\/o\/[^/]+\/attachments\/[^/]+$/;
 
 /**
  * Runs before routing. Three jobs only:
@@ -21,8 +23,10 @@ export function proxy(request: NextRequest) {
   const requestId = incoming && /^[\w-]{8,128}$/.test(incoming) ? incoming : crypto.randomUUID();
   const headers = new Headers(request.headers);
   headers.set(REQUEST_ID_HEADER, requestId);
-  const csp = contentSecurityPolicy(newNonce(), process.env.NODE_ENV === "development");
-  headers.set("content-security-policy", csp);
+  const csp = OWN_POLICY.test(request.nextUrl.pathname)
+    ? null
+    : contentSecurityPolicy(newNonce(), process.env.NODE_ENV === "development");
+  if (csp) headers.set("content-security-policy", csp);
   headers.set(
     CLIENT_IP_HEADER,
     clientIpFrom(
@@ -41,7 +45,7 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers } });
   response.headers.set(REQUEST_ID_HEADER, requestId);
-  response.headers.set("Content-Security-Policy", csp);
+  if (csp) response.headers.set("Content-Security-Policy", csp);
   return response;
 }
 

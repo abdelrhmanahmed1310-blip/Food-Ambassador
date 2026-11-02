@@ -1708,6 +1708,9 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 - Styles keep `'unsafe-inline'`: React `style` attributes (floor plan,
   recipe indents) cannot carry nonces; style injection cannot run code.
 - The development server adds `'unsafe-eval'` (React's error overlay).
+- Routes with their own, stricter policy keep it: attachment downloads send
+  `default-src 'none'; sandbox` (ADR-051), so the proxy does not set the page
+  policy on them (it would replace theirs).
 - The static error page (`_global-error`) has no nonce; it still shows, but
   its "try again" button needs a reload.
 

@@ -47,6 +47,8 @@ test("attach a PDF to a purchase order, download it; large and wrong files are r
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toBe("application/pdf");
   expect(response.headers()["content-disposition"]).toContain("attachment");
+  // Downloads keep their own sandbox policy, not the pages' (ADR-051, ADR-074).
+  expect(response.headers()["content-security-policy"]).toBe("default-src 'none'; sandbox");
   expect(await response.text()).toBe(content);
 
   // Not a PDF or image, whatever its name.
