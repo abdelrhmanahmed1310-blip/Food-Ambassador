@@ -72,7 +72,7 @@ test("HR: department, employees with a reporting line, documents, overview and o
   await page.getByRole("link", { name: "Huda Saleh" }).click();
   await page.getByLabel("New status").selectOption("TERMINATED");
   await page.getByLabel("Last working day").fill(today);
-  await page.getByLabel("Reason").fill("Resigned");
+  await page.getByLabel("Reason for leaving").fill("Resigned");
   await page.getByRole("button", { name: "Change status" }).click();
   await expect(
     page.getByText("Give this person's reports another manager first.").first(),

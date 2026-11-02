@@ -12,7 +12,7 @@ const CAPABILITIES = [
   ["hris", "AVAILABLE", "HR1"],
   ["onboarding", "PARTIAL", "HR2"],
   ["attendance", "PARTIAL", "HR2"],
-  ["automation", "PLANNED", "HR2"],
+  ["automation", "PARTIAL", "HR2"],
   ["recruitment", "PLANNED", "HR3"],
   ["workforce", "PLANNED", "HR3"],
   ["payroll", "PLANNED", "HR4"],

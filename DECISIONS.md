@@ -1862,6 +1862,29 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
 - Next in HR2: rosters and shifts (lateness, overtime), leave with
   approvals, onboarding checklists.
 
+### ADR-081 Leave with approvals — Accepted (HR2b built)
+
+- **Leave types** per organization (code, names, optional country, paid,
+  uses a yearly entitlement). "Add common leave types" adds annual, sick,
+  unpaid, Hajj, maternity, paternity, emergency, bereavement, marriage and
+  exam leave — names and paid flags only, all editable. **Entitlement days
+  are never preset**: they depend on the law (Q-20 countries) and the
+  contract, and HR sets them per employee and year.
+- **Balance** = entitlement − approved − pending days (types that use an
+  entitlement). Days are calendar days, both ends included; a request lies
+  within one calendar year (split otherwise); overlapping pending or
+  approved requests are refused; requests beyond the balance are refused.
+- **Requests** come from the employee ("My leave", linked account) or from
+  HR for an employee. **Approval**: the employee's direct manager through
+  their own linked account, or `hr.manage` for the branch. **Nobody decides
+  their own leave**, whatever their role. Dates, type and days never change
+  after the request (trigger); only the decision does.
+- **Cancelling**: the employee or HR while pending; HR also after approval
+  as long as the leave has not started. Every step is audited.
+- Not yet: working-day counting per country weekend and public holidays,
+  half days, carry-over and accrual rules (need the policy), attachments
+  such as sick notes.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

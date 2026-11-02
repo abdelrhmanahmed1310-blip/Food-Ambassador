@@ -19,6 +19,19 @@ Last updated: 2026-11-02 (HR1 HRIS; dashboard, demo restaurant)
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
 
+## HR2b — Leave with approvals (built)
+
+Rules: DECISIONS.md ADR-081.
+
+| Area                      | What works                                                                       | Where                        |
+| ------------------------- | -------------------------------------------------------------------------------- | ---------------------------- |
+| Leave types               | Common types with one click (no entitlements invented); own types; archive       | `/hr/leave/types`            |
+| Entitlements and balances | Days per employee, type and year; remaining = entitled − approved − waiting      | employee page, My leave      |
+| Requests                  | Employee (My leave) or HR for an employee; overlap, balance and one-year checks  | `/my/leave`, employee page   |
+| Approval                  | Direct manager (own account) or HR for the branch; never one's own; cancel rules | `/hr/leave`, My leave → team |
+
+Checks: `pnpm check` pass (unit 275; new: day counting, overlaps, common types without entitlements); `pnpm test:integration` 361 — 360 passed; the one failure was the POS5e ordering test counting today's pick-up slots, which depended on the hour it ran (late evening left fewer than 9). Its channel now offers tomorrow too, and it passes (12/12). `pnpm test:e2e` 57 of 59 in the full run: the HR test met a second "Reason" field (the termination one is now "Reason for leaving") and the leave test read the approved list before the approval had saved (it now waits); HR, leave and attendance tests then pass (3/3).
+
 ## HR2a — Time and attendance (built)
 
 Rules: DECISIONS.md ADR-080.

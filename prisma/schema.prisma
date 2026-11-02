@@ -217,6 +217,9 @@ model Organization {
   attendanceTerminals     AttendanceTerminal[]
   branchGeofences         BranchGeofence[]
   attendancePunches       AttendancePunch[]
+  leaveTypes              LeaveType[]
+  leaveAllocations        LeaveAllocation[]
+  leaveRequests           LeaveRequest[]
   orderingChannels        OrderingChannel[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
@@ -4895,14 +4898,16 @@ model Employee {
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
-  department   Department?        @relation(fields: [organizationId, departmentId], references: [organizationId, id], onDelete: Restrict)
-  manager      Employee?          @relation("ReportingLine", fields: [organizationId, managerId], references: [organizationId, id], onDelete: Restrict)
-  reports      Employee[]         @relation("ReportingLine")
-  user         User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
-  documents    EmployeeDocument[]
-  punches      AttendancePunch[]
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch           Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  department       Department?        @relation(fields: [organizationId, departmentId], references: [organizationId, id], onDelete: Restrict)
+  manager          Employee?          @relation("ReportingLine", fields: [organizationId, managerId], references: [organizationId, id], onDelete: Restrict)
+  reports          Employee[]         @relation("ReportingLine")
+  user             User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  documents        EmployeeDocument[]
+  punches          AttendancePunch[]
+  leaveAllocations LeaveAllocation[]
+  leaveRequests    LeaveRequest[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -5014,4 +5019,81 @@ model AttendancePunch {
   @@index([organizationId, employeeId, at])
   @@index([organizationId, branchId, at])
   @@map("attendance_punches")
+}
+
+// ─── Leave (HR2b, ADR-081) ───
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveType {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?   @map("name_ar")
+  /// ISO 3166-1 alpha-2; null = every country.
+  country        String?
+  paid           Boolean
+  /// Whether days come out of a yearly entitlement (unpaid leave usually does not).
+  usesBalance    Boolean   @map("uses_balance")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  allocations  LeaveAllocation[]
+  requests     LeaveRequest[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("leave_types")
+}
+
+/// The days an employee is entitled to for a leave type in a year (set by HR).
+model LeaveAllocation {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  leaveTypeId    String   @map("leave_type_id") @db.Uuid
+  year           Int
+  days           Decimal  @db.Decimal(6, 2)
+  note           String?
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  leaveType    LeaveType    @relation(fields: [organizationId, leaveTypeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, employeeId, leaveTypeId, year])
+  @@map("leave_allocations")
+}
+
+model LeaveRequest {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  organizationId    String             @map("organization_id") @db.Uuid
+  employeeId        String             @map("employee_id") @db.Uuid
+  leaveTypeId       String             @map("leave_type_id") @db.Uuid
+  startDate         DateTime           @map("start_date") @db.Date
+  endDate           DateTime           @map("end_date") @db.Date
+  /// Calendar days, both ends included.
+  days              Decimal            @db.Decimal(6, 2)
+  reason            String?
+  status            LeaveRequestStatus @default(PENDING)
+  requestedByUserId String             @map("requested_by_user_id") @db.Uuid
+  decidedByUserId   String?            @map("decided_by_user_id") @db.Uuid
+  decidedAt         DateTime?          @map("decided_at") @db.Timestamptz(3)
+  decisionNote      String?            @map("decision_note")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  leaveType    LeaveType    @relation(fields: [organizationId, leaveTypeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, employeeId, startDate])
+  @@index([organizationId, status])
+  @@map("leave_requests")
 }

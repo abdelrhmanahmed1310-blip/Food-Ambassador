@@ -34,7 +34,10 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: base, label: t("overview"), exact: true, icon: "overview" },
       { href: `${base}/attention`, label: t("attention"), icon: "attention" },
       ...(isEmployee
-        ? [{ href: `${base}/my/attendance`, label: t("myAttendance"), icon: "clock" as const }]
+        ? [
+            { href: `${base}/my/attendance`, label: t("myAttendance"), icon: "clock" as const },
+            { href: `${base}/my/leave`, label: t("myLeave"), icon: "leave" as const },
+          ]
         : []),
     ],
   };
@@ -191,6 +194,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr`, label: t("hrOverview"), exact: true },
       { href: `${base}/hr/employees`, label: t("employees") },
       { href: `${base}/hr/attendance`, label: t("attendance") },
+      { href: `${base}/hr/leave`, label: t("leave") },
       { href: `${base}/hr/departments`, label: t("departments") },
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );

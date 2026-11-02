@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { ManualPunchForm, PinForm, VoidPunchForm } from "@/components/hr/attendance-forms";
+import { AllocationForm, LeaveRequestForm } from "@/components/hr/leave-forms";
+import { LeaveTable } from "@/components/hr/leave-table";
 import { DocumentForm, EmployeeForm, StatusForm } from "@/components/hr/forms";
 import {
   Alert,
@@ -14,6 +16,7 @@ import {
   Th,
 } from "@/components/ui/primitives";
 import { employeePunches } from "@/modules/hr/attendance";
+import { employeeLeave } from "@/modules/hr/leave";
 import { employeeFormOptions, getEmployee } from "@/modules/hr/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
@@ -24,6 +27,7 @@ import {
   updateEmployeeAction,
 } from "../../actions";
 import { manualPunchAction, setPinAction, voidPunchAction } from "../../attendance/actions";
+import { cancelLeaveAction, requestLeaveAction, setAllocationAction } from "../../leave/actions";
 import { optionsFor } from "../options";
 
 const TONE = { ACTIVE: "success", ON_LEAVE: "warning", TERMINATED: "muted" } as const;
@@ -40,10 +44,11 @@ export default async function EmployeePage({
 }: PageProps<"/o/[orgSlug]/hr/employees/[employeeId]">) {
   const { orgSlug, employeeId } = await params;
   const ctx = await requireTenant(orgSlug);
-  const [t, e, attendance] = await Promise.all([
+  const [t, e, attendance, leave] = await Promise.all([
     getTranslations(),
     getEmployee(ctx, employeeId),
     employeePunches(ctx, employeeId),
+    employeeLeave(ctx, employeeId),
   ]);
   const hm = (d: Date) =>
     new Intl.DateTimeFormat("en-GB", {
@@ -180,6 +185,58 @@ export default async function EmployeePage({
           {e.can.manage ? (
             <DocumentForm action={addDocumentAction.bind(null, orgSlug, e.id)} />
           ) : null}
+        </Card>
+
+        <Card title={t("leave.employeeCard", { year: leave.year })}>
+          <div className="space-y-4" data-testid="employee-leave">
+            <ul className="grid gap-2 text-sm sm:grid-cols-2">
+              {leave.balances
+                .filter((b) => b.type.usesBalance)
+                .map((b) => (
+                  <li
+                    key={b.type.id}
+                    className="border-border flex justify-between rounded-lg border px-3 py-2"
+                  >
+                    <span>{b.type.name}</span>
+                    <span className="tabular-nums">
+                      {b.allocated
+                        ? t("leave.remainingOf", {
+                            remaining: b.remaining!.toFixed(0),
+                            allocated: b.allocated.toFixed(0),
+                          })
+                        : t("leave.noEntitlement")}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+            {leave.requests.length > 0 ? (
+              <LeaveTable
+                rows={leave.requests}
+                showEmployee={false}
+                actions={(r) =>
+                  leave.can.manage && (r.status === "PENDING" || r.status === "APPROVED")
+                    ? { cancel: cancelLeaveAction.bind(null, orgSlug, r.id) }
+                    : {}
+                }
+              />
+            ) : null}
+            {leave.can.manage && e.status !== "TERMINATED" ? (
+              <>
+                <AllocationForm
+                  action={setAllocationAction.bind(null, orgSlug, e.id)}
+                  types={leave.balances
+                    .filter((b) => b.type.usesBalance)
+                    .map((b) => ({ value: b.type.id, label: b.type.name }))}
+                  year={leave.year}
+                />
+                <LeaveRequestForm
+                  action={requestLeaveAction.bind(null, orgSlug, e.id)}
+                  types={leave.balances.map((b) => ({ value: b.type.id, label: b.type.name }))}
+                  submitLabel={t("leave.requestFor")}
+                />
+              </>
+            ) : null}
+          </div>
         </Card>
 
         <Card title={t("attendance.employeeCard")}>

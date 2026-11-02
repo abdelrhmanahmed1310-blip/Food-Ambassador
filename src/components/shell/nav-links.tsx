@@ -9,6 +9,7 @@ import {
   Boxes,
   Building2,
   ChefHat,
+  CalendarDays,
   ChevronDown,
   Clock,
   Handshake,
@@ -45,6 +46,7 @@ const ICONS = {
   store: Store,
   hr: Users,
   clock: Clock,
+  leave: CalendarDays,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

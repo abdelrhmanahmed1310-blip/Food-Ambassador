@@ -147,7 +147,9 @@
     "departments": "Departments",
     "orgChart": "Org chart",
     "myAttendance": "My attendance",
-    "attendance": "Attendance"
+    "attendance": "Attendance",
+    "myLeave": "My leave",
+    "leave": "Leave"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -266,7 +268,8 @@
     "invalidPhone": "Enter a phone number (05… or +country code).",
     "invalidGiftCard": "Enter the 16 digits of the gift card.",
     "webNoDineIn": "The web page takes pick-up orders only; eat-in orders are for kiosks.",
-    "pinFormat": "Use 4 to 6 digits."
+    "pinFormat": "Use 4 to 6 digits.",
+    "leaveOneYear": "A request must be within one calendar year: split it."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -562,7 +565,14 @@
     "ATTENDANCE_NOT_ACTIVE": "Only active employees clock in.",
     "ATTENDANCE_LOCATION_NEEDED": "Allow location to clock in from your phone.",
     "ATTENDANCE_TOO_FAR": "You are too far from your branch to clock in.",
-    "ATTENDANCE_IN_FUTURE": "A punch cannot be in the future."
+    "ATTENDANCE_IN_FUTURE": "A punch cannot be in the future.",
+    "LEAVE_TYPE_CODE_TAKEN": "This leave type code is already used.",
+    "LEAVE_TYPE_NO_BALANCE": "This leave type does not use a balance.",
+    "LEAVE_TYPE_INVALID": "Choose a leave type.",
+    "LEAVE_OVERLAP": "This overlaps another leave request.",
+    "LEAVE_BALANCE_SHORT": "Not enough days left for this leave type ({remaining} left).",
+    "LEAVE_DECIDED": "This request is already decided.",
+    "LEAVE_NOT_CANCELLABLE": "This request can no longer be cancelled."
   },
   "notFound": {
     "title": "Page not found",
@@ -3637,7 +3647,7 @@
       },
       "automation": {
         "title": "HR automation",
-        "text": "Workflows, policies and approvals (leave, changes, documents)."
+        "text": "Leave requests with approval by the direct manager or HR, and balances. More workflows (changes, documents) and policies come next."
       },
       "analytics": {
         "title": "HR analytics",
@@ -3712,7 +3722,7 @@
     "changeStatus": "Change status",
     "newStatus": "New status",
     "terminatedOn": "Last working day",
-    "terminationReason": "Reason",
+    "terminationReason": "Reason for leaving",
     "statusChanged": "Status changed.",
     "reportsFirst": "This person manages others: give their reports another manager before they leave.",
     "editEmployee": "Edit employee",
@@ -3833,5 +3843,70 @@
     "pinSet": "PIN set.",
     "pinIsSet": "A PIN is set for the branch tablet.",
     "noPin": "No PIN yet: set one to use the branch tablet."
+  },
+  "leave": {
+    "title": "Leave",
+    "intro": "Leave requests and their approval. The employee's manager approves through their own account, or HR does.",
+    "types": "Leave types",
+    "status": "Status",
+    "all": "All",
+    "show": "Show",
+    "noRequests": "No leave requests.",
+    "requests": "Leave requests",
+    "employee": "Employee",
+    "type": "Leave type",
+    "dates": "Dates",
+    "days": "Days",
+    "statuses": {
+      "PENDING": "Waiting",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled"
+    },
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectConfirm": "Reject this request?",
+    "cancel": "Cancel",
+    "cancelConfirm": "Cancel this request? Its days go back to the balance.",
+    "typesIntro": "The types of leave people can request. Entitlements are set per employee and year on their page, from your policy and the law.",
+    "addCommon": "Add common leave types",
+    "noTypes": "No leave types yet: add the common ones or your own.",
+    "code": "Code",
+    "name": "Name",
+    "nameAr": "Name in Arabic",
+    "country": "Country",
+    "countryHint": "Two letters, or empty for every country.",
+    "allCountries": "All",
+    "paid": "Paid",
+    "usesBalance": "Uses a yearly entitlement",
+    "yes": "Yes",
+    "no": "No",
+    "archive": "Archive",
+    "archiveConfirm": "Archive this leave type?",
+    "addType": "Add leave type",
+    "typeAdded": "Leave type added.",
+    "optional": "Optional",
+    "saving": "Saving…",
+    "request": "Request leave",
+    "requestFor": "Request leave for this employee",
+    "reason": "Reason",
+    "from": "From",
+    "to": "To",
+    "requested": "Leave requested.",
+    "setEntitlement": "Set entitlement",
+    "year": "Year",
+    "daysHint": "Days for the year, from your policy and the law.",
+    "entitlementSet": "Entitlement saved.",
+    "myTitle": "My leave",
+    "myIntro": "Your balances for {year}, your requests and your team's.",
+    "teamRequests": "Your team's requests to decide",
+    "balances": "Balances for {year}",
+    "balanceDetail": "{allocated} entitled · {approved} approved · {pending} waiting",
+    "noEntitlements": "No entitlements set yet — HR sets them.",
+    "requestLeave": "Request leave",
+    "myRequests": "My requests",
+    "employeeCard": "Leave ({year})",
+    "remainingOf": "{remaining} of {allocated} left",
+    "noEntitlement": "Not set"
   }
 }

@@ -393,6 +393,8 @@ describe("online payment, pick-up times, ready and hand-over (ADR-071)", () => {
       openTo: "00:00",
       slotMinutes: "15",
       leadMinutes: "20",
+      // Tomorrow too, so there are enough slots whatever the hour the tests run.
+      daysAhead: "1",
     });
     const menu = (await publicMenu(later.publicToken))!;
     expect(menu.asap).toBe(true);

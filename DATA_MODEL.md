@@ -1174,6 +1174,18 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### Leave (HR2b, ADR-081)
+
+Migration `20261208090000_hr2b_leave`.
+
+- **leave_types**: `code` (unique per organization), names, `country`
+  (optional), `paid`, `uses_balance`, `archived_at`.
+- **leave_allocations**: per employee, type and `year`: `days` (0–366).
+- **leave_requests**: employee, type, `start_date`, `end_date` (same year),
+  `days`, `reason`, `status` PENDING | APPROVED | REJECTED | CANCELLED,
+  requester, decider, `decided_at`, `decision_note`. Only the decision
+  columns can change (trigger).
+
 ### Attendance (HR2a, ADR-080)
 
 Migration `20261207090000_hr2a_attendance`.
