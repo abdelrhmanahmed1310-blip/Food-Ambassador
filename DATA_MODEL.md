@@ -1166,6 +1166,39 @@ Migration `20261201090000_pos5e_guest_fulfilment`.
   `picked_up_at` (staff checks have none; ready and handed over need
   accepted).
 
+### Pick-up slot capacity (ADR-071)
+
+Migration `20261203090000_pos5f_slot_capacity`.
+
+- **ordering_channels** gains `slot_capacity` (optional, 1 – 500): at most
+  that many open guest orders per pick-up slot; full slots are not offered
+  and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
+
+### Delivery payouts (ADR-075)
+
+Migration `20261205090000_delivery_payouts`.
+
+- **delivery_payouts**: one platform statement per connector and
+  `reference` (unique); `period_from`/`period_to`, `paid_on`, `status`
+  DRAFT | CONFIRMED, totals `gross`, `commission`, `fees`, `vat_on_fees`,
+  `net` (NUMERIC 19,4), optional `received_amount`, creator and confirmer.
+  Confirmed rows cannot change or be deleted (trigger).
+- **delivery_payout_lines**: `line_no`, `external_id` (null for
+  adjustments), `description`, the five amounts, `match`
+  (DeliveryPayoutMatch), `delivery_order_id`, `recorded_total`, `settled`.
+  A partial unique index allows one settled line per delivery order; lines
+  of a confirmed payout are fixed.
+
+### Two-step sign-in (ADR-073)
+
+Migration `20261204090000_two_factor`.
+
+- **users** gains `two_factor_enabled`.
+- **two_factors** (Better Auth): `user_id` (cascade), `secret` and
+  `backup_codes` (both encrypted with the auth secret), `verified`,
+  `failed_verification_count`, `locked_until`. Global (not tenant-owned);
+  no grant to `fa_tenant`.
+
 ### ZATCA standard invoices (POS4b, ADR-072)
 
 Migration `20261202090000_pos4b_zatca_standard`.

@@ -323,8 +323,9 @@ and empty-target checks, integrity check, restore drill done, runbooks
 (docs/OPERATIONS.md), security review with fixes (docs/SECURITY_REVIEW.md),
 pilot onboarding checklist (docs/PILOT_ONBOARDING.md).
 
-**Before go-live (open):** external penetration test, CSP script nonces,
-password reset and 2FA (Q-10, Q-07), hosting and data residency (Q-03).
+**Before go-live (open):** external penetration test, password reset
+(Q-10), hosting and data residency (Q-03). Done since: optional two-step
+sign-in (ADR-073) and a nonce-based Content Security Policy (ADR-074).
 
 ---
 
@@ -412,7 +413,7 @@ website, self-order kiosk, and delivery-platform order intake (Q-18).
   coupons, manual order discounts with a reason (`pos.discount`), VAT on
   the discounted amount, shown on receipts and shift reports.
 - **POS5b (done, ADR-068):** customers and consent, loyalty points, gift cards.
-- **POS5c (built, ADR-069):** delivery-platform intake — HungerStation, Jahez, Keeta and others through plug-and-play adapters; native adapters wait on each platform's partner specification.
+- **POS5c (built, ADR-069):** delivery-platform intake — HungerStation, Jahez, Keeta and others through plug-and-play adapters; native adapters wait on each platform's partner specification. Payout reconciliation of their settlement statements (ADR-075).
 - **POS5d (done, ADR-070):** online ordering page and self-order kiosk.
 - **POS5e (built, ADR-071):** online prepayment (Moyasar validation pending), pick-up times, promotions on the guest page, manual ready and hand-over.
 

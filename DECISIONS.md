@@ -1668,6 +1668,78 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 
 ---
 
+### ADR-073 Optional two-step sign-in with an authenticator app — Accepted
+
+- Any user can turn on **two-step sign-in** (TOTP, RFC 6238: 6 digits,
+  30 seconds) on _Security_ (`/account/security`). It is per user, not per
+  organization: one sign-in reaches every organization the user belongs to.
+  The setting is optional for now (Q-07); an organization-wide "required"
+  switch can be added on top later.
+- Built on Better Auth's `twoFactor` plugin. Turning it on needs the
+  password; it takes effect only after the first code from the app is
+  confirmed, so a mistyped setup cannot lock the user out.
+- **Ten backup codes** are shown once at setup; each works once, in place of
+  a code, when the phone is lost. Turning it off needs the password.
+- Sign-in with the password then asks for a code before a session is made
+  (`/sign-in/two-factor`). Code checks are rate-limited per IP (our counter
+  and Better Auth's), and Better Auth locks the account's codes after
+  repeated failures.
+- The TOTP secret and backup codes are stored **encrypted** with the auth
+  secret in `two_factors`, which the tenant role (`fa_tenant`) cannot read.
+- Not covered: password reset still waits for an email provider (Q-10), so a
+  user who loses both phone and backup codes is reset by an operator.
+
+### ADR-074 Strict Content Security Policy with per-request nonces — Accepted
+
+- Every page response carries a CSP whose `script-src` is
+  `'self' 'nonce-<random>' 'strict-dynamic'`: only scripts carrying that
+  request's nonce run, and they may load the app's own chunks. Inline event
+  handlers, injected `<script>` tags in markup and `eval` (production) are
+  refused, so an HTML-injection bug cannot run code.
+- `src/proxy.ts` makes a fresh 128-bit nonce per request and sets the policy
+  on the request (Next.js reads the nonce from it and stamps its own
+  scripts) and on the response. All pages render per request already
+  (ADR-004), so nothing is cached with a stale nonce.
+- Other directives: `default-src 'self'`, `img-src 'self' data: blob:` (QR
+  codes drawn in the browser), `connect-src`/`worker-src 'self'` (service
+  worker, ADR-060), `object-src 'none'`, `frame-src 'none'`,
+  `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`,
+  `upgrade-insecure-requests` (production).
+- Styles keep `'unsafe-inline'`: React `style` attributes (floor plan,
+  recipe indents) cannot carry nonces; style injection cannot run code.
+- The development server adds `'unsafe-eval'` (React's error overlay).
+- The static error page (`_global-error`) has no nonce; it still shows, but
+  its "try again" button needs a reload.
+
+### ADR-075 Delivery platform payout reconciliation — Accepted
+
+- Platforms pay restaurants in batches, net of commission and fees. Finance
+  imports each **settlement statement** (POS → Delivery orders → Payouts)
+  for one platform connection, with its reference (unique per connection),
+  the order period, the payment date and, optionally, the amount that
+  actually reached the bank.
+- One **canonical CSV** for every platform: `order_id, description, gross,
+commission, fees, vat_on_fees, net`. Platforms' own statement formats are
+  partner-only, so they are not guessed: the platform's export is renamed to
+  these columns. Rows for the same order (an order and a later refund) are
+  added together; rows without an order are adjustments and need a
+  description. Every row must add up (net = gross − commission − fees − VAT
+  on fees, to the cent) or nothing is imported.
+- Each line is **matched** with the order received: matches, amount differs
+  (more than 0.01 from our recorded total), order not received, cancelled
+  order, never accepted, already paid by another statement, or adjustment.
+  The statement also lists **accepted orders of its period that no
+  statement pays for** (period days in the organization's time zone), the
+  effective commission rate and bank minus statement.
+- **Confirming** matches again (another statement may have been confirmed
+  since), marks the orders it pays as settled — an order is settled by at
+  most one line, enforced by a unique index — and fixes the statement (a
+  database trigger refuses changes and deletion). Drafts can be deleted.
+- Permissions: import, confirm and delete with `payments.manage`; view with
+  that or `invoices.view` (the Finance role). Organization-wide.
+- Not yet: posting commission and VAT on fees to the accounting export, and
+  native statement formats per platform (with partner specifications).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
@@ -1693,7 +1765,7 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
 | Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                                                                          |
 | Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050).                                                         |
 | Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                                                               | M7                        |
-| Q-07 | Is SSO (Google/Microsoft) or 2FA required for the pilot?                                                                                                                                                              | M1 (nice to know)         |
+| Q-07 | SSO (Google/Microsoft)? **2FA available:** optional authenticator-app sign-in (ADR-073); still open: SSO, and whether 2FA is required.                                                                                | M1 (nice to know)         |
 | Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051).                                                                                                                                           |
 | Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                                                                         |
 | Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                                                              | M2 (before pilot)         |

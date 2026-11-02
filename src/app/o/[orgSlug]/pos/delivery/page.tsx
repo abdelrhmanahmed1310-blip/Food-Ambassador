@@ -34,6 +34,8 @@ export default async function DeliveryOrdersPage({
   ]);
   const setUp =
     hasPermission(ctx.grants, "integrations.manage") || hasPermission(ctx.grants, "menu.manage");
+  const payouts =
+    hasPermission(ctx.grants, "payments.manage") || hasPermission(ctx.grants, "invoices.view");
   const open = orders.filter((o) => o.status === "PENDING" || o.status === "NEEDS_MAPPING");
   const done = orders.filter((o) => !open.includes(o));
   const when = (d: Date) =>
@@ -132,11 +134,18 @@ export default async function DeliveryOrdersPage({
         title={t("delivery.title")}
         description={t("delivery.intro")}
         actions={
-          setUp ? (
-            <LinkButton href={`/o/${orgSlug}/pos/delivery/setup`} variant="secondary">
-              {t("delivery.setup")}
-            </LinkButton>
-          ) : null
+          <>
+            {payouts ? (
+              <LinkButton href={`/o/${orgSlug}/pos/delivery/payouts`} variant="secondary">
+                {t("delivery.payoutsLink")}
+              </LinkButton>
+            ) : null}
+            {setUp ? (
+              <LinkButton href={`/o/${orgSlug}/pos/delivery/setup`} variant="secondary">
+                {t("delivery.setup")}
+              </LinkButton>
+            ) : null}
+          </>
         }
       />
       <div className="space-y-6">

@@ -65,5 +65,47 @@ test("delivery: a platform order is mapped, accepted and recorded (ADR-069)", as
   await order.getByRole("link", { name: /^POS-/ }).click();
   await expect(page.getByText("Delivery platform").first()).toBeVisible();
   await expect(page.getByText(/HUNGERSTATION #501 · Omar/)).toBeVisible();
+
+  // Finance imports the platform's statement and reconciles it (ADR-075).
+  await page.goto(`/o/${slug}/pos/delivery`);
+  await page.getByRole("link", { name: "Payouts" }).click();
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  await page.getByLabel("Statement reference").fill("HS-W44");
+  await page.getByLabel("Orders from").fill(yesterday);
+  await page.getByLabel("Orders until").fill(tomorrow);
+  await page.getByLabel("Paid on").fill(today);
+  await page.getByLabel(/^Received in the bank/).fill("25.00");
+  await page.getByLabel("Statement (CSV)").setInputFiles({
+    name: "hs-w44.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "order_id,description,gross,commission,fees,vat_on_fees,net\n" +
+        "HS-5001,,44.00,8.80,1.00,1.47,32.73\n" +
+        "HS-9999,,20.00,4.00,0,0.60,15.40\n" +
+        ",Marketing campaign,0,0,10.00,1.50,-11.50\n",
+    ),
+  });
+  await page.getByRole("button", { name: "Validate and import" }).click();
+  await expect(page.getByRole("heading", { name: "Statement HS-W44" })).toBeVisible();
+  const lines = page.getByTestId("payout-line");
+  await expect(lines.filter({ hasText: "HS-5001" })).toContainText("Matches");
+  await expect(
+    lines.filter({ hasText: "HS-5001" }).getByRole("link", { name: /^POS-/ }),
+  ).toBeVisible();
+  await expect(lines.filter({ hasText: "HS-9999" })).toContainText("Order not received");
+  await expect(lines.filter({ hasText: "Marketing campaign" })).toContainText("Adjustment");
+  const summary = page.getByTestId("payout-summary");
+  await expect(summary).toContainText(/EGP\s?36\.63/); // net
+  await expect(summary).toContainText(/-EGP\s?11\.63|EGP\s?-11\.63/); // bank minus statement
+  await expect(page.getByText("None.")).toBeVisible();
+
+  page.once("dialog", (d) => void d.accept());
+  await page.getByRole("button", { name: "Confirm statement" }).click();
+  await expect(summary).toContainText("Confirmed");
+  await expect(page.getByRole("button", { name: "Confirm statement" })).toHaveCount(0);
+  await page.goto(`/o/${slug}/pos/delivery/payouts`);
+  await expect(page.getByRole("row").filter({ hasText: "HS-W44" })).toContainText("Confirmed");
   await context.close();
 });

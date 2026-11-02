@@ -208,6 +208,8 @@ model Organization {
   giftCardEntries         GiftCardEntry[]
   deliveryOrders          DeliveryOrder[]
   deliveryItemMaps        DeliveryItemMap[]
+  deliveryPayouts         DeliveryPayout[]
+  deliveryPayoutLines     DeliveryPayoutLine[]
   orderingChannels        OrderingChannel[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
@@ -3390,11 +3392,12 @@ model Connector {
   secretRotatedAt DateTime?       @map("secret_rotated_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  events         IntegrationEvent[]
-  deliveries     OutboundDelivery[]
-  deliveryOrders DeliveryOrder[]
-  itemMaps       DeliveryItemMap[]
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  events          IntegrationEvent[]
+  deliveries      OutboundDelivery[]
+  deliveryOrders  DeliveryOrder[]
+  itemMaps        DeliveryItemMap[]
+  deliveryPayouts DeliveryPayout[]
 
   @@unique([organizationId, id])
   @@map("connectors")
@@ -4655,28 +4658,29 @@ enum DeliveryOrderStatus {
 
 /// An order received from a delivery platform; becomes a POS order when accepted.
 model DeliveryOrder {
-  id              String              @id @default(uuid(7)) @db.Uuid
-  organizationId  String              @map("organization_id") @db.Uuid
-  connectorId     String              @map("connector_id") @db.Uuid
+  id              String               @id @default(uuid(7)) @db.Uuid
+  organizationId  String               @map("organization_id") @db.Uuid
+  connectorId     String               @map("connector_id") @db.Uuid
   platform        DeliveryPlatform
   /// The platform's order id (unique per connector).
-  externalId      String              @map("external_id")
+  externalId      String               @map("external_id")
   /// The platform's short code the rider shows, if any.
-  displayCode     String?             @map("display_code")
+  displayCode     String?              @map("display_code")
   status          DeliveryOrderStatus
   /// The order in the canonical format, without customer contact details.
   payload         Json
-  total           Decimal             @db.Decimal(19, 4)
+  total           Decimal              @db.Decimal(19, 4)
   /// First name or label for the kitchen; no phone or address is kept.
-  customerName    String?             @map("customer_name")
-  placedAt        DateTime            @map("placed_at") @db.Timestamptz(3)
-  receivedAt      DateTime            @default(now()) @map("received_at") @db.Timestamptz(3)
-  decidedAt       DateTime?           @map("decided_at") @db.Timestamptz(3)
-  decidedByUserId String?             @map("decided_by_user_id") @db.Uuid
+  customerName    String?              @map("customer_name")
+  placedAt        DateTime             @map("placed_at") @db.Timestamptz(3)
+  receivedAt      DateTime             @default(now()) @map("received_at") @db.Timestamptz(3)
+  decidedAt       DateTime?            @map("decided_at") @db.Timestamptz(3)
+  decidedByUserId String?              @map("decided_by_user_id") @db.Uuid
   /// Why it could not be accepted, or what needs a person after a cancellation.
   problem         String?
-  posOrderId      String?             @map("pos_order_id") @db.Uuid
-  posOrder        PosOrder?           @relation(fields: [organizationId, posOrderId], references: [organizationId, id], onDelete: Restrict)
+  posOrderId      String?              @map("pos_order_id") @db.Uuid
+  posOrder        PosOrder?            @relation(fields: [organizationId, posOrderId], references: [organizationId, id], onDelete: Restrict)
+  payoutLines     DeliveryPayoutLine[]
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   connector    Connector    @relation(fields: [organizationId, connectorId], references: [organizationId, id], onDelete: Restrict)
@@ -4709,4 +4713,92 @@ model DeliveryItemMap {
 
   @@unique([connectorId, kind, externalId])
   @@map("delivery_item_maps")
+}
+
+enum DeliveryPayoutStatus {
+  DRAFT
+  /// Checked and accepted; fixed from here on.
+  CONFIRMED
+}
+
+enum DeliveryPayoutMatch {
+  /// The platform paid for an accepted order at the amount we recorded.
+  MATCHED
+  /// Accepted order, but the platform's order amount differs from ours.
+  AMOUNT_DIFFERS
+  /// No delivery order with this id on the connector.
+  NOT_FOUND
+  /// The order was cancelled by the platform.
+  CANCELLED_ORDER
+  /// The order was never accepted (rejected or still waiting).
+  NOT_ACCEPTED
+  /// Already settled by another confirmed payout.
+  ALREADY_PAID
+  /// A line without an order: an adjustment, a fee or a correction.
+  ADJUSTMENT
+}
+
+/// A delivery platform's settlement statement (ADR-075): what it paid for
+/// which orders, after commission and fees.
+model DeliveryPayout {
+  id                String               @id @default(uuid(7)) @db.Uuid
+  organizationId    String               @map("organization_id") @db.Uuid
+  connectorId       String               @map("connector_id") @db.Uuid
+  /// The platform's statement or transfer reference.
+  reference         String
+  periodFrom        DateTime             @map("period_from") @db.Date
+  periodTo          DateTime             @map("period_to") @db.Date
+  paidOn            DateTime?            @map("paid_on") @db.Date
+  status            DeliveryPayoutStatus @default(DRAFT)
+  gross             Decimal              @db.Decimal(19, 4)
+  commission        Decimal              @db.Decimal(19, 4)
+  fees              Decimal              @db.Decimal(19, 4)
+  vatOnFees         Decimal              @map("vat_on_fees") @db.Decimal(19, 4)
+  net               Decimal              @db.Decimal(19, 4)
+  /// What actually arrived in the bank, if entered.
+  receivedAmount    Decimal?             @map("received_amount") @db.Decimal(19, 4)
+  fileName          String?              @map("file_name")
+  note              String?
+  createdByUserId   String               @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  confirmedByUserId String?              @map("confirmed_by_user_id") @db.Uuid
+  confirmedAt       DateTime?            @map("confirmed_at") @db.Timestamptz(3)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  connector    Connector            @relation(fields: [organizationId, connectorId], references: [organizationId, id], onDelete: Restrict)
+  lines        DeliveryPayoutLine[]
+
+  @@unique([organizationId, id])
+  @@unique([connectorId, reference])
+  @@index([organizationId, createdAt])
+  @@map("delivery_payouts")
+}
+
+model DeliveryPayoutLine {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  organizationId  String              @map("organization_id") @db.Uuid
+  payoutId        String              @map("payout_id") @db.Uuid
+  lineNo          Int                 @map("line_no")
+  /// The platform's order id; null for adjustments.
+  externalId      String?             @map("external_id")
+  description     String?
+  gross           Decimal             @db.Decimal(19, 4)
+  commission      Decimal             @db.Decimal(19, 4)
+  fees            Decimal             @db.Decimal(19, 4)
+  vatOnFees       Decimal             @map("vat_on_fees") @db.Decimal(19, 4)
+  net             Decimal             @db.Decimal(19, 4)
+  match           DeliveryPayoutMatch
+  deliveryOrderId String?             @map("delivery_order_id") @db.Uuid
+  /// Our recorded order total when matched.
+  recordedTotal   Decimal?            @map("recorded_total") @db.Decimal(19, 4)
+  /// Set when the payout is confirmed: this line settles its order (at most one line per order).
+  settled         Boolean             @default(false)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  payout        DeliveryPayout @relation(fields: [organizationId, payoutId], references: [organizationId, id], onDelete: Cascade)
+  deliveryOrder DeliveryOrder? @relation(fields: [organizationId, deliveryOrderId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([payoutId, lineNo])
+  @@index([organizationId, deliveryOrderId])
+  @@map("delivery_payout_lines")
 }

@@ -118,3 +118,24 @@ code, stock used through recipes, VAT and the ZATCA simplified invoice as any
 order. The shift report shows money owed by the platforms apart from cash and
 card. Telling the platform the order was accepted or is ready goes through
 the platform's own API once its native adapter exists (or the middleware).
+
+## Payouts (POS → Delivery orders → Payouts)
+
+Platforms pay in batches, net of commission and fees. Import each
+settlement statement as a CSV with these columns (rename the platform's
+export; the template is on the page):
+
+| Column        | Meaning                                                                |
+| ------------- | ---------------------------------------------------------------------- |
+| `order_id`    | The platform's order id, as in `order.placed`; empty for an adjustment |
+| `description` | Optional; required for an adjustment                                   |
+| `gross`       | What the customer paid for the order                                   |
+| `commission`  | The platform's commission                                              |
+| `fees`        | Other fees (payment, marketing, delivery)                              |
+| `vat_on_fees` | VAT charged on commission and fees                                     |
+| `net`         | Paid to you: gross − commission − fees − vat_on_fees                   |
+
+Each line is matched with the order received; the page shows lines to
+review and accepted orders of the period that no statement pays for.
+Confirming marks the paid orders as settled and fixes the statement
+(DECISIONS.md ADR-075).
