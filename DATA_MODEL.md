@@ -1174,6 +1174,24 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### HR — HRIS (HR1, ADR-079)
+
+Migration `20261206090000_hr1_hris`.
+
+- **departments**: `code` (unique per organization), `name`, `name_ar`,
+  optional `parent_id` (not itself), `archived_at`.
+- **employees**: `number` (unique per organization), names, `email`,
+  `phone`, `nationality` (ISO 2), `national_id` (personal data), `job_title`,
+  `branch_id`, `department_id`, `manager_id` (not itself; loops refused by
+  the service), `employment_type`, `hire_date`, `status` ACTIVE | ON_LEAVE |
+  TERMINATED (TERMINATED ⇔ `terminated_on`, not before the hire date),
+  `termination_reason`, optional `user_id` (unique per organization).
+- **employee_documents**: `type` (IQAMA, NATIONAL_ID, PASSPORT, WORK_PERMIT,
+  HEALTH_CERTIFICATE, DRIVING_LICENSE, CONTRACT, OTHER), `number` (personal
+  data), `issued_on`, `expires_on` (not before issue), `note`.
+- All three tenant-owned with RLS; `hr.view` / `hr.manage` added to the
+  system roles of existing organizations.
+
 ### Delivery payouts (ADR-075)
 
 Migration `20261205090000_delivery_payouts`.

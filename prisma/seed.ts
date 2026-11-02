@@ -22,7 +22,7 @@ import { resolveTenantContext, type TenantContext } from "@/modules/tenancy/cont
 import { getAuth } from "@/server/auth/auth";
 import { getDb } from "@/server/db/client";
 import { withSystemTx } from "@/server/db/transactions";
-import { seedRestaurant } from "./seed-restaurant";
+import { seedRestaurant, seedRestaurantStaff } from "./seed-restaurant";
 
 const demoDeployment = process.env.ALLOW_DEMO_SEED === "true" && Boolean(process.env.SEED_PASSWORD);
 if (process.env.NODE_ENV === "production" && !demoDeployment) {
@@ -308,6 +308,7 @@ async function main() {
     where: { name: "[DEMO] Gulf Catering" },
   });
   await seedRestaurant(await ctxFor(gulfOwner.id, gulf.slug));
+  await seedRestaurantStaff(await ctxFor(gulfOwner.id, gulf.slug));
   // A password set through SEED_PASSWORD (a hosted demo) is never written to the logs.
   console.log(
     process.env.SEED_PASSWORD

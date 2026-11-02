@@ -140,7 +140,12 @@
     "posGiftCards": "Gift cards",
     "posDelivery": "Delivery orders",
     "posOnline": "Online and kiosk orders",
-    "security": "Security"
+    "security": "Security",
+    "hrSection": "HR",
+    "hrOverview": "HR overview",
+    "employees": "Employees",
+    "departments": "Departments",
+    "orgChart": "Org chart"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -538,7 +543,18 @@
     "PICKUP_SLOT_FULL": "This pick-up time is full; choose another.",
     "DELIVERY_PAYOUT_DUPLICATE": "This statement was already imported for this platform.",
     "DELIVERY_PAYOUT_CONFIRMED": "This statement is already confirmed.",
-    "DELIVERY_PAYOUT_ALREADY_PAID": "An order on this statement was paid by another statement."
+    "DELIVERY_PAYOUT_ALREADY_PAID": "An order on this statement was paid by another statement.",
+    "DEPARTMENT_CODE_TAKEN": "This department code is already used.",
+    "DEPARTMENT_IN_USE": "Move its employees and sub-departments first.",
+    "EMPLOYEE_MANAGER_INVALID": "Choose an active manager.",
+    "EMPLOYEE_MANAGER_LOOP": "This manager reports to the employee.",
+    "EMPLOYEE_USER_NOT_MEMBER": "Choose a member of the organization.",
+    "EMPLOYEE_USER_TAKEN": "This account is linked to another employee.",
+    "EMPLOYEE_NUMBER_TAKEN": "This employee number is already used.",
+    "EMPLOYEE_TERMINATED": "Rehire the employee before editing.",
+    "EMPLOYEE_DATES": "Check the dates.",
+    "EMPLOYEE_HAS_REPORTS": "Give this person's reports another manager first.",
+    "EMPLOYEE_BRANCH_INVALID": "Choose an active branch."
   },
   "notFound": {
     "title": "Page not found",
@@ -759,7 +775,9 @@
       "pos.kitchen": "Kitchen screens: see tickets and bump them",
       "pos.discount": "Give discounts on orders",
       "customers.view": "See customers and their points",
-      "customers.manage": "Add, edit and erase customers; adjust points"
+      "customers.manage": "Add, edit and erase customers; adjust points",
+      "hr.view": "See employees, departments and document expiry dates",
+      "hr.manage": "Add and edit employees, departments and documents; see ID numbers"
     }
   },
   "audit": {
@@ -3544,5 +3562,164 @@
     "net": "Net sales",
     "orders": "orders",
     "sold": "{count, plural, one {# sold} other {# sold}}"
+  },
+  "hr": {
+    "title": "Human resources",
+    "intro": "Employee records, departments, reporting lines and documents.",
+    "newEmployee": "New employee",
+    "newEmployeeIntro": "Register a new employee. They do not need an account to sign in.",
+    "kpiActive": "Active employees",
+    "kpiOnLeave": "On leave",
+    "kpiNewHires": "Hired in the last 30 days",
+    "kpiDocuments": "Documents expired or expiring",
+    "byBranch": "Headcount by branch",
+    "byDepartment": "Headcount by department",
+    "noEmployees": "No employees yet.",
+    "noDepartment": "No department",
+    "expiringDocuments": "Documents expired or expiring within {days} days",
+    "noExpiring": "No documents expire in the next 30 days.",
+    "employee": "Employee",
+    "documentType": "Document",
+    "expiresOn": "Expires on",
+    "issuedOn": "Issued on",
+    "state": "State",
+    "capabilities": "HR capabilities",
+    "capabilitiesIntro": "What the HR area covers, and what is available today. Planned items are built in the phases shown.",
+    "capabilityStates": {
+      "AVAILABLE": "Available",
+      "PARTIAL": "Partly available",
+      "PLANNED": "Planned · {phase}"
+    },
+    "capability": {
+      "hris": {
+        "title": "HRIS",
+        "text": "Centralized employee records, departments and reporting lines, with ID and document expiry tracking."
+      },
+      "recruitment": {
+        "title": "Recruitment",
+        "text": "Vacancies, applicants and talent pipeline."
+      },
+      "onboarding": {
+        "title": "Onboarding",
+        "text": "New employee registration is available; onboarding checklists and tasks come next."
+      },
+      "payroll": {
+        "title": "Payroll",
+        "text": "Salary, allowances, deductions, GOSI / social insurance and WPS files — needs your country rules confirmed."
+      },
+      "attendance": {
+        "title": "Time and attendance",
+        "text": "Shifts, rosters, clock-in and leave."
+      },
+      "performance": {
+        "title": "Performance",
+        "text": "Goals, reviews and ratings."
+      },
+      "engagement": {
+        "title": "Engagement",
+        "text": "Surveys, recognition and feedback."
+      },
+      "learning": {
+        "title": "Learning",
+        "text": "Training, certifications (e.g. food-handler certificates) and development plans."
+      },
+      "workforce": {
+        "title": "Workforce planning",
+        "text": "Positions, headcount plans and capacity per branch."
+      },
+      "automation": {
+        "title": "HR automation",
+        "text": "Workflows, policies and approvals (leave, changes, documents)."
+      },
+      "analytics": {
+        "title": "HR analytics",
+        "text": "Headcount and document expiry today; turnover, attendance and cost dashboards come with their modules."
+      }
+    },
+    "employees": "Employees",
+    "searchPlaceholder": "Search by name, number or job title",
+    "status": "Status",
+    "currentStaff": "Current staff",
+    "allDepartments": "All departments",
+    "name": "Name",
+    "jobTitle": "Job title",
+    "branch": "Branch",
+    "department": "Department",
+    "manager": "Manager",
+    "statuses": {
+      "ACTIVE": "Active",
+      "ON_LEAVE": "On leave",
+      "TERMINATED": "Left"
+    },
+    "employmentTypes": {
+      "FULL_TIME": "Full time",
+      "PART_TIME": "Part time",
+      "CONTRACT": "Contract",
+      "TEMPORARY": "Temporary"
+    },
+    "documentTypes": {
+      "NATIONAL_ID": "National ID",
+      "IQAMA": "Iqama",
+      "PASSPORT": "Passport",
+      "WORK_PERMIT": "Work permit",
+      "HEALTH_CERTIFICATE": "Health certificate",
+      "DRIVING_LICENSE": "Driving licence",
+      "CONTRACT": "Contract",
+      "OTHER": "Other"
+    },
+    "documentStates": {
+      "EXPIRED": "Expired",
+      "EXPIRING": "Expires soon",
+      "VALID": "Valid",
+      "NO_EXPIRY": "No expiry"
+    },
+    "personal": "Personal details",
+    "job": "Job",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "nameAr": "Name in Arabic",
+    "nationality": "Nationality",
+    "nationalityHint": "Two letters, e.g. SA, EG, IN.",
+    "nationalId": "National ID / iqama number",
+    "nationalIdHint": "Seen only by people who manage HR for this branch.",
+    "email": "Email",
+    "phone": "Mobile",
+    "number": "Employee number",
+    "numberHint": "Leave empty for the next number (EMP-00001).",
+    "employmentType": "Employment type",
+    "hireDate": "Hire date",
+    "account": "Sign-in account",
+    "accountHint": "Link the member's account, if this employee signs in.",
+    "profile": "Profile",
+    "hidden": "Hidden",
+    "directReports": "Direct reports",
+    "documents": "Documents",
+    "noDocuments": "No documents yet.",
+    "documentNumber": "Document number",
+    "addDocument": "Add document",
+    "remove": "Remove",
+    "removeDocumentConfirm": "Remove this document?",
+    "documentAdded": "Document added.",
+    "employmentStatus": "Employment status",
+    "changeStatus": "Change status",
+    "newStatus": "New status",
+    "terminatedOn": "Last working day",
+    "terminationReason": "Reason",
+    "statusChanged": "Status changed.",
+    "reportsFirst": "This person manages others: give their reports another manager before they leave.",
+    "editEmployee": "Edit employee",
+    "departments": "Departments",
+    "departmentsIntro": "Organize employees into departments, optionally under a parent department.",
+    "noDepartments": "No departments yet.",
+    "code": "Code",
+    "departmentName": "Department name",
+    "parentDepartment": "Parent department",
+    "headcount": "Headcount",
+    "addDepartment": "Add department",
+    "departmentAdded": "Department added.",
+    "archive": "Archive",
+    "archiveDepartmentConfirm": "Archive this department?",
+    "orgChart": "Org chart",
+    "orgChartIntro": "Who reports to whom, from each employee's manager."
   }
 }

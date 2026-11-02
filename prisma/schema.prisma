@@ -42,6 +42,7 @@ model User {
   sessions    Session[]
   accounts    Account[]
   twoFactors  TwoFactor[]
+  employees   Employee[]
   memberships OrganizationMembership[] @relation("MembershipUser")
 
   @@map("users")
@@ -210,6 +211,9 @@ model Organization {
   deliveryItemMaps        DeliveryItemMap[]
   deliveryPayouts         DeliveryPayout[]
   deliveryPayoutLines     DeliveryPayoutLine[]
+  departments             Department[]
+  employees               Employee[]
+  employeeDocuments       EmployeeDocument[]
   orderingChannels        OrderingChannel[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
@@ -453,6 +457,7 @@ model Branch {
   posTabs          PosTab[]
   orderingChannels OrderingChannel[]
   kitchenStations  KitchenStation[]
+  employees        Employee[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -4801,4 +4806,113 @@ model DeliveryPayoutLine {
   @@unique([payoutId, lineNo])
   @@index([organizationId, deliveryOrderId])
   @@map("delivery_payout_lines")
+}
+
+// ─── HR (HR1, ADR-079) ───
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+}
+
+enum EmployeeDocumentType {
+  NATIONAL_ID
+  IQAMA
+  PASSPORT
+  WORK_PERMIT
+  HEALTH_CERTIFICATE
+  DRIVING_LICENSE
+  CONTRACT
+  OTHER
+}
+
+model Department {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?   @map("name_ar")
+  parentId       String?   @map("parent_id") @db.Uuid
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  parent       Department?  @relation("DepartmentTree", fields: [organizationId, parentId], references: [organizationId, id], onDelete: Restrict)
+  children     Department[] @relation("DepartmentTree")
+  employees    Employee[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("departments")
+}
+
+/// An employee record (HRIS). Not every employee signs in: userId links the
+/// optional app account.
+model Employee {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  organizationId    String         @map("organization_id") @db.Uuid
+  number            String
+  firstName         String         @map("first_name")
+  lastName          String         @map("last_name")
+  nameAr            String?        @map("name_ar")
+  email             String?
+  phone             String?
+  /// ISO 3166-1 alpha-2.
+  nationality       String?
+  /// National ID or iqama number; shown only to hr.manage.
+  nationalId        String?        @map("national_id")
+  jobTitle          String         @map("job_title")
+  branchId          String         @map("branch_id") @db.Uuid
+  departmentId      String?        @map("department_id") @db.Uuid
+  managerId         String?        @map("manager_id") @db.Uuid
+  employmentType    EmploymentType @map("employment_type")
+  hireDate          DateTime       @map("hire_date") @db.Date
+  status            EmployeeStatus @default(ACTIVE)
+  terminatedOn      DateTime?      @map("terminated_on") @db.Date
+  terminationReason String?        @map("termination_reason")
+  userId            String?        @map("user_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  department   Department?        @relation(fields: [organizationId, departmentId], references: [organizationId, id], onDelete: Restrict)
+  manager      Employee?          @relation("ReportingLine", fields: [organizationId, managerId], references: [organizationId, id], onDelete: Restrict)
+  reports      Employee[]         @relation("ReportingLine")
+  user         User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  documents    EmployeeDocument[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@unique([organizationId, userId])
+  @@index([organizationId, branchId, status])
+  @@map("employees")
+}
+
+model EmployeeDocument {
+  id             String               @id @default(uuid(7)) @db.Uuid
+  organizationId String               @map("organization_id") @db.Uuid
+  employeeId     String               @map("employee_id") @db.Uuid
+  type           EmployeeDocumentType
+  /// Shown only to hr.manage.
+  number         String?
+  issuedOn       DateTime?            @map("issued_on") @db.Date
+  expiresOn      DateTime?            @map("expires_on") @db.Date
+  note           String?
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId, expiresOn])
+  @@index([organizationId, employeeId])
+  @@map("employee_documents")
 }

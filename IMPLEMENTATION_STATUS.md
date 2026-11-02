@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (two-step sign-in, strict CSP, check-screen customers, slot capacity)
+Last updated: 2026-11-02 (HR1 HRIS; dashboard, demo restaurant)
 
 ## Summary
 
@@ -18,6 +18,26 @@ Last updated: 2026-11-02 (two-step sign-in, strict CSP, check-screen customers, 
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## HR1 — HRIS (built)
+
+Rules: DECISIONS.md ADR-079. The HR tab lists all eleven HR capabilities
+with their state; only HR1 is built.
+
+| Area                   | What works                                                                                                               | Where                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| HR overview            | Active, on leave, hired in 30 days, documents expired or expiring; headcount by branch and department; capability map    | `/hr`                              |
+| Employees              | Register, edit, search and filter; automatic or own numbers; manager, department, branch; optional sign-in account       | `/hr/employees`                    |
+| Status                 | On leave, active, left (date and reason); refused while the person still manages others; rehire                          | employee page                      |
+| Documents              | Iqama, ID, passport, work permit, health certificate, licence, contract with expiry states; numbers only for HR managers | employee page                      |
+| Departments, org chart | Departments with parents (archive only when empty); reporting tree                                                       | `/hr/departments`, `/hr/org-chart` |
+| Access                 | `hr.view` / `hr.manage` per branch; ID numbers hidden from viewers and kept out of the audit log                         |                                    |
+
+Not built yet (phases in PROJECT_PLAN.md): attendance and leave, approvals,
+onboarding checklists, recruitment, workforce planning, payroll (waits for
+Q-20), performance, engagement, learning, HR analytics beyond headcount.
+
+Checks: `pnpm check` pass (unit 268; new: document expiry states, reporting-loop check, org tree); `pnpm test:integration` 348 pass (new: numbering, loops, foreign managers, ID numbers hidden and kept out of the audit log, documents, termination rules, branch scope, cross-tenant); `pnpm test:e2e` 55 of 57 passed in the full run — the 2 failures were Playwright losing its own trace files on closing the browser (ENOENT), and both passed on rerun with the table-service tests (5/5); new HR journey test passes.
 
 ## Security and follow-ups (2026-11-02)
 

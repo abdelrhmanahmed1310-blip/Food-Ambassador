@@ -180,6 +180,14 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/b2b/balances`, label: t("customerBalances") },
       { href: `${base}/b2b/customers`, label: t("customers") },
     );
+  const hr: NavSection = { title: t("hrSection"), icon: "hr", items: [] };
+  if (holdsAnyGrant(ctx.grants, "hr.view") || holdsAnyGrant(ctx.grants, "hr.manage"))
+    hr.items.push(
+      { href: `${base}/hr`, label: t("hrOverview"), exact: true },
+      { href: `${base}/hr/employees`, label: t("employees") },
+      { href: `${base}/hr/departments`, label: t("departments") },
+      { href: `${base}/hr/org-chart`, label: t("orgChart") },
+    );
   const reports: NavSection = { title: t("reportsSection"), icon: "reports", items: [] };
   const visible = canSeeReports(ctx);
   if (visible.foodCost)
@@ -192,6 +200,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     purchasing,
     kitchen,
     b2b,
+    hr,
     safety,
     reports,
     catalog,

@@ -453,3 +453,14 @@ Competitor reviews: `docs/SUPY_FEATURE_MAP.md` and `docs/FOODICS_FEATURE_MAP.md`
 | Regulatory liability for nutrition/allergen labels           | Explicit unknown status, human approval gate, market rules per Q-02                          |
 | Framework churn (Next 16 conventions differ from older docs) | Pin versions; consult bundled docs in `node_modules/next/dist/docs`                          |
 | Scope creep from many modules                                | Strict milestone gating; acceptance criteria before implementation                           |
+
+## HR (ADR-079)
+
+| Phase | Scope                                                                                                        | Status         |
+| ----- | ------------------------------------------------------------------------------------------------------------ | -------------- |
+| HR1   | HRIS: employees, departments, reporting line, documents with expiry, HR overview, capability map             | ✅ Built       |
+| HR2   | Time and attendance (shifts, rosters, clock-in), leave with approvals (HR automation), onboarding checklists | Planned        |
+| HR3   | Recruitment (vacancies, applicants), workforce planning (positions and headcount per branch)                 | Planned        |
+| HR4   | Payroll: salary, allowances, deductions, GOSI / social insurance, WPS, end of service                        | Waits for Q-20 |
+| HR5   | Performance, engagement, learning (training and food-handler certificates)                                   | Planned        |
+| HR6   | HR analytics: turnover, attendance, labour cost against sales                                                | Planned        |

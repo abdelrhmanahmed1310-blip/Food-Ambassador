@@ -67,6 +67,8 @@ export const PERMISSIONS = [
   "pos.discount",
   "customers.view",
   "customers.manage",
+  "hr.view",
+  "hr.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -106,6 +108,8 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "pos.discount",
   "production.view",
   "production.manage",
+  "hr.view",
+  "hr.manage",
 ]);
 
 /**
@@ -176,6 +180,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "hr.view",
       "pos.sell",
       "pos.void",
       "pos.refund",
@@ -326,6 +331,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "hr.view",
       "pos.sell",
       "pos.void",
       "pos.refund",

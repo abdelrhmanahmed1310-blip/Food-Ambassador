@@ -1807,6 +1807,33 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   drinks promotion, loyalty points, a pick-up ordering page, and eight
   sample orders taken through the real till services. Idempotent.
 
+### ADR-079 HR area: HRIS first, then phased capabilities — Accepted (HR1 built)
+
+- One **HR** tab holds the eleven HR capabilities. The HR overview shows,
+  for each, whether it is available, partly available or planned (with its
+  phase); nothing planned is shown as if it worked.
+- **HR1 (built): HRIS.** Departments (optional parent), employees
+  (automatic number EMP-00001 or the organization's own, names in English
+  and Arabic, nationality, national ID / iqama, job title, branch,
+  department, manager, employment type, hire date, optional link to a
+  sign-in account), status active / on leave / left, and employee documents
+  (iqama, national ID, passport, work permit, health certificate, driving
+  licence, contract) with expiry states — expired, expiring within 30 days,
+  valid. Org chart from the reporting line; reporting loops are refused;
+  someone who still manages people cannot leave until they are reassigned;
+  rehiring clears the termination. Employees need not be users.
+- **Access:** `hr.view` and `hr.manage`, both grantable per branch (a branch
+  manager sees their branch's staff). ID and document numbers are personal
+  data: only `hr.manage` for the employee's branch sees them, and they are
+  never written to the audit log. Tenant isolation as everywhere (RLS +
+  organization filters).
+- **Phases:** HR2 time and attendance, leave and approvals (HR
+  automation), onboarding checklists; HR3 recruitment and workforce
+  planning (positions per branch); HR4 payroll — only after the country
+  rules are confirmed (Q-20); HR5 performance, engagement and learning
+  (training and food-handler certificates); HR6 HR analytics across the
+  modules.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
@@ -1824,24 +1851,25 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
 
 ## Open questions
 
-| ID   | Question                                                                                                                                                                                                              | Needed by                 |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                                                              | M3                        |
-| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.                                                           | M5 (labels), M8 (hosting) |
-| Q-03 | Hosting provider and region / data-residency requirements. **Demo:** Render, Frankfurt (ADR-076); production still open.                                                                                              | M8 (pilot)                |
-| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                                                                          |
-| Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050).                                                         |
-| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                                                               | M7                        |
-| Q-07 | SSO (Google/Microsoft)? **2FA available:** optional authenticator-app sign-in (ADR-073); still open: SSO, and whether 2FA is required.                                                                                | M1 (nice to know)         |
-| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051).                                                                                                                                           |
-| Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                                                                         |
-| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                                                              | M2 (before pilot)         |
-| Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).                                                          |
-| Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                                                               |
-| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                                                                | M3                        |
-| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                                                                        | —                         |
-| Q-15 | ~~Payment provider and card terminals~~ — **Decided for Saudi Arabia:** acquirer mada terminals recorded on the till (ECR integration per acquirer when known), pay by QR with Moyasar (ADR-066). Other markets open. | POS3                      |
-| Q-16 | ~~POS devices~~ — **Decided:** tablets, web app and mobile app from one installable web app; store apps by wrapping it (ADR-057). Printers: 80 mm via the browser until hardware is chosen.                           |
-| Q-17 | ~~First market for live POS sales~~ — **Decided:** Saudi Arabia; POS4 builds ZATCA Phase 2 first (ADR-064).                                                                                                           | POS4                      |
-| Q-18 | ~~Delivery platforms~~ — **Decided:** HungerStation, Jahez and Keeta first, through one plug-and-play adapter design so any platform with the same concept is added as an adapter (POS5c).                            | POS5                      |
-| Q-19 | Store apps: the app id (permanent once published, e.g. `com.<company>.foodambassador`) and who owns the Apple and Google developer accounts (organization enrolment). Needed before the first store upload (ADR-061). | POS1d release             |
+| ID   | Question                                                                                                                                                                                                                                                                                              | Needed by                 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Q-01 | ~~Inventory valuation method~~ — **Decided:** moving weighted average per product × warehouse (ADR-021).                                                                                                                                                                                              | M3                        |
+| Q-02 | ~~Target launch markets~~ — **Decided for VAT:** Saudi Arabia, Egypt and the GCC (ADR-037). Still open: allergen/label rules and data residency per market.                                                                                                                                           | M5 (labels), M8 (hosting) |
+| Q-03 | Hosting provider and region / data-residency requirements. **Demo:** Render, Frankfurt (ADR-076); production still open.                                                                                                                                                                              | M8 (pilot)                |
+| Q-04 | ~~Purchase approval policy~~ — **Decided:** two branch approvals, then head office (ADR-049); configurable per organization.                                                                                                                                                                          |
+| Q-05 | ~~Foreign-currency supplier invoices~~ — **Decided:** USD, EUR, SAR, EGP and the GCC currencies with exchange rates; reported in the base currency (ADR-050).                                                                                                                                         |
+| Q-06 | Which POS / accounting systems do pilot customers use (for import formats and exports)?                                                                                                                                                                                                               | M7                        |
+| Q-07 | SSO (Google/Microsoft)? **2FA available:** optional authenticator-app sign-in (ADR-073); still open: SSO, and whether 2FA is required.                                                                                                                                                                | M1 (nice to know)         |
+| Q-08 | ~~Attachments~~ — **Decided:** up to 3 MB per file, kept 3 years (ADR-051).                                                                                                                                                                                                                           |
+| Q-09 | ~~Over-receipt tolerance~~ — **Decided:** 0 % (ADR-023); still configurable per organization.                                                                                                                                                                                                         |
+| Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                                                                                                                                              | M2 (before pilot)         |
+| Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).                                                                                                                                          |
+| Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                                                                                                                                               |
+| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                                                                                                                                                | M3                        |
+| Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                                                                                                                                                        | —                         |
+| Q-15 | ~~Payment provider and card terminals~~ — **Decided for Saudi Arabia:** acquirer mada terminals recorded on the till (ECR integration per acquirer when known), pay by QR with Moyasar (ADR-066). Other markets open.                                                                                 | POS3                      |
+| Q-16 | ~~POS devices~~ — **Decided:** tablets, web app and mobile app from one installable web app; store apps by wrapping it (ADR-057). Printers: 80 mm via the browser until hardware is chosen.                                                                                                           |
+| Q-17 | ~~First market for live POS sales~~ — **Decided:** Saudi Arabia; POS4 builds ZATCA Phase 2 first (ADR-064).                                                                                                                                                                                           | POS4                      |
+| Q-18 | ~~Delivery platforms~~ — **Decided:** HungerStation, Jahez and Keeta first, through one plug-and-play adapter design so any platform with the same concept is added as an adapter (POS5c).                                                                                                            | POS5                      |
+| Q-19 | Store apps: the app id (permanent once published, e.g. `com.<company>.foodambassador`) and who owns the Apple and Google developer accounts (organization enrolment). Needed before the first store upload (ADR-061).                                                                                 | POS1d release             |
+| Q-20 | Payroll (HR4): which countries first, and confirmation of the rules to apply — GOSI / social insurance rates and caps, WPS (Mudad) file format, end-of-service calculation, Egyptian income tax and social insurance — plus the payroll cycle and bank. Nothing is invented: payroll waits for these. | HR4                       |

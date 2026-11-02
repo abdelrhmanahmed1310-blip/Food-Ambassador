@@ -140,7 +140,12 @@
     "posGiftCards": "بطاقات الهدية",
     "posDelivery": "طلبات التوصيل",
     "posOnline": "طلبات الإنترنت والأكشاك",
-    "security": "الأمان"
+    "security": "الأمان",
+    "hrSection": "الموارد البشرية",
+    "hrOverview": "نظرة عامة على الموارد البشرية",
+    "employees": "الموظفون",
+    "departments": "الأقسام",
+    "orgChart": "الهيكل التنظيمي"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -538,7 +543,18 @@
     "PICKUP_SLOT_FULL": "وقت الاستلام هذا ممتلئ؛ اختر وقتًا آخر.",
     "DELIVERY_PAYOUT_DUPLICATE": "تم استيراد هذا الكشف لهذه المنصة من قبل.",
     "DELIVERY_PAYOUT_CONFIRMED": "هذا الكشف مؤكد بالفعل.",
-    "DELIVERY_PAYOUT_ALREADY_PAID": "أحد طلبات هذا الكشف دُفع في كشف آخر."
+    "DELIVERY_PAYOUT_ALREADY_PAID": "أحد طلبات هذا الكشف دُفع في كشف آخر.",
+    "DEPARTMENT_CODE_TAKEN": "رمز القسم مستخدم بالفعل.",
+    "DEPARTMENT_IN_USE": "انقل موظفيه وأقسامه الفرعية أولاً.",
+    "EMPLOYEE_MANAGER_INVALID": "اختر مديراً نشطاً.",
+    "EMPLOYEE_MANAGER_LOOP": "هذا المدير يتبع لهذا الموظف.",
+    "EMPLOYEE_USER_NOT_MEMBER": "اختر عضواً في المؤسسة.",
+    "EMPLOYEE_USER_TAKEN": "هذا الحساب مرتبط بموظف آخر.",
+    "EMPLOYEE_NUMBER_TAKEN": "هذا الرقم الوظيفي مستخدم بالفعل.",
+    "EMPLOYEE_TERMINATED": "أعد تعيين الموظف قبل التعديل.",
+    "EMPLOYEE_DATES": "تحقق من التواريخ.",
+    "EMPLOYEE_HAS_REPORTS": "عيّن لمرؤوسي هذا الشخص مديراً آخر أولاً.",
+    "EMPLOYEE_BRANCH_INVALID": "اختر فرعاً نشطاً."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -759,7 +775,9 @@
       "pos.kitchen": "شاشات المطبخ: عرض التذاكر وإنجازها",
       "pos.discount": "منح خصومات على الطلبات",
       "customers.view": "عرض العملاء ونقاطهم",
-      "customers.manage": "إضافة العملاء وتعديلهم ومحو بياناتهم؛ تعديل النقاط"
+      "customers.manage": "إضافة العملاء وتعديلهم ومحو بياناتهم؛ تعديل النقاط",
+      "hr.view": "عرض الموظفين والأقسام وتواريخ انتهاء المستندات",
+      "hr.manage": "إضافة الموظفين والأقسام والمستندات وتعديلها؛ عرض أرقام الهوية"
     }
   },
   "audit": {
@@ -3544,5 +3562,164 @@
     "net": "صافي المبيعات",
     "orders": "طلبات",
     "sold": "{count, plural, one {بيعت قطعة واحدة} other {بيع #}}"
+  },
+  "hr": {
+    "title": "الموارد البشرية",
+    "intro": "سجلات الموظفين والأقسام وخطوط التبعية والمستندات.",
+    "newEmployee": "موظف جديد",
+    "newEmployeeIntro": "سجّل موظفاً جديداً. لا يحتاج إلى حساب لتسجيل الدخول.",
+    "kpiActive": "الموظفون النشطون",
+    "kpiOnLeave": "في إجازة",
+    "kpiNewHires": "عُيّنوا خلال آخر 30 يوماً",
+    "kpiDocuments": "مستندات منتهية أو قاربت على الانتهاء",
+    "byBranch": "عدد الموظفين حسب الفرع",
+    "byDepartment": "عدد الموظفين حسب القسم",
+    "noEmployees": "لا يوجد موظفون بعد.",
+    "noDepartment": "بدون قسم",
+    "expiringDocuments": "مستندات منتهية أو تنتهي خلال {days} يوماً",
+    "noExpiring": "لا توجد مستندات تنتهي خلال الثلاثين يوماً القادمة.",
+    "employee": "الموظف",
+    "documentType": "المستند",
+    "expiresOn": "تاريخ الانتهاء",
+    "issuedOn": "تاريخ الإصدار",
+    "state": "الحالة",
+    "capabilities": "قدرات الموارد البشرية",
+    "capabilitiesIntro": "ما يغطيه قسم الموارد البشرية، وما هو متاح اليوم. البنود المخططة تُبنى في المراحل الموضحة.",
+    "capabilityStates": {
+      "AVAILABLE": "متاح",
+      "PARTIAL": "متاح جزئياً",
+      "PLANNED": "مخطط · {phase}"
+    },
+    "capability": {
+      "hris": {
+        "title": "نظام معلومات الموارد البشرية",
+        "text": "سجلات موظفين مركزية والأقسام وخطوط التبعية، مع متابعة انتهاء الهويات والمستندات."
+      },
+      "recruitment": {
+        "title": "التوظيف",
+        "text": "الوظائف الشاغرة والمتقدمون ومسار المواهب."
+      },
+      "onboarding": {
+        "title": "التهيئة",
+        "text": "تسجيل الموظفين الجدد متاح؛ قوائم وخطوات التهيئة لاحقاً."
+      },
+      "payroll": {
+        "title": "الرواتب",
+        "text": "الرواتب والبدلات والاستقطاعات والتأمينات الاجتماعية (GOSI) وملفات حماية الأجور — تحتاج تأكيد قواعد بلدك."
+      },
+      "attendance": {
+        "title": "الحضور والانصراف",
+        "text": "الورديات والجداول وتسجيل الحضور والإجازات."
+      },
+      "performance": {
+        "title": "الأداء",
+        "text": "الأهداف والتقييمات."
+      },
+      "engagement": {
+        "title": "المشاركة",
+        "text": "الاستبيانات والتقدير والملاحظات."
+      },
+      "learning": {
+        "title": "التعلم",
+        "text": "التدريب والشهادات (مثل الشهادات الصحية لمتداولي الأغذية) وخطط التطوير."
+      },
+      "workforce": {
+        "title": "تخطيط القوى العاملة",
+        "text": "الوظائف وخطط الأعداد والطاقة لكل فرع."
+      },
+      "automation": {
+        "title": "أتمتة الموارد البشرية",
+        "text": "سير العمل والسياسات والموافقات (الإجازات والتغييرات والمستندات)."
+      },
+      "analytics": {
+        "title": "تحليلات الموارد البشرية",
+        "text": "أعداد الموظفين وانتهاء المستندات متاحة الآن؛ لوحات الدوران والحضور والتكلفة تأتي مع وحداتها."
+      }
+    },
+    "employees": "الموظفون",
+    "searchPlaceholder": "ابحث بالاسم أو الرقم أو المسمى الوظيفي",
+    "status": "الحالة",
+    "currentStaff": "الموظفون الحاليون",
+    "allDepartments": "كل الأقسام",
+    "name": "الاسم",
+    "jobTitle": "المسمى الوظيفي",
+    "branch": "الفرع",
+    "department": "القسم",
+    "manager": "المدير المباشر",
+    "statuses": {
+      "ACTIVE": "نشط",
+      "ON_LEAVE": "في إجازة",
+      "TERMINATED": "غادر"
+    },
+    "employmentTypes": {
+      "FULL_TIME": "دوام كامل",
+      "PART_TIME": "دوام جزئي",
+      "CONTRACT": "عقد",
+      "TEMPORARY": "مؤقت"
+    },
+    "documentTypes": {
+      "NATIONAL_ID": "الهوية الوطنية",
+      "IQAMA": "الإقامة",
+      "PASSPORT": "جواز السفر",
+      "WORK_PERMIT": "تصريح العمل",
+      "HEALTH_CERTIFICATE": "الشهادة الصحية",
+      "DRIVING_LICENSE": "رخصة القيادة",
+      "CONTRACT": "العقد",
+      "OTHER": "أخرى"
+    },
+    "documentStates": {
+      "EXPIRED": "منتهي",
+      "EXPIRING": "ينتهي قريباً",
+      "VALID": "ساري",
+      "NO_EXPIRY": "بدون انتهاء"
+    },
+    "personal": "البيانات الشخصية",
+    "job": "الوظيفة",
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "nameAr": "الاسم بالعربية",
+    "nationality": "الجنسية",
+    "nationalityHint": "حرفان، مثل SA أو EG أو IN.",
+    "nationalId": "رقم الهوية / الإقامة",
+    "nationalIdHint": "يراه فقط من يدير الموارد البشرية لهذا الفرع.",
+    "email": "البريد الإلكتروني",
+    "phone": "الجوال",
+    "number": "الرقم الوظيفي",
+    "numberHint": "اتركه فارغاً لاستخدام الرقم التالي (EMP-00001).",
+    "employmentType": "نوع التوظيف",
+    "hireDate": "تاريخ التعيين",
+    "account": "حساب الدخول",
+    "accountHint": "اربط حساب العضو إذا كان هذا الموظف يسجّل الدخول.",
+    "profile": "الملف",
+    "hidden": "مخفي",
+    "directReports": "المرؤوسون المباشرون",
+    "documents": "المستندات",
+    "noDocuments": "لا توجد مستندات بعد.",
+    "documentNumber": "رقم المستند",
+    "addDocument": "إضافة مستند",
+    "remove": "حذف",
+    "removeDocumentConfirm": "حذف هذا المستند؟",
+    "documentAdded": "تمت إضافة المستند.",
+    "employmentStatus": "حالة التوظيف",
+    "changeStatus": "تغيير الحالة",
+    "newStatus": "الحالة الجديدة",
+    "terminatedOn": "آخر يوم عمل",
+    "terminationReason": "السبب",
+    "statusChanged": "تم تغيير الحالة.",
+    "reportsFirst": "هذا الشخص يدير آخرين: عيّن لمرؤوسيه مديراً آخر قبل مغادرته.",
+    "editEmployee": "تعديل الموظف",
+    "departments": "الأقسام",
+    "departmentsIntro": "نظّم الموظفين في أقسام، ويمكن أن يتبع القسم قسماً رئيسياً.",
+    "noDepartments": "لا توجد أقسام بعد.",
+    "code": "الرمز",
+    "departmentName": "اسم القسم",
+    "parentDepartment": "القسم الرئيسي",
+    "headcount": "العدد",
+    "addDepartment": "إضافة قسم",
+    "departmentAdded": "تمت إضافة القسم.",
+    "archive": "أرشفة",
+    "archiveDepartmentConfirm": "أرشفة هذا القسم؟",
+    "orgChart": "الهيكل التنظيمي",
+    "orgChartIntro": "من يتبع لمن، بحسب المدير المباشر لكل موظف."
   }
 }

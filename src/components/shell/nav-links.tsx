@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   Store,
   Truck,
+  Users,
   Warehouse,
   X,
   type LucideIcon,
@@ -41,6 +42,7 @@ const ICONS = {
   catalog: Package,
   settings: Settings,
   store: Store,
+  hr: Users,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

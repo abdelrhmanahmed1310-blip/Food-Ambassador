@@ -9,7 +9,8 @@
 import { randomUUID } from "node:crypto";
 import { createProduct, listUnits } from "@/modules/catalog/service";
 import { postOpeningBalance } from "@/modules/inventory/operations";
-import { businessDate } from "@/modules/inventory/rules";
+import { addDays, businessDate } from "@/modules/inventory/rules";
+import { addEmployeeDocument, createDepartment, createEmployee } from "@/modules/hr/service";
 import { addMenuItemPrice, createMenuCategory, createMenuItem } from "@/modules/menu/service";
 import { saveLoyaltySettings } from "@/modules/pos/customers";
 import { createStation } from "@/modules/pos/kitchen";
@@ -237,4 +238,74 @@ export async function seedRestaurant(ctx: TenantContext) {
     paymentMode: "COUNTER",
   });
   console.log("  [DEMO] burger restaurant: branch RUH-BRG, till TILL1 (shift open), 8 tables");
+}
+
+/**
+ * [DEMO] staff for the burger restaurant (HR1, ADR-079): two departments, a
+ * reporting line and food-handler health certificates, one expiring soon so
+ * the HR overview has something to flag. Idempotent by department code.
+ */
+export async function seedRestaurantStaff(ctx: TenantContext) {
+  const db = getDb();
+  if (
+    await db.department.findFirst({
+      where: { organizationId: ctx.organizationId, code: "KITCHEN" },
+    })
+  ) {
+    console.log("  [DEMO] restaurant staff: present");
+    return;
+  }
+  const branch = await db.branch.findFirst({
+    where: { organizationId: ctx.organizationId, code: "RUH-BRG" },
+  });
+  if (!branch) return;
+  const kitchen = (
+    await createDepartment(ctx, { code: "KITCHEN", name: "Kitchen", nameAr: "المطبخ" })
+  ).id;
+  const front = (
+    await createDepartment(ctx, { code: "FOH", name: "Front of house", nameAr: "الصالة" })
+  ).id;
+  const today = businessDate(TZ);
+  const hire = (daysAgo: number) => addDays(today, -daysAgo);
+  const person = async (
+    firstName: string,
+    lastName: string,
+    jobTitle: string,
+    departmentId: string,
+    managerId: string | null,
+    hiredDaysAgo: number,
+    certificateExpiresInDays: number | null,
+  ) => {
+    const e = await createEmployee(ctx, {
+      firstName,
+      lastName,
+      jobTitle,
+      branchId: branch.id,
+      departmentId,
+      managerId: managerId ?? "",
+      employmentType: "FULL_TIME",
+      hireDate: hire(hiredDaysAgo),
+      nationality: "SA",
+    });
+    if (certificateExpiresInDays !== null)
+      await addEmployeeDocument(ctx, e.id, {
+        type: "HEALTH_CERTIFICATE",
+        expiresOn: addDays(today, certificateExpiresInDays),
+      });
+    return e.id;
+  };
+  const manager = await person(
+    "[DEMO] Faisal",
+    "Al-Harbi",
+    "Restaurant manager",
+    front,
+    null,
+    400,
+    null,
+  );
+  const chef = await person("[DEMO] Noura", "Al-Qahtani", "Head chef", kitchen, manager, 300, 200);
+  await person("[DEMO] Khalid", "Saeed", "Line cook", kitchen, chef, 120, 12);
+  await person("[DEMO] Reem", "Al-Otaibi", "Line cook", kitchen, chef, 20, 340);
+  await person("[DEMO] Majed", "Al-Dosari", "Cashier", front, manager, 60, 150);
+  console.log("  [DEMO] restaurant staff: 2 departments, 5 employees");
 }
