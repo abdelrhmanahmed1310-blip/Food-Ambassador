@@ -16,6 +16,7 @@ import { createWarehouse } from "@/modules/sites/warehouses";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
 import { addMember, createTenant } from "../../../test/support/factories";
+import { createCompany, listCompanies } from "@/modules/organizations/companies";
 import { DASHBOARD_DAYS, salesDashboard } from "./service";
 
 /** Overview dashboard (ADR-078): real POS figures only, scoped like the reports. */
@@ -131,6 +132,19 @@ describe("overview sales dashboard (ADR-078)", () => {
     const a = (await salesDashboard(analyst))!;
     expect(a.today.orders).toBe(2);
     expect(a.costs).not.toBeNull();
+  });
+
+  it("filters by company: sales and costs of that company's branches only (ADR-083)", async () => {
+    const main = (await listCompanies(ctx)).find((c) => c.isDefault)!.id;
+    const empty = (
+      await createCompany(ctx, { code: "EMPTY", name: "Empty", legalName: "Empty Co" })
+    ).id;
+    const mine = (await salesDashboard(ctx, main))!;
+    expect(mine.today.orders).toBe(2);
+    const none = (await salesDashboard(ctx, empty))!;
+    expect(none.today.orders).toBe(0);
+    expect(none.costs!.foodCost).toBeNull(); // no sales there: no ratio, nothing invented
+    expect((await salesDashboard(ctx, "not-a-uuid"))!.today.orders).toBe(2); // ignored: whole group
   });
 
   it("never mixes organizations", async () => {

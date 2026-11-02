@@ -582,7 +582,8 @@
     "BRAND_CODE_TAKEN": "This brand code is already used.",
     "BRANCH_COMPANY_INVALID": "Choose an active company.",
     "BRANCH_BRAND_INVALID": "Choose an active brand.",
-    "BRANCH_COMPANY_FIXED": "A branch stays with its company."
+    "BRANCH_COMPANY_FIXED": "A branch stays with its company.",
+    "RECEIPT_OTHER_COMPANY": "The receipt belongs to another company than the invoice."
   },
   "notFound": {
     "title": "Page not found",
@@ -1996,7 +1997,8 @@
       "QUANTITY_VARIANCE": "More than received",
       "PRICE_AND_QUANTITY": "Price and quantity differ",
       "NOT_APPLICABLE": "Charge"
-    }
+    },
+    "company": "Billed company"
   },
   "payables": {
     "title": "Supplier balances",
@@ -3591,7 +3593,10 @@
     "day": "Day",
     "net": "Net sales",
     "orders": "orders",
-    "sold": "{count, plural, one {# sold} other {# sold}}"
+    "sold": "{count, plural, one {# sold} other {# sold}}",
+    "company": "Company",
+    "wholeGroup": "Whole group",
+    "show": "Show"
   },
   "hr": {
     "title": "Human resources",

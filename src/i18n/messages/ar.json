@@ -582,7 +582,8 @@
     "BRAND_CODE_TAKEN": "رمز العلامة مستخدم بالفعل.",
     "BRANCH_COMPANY_INVALID": "اختر شركة نشطة.",
     "BRANCH_BRAND_INVALID": "اختر علامة نشطة.",
-    "BRANCH_COMPANY_FIXED": "يبقى الفرع مع شركته."
+    "BRANCH_COMPANY_FIXED": "يبقى الفرع مع شركته.",
+    "RECEIPT_OTHER_COMPANY": "الاستلام يتبع شركة غير شركة الفاتورة."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1996,7 +1997,8 @@
       "QUANTITY_VARIANCE": "أكثر من المستلم",
       "PRICE_AND_QUANTITY": "السعر والكمية مختلفان",
       "NOT_APPLICABLE": "رسم"
-    }
+    },
+    "company": "الشركة المفوترة"
   },
   "payables": {
     "title": "أرصدة الموردين",
@@ -3591,7 +3593,10 @@
     "day": "اليوم",
     "net": "صافي المبيعات",
     "orders": "طلبات",
-    "sold": "{count, plural, one {بيعت قطعة واحدة} other {بيع #}}"
+    "sold": "{count, plural, one {بيعت قطعة واحدة} other {بيع #}}",
+    "company": "الشركة",
+    "wholeGroup": "المجموعة كاملة",
+    "show": "عرض"
   },
   "hr": {
     "title": "الموارد البشرية",

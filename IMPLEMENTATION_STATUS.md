@@ -19,6 +19,20 @@ Last updated: 2026-11-02 (F1a companies and brands; HR1–HR2b)
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
 
+## F1b step 1 — Company on money documents (built)
+
+Rules: DECISIONS.md ADR-083.
+
+| Area              | What works                                                                                                         | Where                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| Documents         | POS orders, POs, receipts, B2B sales orders and invoices stamped with their company by the database; never changes | all flows (no screen change)             |
+| Supplier invoices | Billed company chosen (default otherwise); only that company's receipts offered and accepted                       | `/purchasing/invoices/new`, invoice page |
+| Dashboard         | Company filter on the overview (whole group by default)                                                            | overview                                 |
+
+Not yet: per-company VAT and ZATCA (step 2); per-company currency and consolidation (step 3).
+
+Checks: `pnpm check` pass (unit 275); `pnpm test:integration` 370/370 pass (new: orders and receipts take their branch's company and never change; supplier invoice bills a chosen or the default company and matches only that company's receipts — refused by the service and, inserted directly, by the database; dashboard by company with costs following); `pnpm test:e2e` 60/60 pass.
+
 ## F1a — Companies (legal entities) and brands (built)
 
 Rules: DECISIONS.md ADR-082. Plan: docs/PLATFORM_AUDIT.md (phase F1).

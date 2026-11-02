@@ -29,6 +29,11 @@ export const invoiceSchema = z.object({
   note: optionalText(500),
   /** Empty = the supplier's currency (ADR-050). */
   currency: optionalCurrency,
+  /** The billed legal entity; the default company when empty (ADR-083). */
+  companyId: z
+    .union([z.literal(""), uuidSchema])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
   idempotencyKey: z.string().optional(),
 });
 
@@ -36,6 +41,7 @@ export const invoiceHeaderSchema = invoiceSchema.omit({
   supplierId: true,
   idempotencyKey: true,
   currency: true,
+  companyId: true,
 });
 
 export const goodsLineSchema = z.object({

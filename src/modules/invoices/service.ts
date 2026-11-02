@@ -225,6 +225,16 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
       if (!supplier) throw notFound("Supplier");
       const currency = input.currency ?? supplier.currency ?? ctx.baseCurrency;
       assertDocumentCurrency(ctx, currency);
+      if (
+        input.companyId &&
+        !(await tx.company.findFirst({
+          where: { organizationId: ctx.organizationId, id: input.companyId, archivedAt: null },
+          select: { id: true },
+        }))
+      )
+        throw businessRuleViolation("BRANCH_COMPANY_INVALID", "Choose an active company", {
+          field: "companyId",
+        });
       const due = input.dueDate ?? dueDateFor(input.invoiceDate, supplier.paymentTermsDays);
       if (due && due < input.invoiceDate)
         throw businessRuleViolation(
@@ -249,6 +259,8 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
           printedGross: input.printedGross,
           note: input.note,
           currency,
+          // Empty: the database sets the default company (ADR-083).
+          companyId: input.companyId,
           createdByUserId: ctx.userId,
         },
         select: { id: true, number: true },
@@ -329,7 +341,9 @@ export async function addGoodsLine(ctx: TenantContext, invoiceId: string, rawInp
     const rl = await tx.goodsReceiptLine.findFirst({
       where: { organizationId: ctx.organizationId, id: input.receiptLineId },
       include: {
-        receipt: { select: { supplierId: true, status: true, number: true, currency: true } },
+        receipt: {
+          select: { supplierId: true, status: true, number: true, currency: true, companyId: true },
+        },
         purchaseOrderLine: { select: { id: true, unitPrice: true } },
         product: { select: { id: true, sku: true, nameEn: true, purchaseTaxCodeId: true } },
       },
@@ -339,6 +353,12 @@ export async function addGoodsLine(ctx: TenantContext, invoiceId: string, rawInp
       throw businessRuleViolation(
         "RECEIPT_OTHER_SUPPLIER",
         "The receipt is from another supplier",
+        { field: "receiptLineId" },
+      );
+    if (rl.receipt.companyId !== inv.companyId)
+      throw businessRuleViolation(
+        "RECEIPT_OTHER_COMPANY",
+        "The receipt belongs to another company than the invoice",
         { field: "receiptLineId" },
       );
     if (rl.receipt.status !== "POSTED")
@@ -581,14 +601,19 @@ export async function settledAmounts(
 }
 
 /** Posted receipt lines of a supplier with quantity still to invoice (on any invoice, drafts included). */
-export async function uninvoicedReceiptLines(ctx: TenantContext, supplierId: string) {
+export async function uninvoicedReceiptLines(
+  ctx: TenantContext,
+  supplierId: string,
+  /** Only receipts of the invoice's company (ADR-083). */
+  companyId?: string | null,
+) {
   assertPermission(ctx.grants, "invoices.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
     const lines = await tx.goodsReceiptLine.findMany({
       where: {
         organizationId: ctx.organizationId,
         acceptedQuantityBase: { gt: 0 },
-        receipt: { supplierId, status: "POSTED" },
+        receipt: { supplierId, status: "POSTED", ...(companyId ? { companyId } : {}) },
       },
       include: {
         receipt: { select: { number: true, receivedAt: true, currency: true } },

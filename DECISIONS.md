@@ -1909,6 +1909,27 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
 - Managed with `org.settings.manage`; RLS and composite tenant keys as
   everywhere; all changes audited.
 
+### ADR-083 Company on money documents — Accepted (F1b step 1 built)
+
+- POS orders, purchase orders, goods receipts, B2B sales orders, sales
+  invoices and supplier invoices carry `company_id`. The **database sets
+  it** on insert from the document's site (branch, or warehouse → branch,
+  or delivery → sales order), so no code path can forget it, and a trigger
+  refuses any later change. Existing documents were backfilled.
+- **Supplier invoices** have no site: the user picks the billed company
+  (default company when not chosen). A supplier invoice matches only
+  receipts and orders of its own company — checked by the service (clear
+  message) and by a database trigger (defence in depth). The receipts
+  offered for matching are filtered by the invoice's company.
+- The overview dashboard filters by company (sales and cost figures from
+  the same company's branches; "whole group" by default).
+- Prisma declares the column optional so inserts can omit it; the database
+  column is NOT NULL and always filled by the trigger.
+- **Next (F1b step 2):** VAT settings and the ZATCA seller per company
+  (POS and invoices use their company's). **Step 3:** per-company currency
+  with group consolidation through the exchange-rate tables — its design
+  will be presented before building.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

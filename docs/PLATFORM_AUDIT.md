@@ -1,8 +1,9 @@
 # Food Ambassador — Platform audit and enterprise roadmap
 
 > Progress: D1 decided (companies = legal entities). **F1a built** (ADR-082):
-> companies, brands, branch → company/brand. Next: F1b (per-company
-> currency, VAT, ZATCA; company on documents), then F2.
+> companies, brands, branch → company/brand. **F1b step 1 built** (ADR-083):
+> company on money documents, dashboard by company. Next: F1b step 2 (VAT
+> and ZATCA per company), step 3 (currency per company), then F2.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

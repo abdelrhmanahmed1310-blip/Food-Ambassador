@@ -1174,6 +1174,17 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### Company on documents (F1b step 1, ADR-083)
+
+Migration `20261210090000_f1b_company_on_documents`.
+
+- `company_id` (NOT NULL, composite tenant FK to companies) on
+  **pos_orders**, **purchase_orders**, **goods_receipts**, **sales_orders**,
+  **sales_invoices** (set by insert triggers from branch / warehouse /
+  delivery) and **supplier_invoices** (chosen; default company otherwise).
+  `company_fixed` triggers refuse changes; `supplier_invoice_line_company`
+  refuses matching another company's receipt or order line.
+
 ### Enterprise layer (F1a, ADR-082)
 
 Migration `20261209090000_f1a_companies_brands`.

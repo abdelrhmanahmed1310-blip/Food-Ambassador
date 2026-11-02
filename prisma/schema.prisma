@@ -1365,6 +1365,8 @@ enum PurchaseOrderStatus {
 model PurchaseOrder {
   id                   String              @id @default(uuid(7)) @db.Uuid
   organizationId       String              @map("organization_id") @db.Uuid
+  /// The legal entity (F1b, ADR-083): set by the database from the document's site (supplier invoices: chosen, default company otherwise); never changes.
+  companyId            String?             @map("company_id") @db.Uuid
   number               String
   supplierId           String              @map("supplier_id") @db.Uuid
   warehouseId          String              @map("warehouse_id") @db.Uuid
@@ -1403,6 +1405,8 @@ model PurchaseOrder {
   lines        PurchaseOrderLine[]
   receipts     GoodsReceipt[]
   approvals    PurchaseOrderApproval[]
+
+  company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1519,6 +1523,8 @@ enum GoodsReceiptStatus {
 model GoodsReceipt {
   id                  String             @id @default(uuid(7)) @db.Uuid
   organizationId      String             @map("organization_id") @db.Uuid
+  /// The legal entity (F1b, ADR-083): set by the database from the document's site (supplier invoices: chosen, default company otherwise); never changes.
+  companyId           String?            @map("company_id") @db.Uuid
   number              String
   purchaseOrderId     String             @map("purchase_order_id") @db.Uuid
   supplierId          String             @map("supplier_id") @db.Uuid
@@ -1550,6 +1556,8 @@ model GoodsReceipt {
   reversal      InventoryDocument? @relation("ReceiptReversal", fields: [organizationId, reversalDocumentId], references: [organizationId, id], onDelete: Restrict)
   lines         GoodsReceiptLine[]
   landedCosts   LandedCost[]
+
+  company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -2633,6 +2641,8 @@ enum InvoiceLineMatch {
 model SupplierInvoice {
   id                    String                @id @default(uuid(7)) @db.Uuid
   organizationId        String                @map("organization_id") @db.Uuid
+  /// The legal entity (F1b, ADR-083): set by the database from the document's site (supplier invoices: chosen, default company otherwise); never changes.
+  companyId             String?               @map("company_id") @db.Uuid
   number                String
   supplierId            String                @map("supplier_id") @db.Uuid
   /// The supplier's own invoice number.
@@ -2670,6 +2680,8 @@ model SupplierInvoice {
   supplier     Supplier               @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
   lines        SupplierInvoiceLine[]
   allocations  SettlementAllocation[]
+
+  company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3150,6 +3162,8 @@ model Customer {
 model SalesOrder {
   id                String           @id @default(uuid(7)) @db.Uuid
   organizationId    String           @map("organization_id") @db.Uuid
+  /// The legal entity (F1b, ADR-083): set by the database from the document's site (supplier invoices: chosen, default company otherwise); never changes.
+  companyId         String?          @map("company_id") @db.Uuid
   number            String
   customerId        String           @map("customer_id") @db.Uuid
   warehouseId       String           @map("warehouse_id") @db.Uuid
@@ -3172,6 +3186,8 @@ model SalesOrder {
   warehouse    Warehouse          @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
   lines        SalesOrderLine[]
   deliveries   CustomerDelivery[]
+
+  company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3255,6 +3271,8 @@ model CustomerDeliveryLine {
 model SalesInvoice {
   id                String             @id @default(uuid(7)) @db.Uuid
   organizationId    String             @map("organization_id") @db.Uuid
+  /// The legal entity (F1b, ADR-083): set by the database from the document's site (supplier invoices: chosen, default company otherwise); never changes.
+  companyId         String?            @map("company_id") @db.Uuid
   number            String
   customerId        String             @map("customer_id") @db.Uuid
   deliveryId        String             @map("delivery_id") @db.Uuid
@@ -3285,6 +3303,8 @@ model SalesInvoice {
   lines          SalesInvoiceLine[]
   allocations    CustomerReceiptAllocation[]
   zatcaDocuments ZatcaDocument[]
+
+  company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3751,6 +3771,8 @@ enum PosOrderStatus {
 model PosOrder {
   id               String         @id @db.Uuid
   organizationId   String         @map("organization_id") @db.Uuid
+  /// The legal entity (F1b, ADR-083): set by the database from the document's site (supplier invoices: chosen, default company otherwise); never changes.
+  companyId        String?        @map("company_id") @db.Uuid
   number           String
   registerId       String         @map("register_id") @db.Uuid
   shiftId          String         @map("shift_id") @db.Uuid
@@ -3797,6 +3819,8 @@ model PosOrder {
   shortfalls    PosConsumptionShortfall[]
   deliveryOrder DeliveryOrder?
   tab           PosTab?                   @relation(fields: [organizationId, tabId], references: [organizationId, id], onDelete: Restrict)
+
+  company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -5127,8 +5151,14 @@ model Company {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branches     Branch[]
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches         Branch[]
+  posOrders        PosOrder[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  salesOrders      SalesOrder[]
+  salesInvoices    SalesInvoice[]
+  supplierInvoices SupplierInvoice[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])

@@ -6,15 +6,19 @@ import { AttentionList } from "@/components/reports/attention-list";
 import { Card, PageHeader } from "@/components/ui/primitives";
 import { attentionItems } from "@/modules/analytics/attention";
 import { DASHBOARD_DAYS, salesDashboard } from "@/modules/analytics/service";
+import { listCompanies } from "@/modules/organizations/companies";
+import { buttonClass, inputClass } from "@/components/ui/styles";
 import { moneyFormatter } from "@/server/inventory-view";
 import { hasPermission } from "@/modules/access/authorize";
 import { getOverview } from "@/modules/organizations/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { getCurrentUser } from "@/server/auth/session";
 
-export default async function OverviewPage({ params }: PageProps<"/o/[orgSlug]">) {
+export default async function OverviewPage({ params, searchParams }: PageProps<"/o/[orgSlug]">) {
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
+  const sp = await searchParams;
+  const company = (Array.isArray(sp.company) ? sp.company[0] : sp.company) ?? "";
   const [t, ta, td, format, money, user, counts, attention, sales] = await Promise.all([
     getTranslations("overview"),
     getTranslations("attention"),
@@ -24,8 +28,9 @@ export default async function OverviewPage({ params }: PageProps<"/o/[orgSlug]">
     getCurrentUser(),
     getOverview(ctx),
     attentionItems(ctx),
-    salesDashboard(ctx),
+    salesDashboard(ctx, company),
   ]);
+  const companies = sales ? await listCompanies(ctx) : [];
   const percent = (v: { toString(): string } | null) =>
     v === null
       ? "—"
@@ -105,6 +110,29 @@ export default async function OverviewPage({ params }: PageProps<"/o/[orgSlug]">
       />
       {sales ? (
         <section aria-label={td("title")} className="mb-6 space-y-4" data-testid="sales-dashboard">
+          {companies.length > 1 ? (
+            <form method="get" className="flex items-center gap-2" data-testid="company-filter">
+              <label htmlFor="company" className="text-sm font-medium">
+                {td("company")}
+              </label>
+              <select
+                id="company"
+                name="company"
+                defaultValue={company}
+                className={`${inputClass} w-auto`}
+              >
+                <option value="">{td("wholeGroup")}</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code} — {c.name}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className={buttonClass("secondary")}>
+                {td("show")}
+              </button>
+            </form>
+          ) : null}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {kpis.map((k) => (
               <div

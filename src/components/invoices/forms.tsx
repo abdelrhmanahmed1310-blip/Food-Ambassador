@@ -11,6 +11,7 @@ export function InvoiceForm({
   action,
   suppliers,
   currencies,
+  companies,
   currency,
   defaults,
   submitLabel,
@@ -20,6 +21,8 @@ export function InvoiceForm({
   suppliers?: Option[];
   /** New invoices only: allowed currencies; "" = the supplier's (ADR-050). */
   currencies?: string[];
+  /** New invoices with more than one company: the billed legal entity (ADR-083). */
+  companies?: Option[];
   currency: string;
   defaults?: {
     supplierInvoiceNo: string;
@@ -39,6 +42,15 @@ export function InvoiceForm({
       idempotent={!defaults}
     >
       <div className="grid gap-4 sm:grid-cols-2">
+        {companies && companies.length > 1 ? (
+          <SelectField
+            name="companyId"
+            label={t("invoices.company")}
+            options={companies}
+            defaultValue={companies[0].value}
+            required
+          />
+        ) : null}
         {suppliers ? (
           <SelectField
             name="supplierId"

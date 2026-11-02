@@ -36,12 +36,19 @@ function parsePeriod(raw: unknown) {
 }
 
 /** Warehouses the user may see for `permission`; throws when none. */
-async function visibleWarehouses(tx: Tx, ctx: TenantContext, permission: Permission) {
+async function visibleWarehouses(
+  tx: Tx,
+  ctx: TenantContext,
+  permission: Permission,
+  /** Only the warehouses of one company's branches (ADR-083). */
+  companyId?: string,
+) {
   if (!holdsAnyGrant(ctx.grants, permission)) throw forbidden();
   const scope = accessibleScope(ctx.grants, permission);
   return tx.warehouse.findMany({
     where: {
       organizationId: ctx.organizationId,
+      ...(companyId ? { branch: { companyId } } : {}),
       ...(scope.all
         ? {}
         : { OR: [{ branchId: { in: scope.branchIds } }, { id: { in: scope.warehouseIds } }] }),
@@ -271,8 +278,8 @@ async function posSalesInTx(
 }
 
 /** Warehouses the user may see for both sales and stock value. */
-async function foodCostWarehouses(tx: Tx, ctx: TenantContext) {
-  const sales = await visibleWarehouses(tx, ctx, "sales.view");
+async function foodCostWarehouses(tx: Tx, ctx: TenantContext, companyId?: string) {
+  const sales = await visibleWarehouses(tx, ctx, "sales.view", companyId);
   const values = new Set(
     (await visibleWarehouses(tx, ctx, "inventory.valuation.view")).map((w) => w.id),
   );
@@ -295,10 +302,10 @@ export interface BranchFigures {
   discounts: Decimal;
 }
 
-export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
+export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown, companyId?: string) {
   const period = parsePeriod(rawPeriod);
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const warehouses = await foodCostWarehouses(tx, ctx);
+    const warehouses = await foodCostWarehouses(tx, ctx, companyId);
     const ids = warehouses.map((w) => w.id);
     const all = await importsInTx(tx, ctx, ids, period.from, period.to);
     const { inside, straddling } = splitByPeriod(all, period.from, period.to);
@@ -500,12 +507,18 @@ export const DASHBOARD_DAYS = 14;
  * come from the food cost report, only for users who may see costs.
  * Nothing is estimated: days without orders are zero.
  */
-export async function salesDashboard(ctx: TenantContext) {
+export async function salesDashboard(ctx: TenantContext, rawCompanyId?: unknown) {
+  // Only this company's branches (ADR-083); anything else means the whole group.
+  const companyId = z
+    .uuid()
+    .optional()
+    .catch(undefined)
+    .parse(rawCompanyId || undefined);
   if (!holdsAnyGrant(ctx.grants, "sales.view")) return null;
   const today = businessDate(ctx.timeZone);
   const from = addDays(today, -(DASHBOARD_DAYS - 1));
   const sales = await withTenantTx(ctx.organizationId, async (tx) => {
-    const ids = (await visibleWarehouses(tx, ctx, "sales.view")).map((w) => w.id);
+    const ids = (await visibleWarehouses(tx, ctx, "sales.view", companyId)).map((w) => w.id);
     if (ids.length === 0) return { days: [], top: [] };
     const days = await tx.$queryRaw<Array<{ day: Date; orders: bigint; net: Prisma.Decimal }>>`
       SELECT o.business_date AS day, COUNT(*) AS orders,
@@ -549,7 +562,9 @@ export async function salesDashboard(ctx: TenantContext) {
   const todayFigures = series[series.length - 1];
   const periodNet = series.reduce((a, d) => a.plus(d.net), new Decimal(0));
   const periodOrders = series.reduce((a, d) => a + d.orders, 0);
-  const costs = canSeeReports(ctx).foodCost ? await foodCostReport(ctx, { from, to: today }) : null;
+  const costs = canSeeReports(ctx).foodCost
+    ? await foodCostReport(ctx, { from, to: today }, companyId)
+    : null;
   return {
     from,
     to: today,

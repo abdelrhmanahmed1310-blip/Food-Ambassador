@@ -60,7 +60,10 @@ export default async function InvoicePage({
     value: inv.status === "POSTED" ? inv.grossAmountBase : null,
   });
   const [allOpen, options] = inv.can.edit
-    ? await Promise.all([uninvoicedReceiptLines(ctx, inv.supplier.id), invoiceFormOptions(ctx)])
+    ? await Promise.all([
+        uninvoicedReceiptLines(ctx, inv.supplier.id, inv.companyId),
+        invoiceFormOptions(ctx),
+      ])
     : [[], { suppliers: [], taxCodes: [] }];
   // Only receipts in the invoice's currency can go on it (ADR-050).
   const open = allOpen.filter((l) => l.receipt.currency === inv.currency);
