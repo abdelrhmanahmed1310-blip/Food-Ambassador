@@ -1185,10 +1185,22 @@ Migration `20261213090000_f1b3a_company_currency` (rules only; no columns).
 - `stock_move_same_currency` on **inventory_documents** (transfers) and
   **stock_shipments** refuses moves between companies with different
   currencies.
-- `company_currency_supported` (temporary, removed by steps 3b/3c) on
-  pos_orders, purchase_orders, goods_receipts, sales_orders, sales_invoices,
-  supplier_invoices and sales_imports refuses companies whose currency is
-  not the group's.
+- `company_currency_supported` was a temporary guard (3a), removed in
+  `20261214090000` (purchasing) and `20261215090000` (sales).
+
+Migrations `20261214090000_f1b3b_payables_per_company` and
+`20261214100000_f1b3b_receipts_per_company` (step 3b):
+
+- **supplier_settlements**, **customer_receipts** and **fx_revaluations**
+  gain `company_id` (NOT NULL; the default company when omitted; fixed;
+  existing rows took the company of an invoice they were applied to, else
+  the default). `settlement_allocations` and
+  `customer_receipt_allocations` refuse an invoice of another company.
+  `fx_revaluations_as_of` is unique per (organization, company, date).
+
+Migration `20261215090000_f1b3c_sales_per_company` (step 3c): drops the
+remaining guards; `pos_payments_gift_card_currency` refuses a gift card in
+another currency than the order's company.
 
 ### ZATCA per company (F1b step 2b, ADR-085)
 

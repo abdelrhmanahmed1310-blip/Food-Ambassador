@@ -1,5 +1,5 @@
 import "server-only";
-import { assertFlowInGroupCurrency } from "@/modules/fx/service";
+import { companyContext } from "@/modules/fx/service";
 import { Decimal, decimalString, roundMoney, toDecimal } from "@/lib/decimal";
 import { parseCsvRecords } from "@/lib/csv";
 import { isCalendarDate } from "@/lib/dates";
@@ -79,7 +79,8 @@ export async function importSales(
       const wh = await loadWarehouse(tx, ctx, input.warehouseId);
       assertPermission(ctx.grants, "sales.import", { branchId: wh.branchId, warehouseId: wh.id });
       assertActive(wh);
-      await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
+      // Amounts are in the warehouse's company's currency (ADR-086).
+      ctx = (await companyContext(tx, ctx, { warehouseId: wh.id })).ctx;
       // One import at a time per organization, so "already imported" is reliable.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`sales-import:${ctx.organizationId}`}))`;
 
@@ -461,7 +462,16 @@ export async function listSalesImports(ctx: TenantContext) {
   return withTenantTx(ctx.organizationId, (tx) =>
     tx.salesImport.findMany({
       where: { organizationId: ctx.organizationId, ...visibleWarehouses(ctx) },
-      include: { warehouse: { select: { code: true, name: true } } },
+      // Amounts are in the warehouse's company's currency (ADR-086).
+      include: {
+        warehouse: {
+          select: {
+            code: true,
+            name: true,
+            branch: { select: { company: { select: { currency: true } } } },
+          },
+        },
+      },
       orderBy: { postedAt: "desc" },
       take: 200,
     }),

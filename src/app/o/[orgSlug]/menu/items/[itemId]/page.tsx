@@ -25,7 +25,7 @@ import { SALES_CHANNELS } from "@/modules/menu/rules";
 import { getMenuItem, menuFormOptions } from "@/modules/menu/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyFormatter, moneyFormatters } from "@/server/inventory-view";
 import {
   addComboComponentAction,
   addMenuItemPriceAction,
@@ -51,9 +51,11 @@ export default async function MenuItemPage({
   const [t, locale, money, o] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(ctx.groupCurrency),
     manage ? menuFormOptions(ctx) : Promise.resolve(null),
   ]);
+  // A price for all branches is in the group's currency; a branch's in its company's (ADR-086).
+  const moneyIn = await moneyFormatters();
   const off = new Set(item.unavailable.map((u) => u.branchId));
   const delta = (v: { toString(): string }) => {
     const n = v.toString();
@@ -130,7 +132,9 @@ export default async function MenuItemPage({
                         {p.branch ? `${p.branch.code} — ${p.branch.name}` : t("menu.allBranches")}
                       </Td>
                       <Td className="tabular-nums">
-                        <span className="ltr-value">{money.money(p.price)}</span>{" "}
+                        <span className="ltr-value">
+                          {moneyIn(p.branch?.company.currency ?? ctx.groupCurrency).money(p.price)}
+                        </span>{" "}
                         <span className="text-muted text-xs">
                           {t(p.includesTax ? "menu.inclVat" : "menu.exclVat")}
                         </span>
@@ -148,8 +152,11 @@ export default async function MenuItemPage({
             <MenuPriceForm
               action={addMenuItemPriceAction.bind(null, orgSlug, item.id)}
               channels={SALES_CHANNELS.map((c) => ({ value: c, label: t(`menu.channels.${c}`) }))}
-              branches={o.branches.map((b) => ({ value: b.id, label: `${b.code} — ${b.name}` }))}
-              currency={ctx.baseCurrency}
+              branches={o.branches.map((b) => ({
+                value: b.id,
+                label: `${b.code} — ${b.name}${b.company.currency === ctx.groupCurrency ? "" : ` (${b.company.currency})`}`,
+              }))}
+              currency={ctx.groupCurrency}
               today={businessDate(ctx.timeZone)}
               includesTax={o.pricesIncludeTax}
             />

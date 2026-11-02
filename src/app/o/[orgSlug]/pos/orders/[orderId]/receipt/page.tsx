@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { currencyOf } from "@/modules/fx/service";
 import QRCode from "qrcode";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PrintButton } from "@/components/ui/print-button";
@@ -22,12 +23,13 @@ export default async function ReceiptPage({
   const { orgSlug, orderId } = await params;
   if (!isUuid(orderId)) notFound();
   const ctx = await requireTenant(orgSlug);
-  const [t, format, money, o] = await Promise.all([
+  const [t, format, o] = await Promise.all([
     getTranslations(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
     notFoundOnAppError(getOrder(ctx, orderId)),
   ]);
+  // In the order's company's currency (ADR-086).
+  const money = await moneyFormatter(await currencyOf(ctx, { companyId: o.companyId }));
   const m = (v: { toString(): string }) => (
     <span className="ltr-value tabular-nums">{money.money(v)}</span>
   );

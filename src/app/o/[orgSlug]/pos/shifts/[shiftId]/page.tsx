@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { currencyOf } from "@/modules/fx/service";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Badge, Card, LinkButton, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
 import { PrintButton } from "@/components/ui/print-button";
@@ -17,12 +18,13 @@ export default async function ShiftPage({
   const { orgSlug, shiftId } = await params;
   if (!isUuid(shiftId)) notFound();
   const ctx = await requireTenant(orgSlug);
-  const [t, format, money, s] = await Promise.all([
+  const [t, format, s] = await Promise.all([
     getTranslations(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
     notFoundOnAppError(getShift(ctx, shiftId)),
   ]);
+  const currency = await currencyOf(ctx, { branchId: s.register.branchId });
+  const money = await moneyFormatter(currency);
   const tz = s.register.branch.timeZone ?? ctx.timeZone;
   const when = (d: Date) =>
     format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: tz });
@@ -45,7 +47,7 @@ export default async function ShiftPage({
           <ShiftTotals
             totals={s.totals}
             openingFloat={s.openingFloat}
-            currency={ctx.baseCurrency}
+            currency={currency}
             counted={
               s.countedCash && s.cashDifference && s.expectedCash
                 ? { counted: s.countedCash, difference: s.cashDifference, expected: s.expectedCash }

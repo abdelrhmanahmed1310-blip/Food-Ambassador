@@ -13,7 +13,7 @@ import {
 import { hasPermission } from "@/modules/access/authorize";
 import { listGiftCards } from "@/modules/pos/gift-cards";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyFormatters } from "@/server/inventory-view";
 import { blockGiftCardAction } from "../customers/actions";
 
 /** Gift cards sold and what is still owed on them (ADR-068). */
@@ -24,11 +24,11 @@ export default async function GiftCardsPage({ params }: PageProps<"/o/[orgSlug]/
   const [t, format, money, data] = await Promise.all([
     getTranslations(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatters(),
     listGiftCards(ctx),
   ]);
-  const m = (v: { toString(): string }) => (
-    <span className="ltr-value tabular-nums">{money.money(v)}</span>
+  const m = (v: { toString(): string }, currency: string) => (
+    <span className="ltr-value tabular-nums">{money(currency).money(v)}</span>
   );
   return (
     <>
@@ -40,7 +40,18 @@ export default async function GiftCardsPage({ params }: PageProps<"/o/[orgSlug]/
               { label: t("giftCards.count"), value: data.cards.length },
               {
                 label: t("giftCards.owed"),
-                value: <strong data-testid="gift-owed">{m(data.owed)}</strong>,
+                value: (
+                  <strong data-testid="gift-owed">
+                    {data.owed.length === 0
+                      ? m(0, ctx.groupCurrency)
+                      : data.owed.map((o, i) => (
+                          <span key={o.currency}>
+                            {i > 0 ? " · " : null}
+                            {m(o.amount, o.currency)}
+                          </span>
+                        ))}
+                  </strong>
+                ),
               },
             ]}
           />
@@ -64,8 +75,8 @@ export default async function GiftCardsPage({ params }: PageProps<"/o/[orgSlug]/
                 {data.cards.map((g) => (
                   <tr key={g.id}>
                     <Td className="ltr-value font-mono">•••• {g.last4}</Td>
-                    <Td>{m(g.initialValue)}</Td>
-                    <Td>{m(g.balance)}</Td>
+                    <Td>{m(g.initialValue, g.currency)}</Td>
+                    <Td>{m(g.balance, g.currency)}</Td>
                     <Td>
                       {format.dateTime(g.createdAt, {
                         dateStyle: "medium",

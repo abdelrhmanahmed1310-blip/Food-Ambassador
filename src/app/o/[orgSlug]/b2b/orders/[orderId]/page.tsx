@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { currencyOf } from "@/modules/fx/service";
 import { getLocale, getTranslations } from "next-intl/server";
 import { DeliverForm, InvoiceDeliveryForm, SalesOrderLineForm } from "@/components/b2b/forms";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
@@ -65,8 +66,8 @@ export default async function SalesOrderPage({
   const amount = (v: { toString(): string }) => (
     <span className="ltr-value whitespace-nowrap">{money.money(v)}</span>
   );
-  // Cost of goods is always in base currency (ADR-054).
-  const baseMoney = await moneyFormatter(ctx.baseCurrency);
+  // Cost of goods is in the order's company's currency (ADR-054/086).
+  const baseMoney = await moneyFormatter(await currencyOf(ctx, { companyId: o.companyId }));
   const base = `/o/${orgSlug}/b2b`;
   const openLines = o.lines
     .map((l) => ({

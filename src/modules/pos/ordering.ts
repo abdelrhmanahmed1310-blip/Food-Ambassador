@@ -1,4 +1,5 @@
 import "server-only";
+import { contextForBranch } from "@/modules/fx/service";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { Decimal, decimalString } from "@/lib/decimal";
@@ -318,7 +319,9 @@ async function openSlots(
 export async function publicMenu(publicToken: string) {
   const r = await resolveChannel(publicToken);
   if (!r) return null;
-  const { channel: c, ctx } = r;
+  const { channel: c } = r;
+  // The page sells in the branch's company's currency (ADR-086).
+  const ctx = await contextForBranch(r.ctx, c.branchId);
   const timeZone = c.branch.timeZone ?? ctx.timeZone;
   const now = new Date();
   const menus = await sellableMenu(ctx, c.branchId, businessDate(timeZone, now));
@@ -388,7 +391,8 @@ export async function placeGuestOrder(
 ) {
   const r = await resolveChannel(publicToken);
   if (!r) throw notFound("Ordering page");
-  const { channel: c, ctx } = r;
+  const { channel: c } = r;
+  const ctx = await contextForBranch(r.ctx, c.branchId);
   const [byGuest, byChannel] = await Promise.all([
     consumeRateLimit(`guest-order:${c.id}:${clientIp}`, {
       window: 600,

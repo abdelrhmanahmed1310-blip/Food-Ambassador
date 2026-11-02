@@ -1982,7 +1982,7 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
 - The ZATCA page shows one company at a time (company selector when the
   group has more than one).
 
-### ADR-086 Currency per company — Accepted (F1b step 3a built; 3b, 3c next)
+### ADR-086 Currency per company — Accepted (F1b step 3 built: 3a, 3b, 3c)
 
 Design approved 2026-11-02. Stock transfers are between branches in the same
 country for now, so no inter-company transfer is built.
@@ -1993,27 +1993,46 @@ country for now, so no inter-company transfer is built.
   database trigger).
 - **The context knows both currencies**: `groupCurrency` (the
   organization's) and `baseCurrency` (the currency a service keeps amounts
-  in — the group's, or a company's via `inCurrency`). Exchange rates stay
-  stored against the group currency; `rateFor` in a company's currency uses
-  the cross rate through the group currency, with the same no-guess rules
-  (missing or stale rates are refused).
-- **Stock is valued in the warehouse's company's currency** (warehouse →
-  branch → company). Stock never moves between companies with different
+  in — the group's, or a company's via `companyContext` / `inCurrency`).
+  Exchange rates stay stored against the group currency; `rateFor` in a
+  company's currency uses the cross rate through the group currency, with
+  the same no-guess rules (missing or stale rates are refused).
+- **Stock** is valued in the warehouse's company's currency (warehouse →
+  branch → company) and never moves between companies with different
   currencies (service check and database trigger on transfers and
   shipments).
+- **Purchasing and payables (3b)**: orders default to the supplier's
+  currency, else the company's; receipts, landed costs and supplier
+  invoices book base amounts in the company's currency. Payments, credit
+  notes and customer receipts belong to a company (default when not chosen)
+  and settle only that company's invoices (service and database). Supplier
+  and customer balances are per company and currency, each row's base in
+  its company's currency. The FX revaluation, the VAT return and the
+  accounting journals are per company, in its currency. Purchase-order and
+  stock-count approval limits are in the group currency, so the totals are
+  converted before choosing the approval chain.
+- **Sales (3c)**: the till, online ordering, checks, payment links, sales
+  imports, B2B orders and invoices work in the branch's (or warehouse's)
+  company's currency. A menu price for all branches and option price
+  changes are in the group's currency, so a branch of a company in another
+  currency sells at its own branch prices and does not offer options that
+  change the price. Loyalty points and fixed-amount coupons are valued in
+  the group's currency: they are not spent there, and purchases there earn
+  no points. Gift cards are in the selling register's company's currency
+  and spent only in that currency (service and database).
 - **Group figures are converted, never guessed** (`currencyConverter`):
-  balances at the rate on the date (stock value: today), flows at the
-  average of the period's rates (waste, food cost). A currency without a
-  usable rate is left out and named on the page. One company's figures stay
-  in its own currency. Recipe costs are in the group currency (average cost
-  converted per warehouse at the costing date). Stock-count approval limits
-  are in the group currency, so the variance is converted before choosing
-  the approval chain (no rate: every level approves).
+  balances at the rate on the date (stock value today, balances on their
+  "as of" date), flows at the average of the period's rates (sales, cost,
+  waste). A currency without a usable rate is left out and named on the
+  page. One company's figures stay in its own currency (overview and food
+  cost by company, one warehouse's valuation, per-company VAT and
+  journals). Recipe costs are in the group currency.
 - **ZATCA** needs the company's currency to be SAR (no longer the group's).
-- **Not yet in a company's own currency (refused until converted):**
-  purchasing and payables (step 3b), point of sale, sales imports and B2B
-  (step 3c). The service refuses with a clear message and a database
-  trigger per document table refuses too; each step removes its guard.
+- **Known limits:** card settlement files and delivery payout
+  reconciliation are organization-wide and assume one currency per file;
+  the supplier "last price" is kept in the supplier's currency or, without
+  one, as entered. Per-branch prices for modifier options and loyalty in
+  several currencies are not built.
 
 ## Business assumptions (recorded, not invented rules)
 

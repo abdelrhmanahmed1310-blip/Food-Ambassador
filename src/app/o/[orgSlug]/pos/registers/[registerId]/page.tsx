@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { currencyOf } from "@/modules/fx/service";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { CashMovementForm, CloseShiftForm, OpenShiftForm } from "@/components/pos/forms";
 import { PendingSyncNotice } from "@/components/pos/pending-notice";
@@ -28,12 +29,14 @@ export default async function RegisterPage({
   const { orgSlug, registerId } = await params;
   if (!isUuid(registerId)) notFound();
   const ctx = await requireTenant(orgSlug);
-  const [t, format, money, r] = await Promise.all([
+  const [t, format, r] = await Promise.all([
     getTranslations(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
     notFoundOnAppError(getRegister(ctx, registerId)),
   ]);
+  // The register sells in its branch's company's currency (ADR-086).
+  const currency = await currencyOf(ctx, { branchId: r.branchId });
+  const money = await moneyFormatter(currency);
   const shift = r.openShift;
   const when = (d: Date) =>
     format.dateTime(d, {
@@ -65,7 +68,7 @@ export default async function RegisterPage({
             <Card title={t("pos.openShift")}>
               <OpenShiftForm
                 action={openShiftAction.bind(null, orgSlug, r.id)}
-                currency={ctx.baseCurrency}
+                currency={currency}
               />
             </Card>
           ) : (
@@ -77,7 +80,7 @@ export default async function RegisterPage({
               <ShiftTotals
                 totals={shift.totals}
                 openingFloat={shift.openingFloat}
-                currency={ctx.baseCurrency}
+                currency={currency}
               />
             </Card>
             {r.can.sell ? (
@@ -85,14 +88,14 @@ export default async function RegisterPage({
                 <Card title={t("pos.cashMovement")}>
                   <CashMovementForm
                     action={cashMovementAction.bind(null, orgSlug, shift.id)}
-                    currency={ctx.baseCurrency}
+                    currency={currency}
                   />
                 </Card>
                 <Card title={t("pos.closeShift")}>
                   <PendingSyncNotice registerId={r.id} />
                   <CloseShiftForm
                     action={closeShiftAction.bind(null, orgSlug, shift.id)}
-                    currency={ctx.baseCurrency}
+                    currency={currency}
                   />
                 </Card>
               </>

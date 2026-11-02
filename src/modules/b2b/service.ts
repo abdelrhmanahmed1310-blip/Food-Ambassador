@@ -1,11 +1,5 @@
 import "server-only";
-import {
-  assertDocumentCurrency,
-  baseAmount,
-  rateFor,
-  assertFlowInGroupCurrency,
-  companyContext,
-} from "@/modules/fx/service";
+import { assertDocumentCurrency, baseAmount, rateFor, companyContext } from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
 import { optionalCurrency } from "@/modules/procurement/schemas";
 import { z } from "zod";
@@ -249,11 +243,12 @@ export async function createSalesOrder(ctx: TenantContext, rawInput: unknown) {
         select: { id: true, currency: true },
       });
       if (!customer) throw notFound("Customer");
-      const currency = input.currency ?? customer.currency ?? ctx.baseCurrency;
-      assertDocumentCurrency(ctx, currency);
       const wh = await loadWarehouse(tx, ctx, input.warehouseId);
       assertActive(wh);
-      await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
+      // Default currency: the customer's, else the warehouse's company's (ADR-086).
+      const company = await companyContext(tx, ctx, { warehouseId: wh.id });
+      const currency = input.currency ?? customer.currency ?? company.currency;
+      assertDocumentCurrency(company.ctx, currency);
       const number = await nextDocumentNumber(
         tx,
         ctx.organizationId,
@@ -707,9 +702,11 @@ export async function invoiceDelivery(ctx: TenantContext, deliveryId: string, ra
         Number(invoiceDate.slice(0, 4)),
       );
       const due = dueDateFor(invoiceDate, d.order.customer.paymentTermsDays);
-      const fx = await rateFor(tx, ctx, d.order.currency, invoiceDate);
-      const netBase = baseAmount(ctx, sum("netAmount"), fx.rate);
-      const taxBase = baseAmount(ctx, sum("taxAmount"), fx.rate);
+      // Base amounts in the order's company's currency (ADR-086).
+      const company = await companyContext(tx, ctx, { companyId: d.order.companyId });
+      const fx = await rateFor(tx, company.ctx, d.order.currency, invoiceDate);
+      const netBase = baseAmount(company.ctx, sum("netAmount"), fx.rate);
+      const taxBase = baseAmount(company.ctx, sum("taxAmount"), fx.rate);
       const inv = await tx.salesInvoice.create({
         data: {
           organizationId: ctx.organizationId,

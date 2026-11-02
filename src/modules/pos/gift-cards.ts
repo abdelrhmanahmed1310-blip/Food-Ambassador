@@ -1,4 +1,5 @@
 import "server-only";
+import { companyContext } from "@/modules/fx/service";
 import { createHmac, randomInt } from "node:crypto";
 import { z } from "zod";
 import { Decimal, decimalString } from "@/lib/decimal";
@@ -79,7 +80,8 @@ export async function sellGiftCard(ctx: TenantContext, rawInput: unknown) {
           last4: code.slice(-4),
           initialValue: v.amount,
           balance: v.amount,
-          currency: ctx.baseCurrency,
+          // In the register's company's currency; spent only where that currency is (ADR-086).
+          currency: (await companyContext(tx, ctx, { branchId: register.branchId })).currency,
           shiftId: shift.id,
           soldMethod: v.method,
           soldByUserId: ctx.userId,
@@ -148,6 +150,12 @@ export async function redeemGiftCardInTx(
   await tx.$queryRaw`SELECT 1 FROM "gift_cards" WHERE "organization_id" = ${org}::uuid AND "code_hash" = ${hash} FOR UPDATE`;
   const card = await tx.giftCard.findFirst({ where: { organizationId: org, codeHash: hash } });
   if (!card || card.blockedAt) throw unknown();
+  if (card.currency !== ctx.baseCurrency)
+    throw businessRuleViolation(
+      "GIFT_CARD_OTHER_CURRENCY",
+      "This gift card is in another currency",
+      { field, currency: card.currency },
+    );
   if (dec(card.balance).lt(amount))
     throw businessRuleViolation("GIFT_CARD_BALANCE_LOW", "The gift card does not have this much", {
       field,
@@ -233,10 +241,20 @@ export async function listGiftCards(ctx: TenantContext) {
           soldMethod: true,
           createdAt: true,
           blockedAt: true,
+          currency: true,
         },
       }),
-      tx.giftCard.aggregate({ where: { organizationId: org }, _sum: { balance: true } }),
+      // Owed per currency: cards are in their selling company's currency (ADR-086).
+      tx.giftCard.groupBy({
+        by: ["currency"],
+        where: { organizationId: org },
+        _sum: { balance: true },
+        orderBy: { currency: "asc" },
+      }),
     ]);
-    return { cards, owed: dec(owed._sum.balance ?? 0) };
+    return {
+      cards,
+      owed: owed.map((o) => ({ currency: o.currency, amount: dec(o._sum.balance ?? 0) })),
+    };
   });
 }

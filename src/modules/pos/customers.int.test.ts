@@ -314,7 +314,10 @@ describe("gift cards", () => {
       "BUSINESS_RULE_VIOLATION",
     );
     const { cards, owed } = await listGiftCards(ctx);
-    expect(owed.toFixed(2)).toBe("27.00");
+    // Owed per currency (ADR-086): one currency here.
+    expect(owed.map((o) => [o.currency, o.amount.toFixed(2)])).toEqual([
+      [ctx.baseCurrency, "27.00"],
+    ]);
     await expectAppError(blockGiftCard(cashier, cards[0].id), "FORBIDDEN");
     await blockGiftCard(ctx, cards[0].id);
     await expectAppError(pay(code), "BUSINESS_RULE_VIOLATION");

@@ -19,6 +19,7 @@ import { customerAccount } from "@/modules/b2b/receivables";
 import { businessDate } from "@/modules/inventory/rules";
 import { PAYMENT_METHODS } from "@/modules/invoices/payables";
 import { currencyChoices } from "@/modules/fx/rules";
+import { listCompanies } from "@/modules/organizations/companies";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import { moneyIn } from "@/server/fx-view";
@@ -174,6 +175,10 @@ export default async function CustomerPage({
               }))}
               currency={c.currency ?? ctx.baseCurrency}
               currencies={currencyChoices(ctx.baseCurrency)}
+              companies={(await listCompanies(ctx)).map((x) => ({
+                value: x.id,
+                label: `${x.code} — ${x.name}`,
+              }))}
               today={businessDate(ctx.timeZone)}
             />
           </Card>

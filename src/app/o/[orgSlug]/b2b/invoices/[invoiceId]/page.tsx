@@ -1,6 +1,7 @@
 import Link from "next/link";
 import QRCode from "qrcode";
 import { notFound } from "next/navigation";
+import { currencyOf } from "@/modules/fx/service";
 import { getLocale, getTranslations } from "next-intl/server";
 import { TextReasonForm } from "@/components/invoices/forms";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
@@ -58,8 +59,9 @@ export default async function SalesInvoicePage({
   const amount = (v: { toString(): string }) => (
     <span className="ltr-value whitespace-nowrap">{money.money(v)}</span>
   );
-  // Cost and margin are in base currency (ADR-054).
-  const base = await moneyFormatter(ctx.baseCurrency);
+  // Cost and margin are in the invoice's company's currency (ADR-054/086).
+  const bookCurrency = await currencyOf(ctx, { companyId: inv.companyId });
+  const base = await moneyFormatter(bookCurrency);
   const pct = (r: { toString(): string } | null) =>
     r === null
       ? "—"
@@ -138,12 +140,12 @@ export default async function SalesInvoicePage({
         <p className="ltr-value font-mono text-sm">
           {inv.number} · {inv.invoiceDate.toISOString().slice(0, 10)}
         </p>
-        {inv.currency !== ctx.baseCurrency ? (
+        {inv.currency !== bookCurrency ? (
           <p className="ltr-value text-muted text-sm" data-testid="fx-rate">
             {inv.currency} · 1 {inv.currency} = {inv.exchangeRate.toFixed().replace(/\.?0+$/, "")}{" "}
-            {ctx.baseCurrency}
+            {bookCurrency}
             {inv.rateDate ? ` (${inv.rateDate.toISOString().slice(0, 10)})` : ""} ·{" "}
-            {t("fx.totalInBase", { currency: ctx.baseCurrency })}: {base.money(inv.grossAmountBase)}
+            {t("fx.totalInBase", { currency: bookCurrency })}: {base.money(inv.grossAmountBase)}
           </p>
         ) : null}
         <p className="mt-2 text-sm">

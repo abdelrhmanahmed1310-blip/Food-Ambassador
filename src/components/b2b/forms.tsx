@@ -229,6 +229,7 @@ export function CustomerReceiptForm({
   methods,
   currency,
   currencies,
+  companies = [],
   today,
 }: {
   action: Action;
@@ -236,6 +237,8 @@ export function CustomerReceiptForm({
   /** The customer's currency (default). */
   currency: string;
   currencies: string[];
+  /** The receiving company (ADR-086), shown when the group has several; the default first. */
+  companies?: Option[];
   today: string;
 }) {
   const t = useTranslations();
@@ -247,6 +250,14 @@ export function CustomerReceiptForm({
       idempotent
     >
       <div className="grid gap-4 sm:grid-cols-2">
+        {companies.length > 1 ? (
+          <SelectField
+            name="companyId"
+            label={t("companies.company")}
+            options={companies}
+            defaultValue={companies[0].value}
+          />
+        ) : null}
         <TextField
           name="date"
           type="date"

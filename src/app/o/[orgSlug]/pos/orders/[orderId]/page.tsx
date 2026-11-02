@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { currencyOf } from "@/modules/fx/service";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { TextReasonForm } from "@/components/invoices/forms";
 import { RefundForm } from "@/components/pos/forms";
@@ -28,12 +29,13 @@ export default async function OrderPage({
   const { orgSlug, orderId } = await params;
   if (!isUuid(orderId)) notFound();
   const ctx = await requireTenant(orgSlug);
-  const [t, format, money, o] = await Promise.all([
+  const [t, format, o] = await Promise.all([
     getTranslations(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
     notFoundOnAppError(getOrder(ctx, orderId)),
   ]);
+  // In the order's company's currency (ADR-086).
+  const money = await moneyFormatter(await currencyOf(ctx, { companyId: o.companyId }));
   const registers = o.can.refund ? await refundRegisters(ctx, o.branchId) : [];
   const tz = o.branch.timeZone ?? ctx.timeZone;
   const when = (d: Date) =>

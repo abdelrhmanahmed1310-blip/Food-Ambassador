@@ -7,7 +7,7 @@ import { holdsAnyGrant } from "@/modules/access/authorize";
 import { purchasingWarehouseOptions } from "@/modules/procurement/orders";
 import { listSalesImports } from "@/modules/sales/imports";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter } from "@/server/inventory-view";
+import { moneyFormatters } from "@/server/inventory-view";
 import { importSalesAction } from "./actions";
 
 export default async function SalesPage({ params }: PageProps<"/o/[orgSlug]/sales">) {
@@ -18,7 +18,7 @@ export default async function SalesPage({ params }: PageProps<"/o/[orgSlug]/sale
   const [t, format, money, imports, warehouses] = await Promise.all([
     getTranslations(),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatters(),
     listSalesImports(ctx),
     canImport ? purchasingWarehouseOptions(ctx, "sales.import") : Promise.resolve([]),
   ]);
@@ -84,7 +84,9 @@ export default async function SalesPage({ params }: PageProps<"/o/[orgSlug]/sale
                   </Td>
                   <Td className="tabular-nums">
                     <span className="ltr-value whitespace-nowrap">
-                      {i.netAmount ? money.money(i.netAmount) : "—"}
+                      {i.netAmount
+                        ? money(i.warehouse.branch.company.currency).money(i.netAmount)
+                        : "—"}
                     </span>
                   </Td>
                   <Td>

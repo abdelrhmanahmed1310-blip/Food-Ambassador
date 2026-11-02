@@ -1,4 +1,5 @@
 import "server-only";
+import { companyContext } from "@/modules/fx/service";
 import { z } from "zod";
 import { isCalendarDate } from "@/lib/dates";
 import { Decimal, decimalString } from "@/lib/decimal";
@@ -627,7 +628,11 @@ export async function getMenuItem(ctx: TenantContext, itemId: string) {
         },
         taxCode: { select: { id: true, code: true } },
         prices: {
-          include: { branch: { select: { id: true, code: true, name: true } } },
+          include: {
+            branch: {
+              select: { id: true, code: true, name: true, company: { select: { currency: true } } },
+            },
+          },
           orderBy: [{ channel: "asc" }, { effectiveFrom: "desc" }],
         },
         modifierGroups: {
@@ -682,6 +687,10 @@ export async function menuForBranch(
   const date = at.date ?? businessDate(ctx.timeZone);
   return withTenantTx(ctx.organizationId, async (tx) => {
     const org = ctx.organizationId;
+    // A branch of a company in another currency than the group's sells at its own
+    // branch prices, without options that change the price (those are in the group's, ADR-086).
+    const company = await companyContext(tx, ctx, { branchId: at.branchId });
+    const ownPricesOnly = company.currency !== ctx.groupCurrency;
     const items = await tx.menuItem.findMany({
       where: {
         organizationId: org,
@@ -692,14 +701,24 @@ export async function menuForBranch(
       include: {
         category: { select: { id: true, name: true, nameAr: true, sortOrder: true } },
         prices: {
-          where: { channel: at.channel, OR: [{ branchId: null }, { branchId: at.branchId }] },
+          where: {
+            channel: at.channel,
+            ...(ownPricesOnly
+              ? { branchId: at.branchId }
+              : { OR: [{ branchId: null }, { branchId: at.branchId }] }),
+          },
         },
         modifierGroups: {
           where: { group: { archivedAt: null } },
           orderBy: { sortOrder: "asc" },
           include: {
             group: {
-              include: { options: { where: { archivedAt: null }, orderBy: { sortOrder: "asc" } } },
+              include: {
+                options: {
+                  where: { archivedAt: null, ...(ownPricesOnly ? { priceDelta: 0 } : {}) },
+                  orderBy: { sortOrder: "asc" },
+                },
+              },
             },
           },
         },
@@ -756,7 +775,8 @@ export async function menuFormOptions(ctx: TenantContext) {
       }),
       branches: await tx.branch.findMany({
         where: { organizationId: org, archivedAt: null },
-        select: { id: true, code: true, name: true },
+        // A branch price is in the branch's company's currency (ADR-086).
+        select: { id: true, code: true, name: true, company: { select: { currency: true } } },
         orderBy: { code: "asc" },
       }),
       groups: await tx.modifierGroup.findMany({

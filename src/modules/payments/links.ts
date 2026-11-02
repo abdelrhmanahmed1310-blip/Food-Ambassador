@@ -1,4 +1,5 @@
 import "server-only";
+import { contextForBranch } from "@/modules/fx/service";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { Decimal, decimalString } from "@/lib/decimal";
@@ -126,6 +127,8 @@ export async function createPaymentLink(
     );
   const tab = await getTab(ctx, tabId);
   if (tab.status !== "OPEN") throw businessRuleViolation("CHECK_CLOSED", "This check is closed");
+  // Charged in the branch's company's currency (ADR-086).
+  ctx = await contextForBranch(ctx, tab.branchId);
   const register = tab.registers.find((r) => r.id === input.registerId);
   if (
     !register ||

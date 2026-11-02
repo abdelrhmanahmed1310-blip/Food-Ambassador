@@ -26,8 +26,12 @@ export default async function CustomerBalancesPage({
     customerBalances(ctx, typeof sp.asOf === "string" ? sp.asOf : undefined),
   ]);
   // Rows in their own currency, the equivalent and the total in base (ADR-054).
-  const moneyOf = await moneyIn([ctx.baseCurrency, ...b.rows.map((r) => r.currency)]);
-  const amount = (v: Decimal, currency = ctx.baseCurrency) => (
+  // Each row's base amount is in its company's currency; the total in the group's (ADR-086).
+  const moneyOf = await moneyIn([
+    b.currency,
+    ...b.rows.flatMap((r) => [r.currency, r.baseCurrency]),
+  ]);
+  const amount = (v: Decimal, currency = b.currency) => (
     <span className="ltr-value whitespace-nowrap">
       {v.isZero() ? "—" : moneyOf(currency).money(v)}
     </span>
@@ -70,14 +74,14 @@ export default async function CustomerBalancesPage({
                 <Th key={x}>{t(`payables.aging.${x}`)}</Th>
               ))}
               <Th>{t("payables.unapplied")}</Th>
-              <Th>{t("fx.inBase", { currency: ctx.baseCurrency })}</Th>
+              <Th>{t("fx.inCompanyCurrency")}</Th>
             </tr>
           </thead>
           <tbody>
             {b.rows.map((r) => (
               <tr
-                key={`${r.customer.id}-${r.currency}`}
-                data-testid={`customer-balance-${r.customer.code}${r.currency === ctx.baseCurrency ? "" : `-${r.currency}`}`}
+                key={`${r.customer.id}-${r.company.id}-${r.currency}`}
+                data-testid={`customer-balance-${r.customer.code}${r.currency === r.baseCurrency ? "" : `-${r.currency}`}`}
               >
                 <Td>
                   <Link
@@ -98,13 +102,13 @@ export default async function CustomerBalancesPage({
                   </Td>
                 ))}
                 <Td className="tabular-nums">{amount(r.unapplied, r.currency)}</Td>
-                <Td className="tabular-nums">{amount(r.balanceBase)}</Td>
+                <Td className="tabular-nums">{amount(r.balanceBase, r.baseCurrency)}</Td>
               </tr>
             ))}
             <tr className="font-medium" data-testid="customer-balance-total">
               <Td>{t("payables.total")}</Td>
               <Td>
-                <span className="ltr-value font-mono text-xs">{ctx.baseCurrency}</span>
+                <span className="ltr-value font-mono text-xs">{b.currency}</span>
               </Td>
               <Td />
               {AGING_BUCKETS.map((x) => (

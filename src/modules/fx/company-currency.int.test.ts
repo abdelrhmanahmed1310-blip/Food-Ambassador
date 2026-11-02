@@ -173,11 +173,13 @@ describe("currency per company (ADR-086)", () => {
     ).rejects.toThrow(/different currencies/);
   });
 
-  it("sales flows not yet kept in a company's own currency refuse it", async () => {
+  it("sales imports work for a company in another currency, in its currency", async () => {
     const r = await importSales(ctx, {
       warehouseId: cai,
-      text: "date,external_id,item_code,quantity\n2026-11-01,X1,WATER,1",
-    }).catch((e) => e);
-    expect(r).toMatchObject({ details: { rule: "COMPANY_CURRENCY_NOT_YET_SUPPORTED" } });
+      text: `date,external_id,item_code,quantity,net_amount\n${today()},X1,WATER,1,250`,
+    });
+    expect(r.ok).toBe(true);
+    const imp = await getDb().salesImport.findFirstOrThrow({ where: { id: r.importId! } });
+    expect(imp.costAmount.toFixed()).toBe("100"); // one water at 100 EGP
   });
 });

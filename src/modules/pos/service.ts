@@ -1,5 +1,5 @@
 import "server-only";
-import { assertFlowInGroupCurrency } from "@/modules/fx/service";
+import { companyContext } from "@/modules/fx/service";
 import { z } from "zod";
 import { Decimal, decimalString, toDecimal } from "@/lib/decimal";
 import { assertPermission, accessibleScope, hasPermission } from "@/modules/access/authorize";
@@ -571,6 +571,8 @@ async function loadMenuItems(
   ids: string[],
   branchId: string,
   asOf: Date,
+  /** Only the branch's own prices (a company in another currency than the group's, ADR-086). */
+  ownPricesOnly = false,
 ) {
   const live = { OR: [{ archivedAt: null }, { archivedAt: { gt: asOf } }] };
   return tx.menuItem.findMany({
@@ -578,7 +580,10 @@ async function loadMenuItems(
     include: {
       category: { select: { archivedAt: true } },
       prices: {
-        where: { OR: [{ branchId: null }, { branchId }], createdAt: { lte: asOf } },
+        where: {
+          ...(ownPricesOnly ? { branchId } : { OR: [{ branchId: null }, { branchId }] }),
+          createdAt: { lte: asOf },
+        },
       },
       recipe: {
         select: {
@@ -678,9 +683,22 @@ export async function priceLinesInTx(
     unitPrices?: Array<string | undefined>;
   },
 ) {
+  // Prices are in the branch's company's currency (ADR-086). Prices without a branch
+  // and option price changes are in the group's, so a branch of a company in another
+  // currency sells at its own branch prices, and options that change the price are refused.
+  const company = await companyContext(tx, ctx, { branchId: a.branchId });
+  ctx = company.ctx;
+  const ownPricesOnly = company.currency !== ctx.groupCurrency;
   const items = new Map(
     (
-      await loadMenuItems(tx, ctx, [...new Set(a.lines.map((l) => l.itemId))], a.branchId, a.asOf)
+      await loadMenuItems(
+        tx,
+        ctx,
+        [...new Set(a.lines.map((l) => l.itemId))],
+        a.branchId,
+        a.asOf,
+        ownPricesOnly,
+      )
     ).map((i) => [i.id, i]),
   );
   const taxes = await loadTaxContextInTx(tx, ctx, { branchId: a.branchId });
@@ -772,6 +790,12 @@ export async function priceLinesInTx(
     const options = [...new Set(l.optionIds)].map((id) =>
       groups.flatMap((m) => m.group.options).find((o) => o.id === id)!,
     );
+    if (ownPricesOnly && !charged && options.some((o) => !dec(o.priceDelta).isZero()))
+      throw businessRuleViolation(
+        "OPTION_PRICE_OTHER_CURRENCY",
+        "Options that change the price are in the group's currency and cannot be sold here",
+        { field: `lines.${index}.optionIds` },
+      );
     // A platform's price already includes the options.
     const unit = charged
       ? price.price
@@ -905,6 +929,11 @@ export async function recordOrderInTx(
     throw forbidden("This order was taken by someone else; they must be signed in to send it");
   const register = await loadRegister(tx, ctx, input.registerId);
   assertPermission(ctx.grants, "pos.sell", site(register));
+  // Amounts are in the branch's company's currency (ADR-086).
+  const company = await companyContext(tx, ctx, { branchId: register.branchId });
+  ctx = company.ctx;
+  // Loyalty points and fixed-amount coupons are valued in the group's currency.
+  const otherCurrency = company.currency !== ctx.groupCurrency;
   const shift = input.shiftId
     ? await tx.posShift.findFirst({
         where: { organizationId: org, id: input.shiftId, registerId: register.id },
@@ -970,6 +999,12 @@ export async function recordOrderInTx(
     ? await orderCustomerInTx(tx, ctx, input.customerId, Boolean(input.loyaltyPoints))
     : null;
   if (customer && input.loyaltyPoints) {
+    if (otherCurrency)
+      throw businessRuleViolation(
+        "LOYALTY_OTHER_CURRENCY",
+        "Points are valued in the group's currency and cannot be spent here",
+        { field: "loyaltyPoints" },
+      );
     const loyalty = await loyaltySettingsInTx(tx, ctx);
     if (!loyalty?.enabled)
       throw businessRuleViolation("LOYALTY_OFF", "Loyalty points are not in use", {
@@ -994,6 +1029,12 @@ export async function recordOrderInTx(
     orderDiscount = { kind: input.discount.kind, value: toDecimal(input.discount.value) };
   } else if (input.couponCode) {
     const c = await takeCouponInTx(tx, ctx, input.couponCode, date);
+    if (otherCurrency && c.kind === "AMOUNT")
+      throw businessRuleViolation(
+        "COUPON_OTHER_CURRENCY",
+        "This coupon is an amount in the group's currency and cannot be used here",
+        { field: "couponCode" },
+      );
     coupon = c;
     orderDiscount = { kind: c.kind, value: c.value };
   }
@@ -1070,7 +1111,6 @@ export async function recordOrderInTx(
   // Stock: recipes exploded into products, then FEFO; what is missing becomes a shortfall.
   await explodeUseInTx(tx, ctx, recipeUse, productUse);
   const wh = await loadWarehouse(tx, ctx, tab?.warehouseId ?? register.warehouseId, "pos.sell");
-  await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
   const plan = await planConsumptionInTx(tx, ctx, wh, productUse, { partial: true });
 
   const number = await nextDocumentNumber(tx, org, "POS", Number(date.slice(0, 4)));
@@ -1179,14 +1219,15 @@ export async function recordOrderInTx(
       where: { id: input.orderId },
       data: { costAmount: cost.toFixed(), consumptionDocId: documentId },
     });
-  const pointsEarned = customer
-    ? await postOrderPointsInTx(tx, ctx, {
-        customerId: customer.id,
-        orderId: input.orderId,
-        redeemed: input.loyaltyPoints ?? 0,
-        paid: gross,
-      })
-    : 0;
+  const pointsEarned =
+    customer && !otherCurrency
+      ? await postOrderPointsInTx(tx, ctx, {
+          customerId: customer.id,
+          orderId: input.orderId,
+          redeemed: input.loyaltyPoints ?? 0,
+          paid: gross,
+        })
+      : 0;
   // ZATCA: the signed simplified tax invoice, once the register's unit is onboarded (ADR-064).
   await issueOrderInvoiceInTx(tx, ctx, input.orderId);
   await audit(tx, ctx, "pos_order", input.orderId, "paid", {
@@ -1342,6 +1383,8 @@ export async function refundOrder(ctx: TenantContext, orderId: string, rawInput:
   return withTenantTx(ctx.organizationId, async (tx) => {
     const o = await loadOrder(tx, ctx, orderId, { lock: true });
     assertPermission(ctx.grants, "pos.refund", site(o));
+    // In the order's company's currency (ADR-086).
+    ctx = (await companyContext(tx, ctx, { companyId: o.companyId })).ctx;
     if (o.status !== "PAID") throw businessRuleViolation("ORDER_VOIDED", "The order is voided");
     const register = await loadRegister(tx, ctx, input.registerId);
     if (register.branchId !== o.branchId)
@@ -1657,7 +1700,9 @@ export async function tillData(ctx: TenantContext, registerId: string) {
     });
     const promotions = await loadPromotionsInTx(tx, ctx, new Date());
     const loyalty = await loyaltySettingsInTx(tx, ctx);
-    return { ...r, shift, promotions, loyalty };
+    // The till sells in its branch's company's currency (ADR-086).
+    const company = await companyContext(tx, ctx, { branchId: r.branchId });
+    return { ...r, shift, promotions, loyalty, currency: company.currency };
   });
   const timeZone = reg.branch.timeZone ?? ctx.timeZone;
   const date = businessDate(timeZone);
@@ -1671,7 +1716,7 @@ export async function tillData(ctx: TenantContext, registerId: string) {
       archived: reg.archivedAt !== null,
     },
     shift: reg.shift,
-    currency: ctx.baseCurrency,
+    currency: reg.currency,
     date,
     /** When this menu was read; queued orders are priced as of this time (ADR-060). */
     menuAsOf: new Date().toISOString(),

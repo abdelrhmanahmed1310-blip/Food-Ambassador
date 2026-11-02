@@ -1,4 +1,5 @@
 import "server-only";
+import { companyContext } from "@/modules/fx/service";
 import { z } from "zod";
 import { Decimal, decimalString, toDecimal } from "@/lib/decimal";
 import { accessibleScope, assertPermission, hasPermission } from "@/modules/access/authorize";
@@ -906,6 +907,8 @@ export async function payTab(ctx: TenantContext, tabId: string, rawInput: unknow
 export async function getTab(ctx: TenantContext, tabId: string) {
   return withTenantTx(ctx.organizationId, async (tx) => {
     const tab = await loadTab(tx, ctx, tabId);
+    // The check is in its branch's company's currency (ADR-086).
+    ctx = (await companyContext(tx, ctx, { branchId: tab.branchId })).ctx;
     const date = businessDate(tab.branch.timeZone ?? ctx.timeZone);
     const now = new Date();
     const kitchen = await lineStatusesInTx(tx, ctx, tab.id);

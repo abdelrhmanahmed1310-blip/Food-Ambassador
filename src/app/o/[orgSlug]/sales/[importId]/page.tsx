@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { currencyOf } from "@/modules/fx/service";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ReasonForm } from "@/components/procurement/forms";
 import {
@@ -30,7 +31,7 @@ export default async function SalesImportPage({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(await currencyOf(ctx, { warehouseId: imp.warehouseId })),
   ]);
   const doc = (d: { id: string; number: string } | null) =>
     d ? (

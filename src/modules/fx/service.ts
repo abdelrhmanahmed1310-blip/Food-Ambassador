@@ -172,35 +172,6 @@ export async function assertSameCurrency(tx: Tx, ctx: TenantContext, fromId: str
 }
 
 /**
- * Money flows not yet kept in a company's own currency (ADR-086 steps 3b/3c)
- * refuse a company whose currency is not the group's (the database refuses
- * too). Each step removes its calls as its flow is converted.
- */
-export async function assertFlowInGroupCurrency(
-  tx: Tx,
-  ctx: TenantContext,
-  at: { warehouseId?: string; companyId?: string | null },
-) {
-  const currency = at.warehouseId
-    ? (await warehouseCurrencies(tx, ctx, [at.warehouseId])).get(at.warehouseId)
-    : (
-        await tx.company.findFirst({
-          where: {
-            organizationId: ctx.organizationId,
-            ...(at.companyId ? { id: at.companyId } : { isDefault: true }),
-          },
-          select: { currency: true },
-        })
-      )?.currency;
-  if (currency && currency !== ctx.groupCurrency)
-    throw businessRuleViolation(
-      "COMPANY_CURRENCY_NOT_YET_SUPPORTED",
-      "This is not yet available for a company keeping its books in another currency",
-      { currency },
-    );
-}
-
-/**
  * The context for one company's documents (ADR-086): its id, currency and the
  * same user working in that currency. The company comes from `at` (company,
  * or a warehouse's branch's); without either, the default company.
@@ -228,6 +199,25 @@ export async function companyContext(
       field: "companyId",
     });
   return { companyId: c.id, currency: c.currency, ctx: inCurrency(ctx, c.currency) };
+}
+
+/** The same user working in a branch's company's currency (outside a transaction). */
+export async function contextForBranch(ctx: TenantContext, branchId: string) {
+  return withTenantTx(
+    ctx.organizationId,
+    async (tx) => (await companyContext(tx, ctx, { branchId })).ctx,
+  );
+}
+
+/** A company's currency, found from the company, a branch or a warehouse (for pages, ADR-086). */
+export async function currencyOf(
+  ctx: TenantContext,
+  at: { companyId?: string | null; branchId?: string | null; warehouseId?: string | null },
+) {
+  return withTenantTx(
+    ctx.organizationId,
+    async (tx) => (await companyContext(tx, ctx, at)).currency,
+  );
 }
 
 /** The currency of each warehouse: its branch's company's (ADR-086). */

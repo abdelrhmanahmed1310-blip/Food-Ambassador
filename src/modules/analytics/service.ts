@@ -209,6 +209,8 @@ async function importsInTx(
   warehouseIds: string[],
   from: string,
   to: string,
+  /** Converts into the report's currency (ADR-086); without it, amounts stay in the warehouse's. */
+  conv?: Converter,
 ) {
   if (warehouseIds.length === 0) return [];
   const rows = await tx.$queryRaw<
@@ -235,16 +237,26 @@ async function importsInTx(
     GROUP BY i.id
     HAVING MAX(l.sold_on) >= ${from}::date AND MIN(l.sold_on) <= ${to}::date
     ORDER BY MIN(l.sold_on), i.number`;
-  return rows.map((r) => ({
-    id: r.id,
-    number: r.number,
-    warehouseId: r.warehouse_id,
-    firstSale: r.first_sale.toISOString().slice(0, 10),
-    lastSale: r.last_sale.toISOString().slice(0, 10),
+  const currencies = await warehouseCurrencies(tx, ctx, warehouseIds);
+  const out = [];
+  for (const r of rows) {
+    const currency = currencies.get(r.warehouse_id)!;
     // Net sales are known only when every line has them.
-    net: r.lines_without_net > BigInt(0) || r.net === null ? null : dec(r.net),
-    cost: dec(r.cost),
-  }));
+    const net = r.lines_without_net > BigInt(0) || r.net === null ? null : dec(r.net);
+    const cost = conv ? await conv.convert(dec(r.cost), currency) : dec(r.cost);
+    if (cost === null) continue; // no usable rate: named in conv.missing()
+    out.push({
+      id: r.id,
+      number: r.number,
+      warehouseId: r.warehouse_id,
+      currency,
+      firstSale: r.first_sale.toISOString().slice(0, 10),
+      lastSale: r.last_sale.toISOString().slice(0, 10),
+      net: net === null ? null : conv ? await conv.convert(net, currency) : net,
+      cost,
+    });
+  }
+  return out;
 }
 
 /**
@@ -259,6 +271,7 @@ async function posSalesInTx(
   warehouseIds: string[],
   from: string,
   to: string,
+  conv: Converter,
 ) {
   if (warehouseIds.length === 0) return [];
   const rows = await tx.$queryRaw<
@@ -284,13 +297,20 @@ async function posSalesInTx(
       AND o.warehouse_id = ANY(${warehouseIds}::uuid[])
       AND o.business_date BETWEEN ${from}::date AND ${to}::date
     GROUP BY o.warehouse_id`;
-  return rows.map((r) => ({
-    warehouseId: r.warehouse_id,
-    orders: Number(r.orders),
-    net: dec(r.net),
-    cost: dec(r.cost),
-    discounts: dec(r.discounts),
-  }));
+  // Converted from each warehouse's company's currency into the report's (ADR-086).
+  const currencies = await warehouseCurrencies(tx, ctx, warehouseIds);
+  const out = [];
+  for (const r of rows) {
+    const currency = currencies.get(r.warehouse_id)!;
+    const [net, cost, discounts] = [
+      await conv.convert(dec(r.net), currency),
+      await conv.convert(dec(r.cost), currency),
+      await conv.convert(dec(r.discounts), currency),
+    ];
+    if (net === null || cost === null || discounts === null) continue;
+    out.push({ warehouseId: r.warehouse_id, orders: Number(r.orders), net, cost, discounts });
+  }
+  return out;
 }
 
 /** Warehouses the user may see for both sales and stock value. */
@@ -323,8 +343,6 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown, com
   return withTenantTx(ctx.organizationId, async (tx) => {
     const warehouses = await foodCostWarehouses(tx, ctx, companyId);
     const ids = warehouses.map((w) => w.id);
-    const all = await importsInTx(tx, ctx, ids, period.from, period.to);
-    const { inside, straddling } = splitByPeriod(all, period.from, period.to);
     // One company's report is in its own currency; the group's in the group currency (ADR-086).
     const reportCurrency = companyId
       ? (
@@ -339,8 +357,10 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown, com
       date: period.to,
       from: period.from,
     });
+    const all = await importsInTx(tx, ctx, ids, period.from, period.to, conv);
+    const { inside, straddling } = splitByPeriod(all, period.from, period.to);
     const losses = await lossesInTx(tx, ctx, ids, period, conv);
-    const pos = await posSalesInTx(tx, ctx, ids, period.from, period.to);
+    const pos = await posSalesInTx(tx, ctx, ids, period.from, period.to, conv);
     const branches = new Map<string, BranchFigures>();
     const of = (warehouseId: string) => {
       const w = warehouses.find((x) => x.id === warehouseId)!;
@@ -457,8 +477,12 @@ export async function foodCostTrend(ctx: TenantContext, months = 12) {
       .sort((a, b) => a.code.localeCompare(b.code));
     return {
       months: list,
+      // Each branch's amounts are in its company's currency (a ratio needs no conversion).
       rows: branches.map((b) => ({
         branch: b,
+        currency: imports.find(
+          (i) => warehouses.find((w) => w.id === i.warehouseId)!.branch.id === b.id,
+        )!.currency,
         cells: list.map((m) => {
           const c = cells.get(`${b.id}:${m}`);
           return c
@@ -472,14 +496,14 @@ export async function foodCostTrend(ctx: TenantContext, months = 12) {
 
 // ─── CSV ───
 
-const money = (ctx: TenantContext) => (v: Decimal | null) =>
-  v === null ? null : v.toFixed(currencyDecimals(ctx.baseCurrency));
+const money = (currency: string) => (v: Decimal | null) =>
+  v === null ? null : v.toFixed(currencyDecimals(currency));
 const quantity = (v: Decimal) => v.toDecimalPlaces(6).toFixed();
 const percent = (v: Decimal | null) => (v === null ? null : v.times(100).toFixed(2));
 
 export async function exportWasteCsv(ctx: TenantContext, rawPeriod: unknown) {
   const r = await wasteReport(ctx, rawPeriod);
-  const fixed = money(ctx);
+  const fixed = money(r.currency);
   return toCsv(
     ["kind", "warehouse", "sku", "product", "reason", "quantity", "unit", "value", "cost_missing"],
     r.rows.map((row) => [
@@ -498,7 +522,7 @@ export async function exportWasteCsv(ctx: TenantContext, rawPeriod: unknown) {
 
 export async function exportBranchComparisonCsv(ctx: TenantContext, rawPeriod: unknown) {
   const r = await foodCostReport(ctx, rawPeriod);
-  const fixed = money(ctx);
+  const fixed = money(r.currency);
   return toCsv(
     [
       "branch",
@@ -560,9 +584,15 @@ export async function salesDashboard(ctx: TenantContext, rawCompanyId?: unknown)
             })
           )?.currency
         : undefined) ?? ctx.groupCurrency;
-    if (ids.length === 0) return { days: [], top: [], currency };
-    const days = await tx.$queryRaw<Array<{ day: Date; orders: bigint; net: Prisma.Decimal }>>`
-      SELECT o.business_date AS day, COUNT(*) AS orders,
+    if (ids.length === 0) return { days: [], top: [], currency, missingRates: [] as string[] };
+    // Sales are in each warehouse's company's currency: converted into the
+    // dashboard's at the period's average rate (ADR-086).
+    const conv = await currencyConverter(tx, ctx, { to: currency, date: today, from });
+    const currencies = await warehouseCurrencies(tx, ctx, ids);
+    const rawDays = await tx.$queryRaw<
+      Array<{ day: Date; warehouse_id: string; orders: bigint; net: Prisma.Decimal }>
+    >`
+      SELECT o.business_date AS day, o.warehouse_id, COUNT(*) AS orders,
              SUM(o.net_amount) - COALESCE(SUM(r.net), 0) AS net
       FROM pos_orders o
       LEFT JOIN (
@@ -573,21 +603,44 @@ export async function salesDashboard(ctx: TenantContext, rawCompanyId?: unknown)
         AND o.status = 'PAID'
         AND o.warehouse_id = ANY(${ids}::uuid[])
         AND o.business_date BETWEEN ${from}::date AND ${today}::date
-      GROUP BY o.business_date`;
-    const top = await tx.$queryRaw<
-      Array<{ name: string; quantity: Prisma.Decimal; net: Prisma.Decimal }>
+      GROUP BY o.business_date, o.warehouse_id`;
+    const byDay = new Map<string, { day: Date; orders: bigint; net: Decimal }>();
+    for (const d of rawDays) {
+      const net = await conv.convert(dec(d.net), currencies.get(d.warehouse_id)!);
+      if (net === null) continue;
+      const key = d.day.toISOString();
+      const e = byDay.get(key) ?? { day: d.day, orders: BigInt(0), net: new Decimal(0) };
+      e.orders += d.orders;
+      e.net = e.net.plus(net);
+      byDay.set(key, e);
+    }
+    const days = [...byDay.values()];
+    const rawTop = await tx.$queryRaw<
+      Array<{ name: string; warehouse_id: string; quantity: Prisma.Decimal; net: Prisma.Decimal }>
     >`
-      SELECT l.name, SUM(l.quantity - l.refunded_quantity) AS quantity, SUM(l.net_amount) AS net
+      SELECT l.name, o.warehouse_id, SUM(l.quantity - l.refunded_quantity) AS quantity, SUM(l.net_amount) AS net
       FROM pos_order_lines l
       JOIN pos_orders o ON o.id = l.order_id
       WHERE o.organization_id = ${ctx.organizationId}::uuid
         AND o.status = 'PAID'
         AND o.warehouse_id = ANY(${ids}::uuid[])
         AND o.business_date BETWEEN ${from}::date AND ${today}::date
-      GROUP BY l.name
-      ORDER BY SUM(l.net_amount) DESC
-      LIMIT 5`;
-    return { days, top, currency };
+      GROUP BY l.name, o.warehouse_id`;
+    const byName = new Map<string, { name: string; quantity: Decimal; net: Decimal }>();
+    for (const t of rawTop) {
+      const net = await conv.convert(dec(t.net), currencies.get(t.warehouse_id)!);
+      if (net === null) continue;
+      const e = byName.get(t.name) ?? {
+        name: t.name,
+        quantity: new Decimal(0),
+        net: new Decimal(0),
+      };
+      e.quantity = e.quantity.plus(dec(t.quantity));
+      e.net = e.net.plus(net);
+      byName.set(t.name, e);
+    }
+    const top = [...byName.values()].sort((a, b) => b.net.comparedTo(a.net)).slice(0, 5);
+    return { days, top, currency, missingRates: conv.missing() };
   });
   const byDay = new Map(
     sales.days.map((d) => [
@@ -609,7 +662,7 @@ export async function salesDashboard(ctx: TenantContext, rawCompanyId?: unknown)
   return {
     /** Figures are in the group's currency, or the chosen company's (ADR-086). */
     currency: sales.currency,
-    missingRates: costs?.missingRates ?? [],
+    missingRates: [...new Set([...sales.missingRates, ...(costs?.missingRates ?? [])])].sort(),
     from,
     to: today,
     series,
