@@ -44,5 +44,8 @@ the automated test suites; no external penetration test yet.
 - Exported module functions taking a tenant context were listed and each
   checked for a permission check or a guarded inner call (finding 1).
 
-Before go-live: an external penetration test, CSP script-source nonces,
-password reset and 2FA, and a hosting/data-residency decision (Q-03).
+Since the review: optional two-step sign-in with an authenticator app
+(ADR-073) and a strict nonce-based Content Security Policy (ADR-074).
+
+Before go-live: an external penetration test, password reset (needs an
+email provider, Q-10), and a hosting/data-residency decision (Q-03).

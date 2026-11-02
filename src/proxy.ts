@@ -1,23 +1,28 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { CLIENT_IP_HEADER, clientIpFrom, trustedHopsFromEnv } from "@/lib/client-ip";
+import { contentSecurityPolicy, newNonce } from "@/lib/csp";
 
 const REQUEST_ID_HEADER = "x-request-id";
 
 /**
- * Runs before routing. Two jobs only:
+ * Runs before routing. Three jobs only:
  * 1. Attach a request ID (kept from the load balancer if present) for log correlation,
  *    and the client IP derived from trusted proxy hops (overwriting any value
  *    the client sent), used for rate limiting.
  * 2. Send visitors without a session cookie away from tenant pages early.
  *    This is a UX shortcut, NOT the security boundary: every page and action
  *    validates the session and membership on the server (requireTenant).
+ * 3. Set the Content Security Policy with a fresh script nonce (ADR-074). Next.js
+ *    reads the nonce from the request header and puts it on its own scripts.
  */
 export function proxy(request: NextRequest) {
   const incoming = request.headers.get(REQUEST_ID_HEADER);
   const requestId = incoming && /^[\w-]{8,128}$/.test(incoming) ? incoming : crypto.randomUUID();
   const headers = new Headers(request.headers);
   headers.set(REQUEST_ID_HEADER, requestId);
+  const csp = contentSecurityPolicy(newNonce(), process.env.NODE_ENV === "development");
+  headers.set("content-security-policy", csp);
   headers.set(
     CLIENT_IP_HEADER,
     clientIpFrom(
@@ -36,6 +41,7 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers } });
   response.headers.set(REQUEST_ID_HEADER, requestId);
+  response.headers.set("Content-Security-Policy", csp);
   return response;
 }
 

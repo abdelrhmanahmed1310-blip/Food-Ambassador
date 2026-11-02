@@ -44,7 +44,8 @@ test("two-step sign-in: turn on, sign in with a code or a backup code, turn off 
   // Sign out; signing in now asks for the code.
   await page.goto(`/o/${slug}`);
   await page.getByRole("button", { name: "Sign out" }).click();
-  await page.goto("/sign-in");
+  // Wait for the sign-out to finish: /sign-in while still signed in redirects away.
+  await expect(page).toHaveURL(/\/sign-in$/);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -63,7 +64,8 @@ test("two-step sign-in: turn on, sign in with a code or a backup code, turn off 
 
   // A backup code works once.
   await page.getByRole("button", { name: "Sign out" }).click();
-  await page.goto("/sign-in");
+  // Wait for the sign-out to finish: /sign-in while still signed in redirects away.
+  await expect(page).toHaveURL(/\/sign-in$/);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();

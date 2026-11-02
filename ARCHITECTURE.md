@@ -107,6 +107,7 @@ under `src/modules/`. CSV downloads are route handlers under the tenant path
 ```
 request
   → proxy.ts         sets x-request-id and x-client-ip (from trusted XFF hops, ADR-014);
+                     a per-request CSP script nonce (ADR-074);
                      no session cookie on /o/* → redirect to /sign-in (UX only)
   → page / action    requireTenant(slug): session (Better Auth, DB-validated) → ACTIVE user
                      → ACTIVE membership in ACTIVE org → TenantContext with grants; else 404
@@ -131,6 +132,9 @@ Key properties (details in DECISIONS.md ADR-006, ADR-013 – ADR-015):
   the table is append-only at the database level.
 - **Secrets**: environment only, validated by `server/env.ts`, redacted from
   logs, never committed. Passwords are never echoed back into forms.
+- **Two-step sign-in**: optional TOTP per user with backup codes (ADR-073).
+- **Content Security Policy**: scripts only with this request's nonce
+  (`'strict-dynamic'`), no inline handlers, no framing (ADR-074).
 - **Rate limiting**: sign-in (5/min per IP + email), sign-up (10/h per IP) and
   all Better Auth endpoints, via one atomic PostgreSQL counter table.
 
