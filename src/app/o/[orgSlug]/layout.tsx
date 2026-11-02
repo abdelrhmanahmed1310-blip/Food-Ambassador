@@ -245,6 +245,12 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
           >
             {user?.name}
           </span>
+          <Link
+            href="/account/security"
+            className="hover:bg-surface-muted rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap"
+          >
+            {t("security")}
+          </Link>
           <form action={signOutAction}>
             <button
               type="submit"

@@ -2,6 +2,7 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { twoFactor } from "better-auth/plugins";
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { uuidv7 } from "@/lib/uuid";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/modules/shared/schemas";
@@ -45,6 +46,8 @@ function createAuth() {
       customRules: {
         "/sign-in/email": AUTH_RATE_LIMITS.signIn,
         "/sign-up/email": AUTH_RATE_LIMITS.signUp,
+        "/two-factor/verify-totp": AUTH_RATE_LIMITS.signIn,
+        "/two-factor/verify-backup-code": AUTH_RATE_LIMITS.signIn,
       },
       customStorage: { consume: (key, rule) => consumeRateLimit(`auth:${key}`, rule) },
     },
@@ -54,7 +57,11 @@ function createAuth() {
       ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
       useSecureCookies: env.APP_URL.startsWith("https://"),
     },
-    plugins: [nextCookies()],
+    // Optional second factor: a code from an authenticator app, or a backup code (ADR-073).
+    plugins: [
+      twoFactor({ issuer: "Food Ambassador", totpOptions: { digits: 6, period: 30 } }),
+      nextCookies(),
+    ],
   });
 }
 

@@ -139,7 +139,8 @@
     "posCustomers": "Customers",
     "posGiftCards": "Gift cards",
     "posDelivery": "Delivery orders",
-    "posOnline": "Online and kiosk orders"
+    "posOnline": "Online and kiosk orders",
+    "security": "Security"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -172,7 +173,31 @@
     "baseCurrency": "Base currency",
     "baseCurrencyHint": "All costs and inventory values are recorded in this currency. It cannot be changed later.",
     "timeZone": "Time zone",
-    "defaultLanguage": "Default language"
+    "defaultLanguage": "Default language",
+    "twoFactorTitle": "Two-step sign-in",
+    "twoFactorSubtitle": "Enter the 6-digit code from your authenticator app.",
+    "invalidCode": "That code is not right, or it has expired.",
+    "verify": "Verify",
+    "code": "Code",
+    "codeHint": "From the authenticator app (or a backup code).",
+    "useBackupCode": "This is a backup code",
+    "wrongPassword": "The password is not right.",
+    "tryAgain": "Something went wrong; try again.",
+    "twoFactorOn": "Two-step sign-in is on.",
+    "twoFactorOff": "Two-step sign-in is off.",
+    "securityTitle": "Security",
+    "securityIntro": "Protect your account with a second step at sign-in: a code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…). Recommended for owners and administrators.",
+    "twoFactorIsOn": "Two-step sign-in is on.",
+    "twoFactorIsOff": "Two-step sign-in is off.",
+    "back": "Back",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off",
+    "scanQr": "Scan this code with your authenticator app, then enter the 6-digit code it shows.",
+    "qrAlt": "QR code for the authenticator app",
+    "orEnterKey": "Or enter this key:",
+    "backupCodes": "Backup codes",
+    "backupCodesHint": "Keep these somewhere safe: each signs you in once if you lose your phone. They are shown only now.",
+    "confirmCode": "Confirm"
   },
   "validation": {
     "required": "This field is required.",

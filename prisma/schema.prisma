@@ -27,21 +27,41 @@ enum UserStatus {
 }
 
 model User {
-  id            String     @id @default(uuid(7)) @db.Uuid
-  name          String
-  email         String     @unique
-  emailVerified Boolean    @default(false) @map("email_verified")
-  image         String?
-  locale        String     @default("en")
-  status        UserStatus @default(ACTIVE)
-  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String     @id @default(uuid(7)) @db.Uuid
+  name             String
+  email            String     @unique
+  emailVerified    Boolean    @default(false) @map("email_verified")
+  image            String?
+  locale           String     @default("en")
+  status           UserStatus @default(ACTIVE)
+  /// Sign-in needs a code from an authenticator app (TOTP) as well (ADR-073).
+  twoFactorEnabled Boolean    @default(false) @map("two_factor_enabled")
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   sessions    Session[]
   accounts    Account[]
+  twoFactors  TwoFactor[]
   memberships OrganizationMembership[] @relation("MembershipUser")
 
   @@map("users")
+}
+
+/// The user's authenticator secret and backup codes (encrypted by the auth library).
+model TwoFactor {
+  id                      String    @id @default(uuid(7)) @db.Uuid
+  userId                  String    @map("user_id") @db.Uuid
+  secret                  String
+  backupCodes             String    @map("backup_codes")
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0) @map("failed_verification_count")
+  lockedUntil             DateTime? @map("locked_until") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([secret])
+  @@map("two_factors")
 }
 
 model Session {

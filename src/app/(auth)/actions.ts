@@ -94,15 +94,62 @@ export async function signInAction(
     values,
   };
   if (!user || user.status !== "ACTIVE") return fail;
+  let needsSecondFactor = false;
   try {
-    await getAuth().api.signInEmail({ body: { email, password }, headers: await headers() });
+    const r = await getAuth().api.signInEmail({
+      body: { email, password },
+      headers: await headers(),
+    });
+    // Two-factor accounts get no session yet: the code comes next (ADR-073).
+    needsSecondFactor = "twoFactorRedirect" in r && Boolean(r.twoFactorRedirect);
   } catch (error) {
     if (isAPIError(error)) return fail;
     logger.error("sign-in failed", { error });
     return errorToState(error, previous, values);
   }
+  const next = safeNextPath(formData.get("next"));
+  if (needsSecondFactor)
+    redirect(`/sign-in/two-factor${next ? `?next=${encodeURIComponent(next)}` : ""}`);
   await rememberLocale(user.id, true);
-  redirect(safeNextPath(formData.get("next")) ?? (await homePathFor(user.id)));
+  redirect(next ?? (await homePathFor(user.id)));
+}
+
+const secondFactorSchema = z.object({
+  code: z.string().trim().min(1, { error: "required" }).max(20, { error: "invalid" }),
+  backup: z.string().optional(),
+});
+
+/** The second step of signing in: a code from the authenticator app, or a backup code. */
+export async function verifySecondFactorAction(
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations();
+  const parsed = secondFactorSchema.safeParse(formValues(formData));
+  if (!parsed.success) return errorToState(validationFailed(parsed.error), previous, {});
+  const limit = await consumeRateLimit(`2fa:${await getClientIp()}`, AUTH_RATE_LIMITS.signIn);
+  if (!limit.allowed)
+    return {
+      ok: false,
+      seq: (previous.seq ?? 0) + 1,
+      formError: t("auth.rateLimited", { seconds: limit.retryAfter ?? 60 }),
+    };
+  const code = parsed.data.code.replace(/\s/g, "");
+  let userId: string;
+  try {
+    const h = await headers();
+    const r = parsed.data.backup
+      ? await getAuth().api.verifyBackupCode({ body: { code }, headers: h })
+      : await getAuth().api.verifyTOTP({ body: { code }, headers: h });
+    userId = r.user.id;
+  } catch (error) {
+    if (isAPIError(error))
+      return { ok: false, seq: (previous.seq ?? 0) + 1, formError: t("auth.invalidCode") };
+    logger.error("second factor failed", { error });
+    return errorToState(error, previous, {});
+  }
+  await rememberLocale(userId, true);
+  redirect(safeNextPath(formData.get("next")) ?? (await homePathFor(userId)));
 }
 
 /**
