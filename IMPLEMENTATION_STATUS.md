@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (F1b step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-02 (F1b step 3a currency per company; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,23 @@ Last updated: 2026-11-02 (F1b step 2b ZATCA per company; step 2a VAT per company
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F1b step 3a — Currency per company: foundation and stock (built)
+
+Rules: DECISIONS.md ADR-086.
+
+| Area             | What works                                                                                                                                         | Where                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Company currency | Chosen per company (group's by default); fixed once the company has stock or documents (service and database)                                      | `/settings/companies`                 |
+| Exchange rates   | Cross rates through the group currency for a company keeping its books in another currency; missing or stale rates refused                         | services                              |
+| Stock            | Valued in the warehouse's company's currency; pages, movements, documents, counts and production show that currency                                | `/inventory`, `/production`           |
+| Group figures    | Stock value at today's rates; waste and food cost at the period's average rate; recipe average costs converted; missing rates named, never guessed | inventory, reports, overview, recipes |
+| One company      | Its own figures in its own currency (overview and food cost filtered by company, one warehouse's valuation)                                        | overview, reports                     |
+| Rules            | No stock moves between companies with different currencies; count approval limits compared in the group currency; ZATCA needs a SAR company        | transfers, shipments, counts, ZATCA   |
+
+Not yet in a company's own currency (refused with a clear message, and by the database): purchasing and payables (step 3b); point of sale, sales imports and B2B (step 3c).
+
+Checks: `pnpm check` pass (unit 275); `pnpm test:integration` 384/384 pass (new: currency chosen and fixed once there is stock — refused by the service and the database; stock values in each warehouse's currency; group total converted and a missing rate left out and named; cross rate through the group currency; waste converted for the group and kept in EGP for the Egyptian company; transfers and shipments across currencies refused, also directly in the database; purchasing refused for the other-currency company only); `pnpm test:e2e` 60/60 pass.
 
 ## F1b step 2b — ZATCA per company (built)
 
