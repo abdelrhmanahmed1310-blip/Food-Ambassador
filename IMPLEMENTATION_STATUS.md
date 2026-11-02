@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (F1b step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-02 (F1b step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-02 (F1b step 2a VAT per company; F1a companies and brands;
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F1b step 2b — ZATCA per company (built)
+
+Rules: DECISIONS.md ADR-085.
+
+| Area           | What works                                                                                                                  | Where             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Seller details | Per company (legal name, CR, national address, category, environment); existing settings moved to the default company       | `/settings/zatca` |
+| Units          | A register's unit signs for its branch's company; one back-office unit per company; a unit never changes company (database) | `/settings/zatca` |
+| Documents      | POS invoices and credit notes as the register's company; B2B standard invoices on the office unit of the invoice's company  | all flows         |
+| Receipts       | Phase 1 QR with the selling company's name and VAT number                                                                   | receipt           |
+
+ZATCA itself is still not validated against the live sandbox (network allowlist pending); the flows are tested with a simulated transport. ZATCA still needs the Saudi riyal as base currency (per-company currency is step 3).
+
+Checks: `pnpm check` pass (unit 275); `pnpm test:integration` 378/378 pass (new: two Saudi companies in one group — own seller details and registers, receipts with each company's VAT number and name, units and CSRs per company, one office unit per company, a company outside Saudi Arabia refused, a unit keeps its company, other organizations' companies unreachable); `pnpm test:e2e` 60/60 pass.
 
 ## F1b step 2a — VAT per company (built)
 
