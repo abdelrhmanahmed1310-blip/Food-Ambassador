@@ -8,6 +8,7 @@ import { businessDate } from "@/modules/inventory/rules";
 import { sellableMenu } from "@/modules/pos/service";
 import { paymentProvider } from "@/modules/payments/links";
 import { getTab } from "@/modules/pos/tables";
+import { loyaltySettings } from "@/modules/pos/customers";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import {
@@ -15,6 +16,9 @@ import {
   cancelAction,
   cancelLinkAction,
   couponAction,
+  findCustomerAction,
+  addCustomerAction,
+  giftCardBalanceAction,
   createLinkAction,
   mergeAction,
   moveAction,
@@ -87,6 +91,12 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
       open,
     },
     onlinePayments: (await paymentProvider(ctx)) !== null,
+    loyalty: await (async () => {
+      const l = await loyaltySettings(ctx);
+      return l?.enabled
+        ? { pointValue: l.pointValue.toFixed(), minRedeemPoints: l.minRedeemPoints }
+        : null;
+    })(),
   };
   const bind = <A extends unknown[], R>(fn: (orgSlug: string, ...args: A) => R) =>
     fn.bind(null, orgSlug) as (...args: A) => R;
@@ -130,6 +140,9 @@ export default async function CheckPage({ params }: PageProps<"/o/[orgSlug]/pos/
           refreshLink: bind(refreshLinkAction),
           cancelLink: bind(cancelLinkAction),
           coupon: bind(couponAction),
+          findCustomer: bind(findCustomerAction),
+          addCustomer: bind(addCustomerAction),
+          giftCardBalance: bind(giftCardBalanceAction),
         }}
       />
     </div>

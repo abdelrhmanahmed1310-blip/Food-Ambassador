@@ -765,6 +765,8 @@ const paySchema = z.object({
   payments: orderSchema.shape.payments,
   discount: orderSchema.shape.discount,
   couponCode: orderSchema.shape.couponCode,
+  customerId: orderSchema.shape.customerId,
+  loyaltyPoints: orderSchema.shape.loyaltyPoints,
   expectedTotal: orderSchema.shape.expectedTotal,
 });
 
@@ -847,6 +849,8 @@ export async function payTab(ctx: TenantContext, tabId: string, rawInput: unknow
         payments: input.payments,
         discount: input.discount,
         couponCode: input.couponCode,
+        customerId: input.customerId,
+        loyaltyPoints: input.loyaltyPoints,
         expectedTotal: input.expectedTotal,
       });
       if (!order.success) throw validationFailed(order.error);

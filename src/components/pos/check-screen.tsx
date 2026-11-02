@@ -13,6 +13,7 @@ import {
   priceWithDiscounts,
   type DiscountChoice,
 } from "./discount-panel";
+import { CustomerPanel, GiftCardPay, type TillCustomer, type TillGiftCard } from "./customer-panel";
 import { named, OptionsDialog, type MenuItemView } from "./till";
 
 /** A check as plain values (server Decimals arrive as strings). */
@@ -54,6 +55,8 @@ export interface CheckView {
   can: { serve: boolean; pay: boolean; void: boolean; open: boolean; discount: boolean };
   /** Pay by QR (Moyasar) is set up for the organization (ADR-066). */
   onlinePayments: boolean;
+  /** Loyalty points (ADR-068), when the organization uses them. */
+  loyalty: { pointValue: string; minRedeemPoints: number } | null;
 }
 
 type Result = { ok: true; data?: Record<string, unknown> } | { ok: false; error: string };
@@ -99,6 +102,9 @@ export function CheckScreen({
     refreshLink: (linkId: string) => Promise<Result>;
     cancelLink: (linkId: string) => Promise<Result>;
     coupon: (registerId: string, code: string) => Promise<Result>;
+    findCustomer: (phone: string) => Promise<Result>;
+    addCustomer: (input: unknown) => Promise<Result>;
+    giftCardBalance: (code: string) => Promise<Result>;
   };
 }) {
   const t = useTranslations();
@@ -183,6 +189,9 @@ export function CheckScreen({
   const [link, setLink] = useState<{ id: string; url: string; qr: string } | null>(null);
   const [tendered, setTendered] = useState("");
   const [discount, setDiscount] = useState<DiscountChoice>(null);
+  const [customer, setCustomer] = useState<TillCustomer | null>(null);
+  const [gift, setGift] = useState<TillGiftCard | null>(null);
+  const [usingGift, setUsingGift] = useState(false);
   const [registerId, setRegisterId] = useState(check.registers[0]?.id ?? "");
   const orderId = useRef<string | null>(null);
   const payable = check.lines.filter((l) => new Decimal(l.remaining).gt(0));
@@ -221,14 +230,18 @@ export function CheckScreen({
     check.currency,
   );
   const total = discounted.total;
-  const split = total.gt(0) ? splitEvenly(total, parts, check.currency) : [];
+  // A gift card pays what it can; the rest is split as chosen (ADR-068).
+  const giftAmount =
+    gift && method !== "QR" ? Decimal.min(new Decimal(gift.balance), total) : new Decimal(0);
+  const due = total.minus(giftAmount);
+  const split = due.gt(0) ? splitEvenly(due, parts, check.currency) : [];
   const pay = () => {
     if (!registerId) return;
     const cashTendered =
       method === "CASH" && parts === 1 && /^\d+(\.\d+)?$/.test(tendered)
         ? new Decimal(tendered)
         : null;
-    if (cashTendered && cashTendered.lt(total)) {
+    if (cashTendered && cashTendered.lt(due)) {
       setError(t("pos.tenderedTooLow"));
       return;
     }
@@ -242,12 +255,18 @@ export function CheckScreen({
             mode === "all"
               ? []
               : selection.map((s) => ({ tabLineId: s.line.id, quantity: s.quantity.toFixed() })),
-          payments: split.map((amount) => ({
-            method,
-            amount: amount.toFixed(),
-            ...(cashTendered ? { tendered: cashTendered.toFixed() } : {}),
-          })),
+          payments: [
+            ...(gift && giftAmount.gt(0)
+              ? [{ method: "GIFT_CARD", amount: giftAmount.toFixed(), giftCardCode: gift.code }]
+              : []),
+            ...split.map((amount) => ({
+              method,
+              amount: amount.toFixed(),
+              ...(cashTendered ? { tendered: cashTendered.toFixed() } : {}),
+            })),
+          ],
           ...discountPayload(orderDiscount),
+          ...(customer ? { customerId: customer.id } : {}),
           expectedTotal: total.toFixed(),
         }),
       (r) => {
@@ -256,6 +275,9 @@ export function CheckScreen({
         setTendered("");
         setParts(1);
         setDiscount(null);
+        setCustomer(null);
+        setGift(null);
+        setUsingGift(false);
         const change = new Decimal(String(r.data?.change ?? "0"));
         setNotice(
           [
@@ -609,6 +631,27 @@ export function CheckScreen({
                 ) : null}
               </div>
               {method !== "QR" && selection.length > 0 ? (
+                <CustomerPanel
+                  online
+                  currency={check.currency}
+                  customer={customer}
+                  onCustomer={(c) => {
+                    setCustomer(c);
+                    if (!c && discount?.type === "points") setDiscount(null);
+                    orderId.current = null;
+                  }}
+                  loyalty={check.loyalty}
+                  choice={discount}
+                  onChoice={(c) => {
+                    setDiscount(c);
+                    orderId.current = null;
+                  }}
+                  find={actions.findCustomer}
+                  add={actions.addCustomer}
+                  fmt={(d) => fmt(d)}
+                />
+              ) : null}
+              {method !== "QR" && selection.length > 0 && discount?.type !== "points" ? (
                 <DiscountPanel
                   idPrefix="check"
                   canDiscount={check.can.discount}
@@ -638,6 +681,50 @@ export function CheckScreen({
                   {fmt(total)}
                 </span>
               </div>
+              {method !== "QR" && selection.length > 0 && !gift ? (
+                usingGift ? (
+                  <GiftCardPay
+                    online
+                    check={actions.giftCardBalance}
+                    onApply={(g) => {
+                      setGift(g);
+                      setUsingGift(false);
+                      orderId.current = null;
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="text-primary text-sm hover:underline"
+                    onClick={() => setUsingGift(true)}
+                  >
+                    {t("pos.payWithGiftCard")}
+                  </button>
+                )
+              ) : null}
+              {gift && method !== "QR" ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted">
+                      {t("pos.giftCardEnding", { last4: gift.last4 })}{" "}
+                      <button
+                        type="button"
+                        className="text-danger hover:underline"
+                        onClick={() => setGift(null)}
+                      >
+                        {t("pos.removeDiscount")}
+                      </button>
+                    </span>
+                    <span className="ltr-value tabular-nums">−{fmt(giftAmount)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>{t("pos.toPay")}</span>
+                    <span className="ltr-value tabular-nums" data-testid="check-due">
+                      {fmt(due)}
+                    </span>
+                  </div>
+                </>
+              ) : null}
               {parts > 1 && split.length > 0 ? (
                 <p className="text-muted text-sm">
                   {t("pos.eachPays")}{" "}

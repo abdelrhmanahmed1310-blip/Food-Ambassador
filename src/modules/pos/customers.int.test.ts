@@ -20,6 +20,7 @@ import {
   saveLoyaltySettings,
 } from "./customers";
 import { blockGiftCard, giftCardBalance, listGiftCards, sellGiftCard } from "./gift-cards";
+import { addTabLines, createFloor, openTab, payTab } from "./tables";
 import {
   createRegister,
   getOrder,
@@ -41,6 +42,7 @@ let shiftId: string;
 let fries: string;
 let cola: string;
 let customerId: string;
+let kitchenId: string;
 
 const TZ = "Asia/Riyadh";
 const card = (amount: string) => [{ method: "CARD" as const, amount }];
@@ -72,6 +74,7 @@ beforeAll(async () => {
   const kitchen = (
     await createWarehouse(ctx, { branchId, code: "KIT", name: "Kitchen", type: "KITCHEN_STORE" })
   ).id;
+  kitchenId = kitchen;
   const product = async (sku: string) => {
     const id = (
       await createProduct(ctx, { sku, nameEn: sku, type: "FINISHED_GOOD", baseUomId: units.each })
@@ -365,5 +368,36 @@ describe("privacy and tenant isolation", () => {
       }),
       "NOT_FOUND",
     );
+  });
+});
+
+describe("customers, points and gift cards on checks", () => {
+  it("pays a check with the customer's points, a gift card and a card", async () => {
+    await createFloor(ctx, { branchId, warehouseId: kitchenId, name: "Main" });
+    const sara = await createCustomer(ctx, { name: "Check guest", phone: "0507777777" });
+    await adjustPoints(ctx, sara.id, { points: "100", reason: "Welcome" });
+    const card = await sellGiftCard(ctx, { registerId: register, amount: "20", method: "CASH" });
+    const tab = await openTab(ctx, { branchId, label: "Table 5", guests: "2" });
+    await addTabLines(ctx, tab.id, { lines: [{ itemId: fries, quantity: "2" }] });
+    // 46 − 100 points × 0.05 = 41; gift card 20, card 21; 41 points earned.
+    const paid = await payTab(ctx, tab.id, {
+      orderId: randomUUID(),
+      registerId: register,
+      customerId: sara.id,
+      loyaltyPoints: 100,
+      payments: [
+        { method: "GIFT_CARD", amount: "20", giftCardCode: card.code },
+        { method: "CARD", amount: "21" },
+      ],
+      expectedTotal: "41",
+    });
+    const o = await getOrder(ctx, paid.id);
+    expect([o.customer?.id, o.loyaltyPoints, o.orderDiscount.toFixed(2)]).toEqual([
+      sara.id,
+      100,
+      "5.00",
+    ]);
+    expect(await balanceOf(sara.id)).toBe(41);
+    expect((await giftCardBalance(ctx, card.code)).balance).toBe("0");
   });
 });

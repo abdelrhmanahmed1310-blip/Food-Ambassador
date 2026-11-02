@@ -3031,7 +3031,8 @@
     "giftCardsSoldCash": "بطاقات هدية مبيعة (نقدًا)",
     "giftCardsSoldCard": "بطاقات هدية مبيعة (بطاقة)",
     "giftCardPayments": "مدفوع ببطاقات الهدية",
-    "platformPayments": "مدفوع لمنصات التوصيل"
+    "platformPayments": "مدفوع لمنصات التوصيل",
+    "payWithGiftCard": "الدفع ببطاقة هدية"
   },
   "zatca": {
     "title": "الفوترة الإلكترونية (هيئة الزكاة)",

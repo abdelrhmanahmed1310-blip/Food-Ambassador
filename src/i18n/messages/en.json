@@ -3031,7 +3031,8 @@
     "giftCardsSoldCash": "Gift cards sold (cash)",
     "giftCardsSoldCard": "Gift cards sold (card)",
     "giftCardPayments": "Paid by gift card",
-    "platformPayments": "Paid to delivery platforms"
+    "platformPayments": "Paid to delivery platforms",
+    "payWithGiftCard": "Pay with a gift card"
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
