@@ -567,8 +567,7 @@
     "stepBranch": "Add your first branch",
     "stepWarehouse": "Add a warehouse to a branch",
     "stepInvite": "Invite a team member",
-    "done": "Done",
-    "modulesNote": "Inventory, procurement and food-safety modules arrive in upcoming releases."
+    "done": "Done"
   },
   "branches": {
     "title": "Branches",

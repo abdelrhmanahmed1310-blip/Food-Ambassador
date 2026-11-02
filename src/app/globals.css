@@ -3,40 +3,50 @@
 /* Design tokens. Layout uses logical properties (ms/me/ps/pe/start/end) so
    the same markup renders correctly in RTL (Arabic) and LTR (English). */
 :root {
-  --background: #f6f7f5;
+  /* Brand (logo): crimson red, black and white. */
+  --background: #f5f5f4;
   --surface: #ffffff;
-  --surface-muted: #f0f2ee;
-  --border: #dde1da;
-  --foreground: #161a14;
-  --muted: #545c50;
-  --primary: #1f6f43;
-  --primary-hover: #185a36;
+  --surface-muted: #f4f2f1;
+  --border: #e5e2df;
+  --foreground: #121212;
+  --muted: #5c5653;
+  --primary: #a3151b;
+  --primary-hover: #861117;
   --primary-foreground: #ffffff;
+  --primary-surface: #fdf0f0;
   --danger: #b42318;
   --danger-surface: #fef3f2;
   --success: #166534;
   --success-surface: #ecfdf3;
   --warning-surface: #fffaeb;
   --focus: #2563eb;
+  /* The sidebar is black in both themes. */
+  --sidebar: #0d0d0d;
+  --sidebar-hover: #1f1f1f;
+  --sidebar-foreground: #f5f5f4;
+  --sidebar-muted: #a8a29e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f1210;
-    --surface: #171b18;
-    --surface-muted: #1f2420;
-    --border: #2e352f;
-    --foreground: #e7ebe5;
-    --muted: #a3ad9f;
-    --primary: #3fa36a;
-    --primary-hover: #52b67c;
-    --primary-foreground: #08130c;
+    --background: #0f0f0f;
+    --surface: #181717;
+    --surface-muted: #211f1f;
+    --border: #322e2e;
+    --foreground: #ecebea;
+    --muted: #aaa4a0;
+    --primary: #e5484d;
+    --primary-hover: #f06a6e;
+    --primary-foreground: #ffffff;
+    --primary-surface: #2b1414;
     --danger: #f97066;
     --danger-surface: #2a1513;
     --success: #4ade80;
     --success-surface: #10241a;
     --warning-surface: #2a2410;
     --focus: #60a5fa;
+    --sidebar: #070707;
+    --sidebar-hover: #1a1a1a;
   }
 }
 
@@ -50,6 +60,11 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-surface: var(--primary-surface);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
   --color-danger: var(--danger);
   --color-danger-surface: var(--danger-surface);
   --color-success: var(--success);

@@ -107,7 +107,6 @@ export default async function OverviewPage({ params }: PageProps<"/o/[orgSlug]">
           </Card>
         </div>
       ) : null}
-      <p className="text-muted mt-6 text-sm">{t("modulesNote")}</p>
     </>
   );
 }

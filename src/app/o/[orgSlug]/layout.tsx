@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { ChevronDown, LogOut, ShieldCheck, Store } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-links";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
@@ -27,15 +29,15 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
 
   const main: NavSection = {
     items: [
-      { href: base, label: t("overview"), exact: true },
-      { href: `${base}/attention`, label: t("attention") },
+      { href: base, label: t("overview"), exact: true, icon: "overview" },
+      { href: `${base}/attention`, label: t("attention"), icon: "attention" },
     ],
   };
   if (holdsAnyGrant(ctx.grants, "branches.view"))
-    main.items.push({ href: `${base}/branches`, label: t("branches") });
+    main.items.push({ href: `${base}/branches`, label: t("branches"), icon: "branches" });
   if (holdsAnyGrant(ctx.grants, "warehouses.view"))
-    main.items.push({ href: `${base}/warehouses`, label: t("warehouses") });
-  const pos: NavSection = { title: t("posSection"), items: [] };
+    main.items.push({ href: `${base}/warehouses`, label: t("warehouses"), icon: "warehouses" });
+  const pos: NavSection = { title: t("posSection"), icon: "pos", items: [] };
   if (
     holdsAnyGrant(ctx.grants, "pos.sell") ||
     holdsAnyGrant(ctx.grants, "pos.view") ||
@@ -65,7 +67,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     pos.items.push({ href: `${base}/pos/shortfalls`, label: t("posShortfalls") });
   if (hasPermission(ctx.grants, "payments.manage"))
     pos.items.push({ href: `${base}/pos/settlements`, label: t("posSettlements") });
-  const inventory: NavSection = { title: t("inventorySection"), items: [] };
+  const inventory: NavSection = { title: t("inventorySection"), icon: "inventory", items: [] };
   if (holdsAnyGrant(ctx.grants, "inventory.view")) {
     inventory.items.push(
       { href: `${base}/inventory`, label: t("inventoryOverview"), exact: true },
@@ -78,7 +80,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   }
   if (canViewValuation(ctx))
     inventory.items.push({ href: `${base}/inventory/valuation`, label: t("valuation") });
-  const purchasing: NavSection = { title: t("purchasingSection"), items: [] };
+  const purchasing: NavSection = { title: t("purchasingSection"), icon: "purchasing", items: [] };
   if (hasPermission(ctx.grants, "suppliers.view"))
     purchasing.items.push({ href: `${base}/suppliers`, label: t("suppliers") });
   if (
@@ -100,7 +102,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     );
   if (hasPermission(ctx.grants, "fx.manage"))
     purchasing.items.push({ href: `${base}/purchasing/exchange-rates`, label: t("exchangeRates") });
-  const kitchen: NavSection = { title: t("recipesSection"), items: [] };
+  const kitchen: NavSection = { title: t("recipesSection"), icon: "kitchen", items: [] };
   if (hasPermission(ctx.grants, "recipes.view"))
     kitchen.items.push({ href: `${base}/recipes`, label: t("recipes") });
   if (hasPermission(ctx.grants, "menu.view"))
@@ -121,7 +123,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     kitchen.items.push({ href: `${base}/production`, label: t("production") });
   if (hasPermission(ctx.grants, "recipes.view") && hasPermission(ctx.grants, "nutrition.view"))
     kitchen.items.push({ href: `${base}/recipes/allergens`, label: t("allergenMatrix") });
-  const safety: NavSection = { title: t("safetySection"), items: [] };
+  const safety: NavSection = { title: t("safetySection"), icon: "safety", items: [] };
   if (holdsAnyGrant(ctx.grants, "foodsafety.view"))
     safety.items.push(
       { href: `${base}/food-safety`, label: t("foodSafetyOverview"), exact: true },
@@ -135,7 +137,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/traceability`, label: t("traceability") },
       { href: `${base}/recalls`, label: t("recalls") },
     );
-  const catalog: NavSection = { title: t("catalogSection"), items: [] };
+  const catalog: NavSection = { title: t("catalogSection"), icon: "catalog", items: [] };
   if (hasPermission(ctx.grants, "catalog.view")) {
     catalog.items.push(
       { href: `${base}/catalog/products`, label: t("products") },
@@ -151,7 +153,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   ) {
     catalog.items.push({ href: `${base}/catalog/import`, label: t("import") });
   }
-  const settings: NavSection = { title: t("settings"), items: [] };
+  const settings: NavSection = { title: t("settings"), icon: "settings", items: [] };
   if (hasPermission(ctx.grants, "org.settings.manage"))
     settings.items.push({ href: `${base}/settings/organization`, label: t("organization") });
   if (hasPermission(ctx.grants, "org.settings.manage"))
@@ -170,7 +172,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
   if (hasPermission(ctx.grants, "integrations.manage"))
     settings.items.push({ href: `${base}/settings/integrations`, label: t("integrations") });
-  const b2b: NavSection = { title: t("b2bSection"), items: [] };
+  const b2b: NavSection = { title: t("b2bSection"), icon: "b2b", items: [] };
   if (hasPermission(ctx.grants, "b2b.view"))
     b2b.items.push(
       { href: `${base}/b2b/orders`, label: t("salesOrders") },
@@ -178,7 +180,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/b2b/balances`, label: t("customerBalances") },
       { href: `${base}/b2b/customers`, label: t("customers") },
     );
-  const reports: NavSection = { title: t("reportsSection"), items: [] };
+  const reports: NavSection = { title: t("reportsSection"), icon: "reports", items: [] };
   const visible = canSeeReports(ctx);
   if (visible.foodCost)
     reports.items.push({ href: `${base}/reports/food-cost`, label: t("foodCostReport") });
@@ -197,74 +199,84 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   ].filter((section) => section.items.length > 0);
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-border bg-surface relative flex h-14 items-center justify-between gap-3 border-b px-4 print:hidden">
-        <div className="flex min-w-0 items-center gap-2">
-          <MobileNav
-            sections={sections}
-            label={t("main")}
-            openLabel={t("openMenu")}
-            closeLabel={t("closeMenu")}
-          />
-          <details className="relative min-w-0">
-            <summary className="hover:bg-surface-muted flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1.5 font-semibold">
-              <span className="truncate">{ctx.organizationName}</span>
-              <span className="sr-only">{t("switchOrganization")}</span>
-              <span aria-hidden="true" className="text-muted text-xs">
-                ▾
-              </span>
-            </summary>
-            <div className="border-border bg-surface absolute start-0 z-30 mt-1 w-64 rounded-md border p-1 shadow-md">
-              <ul>
-                {orgs.map((org) => (
-                  <li key={org.id}>
-                    <Link
-                      href={`/o/${org.slug}`}
-                      aria-current={org.id === ctx.organizationId ? "true" : undefined}
-                      className={`hover:bg-surface-muted block truncate rounded px-3 py-2 text-sm ${org.id === ctx.organizationId ? "font-medium" : ""}`}
-                    >
-                      {org.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/organizations/new"
-                className="border-border text-primary hover:bg-surface-muted mt-1 block border-t px-3 py-2 text-sm"
-              >
-                {t("newOrganization")}
-              </Link>
-            </div>
-          </details>
-        </div>
-        <div className="flex items-center gap-1">
-          <LocaleSwitcher />
-          <span
-            className="text-muted hidden max-w-40 truncate px-2 text-sm sm:inline"
-            title={user?.email}
-          >
-            {user?.name}
-          </span>
-          <Link
-            href="/account/security"
-            className="hover:bg-surface-muted rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap"
-          >
-            {t("security")}
-          </Link>
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="hover:bg-surface-muted rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap"
+    <div className="flex min-h-full flex-1">
+      <DesktopNav sections={sections} label={t("main")} homeHref={base} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="border-border bg-surface/95 sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b px-4 backdrop-blur sm:px-6 print:hidden">
+          <div className="flex min-w-0 items-center gap-2">
+            <MobileNav
+              sections={sections}
+              label={t("main")}
+              openLabel={t("openMenu")}
+              closeLabel={t("closeMenu")}
+            />
+            <Link href={base} className="shrink-0 lg:hidden">
+              <Logo className="h-7 w-auto" />
+            </Link>
+            <details className="relative min-w-0">
+              <summary className="hover:bg-surface-muted flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 font-semibold">
+                <Store aria-hidden="true" className="text-primary size-4 shrink-0" />
+                <span className="truncate">{ctx.organizationName}</span>
+                <span className="sr-only">{t("switchOrganization")}</span>
+                <ChevronDown aria-hidden="true" className="text-muted size-4 shrink-0" />
+              </summary>
+              <div className="border-border bg-surface absolute start-0 z-30 mt-1 w-64 rounded-lg border p-1 shadow-lg">
+                <ul>
+                  {orgs.map((org) => (
+                    <li key={org.id}>
+                      <Link
+                        href={`/o/${org.slug}`}
+                        aria-current={org.id === ctx.organizationId ? "true" : undefined}
+                        className={`hover:bg-surface-muted block truncate rounded px-3 py-2 text-sm ${org.id === ctx.organizationId ? "text-primary font-medium" : ""}`}
+                      >
+                        {org.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/organizations/new"
+                  className="border-border text-primary hover:bg-surface-muted mt-1 block border-t px-3 py-2 text-sm"
+                >
+                  {t("newOrganization")}
+                </Link>
+              </div>
+            </details>
+          </div>
+          <div className="flex items-center gap-1">
+            <LocaleSwitcher />
+            <span
+              className="text-muted hidden max-w-40 items-center gap-2 truncate px-2 text-sm sm:flex"
+              title={user?.email}
             >
-              {t("signOut")}
-            </button>
-          </form>
-        </div>
-      </header>
-      <div className="flex flex-1">
-        <DesktopNav sections={sections} label={t("main")} />
+              <span
+                aria-hidden="true"
+                className="bg-foreground text-surface flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+              >
+                {(user?.name ?? "?").trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="truncate">{user?.name}</span>
+            </span>
+            <Link
+              href="/account/security"
+              className="hover:bg-surface-muted flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap"
+            >
+              <ShieldCheck aria-hidden="true" className="size-4" />
+              <span className="sr-only sm:not-sr-only">{t("security")}</span>
+            </Link>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="hover:bg-surface-muted flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap"
+              >
+                <LogOut aria-hidden="true" className="size-4" />
+                <span className="sr-only sm:not-sr-only">{t("signOut")}</span>
+              </button>
+            </form>
+          </div>
+        </header>
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl">{children}</div>
+          <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>
     </div>

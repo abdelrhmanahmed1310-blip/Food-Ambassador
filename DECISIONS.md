@@ -1765,6 +1765,24 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   virus-scanned there (no ClamAV), and payment, ZATCA and delivery
   integrations stay unvalidated.
 
+### ADR-077 Brand look: red, white and black, Supy-style shell — Accepted
+
+- The interface follows the brand logo (`public/brand/logo.webp`): crimson
+  red (`--primary #a3151b`, lighter red in dark mode) for actions, links
+  and the active page; black for the sidebar; white cards on a warm light
+  grey. Colours are CSS tokens in `src/app/globals.css`, so the whole app
+  changes from one place; danger stays a distinct, outlined red.
+- Layout modelled on Supy: a full-height black sidebar with the logo on a
+  white tile, icons per section (lucide-react) and collapsible groups (the
+  group of the current page opens by itself), and a slim white top bar with
+  the organization switcher, language, user, Security and Sign out.
+  Phones keep the menu button and show Security and Sign out as icons
+  (their names stay for screen readers).
+- Shared components (cards, tables, badges, buttons, inputs) were
+  restyled in place, so every page follows without page-by-page changes;
+  no business logic changed. Right-to-left (Arabic) uses logical
+  properties, so the sidebar moves to the right.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
