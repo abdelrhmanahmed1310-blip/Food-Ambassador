@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-02 (F1b step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-02 (F1a companies and brands; HR1–HR2b)
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F1b step 2a — VAT per company (built)
+
+Rules: DECISIONS.md ADR-084.
+
+| Area        | What works                                                                                                                                   | Where                 |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| VAT rates   | Rates tagged by country under shared codes; a second country's preset adds its rates without changing the group's VAT country                | `/settings/tax`       |
+| Companies   | "Registered for VAT" per company (country with VAT, valid number, rates set up); the default company follows the VAT settings page           | `/settings/companies` |
+| Calculation | POS and till menu (branch's company), supplier invoices (billed company), B2B invoices (order's company), sales imports (warehouse's branch) | all flows             |
+| Receipt     | POS receipt shows the selling company's VAT number                                                                                           | receipt               |
+
+Not yet: ZATCA seller and e-invoice numbering per company (step 2b); per-company currency (step 3). Recipe food-cost pricing and supplier credit notes use the default company.
+
+Checks: `pnpm check` pass; `pnpm test:integration` 375/375 pass (new: a Saudi and an Egyptian company in one group — 15 % vs 14 % on sales and supplier invoices, registration rules, default company follows VAT settings, unregistered company charges no VAT, a Saudi rate change does not reach the Egyptian company); `pnpm test:e2e` 60/60 pass. The migration first failed because `tax_rates` is append-only; the one-off tagging now runs with its triggers off.
 
 ## F1b step 1 — Company on money documents (built)
 
