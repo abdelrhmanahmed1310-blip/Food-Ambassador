@@ -8,6 +8,7 @@ import { b2bOutputVat } from "@/modules/b2b/service";
 import { inputVatSummary } from "@/modules/invoices/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { vatSummary } from "@/modules/tax/service";
+import { listCompanies } from "@/modules/organizations/companies";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { moneyFormatter } from "@/server/inventory-view";
 
@@ -27,13 +28,17 @@ export default async function VatSummaryPage({
     typeof sp.from === "string" && isCalendarDate(sp.from) ? sp.from : `${today.slice(0, 7)}-01`;
   const to = typeof sp.to === "string" && isCalendarDate(sp.to) ? sp.to : today;
   const period = { from, to: to < from ? from : to };
+  // A VAT return is one company's (ADR-084/086): the one chosen, else the default.
+  const companies = await listCompanies(ctx);
+  const company =
+    companies.find((c) => c.id === sp.companyId) ?? companies.find((c) => c.isDefault)!;
   const [t, locale, money, rows, input, b2b] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
-    canSales ? vatSummary(ctx, period) : Promise.resolve(null),
-    canInvoices ? inputVatSummary(ctx, period) : Promise.resolve(null),
-    canB2b ? b2bOutputVat(ctx, period) : Promise.resolve(null),
+    moneyFormatter(company.currency),
+    canSales ? vatSummary(ctx, period, company.id) : Promise.resolve(null),
+    canInvoices ? inputVatSummary(ctx, period, company.id) : Promise.resolve(null),
+    canB2b ? b2bOutputVat(ctx, period, company.id) : Promise.resolve(null),
   ]);
   const total = (list: Array<{ tax: { toString(): string } | null }>) =>
     list.reduce((a, r) => a.plus(r.tax?.toString() ?? "0"), new Decimal(0));
@@ -100,6 +105,22 @@ export default async function VatSummaryPage({
       <PageHeader title={t("tax.summaryTitle")} description={t("tax.summaryHint")} />
       <div className="space-y-6">
         <form method="get" className="flex flex-wrap items-end gap-3">
+          {companies.length > 1 ? (
+            <label className="text-sm">
+              <span className="mb-1 block font-medium">{t("companies.company")}</span>
+              <select
+                name="companyId"
+                defaultValue={company.id}
+                className="border-border bg-surface rounded-md border px-3 py-2"
+              >
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code} — {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label className="text-sm">
             <span className="mb-1 block font-medium">{t("tax.from")}</span>
             <input

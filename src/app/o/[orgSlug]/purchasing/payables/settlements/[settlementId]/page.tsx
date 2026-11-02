@@ -42,8 +42,9 @@ export default async function SettlementPage({
       ? openInvoicesOf(ctx, s.supplier.id, s.currency)
       : Promise.resolve([]),
   ]);
-  const fx = await fxItems(ctx.baseCurrency, s, {
-    label: t("fx.amountInBase", { currency: ctx.baseCurrency }),
+  const bookCurrency = s.company?.currency ?? ctx.groupCurrency;
+  const fx = await fxItems(bookCurrency, s, {
+    label: t("fx.amountInBase", { currency: bookCurrency }),
     value: s.amountBase,
   });
   const amount = (v: Decimal) => (

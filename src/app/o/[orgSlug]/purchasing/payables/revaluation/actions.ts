@@ -9,12 +9,13 @@ import { tenantMutation } from "@/server/actions/tenant";
 export async function postRevaluationAction(
   orgSlug: string,
   asOf: string,
+  companyId: string,
   previous: ActionState,
   formData: FormData,
 ) {
   let id = "";
   const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
-    id = (await postRevaluation(ctx, { ...formValues(formData), asOf })).id;
+    id = (await postRevaluation(ctx, { ...formValues(formData), asOf, companyId })).id;
   });
   if (state.ok) redirect(`/o/${orgSlug}/purchasing/payables/revaluation/${id}`);
   return state;

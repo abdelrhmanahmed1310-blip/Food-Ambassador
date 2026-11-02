@@ -6,11 +6,11 @@ import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { customerBalances } from "@/modules/b2b/receivables";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { revalue } from "@/modules/fx/rules";
-import { rateFor } from "@/modules/fx/service";
+import { companyContext, rateFor } from "@/modules/fx/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { nextDocumentNumber } from "@/modules/inventory/posting";
 import { runIdempotent } from "@/modules/shared/idempotency";
-import { idempotencyKeySchema, requiredText } from "@/modules/shared/schemas";
+import { idempotencyKeySchema, optionalUuidSchema, requiredText } from "@/modules/shared/schemas";
 import { currencyDecimals } from "@/modules/tax/rules";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
@@ -20,7 +20,8 @@ import { supplierBalances } from "./payables";
 
 /**
  * Period-end revaluation of open foreign-currency payables (DECISIONS.md
- * ADR-052): each supplier's open balance per foreign currency, booked at the
+ * ADR-052), one company at a time in its own currency (ADR-086): each
+ * supplier's open balance per foreign currency, booked at the
  * documents' own rates, is valued at the rate on `asOf`; the difference is
  * an unrealised exchange gain or loss. Stored as a fixed record and exported
  * as a journal entry on `asOf` reversed the next day, so the next period
@@ -29,6 +30,8 @@ import { supplierBalances } from "./payables";
 
 const asOfSchema = z.object({
   asOf: z.string().refine(isCalendarDate, { error: "invalidDate" }),
+  /** One company's balances, in its currency (ADR-086); empty = the default company. */
+  companyId: optionalUuidSchema,
   idempotencyKey: idempotencyKeySchema,
 });
 
@@ -39,8 +42,14 @@ type Party = { id: string; code: string; name: string; nameAr: string | null };
  * currency): open supplier balances (payables) and, with B2B access, open
  * customer balances (receivables, ADR-056).
  */
-async function computeLines(ctx: TenantContext, tx: Tx, asOf: string) {
-  const payables = (await supplierBalances(ctx, asOf)).rows.map((r) => ({
+async function computeLines(
+  ctx: TenantContext,
+  tx: Tx,
+  asOf: string,
+  company: Awaited<ReturnType<typeof companyContext>>,
+) {
+  const mine = (r: { company: { id: string } }) => r.company.id === company.companyId;
+  const payables = (await supplierBalances(ctx, asOf)).rows.filter(mine).map((r) => ({
     kind: "PAYABLE" as const,
     party: r.supplier as Party,
     currency: r.currency,
@@ -48,7 +57,7 @@ async function computeLines(ctx: TenantContext, tx: Tx, asOf: string) {
     balanceBase: r.balanceBase,
   }));
   const receivables = hasPermission(ctx.grants, "b2b.view")
-    ? (await customerBalances(ctx, asOf)).rows.map((r) => ({
+    ? (await customerBalances(ctx, asOf)).rows.filter(mine).map((r) => ({
         kind: "RECEIVABLE" as const,
         party: r.customer as Party,
         currency: r.currency,
@@ -56,11 +65,12 @@ async function computeLines(ctx: TenantContext, tx: Tx, asOf: string) {
         balanceBase: r.balanceBase,
       }))
     : [];
-  const decimals = currencyDecimals(ctx.baseCurrency);
+  // Balances in another currency than the company's are revalued into its currency.
+  const decimals = currencyDecimals(company.currency);
   const lines = [];
   for (const r of [...payables, ...receivables]) {
-    if (r.currency === ctx.baseCurrency || r.balance.isZero()) continue;
-    const fx = await rateFor(tx, ctx, r.currency, asOf);
+    if (r.currency === company.currency || r.balance.isZero()) continue;
+    const fx = await rateFor(tx, company.ctx, r.currency, asOf);
     const { revaluedBase, differenceBase } = revalue(r.balance, r.balanceBase, fx.rate, decimals);
     lines.push({
       kind: r.kind,
@@ -84,12 +94,23 @@ function totals(lines: Array<{ kind: "PAYABLE" | "RECEIVABLE"; differenceBase: D
   return { payablesTotal: sum("PAYABLE"), receivablesTotal: sum("RECEIVABLE") };
 }
 
-export async function previewRevaluation(ctx: TenantContext, asOf: string) {
+export async function previewRevaluation(
+  ctx: TenantContext,
+  asOf: string,
+  companyId?: string | null,
+) {
   assertPermission(ctx.grants, "fx.manage");
   if (!isCalendarDate(asOf)) throw validationFailed(new z.ZodError([]));
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const lines = await computeLines(ctx, tx, asOf);
-    return { asOf, lines, ...totals(lines) };
+    const company = await companyContext(tx, ctx, { companyId });
+    const lines = await computeLines(ctx, tx, asOf, company);
+    return {
+      asOf,
+      companyId: company.companyId,
+      currency: company.currency,
+      lines,
+      ...totals(lines),
+    };
   });
 }
 
@@ -97,7 +118,7 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "fx.manage");
   const parsed = asOfSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { asOf, idempotencyKey } = parsed.data;
+  const { asOf, idempotencyKey, companyId } = parsed.data;
   if (asOf > businessDate(ctx.timeZone))
     throw businessRuleViolation("REVALUATION_IN_FUTURE", "Revalue a date that has passed", {
       field: "asOf",
@@ -105,9 +126,10 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
   try {
     return await runIdempotent(
       ctx,
-      { key: idempotencyKey, operation: "fx_revaluation", input: { asOf } },
+      { key: idempotencyKey, operation: "fx_revaluation", input: { asOf, companyId } },
       async (tx) => {
-        const lines = await computeLines(ctx, tx, asOf);
+        const company = await companyContext(tx, ctx, { companyId });
+        const lines = await computeLines(ctx, tx, asOf, company);
         if (lines.length === 0)
           throw businessRuleViolation(
             "NOTHING_TO_REVALUE",
@@ -124,6 +146,7 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
           data: {
             organizationId: ctx.organizationId,
             number,
+            companyId: company.companyId,
             asOf: new Date(`${asOf}T00:00:00Z`),
             totalDifferenceBase: total.toFixed(),
             receivablesDifferenceBase: receivablesTotal.toFixed(),
@@ -153,6 +176,7 @@ export async function postRevaluation(ctx: TenantContext, rawInput: unknown) {
           changes: {
             number,
             asOf,
+            companyId: company.companyId,
             lines: lines.length,
             payables: total.toFixed(),
             receivables: receivablesTotal.toFixed(),
@@ -207,6 +231,7 @@ export async function listRevaluations(ctx: TenantContext) {
   return withTenantTx(ctx.organizationId, (tx) =>
     tx.fxRevaluation.findMany({
       where: { organizationId: ctx.organizationId },
+      include: { company: { select: { code: true, name: true, currency: true } } },
       orderBy: [{ asOf: "desc" }, { createdAt: "desc" }],
       take: 100,
     }),
@@ -219,6 +244,7 @@ export async function getRevaluation(ctx: TenantContext, revaluationId: string) 
     const rev = await tx.fxRevaluation.findFirst({
       where: { organizationId: ctx.organizationId, id: revaluationId },
       include: {
+        company: { select: { code: true, name: true, currency: true } },
         lines: {
           include: {
             supplier: { select: { id: true, code: true, name: true, nameAr: true } },

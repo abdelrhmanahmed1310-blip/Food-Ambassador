@@ -439,14 +439,32 @@ export async function loadTaxContextInTx(
 }
 
 /** Output VAT from imported sales by tax code over a period (input VAT comes with supplier invoices). */
-export async function vatSummary(ctx: TenantContext, period: { from: string; to: string }) {
+/**
+ * Output VAT of one company (its VAT return, ADR-084/086; the default company
+ * when none is chosen), in its currency: imported sales and POS sales.
+ */
+export async function vatSummary(
+  ctx: TenantContext,
+  period: { from: string; to: string },
+  companyId?: string | null,
+) {
   if (!holdsAnyGrant(ctx.grants, "sales.view")) throw forbidden();
   const scope = accessibleScope(ctx.grants, "sales.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
+    const company = await tx.company.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        ...(companyId ? { id: companyId } : { isDefault: true }),
+      },
+      select: { id: true },
+    });
+    if (!company) throw notFound("Company");
     const rows = await tx.salesLine.groupBy({
       by: ["taxCodeId", "taxRate"],
       where: {
         organizationId: ctx.organizationId,
+        // Only this company's warehouses (and, below, those the user may see).
+        AND: [{ salesImport: { warehouse: { branch: { companyId: company.id } } } }],
         active: true,
         soldOn: {
           gte: new Date(`${period.from}T00:00:00Z`),
@@ -483,6 +501,7 @@ export async function vatSummary(ctx: TenantContext, period: { from: string; to:
         SELECT l.tax_code_id, l.tax_rate, l.net_amount AS net, l.tax_amount AS tax, l.gross_amount AS gross
         FROM pos_order_lines l JOIN pos_orders o ON o.id = l.order_id
         WHERE o.organization_id = ${ctx.organizationId}::uuid AND o.status = 'PAID'
+          AND o.company_id = ${company.id}::uuid
           AND o.business_date BETWEEN ${period.from}::date AND ${period.to}::date
           AND (${branchIds}::uuid[] IS NULL OR o.branch_id = ANY(${branchIds}::uuid[])
                OR o.warehouse_id = ANY(${warehouseIds}::uuid[]))
@@ -495,6 +514,7 @@ export async function vatSummary(ctx: TenantContext, period: { from: string; to:
         CROSS JOIN LATERAL jsonb_array_elements(r.lines) x
         JOIN pos_order_lines l ON l.id = (x->>'orderLineId')::uuid
         WHERE r.organization_id = ${ctx.organizationId}::uuid AND o.status = 'PAID'
+          AND o.company_id = ${company.id}::uuid
           AND (r.created_at AT TIME ZONE ${ctx.timeZone})::date BETWEEN ${period.from}::date AND ${period.to}::date
           AND (${branchIds}::uuid[] IS NULL OR o.branch_id = ANY(${branchIds}::uuid[])
                OR o.warehouse_id = ANY(${warehouseIds}::uuid[]))

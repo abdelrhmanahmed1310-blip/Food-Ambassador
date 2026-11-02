@@ -1,4 +1,6 @@
 import "server-only";
+import { currencyConverter } from "@/modules/fx/service";
+import { businessDate } from "@/modules/inventory/rules";
 import { assertDocumentCurrency } from "@/modules/fx/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
@@ -311,6 +313,7 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
         select: {
           receivedAt: true,
           exchangeRate: true,
+          company: { select: { currency: true } },
           purchaseOrder: { select: { expectedOn: true } },
           warehouse: { select: { branch: { select: { timeZone: true } } } },
           lines: {
@@ -364,8 +367,25 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
     }
     const dateIn = (d: Date, tz: string) =>
       new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
+    // Price variance in the group currency: each receipt at its own rate into its
+    // company's currency, then converted at today's rate (ADR-050/086); a receipt
+    // whose currency has no usable rate is left out.
+    const conv = await currencyConverter(tx, ctx, { date: businessDate(ctx.timeZone) });
+    const variances: Decimal[] = [];
+    for (const r of receipts) {
+      const inCompany = r.lines
+        .reduce(
+          (a, l) =>
+            a.plus(dec(l.unitPrice).minus(dec(l.orderedUnitPrice)).times(dec(l.acceptedQuantity))),
+          new Decimal(0),
+        )
+        .times(dec(r.exchangeRate));
+      variances.push(
+        (await conv.convert(inCompany, r.company?.currency ?? ctx.groupCurrency)) ?? new Decimal(0),
+      );
+    }
     const performance = supplierPerformance({
-      receipts: receipts.map((r) => {
+      receipts: receipts.map((r, index) => {
         const tz = r.warehouse.branch.timeZone ?? ctx.timeZone;
         return {
           receivedOn: dateIn(r.receivedAt, tz),
@@ -382,16 +402,7 @@ export async function getSupplier(ctx: TenantContext, supplierId: string) {
             (a, l) => a.plus(dec(l.rejectedQuantityBase)),
             new Decimal(0),
           ),
-          // In base currency: each receipt at its own rate (ADR-050).
-          priceVariance: r.lines
-            .reduce(
-              (a, l) =>
-                a.plus(
-                  dec(l.unitPrice).minus(dec(l.orderedUnitPrice)).times(dec(l.acceptedQuantity)),
-                ),
-              new Decimal(0),
-            )
-            .times(dec(r.exchangeRate)),
+          priceVariance: variances[index],
         };
       }),
       finishedOrders: [...byOrder.values()],

@@ -55,8 +55,10 @@ export default async function InvoicePage({
     quantityFormatter(),
     moneyFormatter(inv.currency),
   ]);
-  const fx = await fxItems(ctx.baseCurrency, inv, {
-    label: t("fx.totalInBase", { currency: ctx.baseCurrency }),
+  // Base amounts are in the billed company's currency (ADR-086).
+  const bookCurrency = inv.company?.currency ?? ctx.groupCurrency;
+  const fx = await fxItems(bookCurrency, inv, {
+    label: t("fx.totalInBase", { currency: bookCurrency }),
     value: inv.status === "POSTED" ? inv.grossAmountBase : null,
   });
   const [allOpen, options] = inv.can.edit

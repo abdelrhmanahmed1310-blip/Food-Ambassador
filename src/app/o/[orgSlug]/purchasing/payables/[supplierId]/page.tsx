@@ -18,6 +18,7 @@ import { hasPermission } from "@/modules/access/authorize";
 import { businessDate } from "@/modules/inventory/rules";
 import { PAYMENT_METHODS, supplierStatement } from "@/modules/invoices/payables";
 import { invoiceFormOptions } from "@/modules/invoices/service";
+import { listCompanies } from "@/modules/organizations/companies";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import { moneyFormatter } from "@/server/inventory-view";
@@ -37,11 +38,18 @@ export default async function SupplierStatementPage({
       ? sp.from
       : `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
   const to = typeof sp.to === "string" && isCalendarDate(sp.to) && sp.to >= from ? sp.to : today;
+  // A statement is for one paying company (ADR-086): the one asked for, else the default.
+  const companies = await listCompanies(ctx);
+  const companyId =
+    typeof sp.companyId === "string" && companies.some((c) => c.id === sp.companyId)
+      ? sp.companyId
+      : companies.find((c) => c.isDefault)!.id;
   const st = await notFoundOnAppError(
     supplierStatement(ctx, supplierId, {
       from,
       to,
       currency: typeof sp.currency === "string" ? sp.currency : undefined,
+      companyId,
     }),
   );
   const canPay = hasPermission(ctx.grants, "payments.manage");
@@ -107,12 +115,26 @@ export default async function SupplierStatementPage({
             {t("common.apply")}
           </button>
         </form>
+        {companies.length > 1 ? (
+          <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("companies.company")}>
+            {companies.map((c) => (
+              <a
+                key={c.id}
+                href={`?from=${from}&to=${to}&currency=${st.currency}&companyId=${c.id}`}
+                aria-current={c.id === companyId ? "page" : undefined}
+                className={`rounded-md border px-3 py-1 ${c.id === companyId ? "border-primary text-primary font-medium" : "border-border"}`}
+              >
+                {c.code}
+              </a>
+            ))}
+          </nav>
+        ) : null}
         {st.currencies.length > 1 ? (
           <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("fx.currency")}>
             {st.currencies.map((c) => (
               <Link
                 key={c}
-                href={`?from=${from}&to=${to}&currency=${c}`}
+                href={`?from=${from}&to=${to}&currency=${c}&companyId=${companyId}`}
                 aria-current={c === st.currency ? "page" : undefined}
                 className={`rounded-md border px-3 py-1 ${c === st.currency ? "border-primary text-primary font-medium" : "border-border"}`}
               >
@@ -238,6 +260,7 @@ export default async function SupplierStatementPage({
                 }))}
                 invoices={openOptions}
                 currency={st.currency}
+                companyId={companyId}
                 today={today}
               />
             </Card>
@@ -247,6 +270,7 @@ export default async function SupplierStatementPage({
                 taxCodes={taxCodes}
                 invoices={openOptions}
                 currency={st.currency}
+                companyId={companyId}
                 today={today}
               />
             </Card>

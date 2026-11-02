@@ -16,6 +16,7 @@ import { isCalendarDate } from "@/lib/dates";
 import { hasPermission } from "@/modules/access/authorize";
 import { businessDate } from "@/modules/inventory/rules";
 import { listRevaluations, previewRevaluation } from "@/modules/invoices/revaluation";
+import { listCompanies } from "@/modules/organizations/companies";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { AppError } from "@/server/errors";
 import { moneyIn } from "@/server/fx-view";
@@ -35,26 +36,32 @@ export default async function RevaluationPage({
   const today = businessDate(ctx.timeZone);
   const asOf =
     typeof sp.asOf === "string" && isCalendarDate(sp.asOf) && sp.asOf <= today ? sp.asOf : today;
-  const [t, tr, locale, runs] = await Promise.all([
+  const [t, tr, locale, runs, companies] = await Promise.all([
     getTranslations(),
     getTranslations("rules"),
     getLocale(),
     listRevaluations(ctx),
+    listCompanies(ctx),
   ]);
+  // One company at a time, in its currency (ADR-086).
+  const company =
+    companies.find((c) => c.id === sp.companyId) ?? companies.find((c) => c.isDefault)!;
   let preview: Awaited<ReturnType<typeof previewRevaluation>> | null = null;
   let problem: string | null = null;
   if (canPost) {
     try {
-      preview = await previewRevaluation(ctx, asOf);
+      preview = await previewRevaluation(ctx, asOf, company.id);
     } catch (e) {
       if (!(e instanceof AppError)) throw e;
       const rule = (e.details as { rule?: string } | undefined)?.rule ?? e.code;
       problem = tr.has(rule) ? tr(rule, e.details as Record<string, string>) : e.message;
     }
   }
-  const money = await moneyIn([ctx.baseCurrency, ...(preview?.lines ?? []).map((l) => l.currency)]);
-  const base = money(ctx.baseCurrency);
-  const posted = runs.find((r) => !r.cancelledAt && day(r.asOf) === asOf);
+  const money = await moneyIn([company.currency, ...(preview?.lines ?? []).map((l) => l.currency)]);
+  const base = money(company.currency);
+  const posted = runs.find(
+    (r) => !r.cancelledAt && day(r.asOf) === asOf && r.companyId === company.id,
+  );
   return (
     <>
       <PageHeader title={t("revaluation.title")} description={t("revaluation.intro")} />
@@ -64,6 +71,20 @@ export default async function RevaluationPage({
             <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
               <label className="text-sm">
                 <span className="mb-1 block font-medium">{t("revaluation.asOf")}</span>
+                {companies.length > 1 ? (
+                  <select
+                    name="companyId"
+                    defaultValue={company.id}
+                    aria-label={t("companies.company")}
+                    className="border-border bg-surface me-2 rounded-md border px-3 py-2"
+                  >
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.code} — {c.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
                 <input
                   type="date"
                   name="asOf"
@@ -157,7 +178,9 @@ export default async function RevaluationPage({
                     {t("revaluation.alreadyPosted", { number: posted.number })}
                   </Alert>
                 ) : (
-                  <PostRevaluationForm action={postRevaluationAction.bind(null, orgSlug, asOf)} />
+                  <PostRevaluationForm
+                    action={postRevaluationAction.bind(null, orgSlug, asOf, company.id)}
+                  />
                 )}
               </div>
             ) : null}

@@ -6,8 +6,7 @@ import { businessDate } from "@/modules/inventory/rules";
 import { createShipment } from "@/modules/inventory/shipments";
 import { listValuations, valuationByWarehouse } from "@/modules/inventory/valuation-queries";
 import { createCompany, listCompanies, updateCompany } from "@/modules/organizations/companies";
-import { createOrder } from "@/modules/procurement/orders";
-import { createSupplier } from "@/modules/procurement/suppliers";
+import { importSales } from "@/modules/sales/imports";
 import { createBranch } from "@/modules/sites/branches";
 import { createWarehouse } from "@/modules/sites/warehouses";
 import { inCurrency, type TenantContext } from "@/modules/tenancy/context";
@@ -174,13 +173,11 @@ describe("currency per company (ADR-086)", () => {
     ).rejects.toThrow(/different currencies/);
   });
 
-  it("flows not yet kept in a company's own currency refuse it", async () => {
-    const supplierId = (await createSupplier(ctx, { code: "S", name: "S" })).id;
-    await expectAppError(
-      createOrder(ctx, { supplierId, warehouseId: cai }),
-      "BUSINESS_RULE_VIOLATION",
-    );
-    // The group-currency company is unaffected.
-    expect((await createOrder(ctx, { supplierId, warehouseId: ruh })).id).toBeTruthy();
+  it("sales flows not yet kept in a company's own currency refuse it", async () => {
+    const r = await importSales(ctx, {
+      warehouseId: cai,
+      text: "date,external_id,item_code,quantity\n2026-11-01,X1,WATER,1",
+    }).catch((e) => e);
+    expect(r).toMatchObject({ details: { rule: "COMPANY_CURRENCY_NOT_YET_SUPPORTED" } });
   });
 });

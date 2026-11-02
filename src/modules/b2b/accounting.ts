@@ -1,4 +1,5 @@
 import "server-only";
+import { companyContext } from "@/modules/fx/service";
 import { toCsv } from "@/lib/csv";
 import { Decimal } from "@/lib/decimal";
 import { assertPermission } from "@/modules/access/authorize";
@@ -32,19 +33,30 @@ function fxLines(diff: Decimal, receivables: string, fx: string): Line[] {
     : [dr(fx, diff.abs()), cr(receivables, diff.abs())];
 }
 
-async function documentsIn(ctx: TenantContext, period: { from: string; to: string }) {
+/** One company's documents, base amounts in its currency (ADR-086). */
+async function documentsIn(
+  ctx: TenantContext,
+  period: { from: string; to: string; companyId?: string },
+) {
   return withTenantTx(ctx.organizationId, async (tx) => {
+    const company = await companyContext(tx, ctx, { companyId: period.companyId });
+    const companyId = company.companyId;
     const range = {
       gte: new Date(`${period.from}T00:00:00Z`),
       lte: new Date(`${period.to}T00:00:00Z`),
     };
     const invoices = await tx.salesInvoice.findMany({
-      where: { organizationId: ctx.organizationId, status: "POSTED", invoiceDate: range },
+      where: {
+        organizationId: ctx.organizationId,
+        companyId,
+        status: "POSTED",
+        invoiceDate: range,
+      },
       include: { customer: { select: { code: true, name: true, taxId: true } } },
       orderBy: [{ invoiceDate: "asc" }, { number: "asc" }],
     });
     const receipts = await tx.customerReceipt.findMany({
-      where: { organizationId: ctx.organizationId, status: "POSTED", date: range },
+      where: { organizationId: ctx.organizationId, companyId, status: "POSTED", date: range },
       include: {
         customer: { select: { code: true, name: true, taxId: true } },
         allocations: { select: { fxDifferenceBase: true } },
@@ -54,6 +66,7 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
     const revaluations = await tx.fxRevaluation.findMany({
       where: {
         organizationId: ctx.organizationId,
+        companyId,
         cancelledAt: null,
         asOf: { gte: new Date(range.gte.getTime() - 86_400_000), lte: range.lte },
       },
@@ -62,13 +75,19 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
     const accounts = await tx.accountingSettings.findUnique({
       where: { organizationId: ctx.organizationId },
     });
-    const tax = await tx.taxSettings.findUnique({ where: { organizationId: ctx.organizationId } });
+    const registered = (
+      await tx.company.findFirstOrThrow({
+        where: { id: companyId },
+        select: { vatRegistered: true },
+      })
+    ).vatRegistered;
     return {
       invoices,
       receipts,
       revaluations,
       accounts,
-      vatRegistered: tax?.vatRegistered ?? false,
+      vatRegistered: registered,
+      currency: company.currency,
     };
   });
 }
@@ -77,8 +96,8 @@ export async function exportReceivablesDocumentsCsv(ctx: TenantContext, rawPerio
   assertPermission(ctx.grants, "b2b.view");
   const parsed = periodSchema.safeParse(rawPeriod);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { invoices, receipts } = await documentsIn(ctx, parsed.data);
-  const base = currencyDecimals(ctx.baseCurrency);
+  const { invoices, receipts, currency } = await documentsIn(ctx, parsed.data);
+  const base = currencyDecimals(currency);
   const rows: Array<Array<string | null>> = [
     ...invoices.map((i) => {
       const places = currencyDecimals(i.currency);
@@ -154,6 +173,7 @@ export async function exportReceivablesJournalCsv(ctx: TenantContext, rawPeriod:
     revaluations,
     accounts: a,
     vatRegistered,
+    currency,
   } = await documentsIn(ctx, parsed.data);
   const fxOf = (r: (typeof receipts)[number]) =>
     r.allocations.reduce((s, x) => s.plus(dec(x.fxDifferenceBase)), zero);
@@ -223,7 +243,7 @@ export async function exportReceivablesJournalCsv(ctx: TenantContext, rawPeriod:
           ];
         }),
     ].sort((x, y) => x.date.localeCompare(y.date) || x.number.localeCompare(y.number));
-  const places = currencyDecimals(ctx.baseCurrency);
+  const places = currencyDecimals(currency);
   const money = (v: Decimal) => (v.isZero() ? null : v.toFixed(places));
   return toCsv(
     ["entry", "date", "document_type", "customer_code", "account", "debit", "credit", "currency"],
@@ -236,7 +256,7 @@ export async function exportReceivablesJournalCsv(ctx: TenantContext, rawPeriod:
         l.account,
         money(l.debit),
         money(l.credit),
-        ctx.baseCurrency,
+        currency,
       ]),
     ),
   );

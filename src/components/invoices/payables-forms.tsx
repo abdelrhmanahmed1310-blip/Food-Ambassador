@@ -46,12 +46,15 @@ export function PaymentForm({
   methods,
   invoices,
   currency,
+  companyId,
   today,
 }: {
   action: Action;
   methods: Option[];
   invoices: OpenInvoiceOption[];
   currency: string;
+  /** The paying company (ADR-086). */
+  companyId?: string;
   today: string;
 }) {
   const t = useTranslations();
@@ -63,6 +66,7 @@ export function PaymentForm({
       idempotent
     >
       <input type="hidden" name="currency" value={currency} />
+      {companyId ? <input type="hidden" name="companyId" value={companyId} /> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           name="date"
@@ -103,12 +107,15 @@ export function CreditNoteForm({
   taxCodes,
   invoices,
   currency,
+  companyId,
   today,
 }: {
   action: Action;
   taxCodes: Option[];
   invoices: OpenInvoiceOption[];
   currency: string;
+  /** The paying company (ADR-086). */
+  companyId?: string;
   today: string;
 }) {
   const t = useTranslations();
@@ -120,6 +127,7 @@ export function CreditNoteForm({
       idempotent
     >
       <input type="hidden" name="currency" value={currency} />
+      {companyId ? <input type="hidden" name="companyId" value={companyId} /> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           name="supplierDocumentNo"

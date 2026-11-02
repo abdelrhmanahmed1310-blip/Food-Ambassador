@@ -19,10 +19,17 @@ import {
   idempotencyKeySchema,
   optionalText,
   requiredText,
+  optionalUuidSchema,
   uuidSchema,
 } from "@/modules/shared/schemas";
 import { realisedDifference, toBase } from "@/modules/fx/rules";
-import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import {
+  assertDocumentCurrency,
+  baseAmount,
+  companyContext,
+  currencyConverter,
+  rateFor,
+} from "@/modules/fx/service";
 import { optionalCurrency } from "@/modules/procurement/schemas";
 import { currencyDecimals } from "@/modules/tax/rules";
 import type { TenantContext } from "@/modules/tenancy/context";
@@ -41,6 +48,8 @@ const zero = () => new Decimal(0);
 
 const receiptSchema = z.object({
   customerId: uuidSchema,
+  /** The receiving company (ADR-086); empty = the default company. */
+  companyId: optionalUuidSchema,
   date: z.string().refine(isCalendarDate, { error: "invalidDate" }),
   amount: decimalString({ maxScale: 4, min: "0.0001" }),
   method: z.enum(PAYMENT_METHODS, { error: "invalidOption" }),
@@ -76,16 +85,24 @@ async function received(tx: Tx, ctx: TenantContext, invoiceIds: string[], asOf?:
   return new Map(rows.map((r) => [r.invoiceId, dec(r._sum.amount ?? 0)]));
 }
 
-async function openInvoices(tx: Tx, ctx: TenantContext, customerId: string, currency?: string) {
+async function openInvoices(
+  tx: Tx,
+  ctx: TenantContext,
+  customerId: string,
+  currency?: string,
+  companyId?: string,
+) {
   const invoices = await tx.salesInvoice.findMany({
     where: {
       organizationId: ctx.organizationId,
       customerId,
       status: "POSTED",
       ...(currency ? { currency } : {}),
+      ...(companyId ? { companyId } : {}),
     },
     select: {
       id: true,
+      companyId: true,
       number: true,
       invoiceDate: true,
       dueDate: true,
@@ -127,15 +144,27 @@ export async function recordCustomerReceipt(ctx: TenantContext, rawInput: unknow
         select: { id: true, currency: true },
       });
       if (!customer) throw notFound("Customer");
-      const currency = input.currency ?? customer.currency ?? ctx.baseCurrency;
-      assertDocumentCurrency(ctx, currency);
+      if (
+        input.companyId &&
+        !(await tx.company.findFirst({
+          where: { organizationId: ctx.organizationId, id: input.companyId, archivedAt: null },
+          select: { id: true },
+        }))
+      )
+        throw businessRuleViolation("BRANCH_COMPANY_INVALID", "Choose an active company", {
+          field: "companyId",
+        });
+      // Base amounts in the receiving company's currency (ADR-086).
+      const company = await companyContext(tx, ctx, { companyId: input.companyId });
+      const currency = input.currency ?? customer.currency ?? company.currency;
+      assertDocumentCurrency(company.ctx, currency);
       if (amount.decimalPlaces() > currencyDecimals(currency))
         throw businessRuleViolation("AMOUNT_TOO_PRECISE", "More decimals than the currency has", {
           field: "amount",
           decimals: currencyDecimals(currency),
         });
       await lockCustomer(tx, ctx, customer.id);
-      const fx = await rateFor(tx, ctx, currency, input.date);
+      const fx = await rateFor(tx, company.ctx, currency, input.date);
       const number = await nextDocumentNumber(
         tx,
         ctx.organizationId,
@@ -147,12 +176,13 @@ export async function recordCustomerReceipt(ctx: TenantContext, rawInput: unknow
           organizationId: ctx.organizationId,
           number,
           customerId: customer.id,
+          companyId: company.companyId,
           date: new Date(`${input.date}T00:00:00Z`),
           amount: amount.toFixed(),
           currency,
           exchangeRate: fx.rate.toFixed(),
           rateDate: new Date(`${fx.rateDate}T00:00:00Z`),
-          amountBase: baseAmount(ctx, amount, fx.rate).toFixed(),
+          amountBase: baseAmount(company.ctx, amount, fx.rate).toFixed(),
           method: input.method,
           reference: input.reference,
           note: input.note,
@@ -160,8 +190,8 @@ export async function recordCustomerReceipt(ctx: TenantContext, rawInput: unknow
         },
         select: { id: true, number: true },
       });
-      // Only invoices in the receipt's currency (ADR-054).
-      const open = await openInvoices(tx, ctx, customer.id, currency);
+      // Only invoices in the receipt's currency and of its company (ADR-054/086).
+      const open = await openInvoices(tx, ctx, customer.id, currency, company.companyId);
       const applied = input.autoAllocate
         ? allocateOldestFirst(
             amount,
@@ -185,7 +215,7 @@ export async function recordCustomerReceipt(ctx: TenantContext, rawInput: unknow
               a.amount,
               dec(open.find((i) => i.id === a.invoiceId)!.exchangeRate),
               fx.rate,
-              currencyDecimals(ctx.baseCurrency),
+              currencyDecimals(company.currency),
             ).toFixed(),
             createdByUserId: ctx.userId,
           },
@@ -245,14 +275,15 @@ const emptyAging = (): AgingTotals =>
   Object.fromEntries(AGING_BUCKETS.map((b) => [b, zero()])) as AgingTotals;
 
 /**
- * What each customer owes on `asOf`, per currency (ADR-054): open invoices
- * aged by due date, unapplied receipts, and a base-currency equivalent at
- * the documents' own rates; totals in base currency.
+ * What each customer owes on `asOf`, per selling company and currency
+ * (ADR-054/086): open invoices aged by due date, unapplied receipts, and a
+ * base equivalent in the company's currency at the documents' own rates;
+ * the total in the group currency, each row converted at the rate on
+ * `asOf` (a currency without a usable rate is left out and named).
  */
 export async function customerBalances(ctx: TenantContext, asOf?: string) {
   assertPermission(ctx.grants, "b2b.view");
   const on = asOf && isCalendarDate(asOf) ? asOf : businessDate(ctx.timeZone);
-  const baseDecimals = currencyDecimals(ctx.baseCurrency);
   return withTenantTx(ctx.organizationId, async (tx) => {
     const until = new Date(`${on}T00:00:00Z`);
     const invoices = await tx.salesInvoice.findMany({
@@ -260,6 +291,7 @@ export async function customerBalances(ctx: TenantContext, asOf?: string) {
       select: {
         id: true,
         customerId: true,
+        companyId: true,
         currency: true,
         exchangeRate: true,
         invoiceDate: true,
@@ -272,6 +304,7 @@ export async function customerBalances(ctx: TenantContext, asOf?: string) {
       select: {
         id: true,
         customerId: true,
+        companyId: true,
         currency: true,
         exchangeRate: true,
         amount: true,
@@ -284,9 +317,13 @@ export async function customerBalances(ctx: TenantContext, asOf?: string) {
       invoices.map((i) => i.id),
       on,
     );
-    const keys = [
-      ...new Set([...invoices, ...receipts].map((d) => `${d.customerId}|${d.currency}`)),
-    ];
+    const keyOf = (d: { customerId: string; companyId: string | null; currency: string }) =>
+      `${d.customerId}|${d.companyId}|${d.currency}`;
+    const keys = [...new Set([...invoices, ...receipts].map(keyOf))];
+    const companies = await tx.company.findMany({
+      where: { organizationId: ctx.organizationId },
+      select: { id: true, code: true, name: true, currency: true },
+    });
     const customers = await tx.customer.findMany({
       where: {
         organizationId: ctx.organizationId,
@@ -295,15 +332,15 @@ export async function customerBalances(ctx: TenantContext, asOf?: string) {
       select: { id: true, code: true, name: true, nameAr: true },
     });
     const rows = keys.map((key) => {
-      const [customerId, currency] = key.split("|");
+      const [customerId, companyId, currency] = key.split("|");
       const c = customers.find((x) => x.id === customerId)!;
+      const company = companies.find((x) => x.id === companyId)!;
+      const baseDecimals = currencyDecimals(company.currency);
       const aging = emptyAging();
       let invoiced = zero();
       let openTotal = zero();
       let balanceBase = zero();
-      for (const i of invoices.filter(
-        (x) => x.customerId === customerId && x.currency === currency,
-      )) {
+      for (const i of invoices.filter((x) => keyOf(x) === key)) {
         invoiced = invoiced.plus(dec(i.grossAmount));
         const open = Decimal.max(dec(i.grossAmount).minus(got.get(i.id) ?? 0), 0);
         if (!open.gt(0)) continue;
@@ -313,9 +350,7 @@ export async function customerBalances(ctx: TenantContext, asOf?: string) {
         balanceBase = balanceBase.plus(toBase(open, dec(i.exchangeRate), baseDecimals));
       }
       let paid = zero();
-      for (const r of receipts.filter(
-        (x) => x.customerId === customerId && x.currency === currency,
-      )) {
+      for (const r of receipts.filter((x) => keyOf(x) === key)) {
         paid = paid.plus(dec(r.amount));
         const used = r.allocations
           .filter((a) => a.invoice.invoiceDate <= until)
@@ -327,6 +362,9 @@ export async function customerBalances(ctx: TenantContext, asOf?: string) {
       const balance = invoiced.minus(paid);
       return {
         customer: c,
+        company: { id: company.id, code: company.code, name: company.name },
+        /** The base amounts' currency: the selling company's (ADR-086). */
+        baseCurrency: company.currency,
         currency,
         invoiced,
         received: paid,
@@ -336,15 +374,25 @@ export async function customerBalances(ctx: TenantContext, asOf?: string) {
         balanceBase,
       };
     });
+    const conv = await currencyConverter(tx, ctx, { date: on });
+    let totalBase = zero();
+    for (const r of rows) {
+      const v = await conv.convert(r.balanceBase, r.baseCurrency);
+      if (v) totalBase = totalBase.plus(v);
+    }
     return {
       asOf: on,
+      /** The total's currency (the group's) and currencies left out for want of a rate. */
+      currency: conv.currency,
+      missingRates: conv.missing(),
+      totalBase,
       rows: rows.sort(
         (a, b) =>
+          a.company.code.localeCompare(b.company.code) ||
           b.balanceBase.comparedTo(a.balanceBase) ||
           a.customer.code.localeCompare(b.customer.code) ||
           a.currency.localeCompare(b.currency),
       ),
-      totalBase: rows.reduce((a, r) => a.plus(r.balanceBase), zero()),
     };
   });
 }
@@ -359,7 +407,10 @@ export async function customerAccount(ctx: TenantContext, customerId: string) {
     const open = (await openInvoices(tx, ctx, customerId)).filter((i) => i.open.gt(0));
     const receipts = await tx.customerReceipt.findMany({
       where: { organizationId: ctx.organizationId, customerId },
-      include: { allocations: { select: { amount: true } } },
+      include: {
+        allocations: { select: { amount: true } },
+        company: { select: { code: true, currency: true } },
+      },
       orderBy: { date: "desc" },
       take: 50,
     });

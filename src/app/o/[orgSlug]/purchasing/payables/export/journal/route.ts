@@ -11,7 +11,12 @@ export async function GET(
   if (!hasPermission(ctx.grants, "invoices.view"))
     return new Response("Not found", { status: 404 });
   const sp = new URL(request.url).searchParams;
-  const period = { from: sp.get("from") ?? "", to: sp.get("to") ?? "" };
+  // One company's books (ADR-086); empty = the default company.
+  const period = {
+    from: sp.get("from") ?? "",
+    to: sp.get("to") ?? "",
+    companyId: sp.get("companyId") || undefined,
+  };
   try {
     const csv = await exportPayablesJournalCsv(ctx, period);
     return csvResponse(csv, `payables-journal-${period.from}-${period.to}.csv`);

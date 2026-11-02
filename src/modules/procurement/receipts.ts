@@ -1,5 +1,5 @@
 import "server-only";
-import { rateFor } from "@/modules/fx/service";
+import { companyContext, rateFor } from "@/modules/fx/service";
 import { unitToBase } from "@/modules/fx/rules";
 import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
@@ -155,7 +155,9 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
         if (!location) throw notFound("Location");
       }
       // Prices are in the order's currency; stock is valued in base currency at today's rate (ADR-050).
-      const fx = await rateFor(tx, ctx, order.currency, today);
+      // Stock is valued in the order's company's currency (ADR-086).
+      const company = await companyContext(tx, ctx, { companyId: order.companyId });
+      const fx = await rateFor(tx, company.ctx, order.currency, today);
       const receivedAt = new Date();
       await tx.goodsReceipt.create({
         data: {
@@ -248,7 +250,7 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
       await tx.purchaseOrder.update({ where: { id: order.id }, data: { status } });
       // The supplier's last price is kept in the supplier's currency only.
       const supplier = await loadSupplier(tx, ctx, order.supplierId);
-      const samePriceCurrency = (supplier.currency ?? ctx.baseCurrency) === order.currency;
+      const samePriceCurrency = (supplier.currency ?? company.currency) === order.currency;
       for (const l of samePriceCurrency ? acceptedLines : []) {
         const key = {
           organizationId: ctx.organizationId,
@@ -442,6 +444,8 @@ export async function getReceipt(ctx: TenantContext, receiptId: string) {
       include: {
         purchaseOrder: { select: { id: true, number: true, status: true } },
         supplier: { select: { id: true, code: true, name: true, nameAr: true } },
+        // Stock and base amounts are in the receipt's company's currency (ADR-086).
+        company: { select: { code: true, name: true, currency: true } },
         warehouse: {
           select: {
             id: true,

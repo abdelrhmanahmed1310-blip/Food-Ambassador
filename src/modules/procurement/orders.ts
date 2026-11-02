@@ -7,12 +7,7 @@ import {
   type ApprovalLevel,
 } from "@/modules/approvals/rules";
 import { loadLayers } from "@/modules/approvals/service";
-import {
-  assertDocumentCurrency,
-  baseAmount,
-  rateFor,
-  assertFlowInGroupCurrency,
-} from "@/modules/fx/service";
+import { assertDocumentCurrency, baseAmount, companyContext, rateFor } from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
@@ -233,6 +228,8 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
       where: { organizationId: ctx.organizationId, id: orderId },
       include: {
         supplier: { select: { id: true, code: true, name: true, nameAr: true, archivedAt: true } },
+        // Base amounts are in the order's company's currency (ADR-086).
+        company: { select: { code: true, name: true, currency: true } },
         warehouse: {
           select: {
             id: true,
@@ -376,9 +373,10 @@ export async function createDraftOrderInTx(
   const supplier = await loadSupplier(tx, ctx, input.supplierId);
   if (supplier.archivedAt)
     throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
-  await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
-  const currency = input.currency ?? supplier.currency ?? ctx.baseCurrency;
-  assertDocumentCurrency(ctx, currency);
+  // Default currency: the supplier's, else the warehouse's company's (ADR-086).
+  const company = await companyContext(tx, ctx, { warehouseId: wh.id });
+  const currency = input.currency ?? supplier.currency ?? company.currency;
+  assertDocumentCurrency(company.ctx, currency);
   const today = businessDate(wh.branch.timeZone ?? ctx.timeZone);
   const number = await nextDocumentNumber(tx, ctx.organizationId, "PO", Number(today.slice(0, 4)));
   const order = await tx.purchaseOrder.create({
@@ -580,9 +578,16 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     const total = dec(order.totalAmount);
     // Approval limits are in the base currency (ADR-049/050): convert at today's rate.
     const today = businessDate(order.warehouse.branch.timeZone ?? ctx.timeZone);
-    const fx = await rateFor(tx, ctx, order.currency, today);
-    const totalBase = baseAmount(ctx, total, fx.rate);
-    const chain = chainFor(await loadLayers(tx, ctx, "PURCHASE_ORDER"), totalBase);
+    // The base amount is in the order's company's currency; approval limits are in
+    // the group's, so the limits are checked on the group-currency total (ADR-086).
+    const company = await companyContext(tx, ctx, { companyId: order.companyId });
+    const fx = await rateFor(tx, company.ctx, order.currency, today);
+    const totalBase = baseAmount(company.ctx, total, fx.rate);
+    const forLimits =
+      company.currency === ctx.groupCurrency
+        ? totalBase
+        : baseAmount(ctx, total, (await rateFor(tx, ctx, order.currency, today)).rate);
+    const chain = chainFor(await loadLayers(tx, ctx, "PURCHASE_ORDER"), forLimits);
     const outcome = chain.length === 0 ? "AUTO_APPROVED" : "NEEDS_APPROVAL";
     const now = new Date();
     await tx.purchaseOrder.update({

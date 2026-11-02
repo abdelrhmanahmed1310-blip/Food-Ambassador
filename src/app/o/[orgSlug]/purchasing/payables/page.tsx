@@ -10,6 +10,7 @@ import { businessDate } from "@/modules/inventory/rules";
 import { journalReady } from "@/modules/invoices/accounting";
 import { supplierBalances } from "@/modules/invoices/payables";
 import { AGING_BUCKETS } from "@/modules/invoices/payables-rules";
+import { listCompanies } from "@/modules/organizations/companies";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { moneyFormatter } from "@/server/inventory-view";
 
@@ -26,23 +27,30 @@ export default async function PayablesPage({
   const from =
     typeof sp.from === "string" && isCalendarDate(sp.from) ? sp.from : `${today.slice(0, 7)}-01`;
   const to = typeof sp.to === "string" && isCalendarDate(sp.to) && sp.to >= from ? sp.to : today;
-  const [t, locale, money, balances, ready] = await Promise.all([
+  const [t, locale, balances, ready, companies] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
     supplierBalances(ctx, asOf),
     journalReady(ctx),
+    listCompanies(ctx),
   ]);
+  const companyId =
+    typeof sp.companyId === "string" && companies.some((c) => c.id === sp.companyId)
+      ? sp.companyId
+      : (companies.find((c) => c.isDefault)?.id ?? "");
+  // Totals are in the group currency; each row's base amount in its company's (ADR-086).
+  const money = await moneyFormatter(balances.currency);
+  const severalCompanies = companies.length > 1;
   const base = `/o/${orgSlug}/purchasing/payables`;
   // Rows are in their own currency (ADR-050); totals in base currency.
   const formatters = new Map(
     await Promise.all(
-      [...new Set(balances.rows.map((r) => r.currency))].map(
+      [...new Set(balances.rows.flatMap((r) => [r.currency, r.baseCurrency]))].map(
         async (c) => [c, await moneyFormatter(c)] as const,
       ),
     ),
   );
-  const amount = (v: Decimal, currency = ctx.baseCurrency) => (
+  const amount = (v: Decimal, currency = balances.currency) => (
     <span className="ltr-value whitespace-nowrap">
       {v.isZero() ? "—" : (formatters.get(currency) ?? money).money(v)}
     </span>
@@ -74,6 +82,11 @@ export default async function PayablesPage({
           {dateInput("asOf", t("payables.asOf"), asOf)}
           {apply}
         </form>
+        {balances.missingRates.length > 0 ? (
+          <Alert tone="error">
+            {t("fx.missingRates", { currencies: balances.missingRates.join(", ") })}
+          </Alert>
+        ) : null}
         {balances.rows.length === 0 ? (
           <EmptyState title={t("payables.none")} />
         ) : (
@@ -81,30 +94,40 @@ export default async function PayablesPage({
             <thead>
               <tr>
                 <Th>{t("purchasing.supplier")}</Th>
+                {severalCompanies ? <Th>{t("companies.company")}</Th> : null}
                 <Th>{t("fx.currency")}</Th>
                 <Th>{t("payables.balance")}</Th>
                 {AGING_BUCKETS.map((b) => (
                   <Th key={b}>{t(`payables.aging.${b}`)}</Th>
                 ))}
                 <Th>{t("payables.unapplied")}</Th>
-                <Th>{t("fx.inBase", { currency: ctx.baseCurrency })}</Th>
+                <Th>
+                  {severalCompanies
+                    ? t("fx.inCompanyCurrency")
+                    : t("fx.inBase", { currency: balances.currency })}
+                </Th>
               </tr>
             </thead>
             <tbody>
               {balances.rows.map((r) => (
                 <tr
-                  key={`${r.supplier.id}-${r.currency}`}
-                  data-testid={`balance-${r.supplier.code}${r.currency === ctx.baseCurrency ? "" : `-${r.currency}`}`}
+                  key={`${r.supplier.id}-${r.company.id}-${r.currency}`}
+                  data-testid={`balance-${r.supplier.code}${r.currency === r.baseCurrency ? "" : `-${r.currency}`}`}
                 >
                   <Td>
                     <Link
-                      href={`${base}/${r.supplier.id}?currency=${r.currency}`}
+                      href={`${base}/${r.supplier.id}?currency=${r.currency}&companyId=${r.company.id}`}
                       className="text-primary hover:underline"
                     >
                       <span className="ltr-value font-mono text-xs">{r.supplier.code}</span>{" "}
                       <bdi>{(locale === "ar" && r.supplier.nameAr) || r.supplier.name}</bdi>
                     </Link>
                   </Td>
+                  {severalCompanies ? (
+                    <Td>
+                      <span className="ltr-value font-mono text-xs">{r.company.code}</span>
+                    </Td>
+                  ) : null}
                   <Td>
                     <span className="ltr-value font-mono text-xs">{r.currency}</span>
                   </Td>
@@ -115,13 +138,14 @@ export default async function PayablesPage({
                     </Td>
                   ))}
                   <Td className="tabular-nums">{amount(r.unapplied, r.currency)}</Td>
-                  <Td className="tabular-nums">{amount(r.balanceBase)}</Td>
+                  <Td className="tabular-nums">{amount(r.balanceBase, r.baseCurrency)}</Td>
                 </tr>
               ))}
               <tr className="font-medium" data-testid="balance-total">
                 <Td>{t("payables.total")}</Td>
+                {severalCompanies ? <Td /> : null}
                 <Td>
-                  <span className="ltr-value font-mono text-xs">{ctx.baseCurrency}</span>
+                  <span className="ltr-value font-mono text-xs">{balances.currency}</span>
                 </Td>
                 <Td className="tabular-nums">{amount(balances.total.balanceBase)}</Td>
                 {AGING_BUCKETS.map((b) => (
@@ -143,11 +167,27 @@ export default async function PayablesPage({
             <input type="hidden" name="asOf" value={asOf} />
             {dateInput("from", t("tax.from"), from)}
             {dateInput("to", t("tax.to"), to)}
+            {severalCompanies ? (
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">{t("companies.company")}</span>
+                <select
+                  name="companyId"
+                  defaultValue={companyId}
+                  className="border-border bg-surface rounded-md border px-3 py-2"
+                >
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} — {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             {apply}
           </form>
           <div className="flex flex-wrap gap-3">
             <a
-              href={`${base}/export/documents?from=${from}&to=${to}`}
+              href={`${base}/export/documents?from=${from}&to=${to}&companyId=${companyId}`}
               className={buttonClass("secondary")}
             >
               {t("payables.exportDocuments")}
@@ -157,7 +197,7 @@ export default async function PayablesPage({
             </a>
             {ready ? (
               <a
-                href={`${base}/export/journal?from=${from}&to=${to}`}
+                href={`${base}/export/journal?from=${from}&to=${to}&companyId=${companyId}`}
                 className={buttonClass("secondary")}
               >
                 {t("payables.exportJournal")}

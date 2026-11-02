@@ -6,7 +6,7 @@ import { Decimal, decimalString } from "@/lib/decimal";
 import { assertPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { currencyDecimals } from "@/modules/tax/rules";
-import type { TenantContext } from "@/modules/tenancy/context";
+import { inCurrency, type TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, validationFailed } from "@/server/errors";
 import {
@@ -198,6 +198,36 @@ export async function assertFlowInGroupCurrency(
       "This is not yet available for a company keeping its books in another currency",
       { currency },
     );
+}
+
+/**
+ * The context for one company's documents (ADR-086): its id, currency and the
+ * same user working in that currency. The company comes from `at` (company,
+ * or a warehouse's branch's); without either, the default company.
+ */
+export async function companyContext(
+  tx: Tx,
+  ctx: TenantContext,
+  at: { companyId?: string | null; warehouseId?: string | null; branchId?: string | null },
+) {
+  const c = await tx.company.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      ...(at.companyId
+        ? { id: at.companyId }
+        : at.branchId
+          ? { branches: { some: { id: at.branchId } } }
+          : at.warehouseId
+            ? { branches: { some: { warehouses: { some: { id: at.warehouseId } } } } }
+            : { isDefault: true }),
+    },
+    select: { id: true, currency: true },
+  });
+  if (!c)
+    throw businessRuleViolation("BRANCH_COMPANY_INVALID", "Choose an active company", {
+      field: "companyId",
+    });
+  return { companyId: c.id, currency: c.currency, ctx: inCurrency(ctx, c.currency) };
 }
 
 /** The currency of each warehouse: its branch's company's (ADR-086). */

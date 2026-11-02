@@ -28,8 +28,10 @@ export default async function RevaluationDetailPage({
   const ctx = await requireTenant(orgSlug);
   const rev = await notFoundOnAppError(getRevaluation(ctx, revaluationId));
   const [t, locale] = await Promise.all([getTranslations(), getLocale()]);
-  const money = await moneyIn([ctx.baseCurrency, ...rev.lines.map((l) => l.currency)]);
-  const base = money(ctx.baseCurrency);
+  // In the company's currency (ADR-086).
+  const bookCurrency = rev.company?.currency ?? ctx.groupCurrency;
+  const money = await moneyIn([bookCurrency, ...rev.lines.map((l) => l.currency)]);
+  const base = money(bookCurrency);
   return (
     <>
       <PageHeader

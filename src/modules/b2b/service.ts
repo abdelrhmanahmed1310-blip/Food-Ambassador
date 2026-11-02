@@ -4,6 +4,7 @@ import {
   baseAmount,
   rateFor,
   assertFlowInGroupCurrency,
+  companyContext,
 } from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
 import { optionalCurrency } from "@/modules/procurement/schemas";
@@ -934,13 +935,20 @@ export async function listSalesInvoices(ctx: TenantContext, filters: { customerI
  * Output VAT on posted B2B invoices by invoice date, per code and rate (for
  * the VAT summary), in base currency: each line at its invoice's rate (ADR-054).
  */
-export async function b2bOutputVat(ctx: TenantContext, period: { from: string; to: string }) {
+/** Output VAT on B2B invoices of one company (its VAT return; ADR-086), in its currency. */
+export async function b2bOutputVat(
+  ctx: TenantContext,
+  period: { from: string; to: string },
+  companyId?: string | null,
+) {
   assertPermission(ctx.grants, "b2b.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
+    const company = await companyContext(tx, ctx, { companyId });
     const lines = await tx.salesInvoiceLine.findMany({
       where: {
         organizationId: ctx.organizationId,
         invoice: {
+          companyId: company.companyId,
           status: "POSTED",
           invoiceDate: { gte: date(period.from), lte: date(period.to) },
         },
@@ -972,8 +980,8 @@ export async function b2bOutputVat(ctx: TenantContext, period: { from: string; t
       };
       const rate = dec(l.invoice.exchangeRate);
       g.lines += 1;
-      g.net = g.net.plus(baseAmount(ctx, dec(l.netAmount), rate));
-      g.tax = g.tax.plus(baseAmount(ctx, dec(l.taxAmount), rate));
+      g.net = g.net.plus(baseAmount(company.ctx, dec(l.netAmount), rate));
+      g.tax = g.tax.plus(baseAmount(company.ctx, dec(l.taxAmount), rate));
       groups.set(key, g);
     }
     return [...groups.values()].map((g) => ({

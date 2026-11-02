@@ -31,16 +31,17 @@ export default async function ReceiptPage({
   if (!isUuid(receiptId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const receipt = await notFoundOnAppError(getReceipt(ctx, receiptId));
+  // Landed costs are in the receipt's company's currency; prices in the receipt's (ADR-050/086).
+  const bookCurrency = receipt.company?.currency ?? ctx.groupCurrency;
   const [t, locale, format, fmt, money] = await Promise.all([
     getTranslations(),
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    // Landed costs are in base currency; prices in the receipt's (ADR-050).
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(bookCurrency),
   ]);
   const price = await moneyFormatter(receipt.currency);
-  const fx = await fxItems(ctx.baseCurrency, receipt);
+  const fx = await fxItems(bookCurrency, receipt);
   const dt = (d: Date) =>
     format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone });
   const docLink = (doc: { id: string; number: string } | null) =>
@@ -227,7 +228,7 @@ export default async function ReceiptPage({
                       <Td>{t(`landedCost.methods.${c.method}`)}</Td>
                       <Td className="tabular-nums">
                         <span className="ltr-value whitespace-nowrap">{money.money(c.amount)}</span>
-                        {c.currency !== ctx.baseCurrency ? (
+                        {c.currency !== bookCurrency ? (
                           <span className="ltr-value text-muted block text-xs">
                             {c.enteredAmount.toFixed()} {c.currency} ×{" "}
                             {c.exchangeRate.toFixed().replace(/\.?0+$/, "")}
@@ -257,8 +258,8 @@ export default async function ReceiptPage({
               <div className={hasLanded ? "mt-4" : ""}>
                 <LandedCostForm
                   action={addLandedCostAction.bind(null, orgSlug, receipt.id)}
-                  currency={ctx.baseCurrency}
-                  currencies={currencyChoices(ctx.baseCurrency)}
+                  currency={bookCurrency}
+                  currencies={currencyChoices(bookCurrency)}
                   quantityAllowed={stockedUnits.size === 1}
                 />
               </div>

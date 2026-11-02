@@ -1,10 +1,5 @@
 import "server-only";
-import {
-  assertDocumentCurrency,
-  baseAmount,
-  rateFor,
-  assertFlowInGroupCurrency,
-} from "@/modules/fx/service";
+import { assertDocumentCurrency, baseAmount, companyContext, rateFor } from "@/modules/fx/service";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
@@ -230,8 +225,6 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
         where: { organizationId: ctx.organizationId, id: input.supplierId },
       });
       if (!supplier) throw notFound("Supplier");
-      const currency = input.currency ?? supplier.currency ?? ctx.baseCurrency;
-      assertDocumentCurrency(ctx, currency);
       if (
         input.companyId &&
         !(await tx.company.findFirst({
@@ -242,7 +235,10 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
         throw businessRuleViolation("BRANCH_COMPANY_INVALID", "Choose an active company", {
           field: "companyId",
         });
-      await assertFlowInGroupCurrency(tx, ctx, { companyId: input.companyId });
+      // Default currency: the supplier's, else the billed company's (ADR-086).
+      const company = await companyContext(tx, ctx, { companyId: input.companyId });
+      const currency = input.currency ?? supplier.currency ?? company.currency;
+      assertDocumentCurrency(company.ctx, currency);
       const due = input.dueDate ?? dueDateFor(input.invoiceDate, supplier.paymentTermsDays);
       if (due && due < input.invoiceDate)
         throw businessRuleViolation(
@@ -532,10 +528,12 @@ export async function postInvoice(ctx: TenantContext, invoiceId: string) {
         "INVOICE_EXCEPTION_NOT_APPROVED",
         "The invoice does not match; another person must approve the differences first",
       );
-    // Base-currency totals at the rate on the invoice date, fixed now (ADR-050).
-    const fx = await rateFor(tx, ctx, fresh.currency, day(fresh.invoiceDate));
-    const netBase = baseAmount(ctx, dec(fresh.netAmount), fx.rate);
-    const taxBase = baseAmount(ctx, dec(fresh.taxAmount), fx.rate);
+    // Base totals at the rate on the invoice date, fixed now (ADR-050), in the
+    // billed company's currency (ADR-086).
+    const company = await companyContext(tx, ctx, { companyId: fresh.companyId });
+    const fx = await rateFor(tx, company.ctx, fresh.currency, day(fresh.invoiceDate));
+    const netBase = baseAmount(company.ctx, dec(fresh.netAmount), fx.rate);
+    const taxBase = baseAmount(company.ctx, dec(fresh.taxAmount), fx.rate);
     await tx.supplierInvoice.update({
       where: { id: inv.id },
       data: {
@@ -691,6 +689,8 @@ export async function getInvoice(ctx: TenantContext, invoiceId: string) {
       where: { organizationId: ctx.organizationId, id: invoiceId },
       include: {
         supplier: { select: { id: true, code: true, name: true, nameAr: true, taxId: true } },
+        // Base amounts are in the billed company's currency (ADR-086).
+        company: { select: { code: true, name: true, currency: true } },
         lines: {
           orderBy: { lineNo: "asc" },
           include: {
@@ -765,14 +765,25 @@ export async function getInvoice(ctx: TenantContext, invoiceId: string) {
  * `reclaimable` is false when the organization is not VAT registered — the
  * VAT is then part of the cost. An estimate for review, not a return.
  */
-export async function inputVatSummary(ctx: TenantContext, period: { from: string; to: string }) {
+/**
+ * Input VAT of one company (its own VAT return, ADR-084/086; the default
+ * company when none is chosen), in its currency.
+ */
+export async function inputVatSummary(
+  ctx: TenantContext,
+  period: { from: string; to: string },
+  companyId?: string | null,
+) {
   assertPermission(ctx.grants, "invoices.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
+    const company = await companyContext(tx, ctx, { companyId });
+    const cctx = company.ctx;
     // Lines are in their invoice's currency: each is converted at its invoice's rate (ADR-050).
     const lineRows = await tx.supplierInvoiceLine.findMany({
       where: {
         organizationId: ctx.organizationId,
         invoice: {
+          companyId: company.companyId,
           status: "POSTED",
           invoiceDate: {
             gte: new Date(`${period.from}T00:00:00Z`),
@@ -793,6 +804,7 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
       by: ["taxCodeId", "taxRate"],
       where: {
         organizationId: ctx.organizationId,
+        companyId: company.companyId,
         kind: "CREDIT_NOTE",
         status: "POSTED",
         date: {
@@ -807,9 +819,12 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
       where: { organizationId: ctx.organizationId },
       select: { id: true, code: true, name: true, nameAr: true, category: true },
     });
-    const settings = await tx.taxSettings.findUnique({
-      where: { organizationId: ctx.organizationId },
-    });
+    const registered = (
+      await tx.company.findFirstOrThrow({
+        where: { id: company.companyId },
+        select: { vatRegistered: true },
+      })
+    ).vatRegistered;
     const merged = new Map<
       string,
       {
@@ -844,8 +859,8 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
     for (const r of lineRows) {
       const e = entry(r.taxCodeId, r.taxRate);
       const rate = dec(r.invoice.exchangeRate);
-      const net = baseAmount(ctx, dec(r.netAmount), rate);
-      const tax = baseAmount(ctx, dec(r.taxAmount), rate);
+      const net = baseAmount(cctx, dec(r.netAmount), rate);
+      const tax = baseAmount(cctx, dec(r.taxAmount), rate);
       e.lines += 1;
       e.net = e.net.plus(net);
       e.tax = e.tax.plus(tax);
@@ -861,7 +876,9 @@ export async function inputVatSummary(ctx: TenantContext, period: { from: string
       e.gross = e.gross.minus(gross);
     }
     return {
-      reclaimable: settings?.vatRegistered ?? false,
+      reclaimable: registered,
+      companyId: company.companyId,
+      currency: company.currency,
       rows: [...merged.values()].map((r) => ({
         code: codes.find((c) => c.id === r.taxCodeId) ?? null,
         rate: r.rate,

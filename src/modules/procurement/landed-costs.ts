@@ -1,7 +1,7 @@
 import "server-only";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { assertPermission } from "@/modules/access/authorize";
-import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import { assertDocumentCurrency, baseAmount, companyContext, rateFor } from "@/modules/fx/service";
 import { currencyDecimals } from "@/modules/tax/rules";
 import { postLandedCost } from "@/modules/inventory/posting";
 import { businessDate } from "@/modules/inventory/rules";
@@ -90,16 +90,18 @@ export async function addReceiptLandedCost(
         );
       // Entered in its own currency (e.g. freight in USD), posted in base at today's rate (ADR-053).
       const today = businessDate(order.warehouse.branch.timeZone ?? ctx.timeZone);
-      const currency = input.currency ?? ctx.baseCurrency;
-      assertDocumentCurrency(ctx, currency);
+      // Stock is valued in the warehouse's company's currency (ADR-086).
+      const company = await companyContext(tx, ctx, { warehouseId: receipt.warehouseId });
+      const currency = input.currency ?? company.currency;
+      assertDocumentCurrency(company.ctx, currency);
       const entered = toDecimal(input.amount);
       if (entered.decimalPlaces() > currencyDecimals(currency))
         throw businessRuleViolation("AMOUNT_TOO_PRECISE", "More decimals than the currency has", {
           field: "amount",
           decimals: currencyDecimals(currency),
         });
-      const fx = await rateFor(tx, ctx, currency, today);
-      const amount = baseAmount(ctx, entered, fx.rate);
+      const fx = await rateFor(tx, company.ctx, currency, today);
+      const amount = baseAmount(company.ctx, entered, fx.rate);
       const shares = allocateCharge(amount, weights);
       const result = await postLandedCost(
         tx,

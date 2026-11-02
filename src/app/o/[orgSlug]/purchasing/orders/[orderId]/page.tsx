@@ -58,8 +58,10 @@ export default async function OrderPage({
     quantityFormatter(),
     moneyFormatter(order.currency),
   ]);
-  const fx = await fxItems(ctx.baseCurrency, order, {
-    label: t("fx.totalInBase", { currency: ctx.baseCurrency }),
+  // Base amounts are in the order's company's currency (ADR-086).
+  const bookCurrency = order.company?.currency ?? ctx.groupCurrency;
+  const fx = await fxItems(bookCurrency, order, {
+    label: t("fx.totalInBase", { currency: bookCurrency }),
     value: order.totalAmountBase,
   });
   const editing = order.can.edit;
@@ -249,7 +251,7 @@ export default async function OrderPage({
                 action={addOrderLineAction.bind(null, orgSlug, order.id)}
                 products={productOptions(products, locale)}
                 units={unitOptions(units, locale)}
-                currency={ctx.baseCurrency}
+                currency={order.currency}
               />
             </div>
           ) : null}
@@ -335,7 +337,7 @@ export default async function OrderPage({
                   value: w.id,
                   label: `${w.code} — ${w.name}`,
                 }))}
-                currencies={currencyChoices(ctx.baseCurrency)}
+                currencies={currencyChoices(bookCurrency)}
                 submitLabel={t("common.save")}
                 defaults={{
                   currency: order.currency,

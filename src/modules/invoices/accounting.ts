@@ -1,4 +1,6 @@
 import "server-only";
+import { companyContext } from "@/modules/fx/service";
+import { optionalUuidSchema } from "@/modules/shared/schemas";
 import { z } from "zod";
 import { toCsv } from "@/lib/csv";
 import { isCalendarDate } from "@/lib/dates";
@@ -46,6 +48,8 @@ export const periodSchema = z
   .object({
     from: z.string().refine(isCalendarDate, { error: "invalidDate" }),
     to: z.string().refine(isCalendarDate, { error: "invalidDate" }),
+    /** One company's books, in its currency (ADR-086); empty = the default company. */
+    companyId: optionalUuidSchema,
   })
   .refine((p) => p.from <= p.to, { error: "invalidPeriod", path: ["to"] });
 
@@ -75,15 +79,25 @@ export async function updateAccountingSettings(ctx: TenantContext, rawInput: unk
   });
 }
 
-/** Posted invoices (per VAT rate), credit notes and payments dated in the period. */
-async function documentsIn(ctx: TenantContext, period: { from: string; to: string }) {
+/** One company's posted invoices (per VAT rate), credit notes and payments dated in the period. */
+async function documentsIn(
+  ctx: TenantContext,
+  period: { from: string; to: string; companyId?: string },
+) {
   return withTenantTx(ctx.organizationId, async (tx) => {
+    const company = await companyContext(tx, ctx, { companyId: period.companyId });
+    const companyId = company.companyId;
     const range = {
       gte: new Date(`${period.from}T00:00:00Z`),
       lte: new Date(`${period.to}T00:00:00Z`),
     };
     const invoices = await tx.supplierInvoice.findMany({
-      where: { organizationId: ctx.organizationId, status: "POSTED", invoiceDate: range },
+      where: {
+        organizationId: ctx.organizationId,
+        companyId,
+        status: "POSTED",
+        invoiceDate: range,
+      },
       include: {
         supplier: { select: { code: true, name: true, taxId: true } },
         lines: { include: { taxCode: { select: { code: true } } } },
@@ -91,7 +105,7 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
       orderBy: [{ invoiceDate: "asc" }, { number: "asc" }],
     });
     const settlements = await tx.supplierSettlement.findMany({
-      where: { organizationId: ctx.organizationId, status: "POSTED", date: range },
+      where: { organizationId: ctx.organizationId, companyId, status: "POSTED", date: range },
       include: {
         supplier: { select: { code: true, name: true, taxId: true } },
         taxCode: { select: { code: true } },
@@ -99,9 +113,12 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
       },
       orderBy: [{ date: "asc" }, { number: "asc" }],
     });
-    const settings = await tx.taxSettings.findUnique({
-      where: { organizationId: ctx.organizationId },
-    });
+    const registered = (
+      await tx.company.findFirstOrThrow({
+        where: { id: companyId },
+        select: { vatRegistered: true },
+      })
+    ).vatRegistered;
     const accounts = await tx.accountingSettings.findUnique({
       where: { organizationId: ctx.organizationId },
     });
@@ -110,6 +127,7 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
     const revaluations = await tx.fxRevaluation.findMany({
       where: {
         organizationId: ctx.organizationId,
+        companyId,
         cancelledAt: null,
         asOf: { gte: dayBefore, lte: range.lte },
       },
@@ -124,8 +142,10 @@ async function documentsIn(ctx: TenantContext, period: { from: string; to: strin
       invoices,
       settlements,
       revaluations,
-      vatRegistered: settings?.vatRegistered ?? false,
+      vatRegistered: registered,
       accounts,
+      /** Base amounts are in the company's currency (ADR-086). */
+      currency: company.currency,
     };
   });
 }
@@ -134,8 +154,8 @@ export async function exportPayablesDocumentsCsv(ctx: TenantContext, rawPeriod: 
   assertPermission(ctx.grants, "invoices.view");
   const parsed = periodSchema.safeParse(rawPeriod);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { invoices, settlements } = await documentsIn(ctx, parsed.data);
-  const basePlaces = currencyDecimals(ctx.baseCurrency);
+  const { invoices, settlements, currency } = await documentsIn(ctx, parsed.data);
+  const basePlaces = currencyDecimals(currency);
   const baseMoney = (v: Decimal) => v.toFixed(basePlaces);
   const rate = (v: { toString(): string }) => dec(v).toFixed();
   const rows: Array<Array<string | null>> = [];
@@ -243,10 +263,8 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
   assertPermission(ctx.grants, "invoices.view");
   const parsed = periodSchema.safeParse(rawPeriod);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { invoices, settlements, revaluations, vatRegistered, accounts } = await documentsIn(
-    ctx,
-    parsed.data,
-  );
+  const { invoices, settlements, revaluations, vatRegistered, accounts, currency } =
+    await documentsIn(ctx, parsed.data);
   if (
     !accounts?.payablesAccount ||
     !accounts.purchasesAccount ||
@@ -273,7 +291,7 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
     inputVat: accounts.inputVatAccount ?? "",
     payments: accounts.paymentsAccount,
   };
-  const places = currencyDecimals(ctx.baseCurrency);
+  const places = currencyDecimals(currency);
   const money = (v: Decimal) => (v.isZero() ? null : v.toFixed(places));
   const docs = [
     ...invoices.map((i) => ({
@@ -368,7 +386,7 @@ export async function exportPayablesJournalCsv(ctx: TenantContext, rawPeriod: un
       l.account,
       money(l.debit),
       money(l.credit),
-      ctx.baseCurrency,
+      currency,
     ]),
   );
   return toCsv(

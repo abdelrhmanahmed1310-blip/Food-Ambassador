@@ -1231,6 +1231,8 @@ model FxRevaluation {
   id                        String    @id @default(uuid(7)) @db.Uuid
   organizationId            String    @map("organization_id") @db.Uuid
   number                    String
+  /// One company's balances, in its currency (ADR-086). Set by the database when omitted.
+  companyId                 String?   @map("company_id") @db.Uuid
   asOf                      DateTime  @map("as_of") @db.Date
   /// Σ differences, base currency: + = the payables grew (loss).
   totalDifferenceBase       Decimal   @map("total_difference_base") @db.Decimal(19, 4)
@@ -1243,6 +1245,7 @@ model FxRevaluation {
   cancelReason              String?   @map("cancel_reason")
 
   organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  company      Company?            @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
   lines        FxRevaluationLine[]
 
   @@unique([organizationId, id])
@@ -2763,6 +2766,8 @@ model SupplierSettlement {
   number             String
   kind               SettlementKind
   supplierId         String           @map("supplier_id") @db.Uuid
+  /// The paying company (ADR-086): settles only its own invoices; base amounts are in its currency. Set by the database when omitted.
+  companyId          String?          @map("company_id") @db.Uuid
   date               DateTime         @db.Date
   /// Total incl. VAT.
   amount             Decimal          @db.Decimal(19, 4)
@@ -2792,12 +2797,14 @@ model SupplierSettlement {
 
   organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   supplier     Supplier               @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  company      Company?               @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
   taxCode      TaxCode?               @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
   allocations  SettlementAllocation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, supplierId, date])
+  @@index([organizationId, companyId, supplierId], map: "supplier_settlements_company_idx")
   @@map("supplier_settlements")
 }
 
@@ -3345,6 +3352,8 @@ model CustomerReceipt {
   organizationId  String           @map("organization_id") @db.Uuid
   number          String
   customerId      String           @map("customer_id") @db.Uuid
+  /// The receiving company (ADR-086): applies only to its invoices; base amounts in its currency. Set by the database when omitted.
+  companyId       String?          @map("company_id") @db.Uuid
   date            DateTime         @db.Date
   amount          Decimal          @db.Decimal(19, 4)
   /// Receipt currency, the rate on its date and base amount (ADR-054).
@@ -3364,6 +3373,7 @@ model CustomerReceipt {
 
   organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   customer     Customer                    @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+  company      Company?                    @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
   allocations  CustomerReceiptAllocation[]
 
   @@unique([organizationId, id])
@@ -5164,7 +5174,7 @@ model Company {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   branches         Branch[]
   posOrders        PosOrder[]
   purchaseOrders   PurchaseOrder[]
@@ -5174,6 +5184,9 @@ model Company {
   supplierInvoices SupplierInvoice[]
   zatcaSettings    ZatcaSettings[]
   zatcaDevices     ZatcaDevice[]
+  settlements      SupplierSettlement[]
+  fxRevaluations   FxRevaluation[]
+  customerReceipts CustomerReceipt[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])

@@ -2631,7 +2631,8 @@
     },
     "amount": "Amount",
     "customerCurrency": "Customer's currency",
-    "missingRates": "No usable exchange rate for {currencies}: their amounts are left out of these figures. Enter the rate under Exchange rates."
+    "missingRates": "No usable exchange rate for {currencies}: their amounts are left out of these figures. Enter the rate under Exchange rates.",
+    "inCompanyCurrency": "In the company's currency"
   },
   "attachments": {
     "title": "Attachments",
@@ -3967,6 +3968,7 @@
     "vatManagedRegistered": "VAT registered in {country}, number {number}. Change it on the VAT settings page.",
     "vatManagedNot": "Not registered for VAT. The default company's VAT registration is set on the VAT settings page.",
     "currency": "Currency of its books",
-    "currencyHint": "Fixed once the company has stock or documents. Purchasing, sales and the point of sale in another currency than the group's come in the next steps."
+    "currencyHint": "Fixed once the company has stock or documents. Purchasing, sales and the point of sale in another currency than the group's come in the next steps.",
+    "company": "Company"
   }
 }

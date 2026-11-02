@@ -14,7 +14,13 @@ import {
   uuidSchema,
 } from "@/modules/shared/schemas";
 import { isDocumentCurrency, realisedDifference, toBase } from "@/modules/fx/rules";
-import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import {
+  assertDocumentCurrency,
+  baseAmount,
+  companyContext,
+  currencyConverter,
+  rateFor,
+} from "@/modules/fx/service";
 import { optionalCurrency } from "@/modules/procurement/schemas";
 import { currencyDecimals, taxFromNet } from "@/modules/tax/rules";
 import { loadTaxContextInTx } from "@/modules/tax/service";
@@ -68,6 +74,8 @@ const allocationsSchema = z.object({
 
 export const paymentSchema = allocationsSchema.extend({
   supplierId: uuidSchema,
+  /** The paying company (ADR-086); empty = the default company. */
+  companyId: optionalUuidSchema,
   date,
   amount: decimalString({ maxScale: 4, min: "0.0001" }),
   method: z.enum(PAYMENT_METHODS, { error: "invalidOption" }),
@@ -80,6 +88,7 @@ export const paymentSchema = allocationsSchema.extend({
 
 export const creditNoteSchema = allocationsSchema.extend({
   supplierId: uuidSchema,
+  companyId: optionalUuidSchema,
   supplierDocumentNo: requiredText(60),
   date,
   netAmount: decimalString({ maxScale: 4, min: "0.0001" }),
@@ -100,15 +109,30 @@ function requireCurrencyUnit(currency: string, value: Decimal, field: string) {
     });
 }
 
-/** The settlement's currency: given, else the supplier's, else base (ADR-050). */
+/** The settlement's currency: given, else the supplier's, else the company's (ADR-050/086). */
 function settlementCurrency(
-  ctx: TenantContext,
+  cctx: TenantContext,
   given: string | undefined,
   supplier: { currency: string | null },
 ) {
-  const currency = given ?? supplier.currency ?? ctx.baseCurrency;
-  assertDocumentCurrency(ctx, currency);
+  const currency = given ?? supplier.currency ?? cctx.baseCurrency;
+  assertDocumentCurrency(cctx, currency);
   return currency;
+}
+
+/** The paying company: active, of this organization; the default when none is given. */
+async function payingCompany(tx: Tx, ctx: TenantContext, companyId: string | undefined) {
+  if (
+    companyId &&
+    !(await tx.company.findFirst({
+      where: { organizationId: ctx.organizationId, id: companyId, archivedAt: null },
+      select: { id: true },
+    }))
+  )
+    throw businessRuleViolation("BRANCH_COMPANY_INVALID", "Choose an active company", {
+      field: "companyId",
+    });
+  return companyContext(tx, ctx, { companyId });
 }
 
 async function audit(
@@ -128,15 +152,23 @@ async function audit(
 
 /**
  * Posted invoices of a supplier with what is still to settle (gross −
- * allocations of posted settlements); only those in `currency` when given.
+ * allocations of posted settlements); only those in `currency` and of
+ * `companyId` when given.
  */
-async function openInvoices(tx: Tx, ctx: TenantContext, supplierId: string, currency?: string) {
+async function openInvoices(
+  tx: Tx,
+  ctx: TenantContext,
+  supplierId: string,
+  currency?: string,
+  companyId?: string,
+) {
   const invoices = await tx.supplierInvoice.findMany({
     where: {
       organizationId: ctx.organizationId,
       supplierId,
       status: "POSTED",
       ...(currency ? { currency } : {}),
+      ...(companyId ? { companyId } : {}),
     },
     select: {
       id: true,
@@ -188,12 +220,25 @@ async function unappliedOf(
 async function applyAllocations(
   tx: Tx,
   ctx: TenantContext,
-  settlement: { id: string; supplierId: string; currency: string; exchangeRate: Decimal | string },
+  settlement: {
+    id: string;
+    supplierId: string;
+    currency: string;
+    exchangeRate: Decimal | string;
+    companyId: string | null;
+  },
   available: Decimal,
   input: { autoAllocate: boolean; allocations: Array<{ invoiceId: string; amount: string }> },
 ) {
-  // Only invoices in the settlement's currency can be settled by it (ADR-050).
-  const open = await openInvoices(tx, ctx, settlement.supplierId, settlement.currency);
+  // Only invoices in the settlement's currency and of its company can be settled by it (ADR-050/086).
+  const open = await openInvoices(
+    tx,
+    ctx,
+    settlement.supplierId,
+    settlement.currency,
+    settlement.companyId ?? undefined,
+  );
+  const company = await companyContext(tx, ctx, { companyId: settlement.companyId });
   let planned: Array<{ invoiceId: string; amount: Decimal }>;
   if (input.autoAllocate) {
     planned = allocateOldestFirst(
@@ -232,7 +277,7 @@ async function applyAllocations(
         { available: available.toFixed() },
       );
   }
-  const baseDecimals = currencyDecimals(ctx.baseCurrency);
+  const baseDecimals = currencyDecimals(company.currency);
   for (const p of planned) {
     const inv = open.find((i) => i.id === p.invoiceId)!;
     await tx.settlementAllocation.create({
@@ -276,10 +321,11 @@ export async function recordPayment(ctx: TenantContext, rawInput: unknown) {
         select: { id: true, currency: true },
       });
       if (!supplier) throw notFound("Supplier");
-      const currency = settlementCurrency(ctx, input.currency, supplier);
+      const company = await payingCompany(tx, ctx, input.companyId);
+      const currency = settlementCurrency(company.ctx, input.currency, supplier);
       requireCurrencyUnit(currency, amount, "amount");
       await lockSupplier(tx, ctx, supplier.id);
-      const fx = await rateFor(tx, ctx, currency, input.date);
+      const fx = await rateFor(tx, company.ctx, currency, input.date);
       const number = await nextDocumentNumber(
         tx,
         ctx.organizationId,
@@ -292,18 +338,26 @@ export async function recordPayment(ctx: TenantContext, rawInput: unknown) {
           number,
           kind: "PAYMENT",
           supplierId: supplier.id,
+          companyId: company.companyId,
           date: asDate(input.date),
           amount: amount.toFixed(),
           currency,
           exchangeRate: fx.rate.toFixed(),
           rateDate: asDate(fx.rateDate),
-          amountBase: baseAmount(ctx, amount, fx.rate).toFixed(),
+          amountBase: baseAmount(company.ctx, amount, fx.rate).toFixed(),
           method: input.method,
           reference: input.reference,
           note: input.note,
           createdByUserId: ctx.userId,
         },
-        select: { id: true, number: true, supplierId: true, currency: true, exchangeRate: true },
+        select: {
+          id: true,
+          number: true,
+          supplierId: true,
+          currency: true,
+          exchangeRate: true,
+          companyId: true,
+        },
       });
       const applied = await applyAllocations(tx, ctx, s, amount, input);
       await audit(tx, ctx, s, "payment_recorded", {
@@ -339,11 +393,12 @@ export async function recordCreditNote(ctx: TenantContext, rawInput: unknown) {
           select: { id: true, currency: true },
         });
         if (!supplier) throw notFound("Supplier");
-        const currency = settlementCurrency(ctx, input.currency, supplier);
+        const company = await payingCompany(tx, ctx, input.companyId);
+        const currency = settlementCurrency(company.ctx, input.currency, supplier);
         requireCurrencyUnit(currency, net, "netAmount");
         await lockSupplier(tx, ctx, supplier.id);
-        const fx = await rateFor(tx, ctx, currency, input.date);
-        const taxCtx = await loadTaxContextInTx(tx, ctx);
+        const fx = await rateFor(tx, company.ctx, currency, input.date);
+        const taxCtx = await loadTaxContextInTx(tx, ctx, { companyId: company.companyId });
         const resolved = taxCtx.resolvePurchase(input.taxCodeId, input.date);
         if (resolved && !resolved.ok)
           throw businessRuleViolation(
@@ -366,6 +421,7 @@ export async function recordCreditNote(ctx: TenantContext, rawInput: unknown) {
             number,
             kind: "CREDIT_NOTE",
             supplierId: supplier.id,
+            companyId: company.companyId,
             date: asDate(input.date),
             amount: t.gross.toFixed(),
             netAmount: t.net.toFixed(),
@@ -373,15 +429,22 @@ export async function recordCreditNote(ctx: TenantContext, rawInput: unknown) {
             currency,
             exchangeRate: fx.rate.toFixed(),
             rateDate: asDate(fx.rateDate),
-            amountBase: baseAmount(ctx, t.gross, fx.rate).toFixed(),
-            taxAmountBase: baseAmount(ctx, t.tax, fx.rate).toFixed(),
+            amountBase: baseAmount(company.ctx, t.gross, fx.rate).toFixed(),
+            taxAmountBase: baseAmount(company.ctx, t.tax, fx.rate).toFixed(),
             taxCodeId: resolved ? resolved.codeId : null,
             taxRate: resolved ? resolved.rate.toFixed() : null,
             supplierDocumentNo: input.supplierDocumentNo,
             note: input.note,
             createdByUserId: ctx.userId,
           },
-          select: { id: true, number: true, supplierId: true, currency: true, exchangeRate: true },
+          select: {
+            id: true,
+            number: true,
+            supplierId: true,
+            currency: true,
+            exchangeRate: true,
+            companyId: true,
+          },
         });
         const applied = await applyAllocations(tx, ctx, s, t.gross, input);
         await audit(tx, ctx, s, "credit_note_recorded", {
@@ -472,19 +535,19 @@ const emptyAging = (): AgingTotals =>
   Object.fromEntries(AGING_BUCKETS.map((b) => [b, zero()])) as AgingTotals;
 
 /**
- * Balance per supplier and currency on `asOf` (ADR-050): posted invoices
- * dated up to then minus posted payments and credit notes dated up to then,
- * in the documents' currency; open invoice amounts aged by due date;
- * unapplied settlements shown separately. Each row also has its base-currency
- * equivalent at the documents' own rates (open invoices at the invoice rate,
- * unapplied settlements at theirs); totals are in base currency only,
- * because amounts in different currencies cannot be added. Voids count as of
- * today (a voided settlement never counts).
+ * Balance per supplier, paying company and currency on `asOf` (ADR-050/086):
+ * posted invoices dated up to then minus posted payments and credit notes
+ * dated up to then, in the documents' currency; open invoice amounts aged by
+ * due date; unapplied settlements shown separately. Each row also has its
+ * base equivalent in its company's currency at the documents' own rates
+ * (open invoices at the invoice rate, unapplied settlements at theirs).
+ * Totals are in the group currency, each row converted at the rate on
+ * `asOf`; a currency without a usable rate is left out and named. Voids
+ * count as of today (a voided settlement never counts).
  */
 export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
   assertPermission(ctx.grants, "invoices.view");
   const asOf = asOfSchema.parse(rawAsOf);
-  const baseDecimals = currencyDecimals(ctx.baseCurrency);
   return withTenantTx(ctx.organizationId, async (tx) => {
     const invoices = await tx.supplierInvoice.findMany({
       where: {
@@ -495,6 +558,7 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
       select: {
         id: true,
         supplierId: true,
+        companyId: true,
         currency: true,
         exchangeRate: true,
         invoiceDate: true,
@@ -504,7 +568,14 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
     });
     const settlements = await tx.supplierSettlement.findMany({
       where: { organizationId: ctx.organizationId, status: "POSTED", date: { lte: asDate(asOf) } },
-      select: { id: true, supplierId: true, currency: true, exchangeRate: true, amount: true },
+      select: {
+        id: true,
+        supplierId: true,
+        companyId: true,
+        currency: true,
+        exchangeRate: true,
+        amount: true,
+      },
     });
     const settled = await settledAmounts(
       tx,
@@ -526,9 +597,9 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
         })
       ).map((r) => [r.settlementId, dec(r._sum.amount ?? 0)]),
     );
-    const keys = [
-      ...new Set([...invoices, ...settlements].map((d) => `${d.supplierId}|${d.currency}`)),
-    ];
+    const keyOf = (d: { supplierId: string; companyId: string | null; currency: string }) =>
+      `${d.supplierId}|${d.companyId}|${d.currency}`;
+    const keys = [...new Set([...invoices, ...settlements].map(keyOf))];
     const suppliers = await tx.supplier.findMany({
       where: {
         organizationId: ctx.organizationId,
@@ -536,15 +607,22 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
       },
       select: { id: true, code: true, name: true, nameAr: true },
     });
+    const companies = await tx.company.findMany({
+      where: { organizationId: ctx.organizationId },
+      select: { id: true, code: true, name: true, currency: true },
+    });
+    const conv = await currencyConverter(tx, ctx, { date: asOf });
     const total = { balanceBase: zero(), unappliedBase: zero(), aging: emptyAging() };
-    const rows = keys.map((key) => {
-      const [supplierId, currency] = key.split("|");
+    const rows = [];
+    for (const key of keys) {
+      const [supplierId, companyId, currency] = key.split("|");
       const sup = suppliers.find((x) => x.id === supplierId)!;
-      const own = invoices.filter((i) => i.supplierId === supplierId && i.currency === currency);
-      const pays = settlements.filter(
-        (x) => x.supplierId === supplierId && x.currency === currency,
-      );
+      const company = companies.find((c) => c.id === companyId)!;
+      const baseDecimals = currencyDecimals(company.currency);
+      const own = invoices.filter((i) => keyOf(i) === key);
+      const pays = settlements.filter((x) => keyOf(x) === key);
       const aging = emptyAging();
+      const agingBase = emptyAging();
       let invoiced = zero();
       let openTotal = zero();
       let balanceBase = zero();
@@ -558,7 +636,7 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
         aging[b] = aging[b].plus(open);
         const openBase = toBase(open, dec(i.exchangeRate), baseDecimals);
         balanceBase = balanceBase.plus(openBase);
-        total.aging[b] = total.aging[b].plus(openBase);
+        agingBase[b] = agingBase[b].plus(openBase);
       }
       const paid = pays.reduce((a, x) => a.plus(dec(x.amount)), zero());
       let unappliedBase = zero();
@@ -571,10 +649,20 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
       const balance = invoiced.minus(paid);
       // Settled amounts not applied to an invoice (on account).
       const unapplied = Decimal.max(openTotal.minus(balance), 0);
-      total.balanceBase = total.balanceBase.plus(balanceBase);
-      total.unappliedBase = total.unappliedBase.plus(unappliedBase);
-      return {
+      // Group totals: each company's base amounts converted at the rate on asOf (ADR-086).
+      const inGroup = async (v: Decimal) => conv.convert(v, company.currency);
+      const groupBalance = await inGroup(balanceBase);
+      if (groupBalance !== null) {
+        total.balanceBase = total.balanceBase.plus(groupBalance);
+        total.unappliedBase = total.unappliedBase.plus((await inGroup(unappliedBase))!);
+        for (const b of AGING_BUCKETS)
+          total.aging[b] = total.aging[b].plus((await inGroup(agingBase[b]))!);
+      }
+      rows.push({
         supplier: sup,
+        company: { id: company.id, code: company.code, name: company.name },
+        /** The base amounts' currency: the paying company's (ADR-086). */
+        baseCurrency: company.currency,
         currency,
         invoiced,
         settled: paid,
@@ -582,15 +670,23 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
         unapplied,
         aging,
         balanceBase,
-      };
-    });
+      });
+    }
     rows.sort(
       (a, b) =>
+        a.company.code.localeCompare(b.company.code) ||
         b.balanceBase.comparedTo(a.balanceBase) ||
         a.supplier.code.localeCompare(b.supplier.code) ||
         a.currency.localeCompare(b.currency),
     );
-    return { asOf, rows, total };
+    return {
+      asOf,
+      rows,
+      total,
+      /** Totals are in this currency; `missingRates` were left out. */
+      currency: conv.currency,
+      missingRates: conv.missing(),
+    };
   });
 }
 
@@ -598,7 +694,7 @@ export async function supplierBalances(ctx: TenantContext, rawAsOf: string) {
 export async function supplierStatement(
   ctx: TenantContext,
   supplierId: string,
-  period: { from: string; to: string; currency?: string },
+  period: { from: string; to: string; currency?: string; companyId?: string },
 ) {
   assertPermission(ctx.grants, "invoices.view");
   const from = asOfSchema.parse(period.from);
@@ -618,8 +714,18 @@ export async function supplierStatement(
     });
     if (!supplier) throw notFound("Supplier");
     // A statement is in one currency (ADR-050): the one asked for, else the supplier's.
+    // With a company, only that company's documents (ADR-086).
+    const company = period.companyId
+      ? await tx.company.findFirst({
+          where: { organizationId: ctx.organizationId, id: period.companyId },
+          select: { id: true },
+        })
+      : null;
+    const own = company ? { companyId: company.id } : {};
     const currency =
-      period.currency && isDocumentCurrency(period.currency, ctx.baseCurrency)
+      period.currency &&
+      (isDocumentCurrency(period.currency, ctx.baseCurrency) ||
+        period.currency === ctx.groupCurrency)
         ? period.currency
         : (supplier.currency ?? ctx.baseCurrency);
     const currencies = [
@@ -641,6 +747,7 @@ export async function supplierStatement(
           organizationId: ctx.organizationId,
           supplierId,
           currency,
+          ...own,
           status: "POSTED",
           invoiceDate: before,
         },
@@ -651,6 +758,7 @@ export async function supplierStatement(
           organizationId: ctx.organizationId,
           supplierId,
           currency,
+          ...own,
           status: "POSTED",
           date: before,
         },
@@ -661,6 +769,7 @@ export async function supplierStatement(
           organizationId: ctx.organizationId,
           supplierId,
           currency,
+          ...own,
           status: "POSTED",
           invoiceDate: within,
         },
@@ -677,6 +786,7 @@ export async function supplierStatement(
           organizationId: ctx.organizationId,
           supplierId,
           currency,
+          ...own,
           status: "POSTED",
           date: within,
         },
@@ -717,9 +827,11 @@ export async function supplierStatement(
       running = running.plus(e.charge).minus(e.credit);
       return { ...e, balance: running };
     });
-    const open = (await openInvoices(tx, ctx, supplierId, currency)).filter((i) => i.open.gt(0));
+    const open = (
+      await openInvoices(tx, ctx, supplierId, currency, company?.id ?? undefined)
+    ).filter((i) => i.open.gt(0));
     const posted = await tx.supplierSettlement.findMany({
-      where: { organizationId: ctx.organizationId, supplierId, currency, status: "POSTED" },
+      where: { organizationId: ctx.organizationId, supplierId, currency, status: "POSTED", ...own },
       select: { id: true, number: true, kind: true, date: true, amount: true },
       orderBy: { date: "asc" },
     });
@@ -731,6 +843,7 @@ export async function supplierStatement(
     return {
       supplier,
       currency,
+      companyId: company?.id ?? null,
       currencies: [...new Set([currency, ...currencies])],
       from,
       to,
@@ -750,6 +863,7 @@ export async function getSettlement(ctx: TenantContext, settlementId: string) {
       where: { organizationId: ctx.organizationId, id: settlementId },
       include: {
         supplier: { select: { id: true, code: true, name: true, nameAr: true } },
+        company: { select: { code: true, name: true, currency: true } },
         taxCode: { select: { code: true } },
         allocations: {
           orderBy: { createdAt: "asc" },
@@ -774,10 +888,15 @@ export async function getSettlement(ctx: TenantContext, settlementId: string) {
   });
 }
 
-/** Open invoices of a supplier (in one currency when given), for allocation forms. */
-export async function openInvoicesOf(ctx: TenantContext, supplierId: string, currency?: string) {
+/** Open invoices of a supplier (in one currency, of one company, when given), for allocation forms. */
+export async function openInvoicesOf(
+  ctx: TenantContext,
+  supplierId: string,
+  currency?: string,
+  companyId?: string,
+) {
   assertPermission(ctx.grants, "invoices.view");
   return withTenantTx(ctx.organizationId, async (tx) =>
-    (await openInvoices(tx, ctx, supplierId, currency)).filter((i) => i.open.gt(0)),
+    (await openInvoices(tx, ctx, supplierId, currency, companyId)).filter((i) => i.open.gt(0)),
   );
 }
