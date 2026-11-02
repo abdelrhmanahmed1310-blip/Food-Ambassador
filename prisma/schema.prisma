@@ -3988,6 +3988,8 @@ model OrderingChannel {
   slotMinutes     Int                 @default(15) @map("slot_minutes")
   leadMinutes     Int                 @default(20) @map("lead_minutes")
   daysAhead       Int                 @default(0) @map("days_ahead")
+  /// Most orders per pick-up slot (kitchen capacity); null = no limit.
+  slotCapacity    Int?                @map("slot_capacity")
   /// Random id in the public address; never the database id.
   publicToken     String              @unique @map("public_token")
   createdByUserId String              @map("created_by_user_id") @db.Uuid

@@ -436,6 +436,31 @@ describe("online payment, pick-up times, ready and hand-over (ADR-071)", () => {
     expect((await guestOrderStatus(placed.guestToken))!.state).toBe("COLLECTED");
   });
 
+  it("offers a slot only while the kitchen has room for it", async () => {
+    const small = await createOrderingChannel(ctx, {
+      kind: "WEB",
+      name: "One per slot",
+      branchId,
+      channels: ["TAKEAWAY"],
+      scheduling: "on",
+      openFrom: "00:00",
+      openTo: "00:00",
+      slotMinutes: "30",
+      leadMinutes: "20",
+      slotCapacity: "1",
+    });
+    const slot = (await publicMenu(small.publicToken))!.slots[3];
+    await placeGuestOrder(small.publicToken, order({ pickupAt: slot }), "10.1.0.6");
+    expect((await publicMenu(small.publicToken))!.slots).not.toContain(slot);
+    await expectAppError(
+      placeGuestOrder(small.publicToken, order({ pickupAt: slot }), "10.1.0.7"),
+      "BUSINESS_RULE_VIOLATION",
+    );
+    expect(
+      await getDb().posTab.count({ where: { sourceChannelId: small.id, status: "OPEN" } }),
+    ).toBe(1);
+  });
+
   it("shows guests the promotions the counter will apply", async () => {
     const drinks = (await getDb().menuItem.findUniqueOrThrow({ where: { id: cola } })).categoryId;
     const p = await createPromotion(ctx, {

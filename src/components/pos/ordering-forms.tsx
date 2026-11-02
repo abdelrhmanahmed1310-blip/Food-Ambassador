@@ -117,6 +117,14 @@ export function OrderingChannelForm({
             inputMode="numeric"
           />
           <TextField
+            name="slotCapacity"
+            label={t("ordering.slotCapacity")}
+            hint={t("ordering.slotCapacityHint")}
+            dir="ltr"
+            inputMode="numeric"
+            optionalLabel={t("common.optional")}
+          />
+          <TextField
             name="daysAhead"
             label={t("ordering.daysAhead")}
             hint={t("ordering.daysAheadHint")}

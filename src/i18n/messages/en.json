@@ -509,7 +509,8 @@
     "GUEST_ORDER_PAID": "This order is paid online: void its POS order and refund the payment instead.",
     "GUEST_ORDER_NOT_ACCEPTED": "Accept the order first.",
     "ZATCA_BUYER_INCOMPLETE": "The customer's e-invoice details are incomplete ({fields}); complete them on the customer's page.",
-    "ZATCA_INVOICE_DATE_TODAY": "E-invoices are dated the day they are issued: use today's date."
+    "ZATCA_INVOICE_DATE_TODAY": "E-invoices are dated the day they are issued: use today's date.",
+    "PICKUP_SLOT_FULL": "This pick-up time is full; choose another."
   },
   "notFound": {
     "title": "Page not found",
@@ -3427,6 +3428,8 @@
     "daysAhead": "Days ahead",
     "daysAheadHint": "0 = today only (up to 7).",
     "pickupWindow": "pick-up {from}–{to}",
-    "paymentProblem": "Paid online but not recorded:"
+    "paymentProblem": "Paid online but not recorded:",
+    "slotCapacity": "Orders per slot",
+    "slotCapacityHint": "What the kitchen can prepare for one pick-up time; full slots are not offered."
   }
 }

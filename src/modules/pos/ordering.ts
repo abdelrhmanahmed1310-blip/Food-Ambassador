@@ -100,6 +100,13 @@ const channelSchema = z
       .min(0, { error: "invalid" })
       .max(7, { error: "invalid" })
       .default(0),
+    slotCapacity: z
+      .union([
+        z.coerce.number().int().min(1, { error: "invalid" }).max(500, { error: "invalid" }),
+        z.literal(""),
+      ])
+      .optional()
+      .transform((v) => (v === "" || v === undefined ? null : v)),
   })
   .refine((v) => v.kind === "KIOSK" || v.channels.every((c) => c !== "DINE_IN"), {
     error: "webNoDineIn",
@@ -178,6 +185,7 @@ export async function createOrderingChannel(ctx: TenantContext, rawInput: unknow
         slotMinutes: v.slotMinutes,
         leadMinutes: v.leadMinutes,
         daysAhead: v.daysAhead,
+        slotCapacity: v.slotCapacity,
         publicToken: token(),
         createdByUserId: ctx.userId,
       },
@@ -277,6 +285,35 @@ function asapOpen(rules: SlotRules | null, now: Date) {
     : t >= rules.openFrom || t < rules.openTo;
 }
 
+/** Orders per pick-up slot (not cancelled), for the kitchen's capacity. */
+async function slotLoad(c: { id: string }, ctx: TenantContext, slots: Date[]) {
+  if (slots.length === 0) return new Map<number, number>();
+  const rows = await withTenantTx(ctx.organizationId, (tx) =>
+    tx.posTab.groupBy({
+      by: ["pickupAt"],
+      where: {
+        organizationId: ctx.organizationId,
+        sourceChannelId: c.id,
+        status: { notIn: ["CANCELLED", "MERGED"] },
+        pickupAt: { in: slots },
+      },
+      _count: { _all: true },
+    }),
+  );
+  return new Map(rows.map((r) => [r.pickupAt!.getTime(), r._count._all]));
+}
+
+/** The slots that still have room. */
+async function openSlots(
+  c: { id: string; slotCapacity: number | null },
+  ctx: TenantContext,
+  slots: Date[],
+) {
+  if (!c.slotCapacity) return slots;
+  const load = await slotLoad(c, ctx, slots);
+  return slots.filter((d) => (load.get(d.getTime()) ?? 0) < c.slotCapacity!);
+}
+
 /** What a guest sees: the branch, the items on sale with prices and promotions, pick-up times, how to pay. */
 export async function publicMenu(publicToken: string) {
   const r = await resolveChannel(publicToken);
@@ -299,7 +336,9 @@ export async function publicMenu(publicToken: string) {
     maxOrderTotal: c.maxOrderTotal ? dec(c.maxOrderTotal).toFixed() : null,
     paymentMode: c.paymentMode,
     asap: asapOpen(rules, now),
-    slots: rules ? pickupSlots(now, rules).map((d) => d.toISOString()) : [],
+    slots: rules
+      ? (await openSlots(c, ctx, pickupSlots(now, rules))).map((d) => d.toISOString())
+      : [],
     /** Applied as the server will when the order is paid (ADR-067). */
     promotions: promotions.map(promotionForClient),
     channels: menus.filter((m) => c.channels.includes(m.channel) && m.items.length > 0),
@@ -372,6 +411,10 @@ export async function placeGuestOrder(
   const pickupAt = v.pickupAt ? new Date(v.pickupAt) : null;
   if (pickupAt && (!rules || !isPickupSlot(pickupAt, now, rules)))
     throw businessRuleViolation("PICKUP_TIME_GONE", "This pick-up time is no longer available", {
+      field: "pickupAt",
+    });
+  if (pickupAt && c.slotCapacity && (await openSlots(c, ctx, [pickupAt])).length === 0)
+    throw businessRuleViolation("PICKUP_SLOT_FULL", "This pick-up time is full", {
       field: "pickupAt",
     });
   if (!pickupAt && !asapOpen(rules, now))
@@ -457,6 +500,16 @@ export async function placeGuestOrder(
     },
   );
   let paymentUrl: string | null = null;
+  // The slot may have filled up meanwhile: counted with this order, it must still fit.
+  if (pickupAt && c.slotCapacity) {
+    const load = await slotLoad(c, ctx, [pickupAt]);
+    if ((load.get(pickupAt.getTime()) ?? 0) > c.slotCapacity) {
+      await cancelTab(ctx, tab.id, { reason: "The pick-up time was full" }).catch(() => undefined);
+      throw businessRuleViolation("PICKUP_SLOT_FULL", "This pick-up time is full", {
+        field: "pickupAt",
+      });
+    }
+  }
   try {
     await addTabLines(ctx, tab.id, {
       lines: lines.map((l, i) => ({ ...l, ...(i === 0 && v.note ? { note: v.note } : {}) })),
