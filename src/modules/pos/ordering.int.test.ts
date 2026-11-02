@@ -450,8 +450,11 @@ describe("online payment, pick-up times, ready and hand-over (ADR-071)", () => {
       slotMinutes: "30",
       leadMinutes: "20",
       slotCapacity: "1",
+      // Tomorrow too, so slot [3] exists whatever the hour the tests run.
+      daysAhead: "1",
     });
     const slot = (await publicMenu(small.publicToken))!.slots[3];
+    expect(slot).toBeDefined();
     await placeGuestOrder(small.publicToken, order({ pickupAt: slot }), "10.1.0.6");
     expect((await publicMenu(small.publicToken))!.slots).not.toContain(slot);
     await expectAppError(

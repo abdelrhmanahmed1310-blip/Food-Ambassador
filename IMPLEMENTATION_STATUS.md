@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (HR1 HRIS; dashboard, demo restaurant)
+Last updated: 2026-11-02 (F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,20 @@ Last updated: 2026-11-02 (HR1 HRIS; dashboard, demo restaurant)
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F1a — Companies (legal entities) and brands (built)
+
+Rules: DECISIONS.md ADR-082. Plan: docs/PLATFORM_AUDIT.md (phase F1).
+
+| Area      | What works                                                                                                                                | Where                 |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Companies | Add, edit, make default, archive (no active branches, never the default); one default per organization, backfilled from existing settings | `/settings/companies` |
+| Brands    | Add, archive (clears from branches)                                                                                                       | `/settings/brands`    |
+| Branches  | Company on creation (default when one), optional brand; a branch stays with its company; company and brand shown in list and page         | `/branches`           |
+
+Not yet (F1b): per-company currency, VAT and ZATCA; company on money documents; consolidated reporting by company.
+
+Checks: `pnpm check` pass (unit 275); `pnpm test:integration` 366 — 365 passed in the full run; the failure was another time-of-day dependency in the POS5e ordering tests (slot [3] did not exist late in the evening, so the test silently ordered "as soon as possible"); its channel now offers tomorrow too and the test asserts the slot exists — 12/12 pass. New: companies (default and backfill, legal entity, brand, a branch stays with its company, archive and default rules, permissions, cross-tenant) and the row-level-security test now uses the other tenant's own company. `pnpm test:e2e` 60/60 passed (new: companies and brands).
 
 ## HR2b — Leave with approvals (built)
 

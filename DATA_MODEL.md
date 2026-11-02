@@ -1174,6 +1174,17 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### Enterprise layer (F1a, ADR-082)
+
+Migration `20261209090000_f1a_companies_brands`.
+
+- **companies**: `code` (unique per organization), `name`, `legal_name`,
+  `country`, `currency` (the group's base currency until F1b), `vat_number`,
+  `cr_number`, `is_default` (one per organization), `archived_at`.
+- **brands**: `code`, `name`, `name_ar`, `archived_at`.
+- **branches** gains `company_id` (required; backfilled to the default
+  company) and `brand_id` (optional), both with composite tenant keys.
+
 ### Leave (HR2b, ADR-081)
 
 Migration `20261208090000_hr2b_leave`.

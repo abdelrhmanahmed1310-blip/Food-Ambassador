@@ -34,6 +34,15 @@ export const branchSchema = z.object({
   addressLine: optionalText(200),
   city: optionalText(100),
   country: countrySchema,
+  /** The legal entity; the organization's default company when empty (ADR-082). */
+  companyId: z
+    .union([z.literal(""), uuidSchema])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  brandId: z
+    .union([z.literal(""), uuidSchema])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
 });
 export const createBranchSchema = branchSchema.extend({ idempotencyKey: idempotencyKeySchema });
 export type BranchInput = z.input<typeof branchSchema>;

@@ -220,6 +220,8 @@ model Organization {
   leaveTypes              LeaveType[]
   leaveAllocations        LeaveAllocation[]
   leaveRequests           LeaveRequest[]
+  companies               Company[]
+  brands                  Brand[]
   orderingChannels        OrderingChannel[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
@@ -432,6 +434,9 @@ enum BranchType {
 model Branch {
   id              String     @id @default(uuid(7)) @db.Uuid
   organizationId  String     @map("organization_id") @db.Uuid
+  /// The legal entity this branch belongs to (F1, ADR-082).
+  companyId       String     @map("company_id") @db.Uuid
+  brandId         String?    @map("brand_id") @db.Uuid
   code            String
   name            String
   type            BranchType
@@ -467,6 +472,8 @@ model Branch {
   attendanceTerminals AttendanceTerminal[]
   geofence            BranchGeofence?
   attendancePunches   AttendancePunch[]
+  company             Company              @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+  brand               Brand?               @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -5096,4 +5103,51 @@ model LeaveRequest {
   @@index([organizationId, employeeId, startDate])
   @@index([organizationId, status])
   @@map("leave_requests")
+}
+
+// ─── Enterprise layer (F1, ADR-082) ───
+
+/// A legal entity of the group (organization): its own registrations; branches belong to one.
+model Company {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String
+  /// Trading name.
+  name           String
+  legalName      String    @map("legal_name")
+  /// ISO 3166-1 alpha-2.
+  country        String?   @db.Char(2)
+  /// ISO 4217; the group's base currency until per-company books (F1b).
+  currency       String    @db.Char(3)
+  vatNumber      String?   @map("vat_number")
+  crNumber       String?   @map("cr_number")
+  /// The company new branches join when none is chosen (one per organization).
+  isDefault      Boolean   @default(false) @map("is_default")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches     Branch[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("companies")
+}
+
+model Brand {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?   @map("name_ar")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches     Branch[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("brands")
 }

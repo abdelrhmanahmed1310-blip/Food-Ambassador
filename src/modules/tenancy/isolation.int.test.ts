@@ -218,11 +218,16 @@ describe("row-level security (defence in depth)", () => {
   });
 
   it("rejects inserts into another tenant", async () => {
+    // A valid row for tenant b in every other way: only row-level security refuses it.
+    const bCompanyId = (
+      await getDb().company.findFirstOrThrow({ where: { organizationId: b.organizationId } })
+    ).id;
     await expect(
       withTenantTx(a.organizationId, (tx) =>
         tx.branch.create({
           data: {
             organizationId: b.organizationId,
+            companyId: bCompanyId,
             code: "RLS",
             name: "x",
             type: "OTHER",

@@ -1885,6 +1885,30 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   half days, carry-over and accrual rules (need the policy), attachments
   such as sick notes.
 
+### ADR-082 Enterprise layer: organization = group, companies = legal entities, brands — Accepted (F1a built)
+
+- Decided by the owner (D1): an **organization** is the group (tenant: users,
+  roles, shared master data); a **company** is a legal entity of the group
+  (code, trading and legal names, country, VAT and CR numbers); a **brand**
+  groups branches commercially. Every **branch belongs to one company** and
+  may carry one brand.
+- Each organization has exactly one **default company** (partial unique
+  index); new branches join it when no company is chosen, so every existing
+  flow keeps working. New organizations get one at sign-up. The migration
+  created one per existing organization from its current tax settings
+  (country, VAT number) and ZATCA settings (legal name, CR) — blank where
+  unknown, never invented — and assigned every branch to it.
+- A branch **stays with its company** (its documents will carry the
+  company, F1b). Companies are archived only with no active branches and
+  never while default; archiving a brand clears it from its branches.
+- **F1a limit:** companies share the group's base currency, VAT settings and
+  e-invoicing (ZATCA seller). **F1b** moves currency, VAT and ZATCA to the
+  company and stamps money documents with their company, enabling e.g. a
+  Saudi company in SAR and an Egyptian one in EGP in one group, with
+  consolidated reporting.
+- Managed with `org.settings.manage`; RLS and composite tenant keys as
+  everywhere; all changes audited.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

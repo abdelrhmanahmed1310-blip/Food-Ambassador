@@ -47,6 +47,17 @@ export async function createOrganization(
           data: { ...input, slug, createdByUserId: userId },
           select: { id: true, slug: true },
         });
+        // The group's first legal entity; more companies can be added in settings (ADR-082).
+        await tx.company.create({
+          data: {
+            organizationId: org.id,
+            code: "MAIN",
+            name: input.name,
+            legalName: input.name,
+            currency: input.baseCurrency,
+            isDefault: true,
+          },
+        });
         let ownerRoleId = "";
         for (const template of SYSTEM_ROLE_TEMPLATES) {
           const role = await tx.role.create({

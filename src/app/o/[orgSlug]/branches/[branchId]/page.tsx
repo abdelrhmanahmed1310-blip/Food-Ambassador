@@ -26,7 +26,13 @@ export default async function BranchPage({
     <>
       <PageHeader
         title={branch.name}
-        description={t(`branches.types.${branch.type}`)}
+        description={[
+          t(`branches.types.${branch.type}`),
+          `${t("branches.company")}: ${branch.company.name}`,
+          branch.brand ? `${t("branches.brand")}: ${branch.brand.name}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
           <>
             {archived ? <Badge tone="muted">{t("common.archived")}</Badge> : null}
@@ -49,8 +55,9 @@ export default async function BranchPage({
                 addressLine: branch.addressLine,
                 city: branch.city,
                 country: branch.country,
+                brandId: branch.brandId,
               }}
-              {...await branchFormProps(t("common.save"))}
+              {...await branchFormProps(t("common.save"), { ctx, withCompanies: false })}
             />
           </Card>
         ) : (

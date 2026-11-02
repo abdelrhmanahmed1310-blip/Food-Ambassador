@@ -20,6 +20,10 @@ const branchSelect = {
   addressLine: true,
   city: true,
   country: true,
+  companyId: true,
+  brandId: true,
+  company: { select: { code: true, name: true } },
+  brand: { select: { code: true, name: true } },
   archivedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -106,6 +110,32 @@ function codeConflict(error: unknown): never {
   throw error;
 }
 
+/** The company (default when none given) and brand, both active and in this organization. */
+async function resolveEntity(tx: Tx, ctx: TenantContext, companyId?: string, brandId?: string) {
+  const company = await tx.company.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      archivedAt: null,
+      ...(companyId ? { id: companyId } : { isDefault: true }),
+    },
+    select: { id: true },
+  });
+  if (!company)
+    throw businessRuleViolation("BRANCH_COMPANY_INVALID", "Choose an active company", {
+      field: "companyId",
+    });
+  if (!brandId) return { companyId: company.id, brandId: null };
+  const brand = await tx.brand.findFirst({
+    where: { organizationId: ctx.organizationId, id: brandId, archivedAt: null },
+    select: { id: true },
+  });
+  if (!brand)
+    throw businessRuleViolation("BRANCH_BRAND_INVALID", "Choose an active brand", {
+      field: "brandId",
+    });
+  return { companyId: company.id, brandId: brand.id };
+}
+
 export async function createBranch(ctx: TenantContext, rawInput: unknown): Promise<{ id: string }> {
   assertPermission(ctx.grants, "branches.manage");
   const parsed = createBranchSchema.safeParse(rawInput);
@@ -116,9 +146,12 @@ export async function createBranch(ctx: TenantContext, rawInput: unknown): Promi
       ctx,
       { key: idempotencyKey, operation: "branch.create", input },
       async (tx) => {
+        const { companyId, brandId } = await resolveEntity(tx, ctx, input.companyId, input.brandId);
         const branch = await tx.branch.create({
           data: {
             ...input,
+            companyId,
+            brandId,
             organizationId: ctx.organizationId,
             createdByUserId: ctx.userId,
             updatedByUserId: ctx.userId,
@@ -153,14 +186,31 @@ export async function updateBranch(
     addressLine: parsed.data.addressLine ?? null,
     city: parsed.data.city ?? null,
     country: parsed.data.country ?? null,
+    brandId: parsed.data.brandId ?? null,
   };
   try {
     await withTenantTx(ctx.organizationId, async (tx) => {
       const before = await findVisibleBranch(tx, ctx, branchId);
       assertPermission(ctx.grants, "branches.manage", { branchId });
+      // Moving a branch to another company is F1b (its documents carry their company).
+      const entity = await resolveEntity(
+        tx,
+        ctx,
+        input.companyId ?? before.companyId,
+        input.brandId ?? undefined,
+      );
+      if (entity.companyId !== before.companyId)
+        throw businessRuleViolation("BRANCH_COMPANY_FIXED", "A branch stays with its company", {
+          field: "companyId",
+        });
       await tx.branch.update({
         where: { organizationId_id: { organizationId: ctx.organizationId, id: branchId } },
-        data: { ...input, updatedByUserId: ctx.userId },
+        data: {
+          ...input,
+          companyId: entity.companyId,
+          brandId: entity.brandId,
+          updatedByUserId: ctx.userId,
+        },
       });
       const changes = diff(before, input);
       if (Object.keys(changes).length > 0) {

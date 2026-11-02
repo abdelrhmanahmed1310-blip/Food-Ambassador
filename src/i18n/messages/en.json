@@ -149,7 +149,9 @@
     "myAttendance": "My attendance",
     "attendance": "Attendance",
     "myLeave": "My leave",
-    "leave": "Leave"
+    "leave": "Leave",
+    "companies": "Companies",
+    "brands": "Brands"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -572,7 +574,15 @@
     "LEAVE_OVERLAP": "This overlaps another leave request.",
     "LEAVE_BALANCE_SHORT": "Not enough days left for this leave type ({remaining} left).",
     "LEAVE_DECIDED": "This request is already decided.",
-    "LEAVE_NOT_CANCELLABLE": "This request can no longer be cancelled."
+    "LEAVE_NOT_CANCELLABLE": "This request can no longer be cancelled.",
+    "COMPANY_CODE_TAKEN": "This company code is already used.",
+    "COMPANY_ARCHIVED": "This company is archived.",
+    "COMPANY_DEFAULT": "Make another company the default first.",
+    "COMPANY_IN_USE": "Archive or move its branches first.",
+    "BRAND_CODE_TAKEN": "This brand code is already used.",
+    "BRANCH_COMPANY_INVALID": "Choose an active company.",
+    "BRANCH_BRAND_INVALID": "Choose an active brand.",
+    "BRANCH_COMPANY_FIXED": "A branch stays with its company."
   },
   "notFound": {
     "title": "Page not found",
@@ -629,7 +639,9 @@
       "WAREHOUSE_SITE": "Warehouse site",
       "OFFICE": "Office",
       "OTHER": "Other"
-    }
+    },
+    "company": "Company",
+    "brand": "Brand"
   },
   "warehouses": {
     "title": "Warehouses",
@@ -3908,5 +3920,36 @@
     "employeeCard": "Leave ({year})",
     "remainingOf": "{remaining} of {allocated} left",
     "noEntitlement": "Not set"
+  },
+  "companies": {
+    "title": "Companies",
+    "intro": "The group's legal entities. Every branch belongs to one company; a branch stays with its company.",
+    "phaseNote": "Companies currently share the group's base currency ({currency}), VAT settings and e-invoicing. Per-company currency, VAT and ZATCA come in the next step.",
+    "default": "Default",
+    "branchCount": "{count, plural, one {# branch} other {# branches}}",
+    "makeDefault": "Make default",
+    "archive": "Archive",
+    "archiveConfirm": "Archive this company? It must have no active branches.",
+    "save": "Save",
+    "add": "Add company",
+    "added": "Company added.",
+    "saving": "Saving…",
+    "code": "Code",
+    "name": "Trading name",
+    "legalName": "Legal name",
+    "country": "Country",
+    "countryHint": "Two letters, e.g. SA, EG, AE.",
+    "vatNumber": "VAT number",
+    "crNumber": "Commercial registration",
+    "optional": "Optional",
+    "brands": "Brands",
+    "brandsIntro": "Brands group branches for menus and reports. Archiving a brand removes it from its branches.",
+    "noBrands": "No brands yet.",
+    "brandName": "Brand name",
+    "nameAr": "Name in Arabic",
+    "branches": "Branches",
+    "addBrand": "Add brand",
+    "brandAdded": "Brand added.",
+    "archiveBrandConfirm": "Archive this brand? Its branches keep working without a brand."
   }
 }

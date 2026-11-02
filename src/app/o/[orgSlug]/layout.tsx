@@ -163,7 +163,11 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   }
   const settings: NavSection = { title: t("settings"), icon: "settings", items: [] };
   if (hasPermission(ctx.grants, "org.settings.manage"))
-    settings.items.push({ href: `${base}/settings/organization`, label: t("organization") });
+    settings.items.push(
+      { href: `${base}/settings/organization`, label: t("organization") },
+      { href: `${base}/settings/companies`, label: t("companies") },
+      { href: `${base}/settings/brands`, label: t("brands") },
+    );
   if (hasPermission(ctx.grants, "org.settings.manage"))
     settings.items.push(
       { href: `${base}/settings/purchasing`, label: t("purchasingSettings") },

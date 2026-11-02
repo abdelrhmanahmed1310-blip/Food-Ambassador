@@ -19,6 +19,8 @@ export interface BranchFormLabels {
   country: string;
   countryHint: string;
   optional: string;
+  company?: string;
+  brand?: string;
 }
 
 export function BranchForm({
@@ -26,6 +28,8 @@ export function BranchForm({
   labels,
   types,
   timeZones,
+  companies = [],
+  brands = [],
   defaults = {},
   idempotent = false,
 }: {
@@ -33,6 +37,9 @@ export function BranchForm({
   labels: BranchFormLabels;
   types: Option[];
   timeZones: Option[];
+  /** Offered only on new branches with more than one company (a branch stays with its company). */
+  companies?: Option[];
+  brands?: Option[];
   defaults?: Record<string, string | null | undefined>;
   idempotent?: boolean;
 }) {
@@ -90,6 +97,25 @@ export function BranchForm({
           dir="ltr"
           optionalLabel={labels.optional}
         />
+        {companies.length > 1 ? (
+          <SelectField
+            name="companyId"
+            label={labels.company ?? "Company"}
+            options={companies}
+            defaultValue={d("companyId") || companies[0].value}
+            required
+          />
+        ) : null}
+        {brands.length > 0 ? (
+          <SelectField
+            name="brandId"
+            label={labels.brand ?? "Brand"}
+            options={brands}
+            placeholder="—"
+            defaultValue={d("brandId")}
+            optionalLabel={labels.optional}
+          />
+        ) : null}
       </div>
     </ActionForm>
   );

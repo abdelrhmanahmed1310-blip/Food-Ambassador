@@ -57,6 +57,7 @@ export default async function BranchesPage({
               <Th>{t("code")}</Th>
               <Th>{t("name")}</Th>
               <Th>{t("type")}</Th>
+              <Th>{t("company")}</Th>
               <Th>{t("activeWarehouses")}</Th>
               <Th>{tc("status")}</Th>
             </tr>
@@ -76,6 +77,12 @@ export default async function BranchesPage({
                   </Link>
                 </Td>
                 <Td>{t(`types.${b.type}`)}</Td>
+                <Td>
+                  {b.company.name}
+                  {b.brand ? (
+                    <span className="text-muted block text-xs">{b.brand.name}</span>
+                  ) : null}
+                </Td>
                 <Td className="tabular-nums">{b._count.warehouses}</Td>
                 <Td>
                   {b.archivedAt ? (

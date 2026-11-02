@@ -19,7 +19,7 @@ export default async function NewBranchPage({ params }: PageProps<"/o/[orgSlug]/
         <BranchForm
           action={createBranchAction.bind(null, orgSlug)}
           idempotent
-          {...await branchFormProps(t("common.create"))}
+          {...await branchFormProps(t("common.create"), { ctx, withCompanies: true })}
         />
       </Card>
     </>
