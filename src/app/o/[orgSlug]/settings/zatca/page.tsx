@@ -7,6 +7,7 @@ import { OtpForm, ZatcaSettingsForm } from "@/components/zatca/forms";
 import { hasPermission } from "@/modules/access/authorize";
 import { getZatcaSetup } from "@/modules/zatca/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
+import { buttonClass, inputClass } from "@/components/ui/styles";
 import {
   onboardDeviceAction,
   prepareDeviceAction,
@@ -28,16 +29,22 @@ const tone = {
   REJECTED: "danger",
 } as const;
 
-/** ZATCA e-invoicing for Saudi Arabia (ADR-064). */
-export default async function ZatcaPage({ params }: PageProps<"/o/[orgSlug]/settings/zatca">) {
+/** ZATCA e-invoicing for Saudi Arabia (ADR-064), one company at a time (ADR-085). */
+export default async function ZatcaPage({
+  params,
+  searchParams,
+}: PageProps<"/o/[orgSlug]/settings/zatca">) {
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "org.settings.manage")) notFound();
+  const sp = await searchParams;
+  const companyParam = (Array.isArray(sp.company) ? sp.company[0] : sp.company) || null;
   const [t, format, setup] = await Promise.all([
     getTranslations(),
     getFormatter(),
-    getZatcaSetup(ctx),
+    getZatcaSetup(ctx, companyParam),
   ]);
+  const companyId = setup.company.id;
   const ready = setup.vatRegistered && setup.country === "SA" && ctx.baseCurrency === "SAR";
   const s = setup.settings;
   return (
@@ -45,10 +52,32 @@ export default async function ZatcaPage({ params }: PageProps<"/o/[orgSlug]/sett
       <PageHeader title={t("zatca.title")} description={t("zatca.intro")} />
       <div className="space-y-6">
         <Alert tone="info">{t("zatca.validationNote")}</Alert>
+        {setup.companies.length > 1 ? (
+          <form method="get" className="flex items-center gap-2" data-testid="zatca-company">
+            <label htmlFor="company" className="text-sm font-medium">
+              {t("zatca.company")}
+            </label>
+            <select
+              id="company"
+              name="company"
+              defaultValue={companyId}
+              className={`${inputClass} w-auto`}
+            >
+              {setup.companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code} — {c.name}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className={buttonClass("secondary")}>
+              {t("zatca.showCompany")}
+            </button>
+          </form>
+        ) : null}
         {!ready ? <Alert tone="error">{t("zatca.notReady")}</Alert> : null}
-        <Card title={t("zatca.seller")}>
+        <Card title={`${t("zatca.seller")} — ${setup.company.name}`}>
           <ZatcaSettingsForm
-            action={updateZatcaSettingsAction.bind(null, orgSlug)}
+            action={updateZatcaSettingsAction.bind(null, orgSlug, companyId)}
             defaults={
               s
                 ? {
@@ -62,7 +91,11 @@ export default async function ZatcaPage({ params }: PageProps<"/o/[orgSlug]/sett
                     businessCategory: s.businessCategory,
                     environment: s.environment,
                   }
-                : undefined
+                : {
+                    // The company's own registration details to start from.
+                    legalName: setup.company.legalName,
+                    crNumber: setup.company.crNumber,
+                  }
             }
           />
         </Card>
@@ -133,7 +166,7 @@ export default async function ZatcaPage({ params }: PageProps<"/o/[orgSlug]/sett
             </div>
             {ready && s && (!setup.office || setup.office.status === "NEW") ? (
               <ConfirmActionButton
-                action={prepareOfficeUnitAction.bind(null, orgSlug)}
+                action={prepareOfficeUnitAction.bind(null, orgSlug, companyId)}
                 label={setup.office ? t("zatca.remakeKey") : t("zatca.prepare")}
                 variant="secondary"
               />

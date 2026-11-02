@@ -39,7 +39,9 @@ import { phase1Qr } from "./tlv";
 
 /**
  * ZATCA e-invoicing for the point of sale in Saudi Arabia (DECISIONS.md
- * ADR-064): seller settings, one e-invoicing unit per register, a signed
+ * ADR-064). Per company (ADR-085): each company registered for VAT in Saudi
+ * Arabia has its own seller details and office unit; a register's unit signs
+ * for its branch's company. Seller settings, one e-invoicing unit per register, a signed
  * simplified invoice for every sale and a credit note for every refund or
  * void once the unit is onboarded, and reporting to ZATCA within 24 hours.
  * Before onboarding, receipts carry the Phase 1 QR.
@@ -69,7 +71,33 @@ async function audit(tx: Tx, ctx: TenantContext, entityId: string, action: strin
 
 // ─── Settings ───
 
+/** The company, or the default one; never another organization's. */
+async function companyOf(tx: Tx, ctx: TenantContext, companyId?: string | null) {
+  const parsed = companyId ? z.uuid().safeParse(companyId) : null;
+  if (parsed && !parsed.success) throw notFound("Company");
+  const c = await tx.company.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      ...(parsed ? { id: parsed.data } : { isDefault: true }),
+    },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      legalName: true,
+      crNumber: true,
+      country: true,
+      vatRegistered: true,
+      vatNumber: true,
+      isDefault: true,
+    },
+  });
+  if (!c) throw notFound("Company");
+  return c;
+}
+
 const settingsSchema = z.object({
+  companyId: z.string().optional(),
   legalName: requiredText(200),
   crNumber: optionalText(20),
   street: requiredText(120),
@@ -97,32 +125,38 @@ export async function updateZatcaSettings(ctx: TenantContext, rawInput: unknown)
     );
   const parsed = settingsSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const data = { ...parsed.data, crNumber: parsed.data.crNumber ?? null };
+  const { companyId, ...rest } = parsed.data;
+  const data = { ...rest, crNumber: rest.crNumber ?? null };
   await withTenantTx(ctx.organizationId, async (tx) => {
+    const company = await companyOf(tx, ctx, companyId);
     await tx.zatcaSettings.upsert({
-      where: { organizationId: ctx.organizationId },
-      create: { organizationId: ctx.organizationId, ...data },
+      where: {
+        organizationId_companyId: { organizationId: ctx.organizationId, companyId: company.id },
+      },
+      create: { organizationId: ctx.organizationId, companyId: company.id, ...data },
       update: data,
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "zatca_settings.updated",
-      entityType: "organization",
-      entityId: ctx.organizationId,
+      entityType: "company",
+      entityId: company.id,
       changes: data,
     });
   });
 }
 
-/** Settings, registers with their e-invoicing unit, and recent documents. */
-export async function getZatcaSetup(ctx: TenantContext) {
+/** One company's seller settings, its registers' units, its office unit and its recent documents. */
+export async function getZatcaSetup(ctx: TenantContext, companyId?: string | null) {
   assertPermission(ctx.grants, "org.settings.manage");
   return withTenantTx(ctx.organizationId, async (tx) => {
     const org = ctx.organizationId;
-    const [settings, tax, registers, documents] = [
-      await tx.zatcaSettings.findUnique({ where: { organizationId: org } }),
-      await tx.taxSettings.findUnique({ where: { organizationId: org } }),
+    const company = await companyOf(tx, ctx, companyId);
+    const [settings, registers, documents] = [
+      await tx.zatcaSettings.findUnique({
+        where: { organizationId_companyId: { organizationId: org, companyId: company.id } },
+      }),
       await tx.posRegister.findMany({
-        where: { organizationId: org, archivedAt: null },
+        where: { organizationId: org, archivedAt: null, branch: { companyId: company.id } },
         select: {
           id: true,
           code: true,
@@ -142,7 +176,7 @@ export async function getZatcaSetup(ctx: TenantContext) {
         orderBy: { code: "asc" },
       }),
       await tx.zatcaDocument.findMany({
-        where: { organizationId: org },
+        where: { organizationId: org, device: { companyId: company.id } },
         select: {
           id: true,
           type: true,
@@ -159,19 +193,26 @@ export async function getZatcaSetup(ctx: TenantContext) {
       }),
     ];
     const office = await tx.zatcaDevice.findFirst({
-      where: { organizationId: org, purpose: "OFFICE" },
+      where: { organizationId: org, purpose: "OFFICE", companyId: company.id },
       select: { id: true, status: true, environment: true, icv: true, onboardedAt: true },
     });
     const counts = await tx.zatcaDocument.groupBy({
       by: ["status"],
-      where: { organizationId: org },
+      where: { organizationId: org, device: { companyId: company.id } },
       _count: { _all: true },
     });
+    const companies = await tx.company.findMany({
+      where: { organizationId: org, archivedAt: null },
+      select: { id: true, code: true, name: true, isDefault: true },
+      orderBy: [{ isDefault: "desc" }, { code: "asc" }],
+    });
     return {
+      company,
+      companies,
       settings,
-      vatRegistered: tax?.vatRegistered ?? false,
-      vatNumber: tax?.vatNumber ?? null,
-      country: tax?.country ?? null,
+      vatRegistered: company.vatRegistered,
+      vatNumber: company.vatNumber,
+      country: company.country,
       registers,
       office,
       documents,
@@ -180,16 +221,22 @@ export async function getZatcaSetup(ctx: TenantContext) {
   });
 }
 
-async function seller(tx: Tx, ctx: TenantContext): Promise<ZatcaParty | null> {
-  const [s, tax] = [
-    await tx.zatcaSettings.findUnique({ where: { organizationId: ctx.organizationId } }),
-    await tx.taxSettings.findUnique({ where: { organizationId: ctx.organizationId } }),
+/** The company's seller details, when it is VAT registered in Saudi Arabia with its address set. */
+async function seller(tx: Tx, ctx: TenantContext, companyId: string): Promise<ZatcaParty | null> {
+  const [s, c] = [
+    await tx.zatcaSettings.findUnique({
+      where: { organizationId_companyId: { organizationId: ctx.organizationId, companyId } },
+    }),
+    await tx.company.findFirst({
+      where: { organizationId: ctx.organizationId, id: companyId },
+      select: { vatRegistered: true, vatNumber: true, country: true },
+    }),
   ];
-  if (!s || !tax?.vatRegistered || !tax.vatNumber || tax.country !== "SA") return null;
+  if (!s || !c?.vatRegistered || !c.vatNumber || c.country !== "SA") return null;
   if (ctx.baseCurrency !== "SAR") return null;
   return {
     name: s.legalName,
-    vatNumber: tax.vatNumber.replace(/\s/g, ""),
+    vatNumber: c.vatNumber.replace(/\s/g, ""),
     crNumber: s.crNumber,
     street: s.street,
     building: s.building,
@@ -206,31 +253,40 @@ export async function prepareDevice(ctx: TenantContext, registerId: string) {
   return prepareUnit(ctx, registerId);
 }
 
-/** Make the back office's unit for standard (B2B) invoices (ADR-072). */
-export async function prepareOfficeUnit(ctx: TenantContext) {
-  return prepareUnit(ctx, null);
+/** Make a company's back-office unit for standard (B2B) invoices (ADR-072, ADR-085). */
+export async function prepareOfficeUnit(ctx: TenantContext, companyId?: string | null) {
+  return prepareUnit(ctx, null, companyId);
 }
 
-async function prepareUnit(ctx: TenantContext, registerId: string | null) {
+async function prepareUnit(
+  ctx: TenantContext,
+  registerId: string | null,
+  officeCompanyId?: string | null,
+) {
   assertPermission(ctx.grants, "org.settings.manage");
   return withTenantTx(ctx.organizationId, async (tx) => {
     const register = registerId
       ? await tx.posRegister.findFirst({
           where: { organizationId: ctx.organizationId, id: registerId },
-          include: { branch: { select: { name: true } }, zatcaDevice: true },
+          include: { branch: { select: { name: true, companyId: true } }, zatcaDevice: true },
         })
       : null;
     if (registerId && !register) throw notFound("Register");
+    const company = register
+      ? { id: register.branch.companyId, code: null, isDefault: false }
+      : await companyOf(tx, ctx, officeCompanyId);
     const existing = register
       ? register.zatcaDevice
       : await tx.zatcaDevice.findFirst({
-          where: { organizationId: ctx.organizationId, purpose: "OFFICE" },
+          where: { organizationId: ctx.organizationId, purpose: "OFFICE", companyId: company.id },
         });
     if (existing && existing.status !== "NEW")
       throw businessRuleViolation("ZATCA_DEVICE_EXISTS", "This unit is already onboarded");
-    const party = await seller(tx, ctx);
+    const party = await seller(tx, ctx, company.id);
     const settings = await tx.zatcaSettings.findUnique({
-      where: { organizationId: ctx.organizationId },
+      where: {
+        organizationId_companyId: { organizationId: ctx.organizationId, companyId: company.id },
+      },
     });
     if (!party || !settings)
       throw businessRuleViolation(
@@ -238,8 +294,12 @@ async function prepareUnit(ctx: TenantContext, registerId: string | null) {
         "Register for VAT in Saudi Arabia and complete the e-invoicing details first",
       );
     const { privateKeyPem } = generateDeviceKey();
-    const serialNumber = `1-FoodAmbassador|2-1.0|3-${register?.id ?? `office-${ctx.organizationId}`}`;
-    const commonName = register ? `EGS-${register.code}` : "EGS-OFFICE";
+    const serialNumber = `1-FoodAmbassador|2-1.0|3-${register?.id ?? `office-${company.id}`}`;
+    const commonName = register
+      ? `EGS-${register.code}`
+      : company.isDefault
+        ? "EGS-OFFICE"
+        : `EGS-OFFICE-${company.code}`;
     const csr = buildCsr(
       privateKeyPem,
       {
@@ -279,6 +339,7 @@ async function prepareUnit(ctx: TenantContext, registerId: string | null) {
           data: {
             organizationId: ctx.organizationId,
             registerId: register?.id ?? null,
+            companyId: company.id,
             purpose: register ? "POS" : "OFFICE",
             ...data,
           },
@@ -286,6 +347,7 @@ async function prepareUnit(ctx: TenantContext, registerId: string | null) {
         });
     await audit(tx, ctx, device.id, "prepared", {
       register: register?.code ?? "OFFICE",
+      company: company.id,
       environment: settings.environment,
     });
     return device;
@@ -383,7 +445,7 @@ export async function onboardDevice(
         where: { organizationId: ctx.organizationId, id: deviceId },
       });
       if (!d) throw notFound("E-invoicing unit");
-      return { device: d, party: await seller(tx, ctx) };
+      return { device: d, party: await seller(tx, ctx, d.companyId!) };
     });
   const first = await load();
   let device = first.device;
@@ -456,8 +518,10 @@ export async function onboardDevice(
 // ─── Issuing ───
 
 interface IssueInput {
-  /** The register's unit; null = the back office's unit (standard invoices). */
+  /** The register's unit; null = the company's back-office unit (standard invoices). */
   registerId: string | null;
+  /** For the back-office unit: the selling company (ADR-085). */
+  companyId?: string | null;
   type: "INVOICE" | "CREDIT_NOTE";
   orderId?: string;
   refundId?: string;
@@ -507,14 +571,16 @@ async function issueInTx(tx: Tx, ctx: TenantContext, a: IssueInput) {
     where: {
       organizationId: ctx.organizationId,
       status: "ACTIVE",
-      ...(a.registerId ? { registerId: a.registerId } : { purpose: "OFFICE" as const }),
+      ...(a.registerId
+        ? { registerId: a.registerId }
+        : { purpose: "OFFICE" as const, companyId: a.companyId ?? undefined }),
     },
     select: { id: true },
   });
   if (!found || a.lines.length === 0) return null;
   await tx.$queryRaw`SELECT 1 FROM "zatca_devices" WHERE "id" = ${found.id}::uuid FOR UPDATE`;
   const device = await tx.zatcaDevice.findUniqueOrThrow({ where: { id: found.id } });
-  const party = await seller(tx, ctx);
+  const party = await seller(tx, ctx, device.companyId!);
   if (!party) return null;
   const { date, time } = localDateTime(a.issuedAt, a.timeZone);
   const input: ZatcaInvoiceInput = {
@@ -698,13 +764,17 @@ export async function receiptQrInTx(tx: Tx, ctx: TenantContext, orderId: string)
     select: { qr: true },
   });
   if (doc) return { qr: doc.qr, signed: true };
-  const party = await seller(tx, ctx);
-  const tax = await tx.taxSettings.findUnique({ where: { organizationId: ctx.organizationId } });
-  if (!tax?.vatRegistered || !tax.vatNumber || tax.country !== "SA") return null;
   const order = await tx.posOrder.findFirstOrThrow({
     where: { organizationId: ctx.organizationId, id: orderId },
-    include: { register: { include: { branch: { select: { timeZone: true } } } } },
+    include: {
+      register: { include: { branch: { select: { timeZone: true } } } },
+      company: { select: { vatRegistered: true, vatNumber: true, country: true } },
+    },
   });
+  // The selling company's registration (ADR-085).
+  const tax = order.company;
+  if (!tax?.vatRegistered || !tax.vatNumber || tax.country !== "SA") return null;
+  const party = await seller(tx, ctx, order.companyId!);
   const org = await tx.organization.findUniqueOrThrow({
     where: { id: ctx.organizationId },
     select: { name: true },
@@ -885,11 +955,11 @@ async function salesInvoiceDocInputs(tx: Tx, ctx: TenantContext, salesInvoiceId:
   return { inv, buyer, lines };
 }
 
-/** Whether a standard invoice must be issued: the back office's unit is onboarded. */
-async function officeUnitActive(tx: Tx, ctx: TenantContext) {
+/** Whether a standard invoice must be issued: the company's back-office unit is onboarded. */
+async function officeUnitActive(tx: Tx, ctx: TenantContext, companyId: string) {
   return (
     (await tx.zatcaDevice.count({
-      where: { organizationId: ctx.organizationId, purpose: "OFFICE", status: "ACTIVE" },
+      where: { organizationId: ctx.organizationId, purpose: "OFFICE", status: "ACTIVE", companyId },
     })) > 0
   );
 }
@@ -904,8 +974,8 @@ export async function issueSalesInvoiceDocumentInTx(
   ctx: TenantContext,
   salesInvoiceId: string,
 ) {
-  if (!(await officeUnitActive(tx, ctx))) return null;
   const { inv, buyer, lines } = await salesInvoiceDocInputs(tx, ctx, salesInvoiceId);
+  if (!(await officeUnitActive(tx, ctx, inv.companyId!))) return null;
   if (lines.every((l) => l.vat.isZero() && l.category === "S")) return null;
   const problems = buyerProblems(buyer);
   if (problems.length > 0)
@@ -926,6 +996,7 @@ export async function issueSalesInvoiceDocumentInTx(
     );
   return issueInTx(tx, ctx, {
     registerId: null,
+    companyId: inv.companyId,
     kind: "STANDARD",
     type: "INVOICE",
     salesInvoiceId: inv.id,
@@ -960,6 +1031,7 @@ export async function issueSalesCreditNoteInTx(
   const { inv, buyer, lines } = await salesInvoiceDocInputs(tx, ctx, salesInvoiceId);
   return issueInTx(tx, ctx, {
     registerId: null,
+    companyId: inv.companyId,
     kind: "STANDARD",
     type: "CREDIT_NOTE",
     salesInvoiceId: inv.id,

@@ -1954,8 +1954,33 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   charges no VAT. The POS receipt shows the selling company's VAT number.
 - New rates take a country (default: the group's VAT country), so a rate
   change in one country never reaches another country's companies.
-- **Next (step 2b):** ZATCA seller settings and e-invoice numbering per
-  company. **Step 3:** per-company currency (design first).
+- **Step 2b** (ADR-085): ZATCA seller settings and units per company.
+  **Step 3:** per-company currency (design first).
+
+### ADR-085 ZATCA per company — Accepted (F1b step 2b built)
+
+- **Seller settings are per company.** `zatca_settings` is keyed by
+  (organization, company): each company registered for VAT in Saudi Arabia
+  has its own legal name, CR number, national address, business category
+  and ZATCA environment. Existing settings moved to the default company.
+  The form starts from the company's legal name and CR number.
+- **Every e-invoicing unit belongs to one company** (`zatca_devices.company_id`,
+  set by the database): a register's unit takes its branch's company; the
+  back-office unit is made for a chosen company, **one office unit per
+  company**. A unit never changes company (trigger). The CSR carries that
+  company's legal name and VAT number.
+- **Documents use their company's unit and seller:** POS invoices and
+  credit notes sign on the register's unit with the branch's company as
+  seller; B2B standard invoices clear on the office unit of the sales
+  invoice's company. Each unit keeps its own counter and hash chain, so
+  numbering and chaining are per company (and per register).
+- **Receipts** before onboarding carry the Phase 1 QR with the selling
+  company's name and VAT number.
+- A company not registered for VAT in Saudi Arabia cannot have a unit.
+  ZATCA still needs the Saudi riyal as base currency (per-company currency
+  is step 3).
+- The ZATCA page shows one company at a time (company selector when the
+  group has more than one).
 
 ## Business assumptions (recorded, not invented rules)
 

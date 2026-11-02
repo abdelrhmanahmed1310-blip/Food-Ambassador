@@ -14,10 +14,15 @@ import { tenantMutation } from "@/server/actions/tenant";
 
 type S = ActionState;
 
-export async function updateZatcaSettingsAction(orgSlug: string, previous: S, formData: FormData) {
+export async function updateZatcaSettingsAction(
+  orgSlug: string,
+  companyId: string,
+  previous: S,
+  formData: FormData,
+) {
   const t = await getTranslations("common");
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
-    await updateZatcaSettings(ctx, formValues(formData));
+    await updateZatcaSettings(ctx, { ...formValues(formData), companyId });
     return { message: t("savedSuccessfully") };
   });
 }
@@ -59,9 +64,14 @@ export async function reportNowAction(orgSlug: string, previous: S, formData: Fo
   });
 }
 
-/** The back office's unit for standard (B2B) invoices (ADR-072). */
-export async function prepareOfficeUnitAction(orgSlug: string, previous: S, formData: FormData) {
+/** A company's back-office unit for standard (B2B) invoices (ADR-072, ADR-085). */
+export async function prepareOfficeUnitAction(
+  orgSlug: string,
+  companyId: string,
+  previous: S,
+  formData: FormData,
+) {
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
-    await prepareOfficeUnit(ctx);
+    await prepareOfficeUnit(ctx, companyId);
   });
 }

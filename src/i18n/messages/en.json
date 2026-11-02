@@ -3118,7 +3118,7 @@
     "title": "E-invoicing (ZATCA)",
     "intro": "Saudi Arabia, Phase 2: every point-of-sale sale gets a signed simplified tax invoice, every refund or void a credit note, reported to ZATCA within 24 hours. Until a register's unit is onboarded, its receipts carry the Phase 1 QR.",
     "validationNote": "Not yet validated against ZATCA: the documents, signature and API calls follow ZATCA's standards but have not been through ZATCA's sandbox. Onboard on the developer portal or simulation first and check the results before using the core (production) environment.",
-    "notReady": "Requires VAT registration in Saudi Arabia (VAT settings) and the Saudi riyal as base currency.",
+    "notReady": "This company must be registered for VAT in Saudi Arabia (Companies page; for the default company, VAT settings), and the base currency must be the Saudi riyal.",
     "seller": "Seller details (national address)",
     "legalName": "Legal name (as registered)",
     "crNumber": "Commercial registration (CR)",
@@ -3181,7 +3181,9 @@
     "creditNote": "Credit note",
     "rejectedInvoice": "ZATCA rejected this invoice: it is not a valid tax invoice. Cancel it and issue a corrected one.",
     "notClearedYet": "Not yet cleared by ZATCA: do not give this invoice to the buyer yet.",
-    "clearNow": "Clear now"
+    "clearNow": "Clear now",
+    "company": "Company",
+    "showCompany": "Show"
   },
   "settlements": {
     "title": "Card settlements",

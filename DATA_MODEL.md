@@ -1174,6 +1174,17 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### ZATCA per company (F1b step 2b, ADR-085)
+
+Migration `20261212090000_f1b2b_zatca_per_company`.
+
+- **zatca_settings** gains `company_id`; primary key is now
+  (organization, company). Existing rows moved to the default company.
+- **zatca_devices** gains `company_id` (NOT NULL, set on insert from the
+  register's branch, or the default company for an office unit when none
+  is given; never changes). `zatca_devices_one_office` is now unique per
+  (organization, company).
+
 ### VAT per company (F1b step 2a, ADR-084)
 
 Migration `20261211090000_f1b2_vat_per_company`.
