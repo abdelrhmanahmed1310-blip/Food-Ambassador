@@ -1783,6 +1783,30 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   no business logic changed. Right-to-left (Arabic) uses logical
   properties, so the sidebar moves to the right.
 
+### ADR-078 Overview dashboard, touch-friendly POS and a demo restaurant — Accepted
+
+- **Overview dashboard.** Above the existing counts, users who may see
+  sales get: net sales today, orders today, average ticket today, net sales
+  for the last 14 days, a bar chart of net sales per business day, and the
+  five best sellers by net. Users who may also see stock value get food
+  cost %, waste and discounts for the same 14 days (from the food cost
+  report). All figures come from paid POS orders in the warehouses the user
+  may see, refunds deducted on the order's day; days without orders are
+  zero, and nothing is estimated. The chart is server-rendered SVG (no
+  script, no chart library) with a hidden data table for screen readers;
+  days run left to right in both languages.
+- **Touch-friendly POS.** Larger item tiles with the price in red, press
+  feedback and a badge with the quantity already in the order (hidden from
+  the button's accessible name), 44 px quantity buttons, tiles that size
+  themselves to the space (no overflow on tablets), and a narrower order
+  panel on tablets. The sidebar marks only the closest page as current.
+- **Demo restaurant.** The `[DEMO]` seed adds, to Gulf Catering, an Olaya
+  burger branch (`RUH-BRG`): Saudi VAT (ZATCA's published sample VAT
+  number), seven menu items with kit products and opening stock, a till
+  with an open shift, a grill station, a dining room with eight tables, a
+  drinks promotion, loyalty points, a pick-up ordering page, and eight
+  sample orders taken through the real till services. Idempotent.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

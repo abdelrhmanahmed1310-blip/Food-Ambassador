@@ -5,7 +5,7 @@ import { isCalendarDate } from "@/lib/dates";
 import { Decimal } from "@/lib/decimal";
 import { accessibleScope, holdsAnyGrant } from "@/modules/access/authorize";
 import type { Permission } from "@/modules/access/permissions";
-import { businessDate } from "@/modules/inventory/rules";
+import { addDays, businessDate } from "@/modules/inventory/rules";
 import { currencyDecimals } from "@/modules/tax/rules";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
@@ -486,4 +486,89 @@ export async function exportBranchComparisonCsv(ctx: TenantContext, rawPeriod: u
       fixed(b.discounts),
     ]),
   );
+}
+
+// ─── Overview dashboard ───
+
+export const DASHBOARD_DAYS = 14;
+
+/**
+ * Point-of-sale figures for the overview (ADR-078), from paid orders in the
+ * warehouses the user may see sales for: net sales per business day for the
+ * last 14 days (refunds deducted on the order's day), today's orders and
+ * average ticket, and the best sellers of the period. Food cost and waste
+ * come from the food cost report, only for users who may see costs.
+ * Nothing is estimated: days without orders are zero.
+ */
+export async function salesDashboard(ctx: TenantContext) {
+  if (!holdsAnyGrant(ctx.grants, "sales.view")) return null;
+  const today = businessDate(ctx.timeZone);
+  const from = addDays(today, -(DASHBOARD_DAYS - 1));
+  const sales = await withTenantTx(ctx.organizationId, async (tx) => {
+    const ids = (await visibleWarehouses(tx, ctx, "sales.view")).map((w) => w.id);
+    if (ids.length === 0) return { days: [], top: [] };
+    const days = await tx.$queryRaw<Array<{ day: Date; orders: bigint; net: Prisma.Decimal }>>`
+      SELECT o.business_date AS day, COUNT(*) AS orders,
+             SUM(o.net_amount) - COALESCE(SUM(r.net), 0) AS net
+      FROM pos_orders o
+      LEFT JOIN (
+        SELECT order_id, SUM(amount - tax_amount) AS net FROM pos_refunds
+        WHERE organization_id = ${ctx.organizationId}::uuid GROUP BY order_id
+      ) r ON r.order_id = o.id
+      WHERE o.organization_id = ${ctx.organizationId}::uuid
+        AND o.status = 'PAID'
+        AND o.warehouse_id = ANY(${ids}::uuid[])
+        AND o.business_date BETWEEN ${from}::date AND ${today}::date
+      GROUP BY o.business_date`;
+    const top = await tx.$queryRaw<
+      Array<{ name: string; quantity: Prisma.Decimal; net: Prisma.Decimal }>
+    >`
+      SELECT l.name, SUM(l.quantity - l.refunded_quantity) AS quantity, SUM(l.net_amount) AS net
+      FROM pos_order_lines l
+      JOIN pos_orders o ON o.id = l.order_id
+      WHERE o.organization_id = ${ctx.organizationId}::uuid
+        AND o.status = 'PAID'
+        AND o.warehouse_id = ANY(${ids}::uuid[])
+        AND o.business_date BETWEEN ${from}::date AND ${today}::date
+      GROUP BY l.name
+      ORDER BY SUM(l.net_amount) DESC
+      LIMIT 5`;
+    return { days, top };
+  });
+  const byDay = new Map(
+    sales.days.map((d) => [
+      d.day.toISOString().slice(0, 10),
+      { orders: Number(d.orders), net: dec(d.net) },
+    ]),
+  );
+  const series = Array.from({ length: DASHBOARD_DAYS }, (_, i) => {
+    const day = addDays(from, i);
+    const d = byDay.get(day);
+    return { day, orders: d?.orders ?? 0, net: d?.net ?? new Decimal(0) };
+  });
+  const todayFigures = series[series.length - 1];
+  const periodNet = series.reduce((a, d) => a.plus(d.net), new Decimal(0));
+  const periodOrders = series.reduce((a, d) => a + d.orders, 0);
+  const costs = canSeeReports(ctx).foodCost ? await foodCostReport(ctx, { from, to: today }) : null;
+  return {
+    from,
+    to: today,
+    series,
+    today: {
+      orders: todayFigures.orders,
+      net: todayFigures.net,
+      averageTicket:
+        todayFigures.orders > 0 ? todayFigures.net.dividedBy(todayFigures.orders) : null,
+    },
+    period: { orders: periodOrders, net: periodNet },
+    top: sales.top.map((t) => ({ name: t.name, quantity: dec(t.quantity), net: dec(t.net) })),
+    /** Only for users who may see costs (sales and stock value). */
+    costs: costs
+      ? {
+          foodCost: costs.total.foodCost,
+          waste: costs.total.waste,
+          discounts: costs.total.discounts,
+        }
+      : null,
+  };
 }

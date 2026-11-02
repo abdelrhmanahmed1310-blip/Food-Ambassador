@@ -56,10 +56,20 @@ export interface NavSection {
   items: NavItem[];
 }
 
-function isActive(pathname: string, item: NavItem) {
+function matches(pathname: string, item: NavItem) {
   return item.exact
     ? pathname === item.href
     : pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+/** The one item for this page: the longest matching address (…/pos/floor, not …/pos). */
+function activeHref(pathname: string, sections: NavSection[]) {
+  let best: string | null = null;
+  for (const section of sections)
+    for (const item of section.items)
+      if (matches(pathname, item) && (best === null || item.href.length > best.length))
+        best = item.href;
+  return best;
 }
 
 function ItemLink({
@@ -92,7 +102,7 @@ function ItemLink({
 }
 
 function Links({ sections, onNavigate }: { sections: NavSection[]; onNavigate?: () => void }) {
-  const pathname = usePathname();
+  const active = activeHref(usePathname(), sections);
   return (
     <div className="space-y-1">
       {sections.map((section, i) => {
@@ -102,7 +112,7 @@ function Links({ sections, onNavigate }: { sections: NavSection[]; onNavigate?: 
               <li key={item.href}>
                 <ItemLink
                   item={item}
-                  active={isActive(pathname, item)}
+                  active={item.href === active}
                   onNavigate={onNavigate}
                   nested={Boolean(section.title)}
                 />
@@ -112,7 +122,7 @@ function Links({ sections, onNavigate }: { sections: NavSection[]; onNavigate?: 
         );
         if (!section.title) return <div key={i}>{items}</div>;
         const Icon = section.icon ? ICONS[section.icon] : null;
-        const holdsActive = section.items.some((item) => isActive(pathname, item));
+        const holdsActive = section.items.some((item) => item.href === active);
         return (
           // Closed groups keep their links in the page (hidden), so nothing is lost; the
           // group holding the current page opens by itself.
@@ -154,14 +164,14 @@ export function DesktopNav({
   label: string;
   homeHref: string;
 }) {
+  // The black column runs the full page height; the menu inside stays in view.
   return (
-    <nav
-      aria-label={label}
-      className="bg-sidebar sticky top-0 hidden h-dvh w-64 shrink-0 overflow-y-auto px-3 py-4 lg:block print:hidden"
-    >
-      <BrandTile href={homeHref} />
-      <Links sections={sections} />
-    </nav>
+    <div className="bg-sidebar hidden w-64 shrink-0 lg:block print:hidden">
+      <nav aria-label={label} className="sticky top-0 h-dvh overflow-y-auto px-3 py-4">
+        <BrandTile href={homeHref} />
+        <Links sections={sections} />
+      </nav>
+    </div>
   );
 }
 

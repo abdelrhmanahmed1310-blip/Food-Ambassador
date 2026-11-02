@@ -343,13 +343,15 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
     );
 
   const shown = category ? items.filter((i) => i.category.id === category) : items;
+  const inCart = (itemId: string) =>
+    cart.reduce((n, l) => (l.item.id === itemId ? n + l.quantity : n), 0);
   const chip = (active: boolean) =>
     `min-h-11 rounded-full border px-4 text-sm font-medium ${
       active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface"
     }`;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_24rem]">
+    <div className="grid gap-4 lg:grid-cols-[1fr_20rem] xl:grid-cols-[1fr_24rem]">
       <SyncStatus
         online={online}
         signedOut={signedOut}
@@ -408,20 +410,29 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
           ))}
         </div>
         {items.length === 0 ? <p className="text-muted text-sm">{t("pos.nothingOnSale")}</p> : null}
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3">
           {shown.map((i) => (
             <li key={i.id}>
               <button
                 type="button"
-                className="border-border bg-surface hover:border-primary flex min-h-20 w-full flex-col items-start justify-between rounded-lg border p-3 text-start"
+                className="border-border bg-surface hover:border-primary active:bg-surface-muted relative flex min-h-28 w-full touch-manipulation flex-col items-start justify-between rounded-xl border p-3.5 text-start shadow-sm transition active:scale-[0.97]"
                 onClick={() => (i.groups.length > 0 ? setChoosing(i) : add(i))}
               >
-                <span className="font-medium">
+                <span className="pe-7 text-base leading-snug font-semibold">
                   <bdi>{named(i, locale)}</bdi>
                 </span>
-                <span className="ltr-value text-muted text-sm tabular-nums">
+                <span className="ltr-value text-primary text-base font-bold tabular-nums">
                   {fmt(new Decimal(i.price))}
                 </span>
+                {inCart(i.id) > 0 ? (
+                  // How many are in the order already; not part of the button's name.
+                  <span
+                    aria-hidden="true"
+                    className="bg-primary text-primary-foreground absolute end-2 top-2 flex size-6 items-center justify-center rounded-full text-xs font-bold tabular-nums"
+                  >
+                    {inCart(i.id)}
+                  </span>
+                ) : null}
               </button>
             </li>
           ))}
@@ -430,7 +441,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
 
       <section
         aria-label={t("pos.order")}
-        className="border-border bg-surface space-y-3 self-start rounded-lg border p-4 lg:sticky lg:top-4"
+        className="border-border bg-surface space-y-3 self-start rounded-xl border p-4 shadow-sm lg:sticky lg:top-20"
       >
         <h2 className="text-lg font-semibold">{t("pos.order")}</h2>
         {done ? (
@@ -482,7 +493,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    className={buttonClass("secondary")}
+                    className={`${buttonClass("secondary")} size-11 touch-manipulation p-0 text-lg`}
                     aria-label={t("pos.less", { item: named(l.item, locale) })}
                     onClick={() => changeQuantity(l.key, -1)}
                   >
@@ -491,7 +502,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
                   <span className="w-8 text-center tabular-nums">{l.quantity}</span>
                   <button
                     type="button"
-                    className={buttonClass("secondary")}
+                    className={`${buttonClass("secondary")} size-11 touch-manipulation p-0 text-lg`}
                     aria-label={t("pos.more", { item: named(l.item, locale) })}
                     onClick={() => changeQuantity(l.key, 1)}
                   >

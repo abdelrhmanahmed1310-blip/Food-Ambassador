@@ -3527,5 +3527,22 @@
     "paymentProblem": "Paid online but not recorded:",
     "slotCapacity": "Orders per slot",
     "slotCapacityHint": "What the kitchen can prepare for one pick-up time; full slots are not offered."
+  },
+  "dashboard": {
+    "title": "Sales dashboard",
+    "netToday": "Net sales today",
+    "ordersToday": "Orders today",
+    "averageTicket": "Average ticket today",
+    "netPeriod": "Net sales, last {days} days",
+    "foodCost": "Food cost, last {days} days",
+    "waste": "Waste, last {days} days",
+    "discounts": "Discounts given, last {days} days",
+    "chartTitle": "Net sales per day, last {days} days",
+    "topSellers": "Top sellers",
+    "noSales": "No point-of-sale orders in this period yet.",
+    "day": "Day",
+    "net": "Net sales",
+    "orders": "orders",
+    "sold": "{count, plural, one {# sold} other {# sold}}"
   }
 }

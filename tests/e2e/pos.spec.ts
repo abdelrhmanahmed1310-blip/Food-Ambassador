@@ -29,6 +29,13 @@ test("point of sale: register, shift, cash sale with change, receipt, close with
   await expect(page.getByText(/2 × Cola/)).toBeVisible();
   await expect(page.getByText("Thank you")).toBeVisible();
 
+  // The overview shows the sale: one order today, Cola the best seller (ADR-078).
+  await page.goto(`/o/${slug}`);
+  const dashboard = page.getByTestId("sales-dashboard");
+  await expect(dashboard.getByText("Orders today").locator("..").locator("..")).toContainText("1");
+  await expect(page.getByTestId("top-sellers")).toContainText("Cola");
+  await expect(page.getByTestId("top-sellers")).toContainText("2 sold");
+
   // The same till on a phone: items and total fit without sideways scrolling.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/o/${slug}/pos`);

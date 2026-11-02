@@ -847,20 +847,20 @@ export function CheckScreen({
               </button>
             ))}
           </div>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3">
             {menu
               .filter((i) => category === null || i.category.id === category)
               .map((i) => (
                 <li key={i.id}>
                   <button
                     type="button"
-                    className="border-border bg-surface hover:border-primary flex min-h-16 w-full flex-col items-start justify-between rounded-lg border p-3 text-start"
+                    className="border-border bg-surface hover:border-primary active:bg-surface-muted flex min-h-24 w-full touch-manipulation flex-col items-start justify-between rounded-xl border p-3.5 text-start shadow-sm transition active:scale-[0.97]"
                     onClick={() => (i.groups.length > 0 ? setChoosing(i) : stage(i))}
                   >
-                    <span className="font-medium">
+                    <span className="text-base leading-snug font-semibold">
                       <bdi>{named(i, locale)}</bdi>
                     </span>
-                    <span className="ltr-value text-muted text-sm tabular-nums">
+                    <span className="ltr-value text-primary text-base font-bold tabular-nums">
                       {fmt(i.price)}
                     </span>
                   </button>

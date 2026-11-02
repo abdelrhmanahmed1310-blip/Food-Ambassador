@@ -22,6 +22,7 @@ import { resolveTenantContext, type TenantContext } from "@/modules/tenancy/cont
 import { getAuth } from "@/server/auth/auth";
 import { getDb } from "@/server/db/client";
 import { withSystemTx } from "@/server/db/transactions";
+import { seedRestaurant } from "./seed-restaurant";
 
 const demoDeployment = process.env.ALLOW_DEMO_SEED === "true" && Boolean(process.env.SEED_PASSWORD);
 if (process.env.NODE_ENV === "production" && !demoDeployment) {
@@ -175,8 +176,9 @@ async function seedStock(ctx: TenantContext, timeZone: string) {
   if (!(await db.productUomConversion.findFirst({ where: { productId: eggs, uomId: tray } }))) {
     await addConversion(ctx, eggs, { uomId: tray, factorToBase: "30" });
   }
+  // The organization's first main store (not a restaurant kitchen added later).
   const warehouse = await db.warehouse.findFirstOrThrow({
-    where: { organizationId: ctx.organizationId },
+    where: { organizationId: ctx.organizationId, type: "MAIN" },
     orderBy: { code: "asc" },
   });
   const today = businessDate(timeZone);
@@ -298,6 +300,14 @@ async function main() {
     ],
     members: [{ name: "Demo Admin (Gulf)", email: "admin@gulf.demo.test", role: "admin" }],
   });
+  // The Gulf organization also runs a [DEMO] burger restaurant (POS, tables, online ordering).
+  const gulfOwner = await getDb().user.findUniqueOrThrow({
+    where: { email: "owner@gulf.demo.test" },
+  });
+  const gulf = await getDb().organization.findFirstOrThrow({
+    where: { name: "[DEMO] Gulf Catering" },
+  });
+  await seedRestaurant(await ctxFor(gulfOwner.id, gulf.slug));
   // A password set through SEED_PASSWORD (a hosted demo) is never written to the logs.
   console.log(
     process.env.SEED_PASSWORD
