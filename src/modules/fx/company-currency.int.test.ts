@@ -101,7 +101,8 @@ describe("currency per company (ADR-086)", () => {
     );
     // The database refuses it too.
     await expect(
-      getDb().$executeRaw`UPDATE "companies" SET "currency" = 'USD' WHERE "id" = ${egCompany}::uuid`,
+      getDb()
+        .$executeRaw`UPDATE "companies" SET "currency" = 'USD' WHERE "id" = ${egCompany}::uuid`,
     ).rejects.toThrow(/currency is fixed/);
   });
 

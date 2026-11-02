@@ -89,11 +89,9 @@ async function productCosts(
     },
     _sum: { quantity: true, totalValue: true },
   });
-  const currencies = await warehouseCurrencies(
-    tx,
-    ctx,
-    [...new Set(byWarehouse.map((w) => w.warehouseId))],
-  );
+  const currencies = await warehouseCurrencies(tx, ctx, [
+    ...new Set(byWarehouse.map((w) => w.warehouseId)),
+  ]);
   const conv = await currencyConverter(tx, ctx, { date: options.asOf });
   const sums = new Map<string, { quantity: Decimal; value: Decimal }>();
   for (const w of byWarehouse) {
