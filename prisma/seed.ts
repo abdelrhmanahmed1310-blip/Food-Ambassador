@@ -4,7 +4,9 @@
  * permissions and tenant isolation. Uses the real services, so seeded data
  * obeys the same rules (audit events, constraints) as user-created data.
  *
- * Run: pnpm db:seed     Refuses to run when NODE_ENV=production.
+ * Run: pnpm db:seed     Refuses to run when NODE_ENV=production, unless the
+ * deployment is an explicit demo (ALLOW_DEMO_SEED=true, set only by the demo
+ * Blueprint, ADR-076) and SEED_PASSWORD is set (no well-known password online).
  */
 import "dotenv/config";
 import type { ProductInput } from "@/modules/catalog/schemas";
@@ -21,8 +23,11 @@ import { getAuth } from "@/server/auth/auth";
 import { getDb } from "@/server/db/client";
 import { withSystemTx } from "@/server/db/transactions";
 
-if (process.env.NODE_ENV === "production") {
-  console.error("Refusing to seed demo data in production.");
+const demoDeployment = process.env.ALLOW_DEMO_SEED === "true" && Boolean(process.env.SEED_PASSWORD);
+if (process.env.NODE_ENV === "production" && !demoDeployment) {
+  console.error(
+    "Refusing to seed demo data in production (a demo deployment sets ALLOW_DEMO_SEED=true and SEED_PASSWORD).",
+  );
   process.exit(1);
 }
 

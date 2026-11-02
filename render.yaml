@@ -41,5 +41,8 @@ services:
         generateValue: true
       - key: SEED_PASSWORD
         generateValue: true
+      # This is a demo deployment: the [DEMO] seed may run although NODE_ENV is production.
+      - key: ALLOW_DEMO_SEED
+        value: "true"
       - key: TRUSTED_PROXY_HOPS
         value: "1"
