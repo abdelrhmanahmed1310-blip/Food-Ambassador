@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { foodCostReport } from "@/modules/analytics/service";
 import { createProduct, listUnits } from "@/modules/catalog/service";
 import { postOpeningBalance } from "@/modules/inventory/operations";
 import { addDays, businessDate } from "@/modules/inventory/rules";
@@ -318,6 +319,11 @@ describe("manual discounts", () => {
     const shift = await getShift(ctx, shiftId);
     expect(shift.totals.discounts.count).toBeGreaterThanOrEqual(2);
     expect(shift.totals.discounts.promotions.gt(0)).toBe(true);
+    // The food cost report shows them too (net sales are already after discounts).
+    const report = await foodCostReport(ctx, { from: today, to: today });
+    expect(report.total.discounts.toFixed(2)).toBe(
+      shift.totals.discounts.promotions.plus(shift.totals.discounts.orders).toFixed(2),
+    );
   });
 });
 

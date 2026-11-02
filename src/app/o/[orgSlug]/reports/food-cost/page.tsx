@@ -48,6 +48,7 @@ export default async function FoodCostReportPage({
       <Td className="tabular-nums">{amount(f.waste)}</Td>
       <Td className="tabular-nums">{amount(f.differences)}</Td>
       <Td className="font-medium tabular-nums">{pct(f.costWithLosses)}</Td>
+      <Td className="tabular-nums">{amount(f.discounts)}</Td>
     </tr>
   );
   return (
@@ -82,6 +83,7 @@ export default async function FoodCostReportPage({
                 <Th>{t("reports.waste")}</Th>
                 <Th>{t("reports.differences")}</Th>
                 <Th>{t("reports.costWithLosses")}</Th>
+                <Th>{t("reports.discountsGiven")}</Th>
               </tr>
             </thead>
             <tbody>

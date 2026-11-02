@@ -2251,7 +2251,8 @@
     "straddlingHint": "These imports have sales on both sides of the period boundary, so their cost cannot be split by day; choose a period that contains them fully.",
     "trendTitle": "Food cost % by month",
     "trendHint": "Last 12 months, from imports whose sales fall within one month.",
-    "posOrders": "POS orders"
+    "posOrders": "POS orders",
+    "discountsGiven": "Discounts given"
   },
   "attention": {
     "title": "Needs attention",

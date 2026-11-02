@@ -239,11 +239,18 @@ async function posSalesInTx(
 ) {
   if (warehouseIds.length === 0) return [];
   const rows = await tx.$queryRaw<
-    Array<{ warehouse_id: string; orders: bigint; net: Prisma.Decimal; cost: Prisma.Decimal }>
+    Array<{
+      warehouse_id: string;
+      orders: bigint;
+      net: Prisma.Decimal;
+      cost: Prisma.Decimal;
+      discounts: Prisma.Decimal;
+    }>
   >`
     SELECT o.warehouse_id, COUNT(*) AS orders,
            SUM(o.net_amount) - COALESCE(SUM(r.net), 0) AS net,
-           SUM(o.cost_amount) AS cost
+           SUM(o.cost_amount) AS cost,
+           SUM(o.promo_discount + o.order_discount) AS discounts
     FROM pos_orders o
     LEFT JOIN (
       SELECT order_id, SUM(amount - tax_amount) AS net FROM pos_refunds
@@ -259,6 +266,7 @@ async function posSalesInTx(
     orders: Number(r.orders),
     net: dec(r.net),
     cost: dec(r.cost),
+    discounts: dec(r.discounts),
   }));
 }
 
@@ -283,6 +291,8 @@ export interface BranchFigures {
   differences: Decimal;
   /** (cost of sales + waste + differences) ÷ net sales. */
   costWithLosses: Decimal | null;
+  /** Promotions and order discounts given at the point of sale, VAT included (ADR-067). */
+  discounts: Decimal;
 }
 
 export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
@@ -309,6 +319,7 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
           waste: new Decimal(0),
           differences: new Decimal(0),
           costWithLosses: null,
+          discounts: new Decimal(0),
         };
         branches.set(w.branch.id, b);
       }
@@ -323,6 +334,7 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
     for (const p of pos) {
       const b = of(p.warehouseId);
       b.posOrders += p.orders;
+      b.discounts = b.discounts.plus(p.discounts);
       b.cost = b.cost.plus(p.cost);
       b.net = b.net === null ? null : b.net.plus(p.net);
     }
@@ -340,6 +352,7 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
       waste: new Decimal(0),
       differences: new Decimal(0),
       costWithLosses: null,
+      discounts: new Decimal(0),
     };
     for (const b of branches.values()) {
       const sold = b.imports > 0 || b.posOrders > 0;
@@ -351,6 +364,7 @@ export async function foodCostReport(ctx: TenantContext, rawPeriod: unknown) {
       total.cost = total.cost.plus(b.cost);
       total.waste = total.waste.plus(b.waste);
       total.differences = total.differences.plus(b.differences);
+      total.discounts = total.discounts.plus(b.discounts);
       if (sold) total.net = total.net === null || b.net === null ? null : total.net.plus(b.net);
     }
     if (total.imports === 0 && total.posOrders === 0) total.net = null;
@@ -457,6 +471,7 @@ export async function exportBranchComparisonCsv(ctx: TenantContext, rawPeriod: u
       "waste",
       "stock_differences",
       "cost_with_losses_pct",
+      "discounts_given",
     ],
     r.branches.map((b) => [
       b.branch.code,
@@ -468,6 +483,7 @@ export async function exportBranchComparisonCsv(ctx: TenantContext, rawPeriod: u
       fixed(b.waste),
       fixed(b.differences),
       percent(b.costWithLosses),
+      fixed(b.discounts),
     ]),
   );
 }
