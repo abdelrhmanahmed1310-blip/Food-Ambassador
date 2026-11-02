@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
+import { ManualPunchForm, PinForm, VoidPunchForm } from "@/components/hr/attendance-forms";
 import { DocumentForm, EmployeeForm, StatusForm } from "@/components/hr/forms";
 import {
   Alert,
@@ -12,7 +13,9 @@ import {
   Td,
   Th,
 } from "@/components/ui/primitives";
+import { employeePunches } from "@/modules/hr/attendance";
 import { employeeFormOptions, getEmployee } from "@/modules/hr/service";
+import { businessDate } from "@/modules/inventory/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import {
   addDocumentAction,
@@ -20,6 +23,7 @@ import {
   removeDocumentAction,
   updateEmployeeAction,
 } from "../../actions";
+import { manualPunchAction, setPinAction, voidPunchAction } from "../../attendance/actions";
 import { optionsFor } from "../options";
 
 const TONE = { ACTIVE: "success", ON_LEAVE: "warning", TERMINATED: "muted" } as const;
@@ -36,7 +40,18 @@ export default async function EmployeePage({
 }: PageProps<"/o/[orgSlug]/hr/employees/[employeeId]">) {
   const { orgSlug, employeeId } = await params;
   const ctx = await requireTenant(orgSlug);
-  const [t, e] = await Promise.all([getTranslations(), getEmployee(ctx, employeeId)]);
+  const [t, e, attendance] = await Promise.all([
+    getTranslations(),
+    getEmployee(ctx, employeeId),
+    employeePunches(ctx, employeeId),
+  ]);
+  const hm = (d: Date) =>
+    new Intl.DateTimeFormat("en-GB", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: attendance.timeZone,
+    }).format(d);
+  const hours = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
   const options =
     e.can.manage && e.status !== "TERMINATED" ? await employeeFormOptions(ctx, e.id) : null;
   const base = `/o/${orgSlug}/hr`;
@@ -165,6 +180,88 @@ export default async function EmployeePage({
           {e.can.manage ? (
             <DocumentForm action={addDocumentAction.bind(null, orgSlug, e.id)} />
           ) : null}
+        </Card>
+
+        <Card title={t("attendance.employeeCard")}>
+          <div className="space-y-4" data-testid="employee-attendance">
+            {attendance.days.length === 0 ? (
+              <p className="text-muted text-sm">{t("attendance.noPunches")}</p>
+            ) : (
+              <ul className="divide-border divide-y text-sm">
+                {attendance.days.map((d) => (
+                  <li
+                    key={d.day}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  >
+                    <span className="ltr-value">{d.day}</span>
+                    <span className="tabular-nums">{hours(d.minutes)}</span>
+                    {d.issues > 0 ? (
+                      <Badge tone="danger">{t("attendance.issues", { count: d.issues })}</Badge>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {attendance.punches.length > 0 ? (
+              <Table label={t("attendance.punches")}>
+                <thead>
+                  <tr>
+                    <Th>{t("attendance.when")}</Th>
+                    <Th>{t("attendance.kind")}</Th>
+                    <Th>{t("attendance.source")}</Th>
+                    <Th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendance.punches.map((p) => (
+                    <tr
+                      key={p.id}
+                      data-testid="punch-row"
+                      className={p.voidedAt ? "opacity-50" : ""}
+                    >
+                      <Td className="ltr-value">{hm(p.at)}</Td>
+                      <Td>{t(`attendance.kinds.${p.kind}`)}</Td>
+                      <Td>
+                        {t(`attendance.sources.${p.source}`)}
+                        {p.terminal
+                          ? ` · ${p.terminal.name}`
+                          : p.connector
+                            ? ` · ${p.connector.name}`
+                            : ""}
+                        {p.reason ? (
+                          <span className="text-muted block text-xs">{p.reason}</span>
+                        ) : null}
+                        {p.voidReason ? (
+                          <span className="text-danger block text-xs">
+                            {t("attendance.voided")}: {p.voidReason}
+                          </span>
+                        ) : null}
+                      </Td>
+                      <Td>
+                        {attendance.can.manage && !p.voidedAt ? (
+                          <VoidPunchForm action={voidPunchAction.bind(null, orgSlug, p.id)} />
+                        ) : null}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            ) : null}
+            {attendance.can.manage && e.status !== "TERMINATED" ? (
+              <>
+                <ManualPunchForm
+                  action={manualPunchAction.bind(null, orgSlug, e.id)}
+                  today={businessDate(attendance.timeZone)}
+                />
+                <div>
+                  <p className="text-muted mb-2 text-xs">
+                    {attendance.hasPin ? t("attendance.pinIsSet") : t("attendance.noPin")}
+                  </p>
+                  <PinForm action={setPinAction.bind(null, orgSlug, e.id)} />
+                </div>
+              </>
+            ) : null}
+          </div>
         </Card>
 
         {e.can.manage ? (

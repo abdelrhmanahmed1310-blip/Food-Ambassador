@@ -95,7 +95,8 @@ with `SEED_PASSWORD` when seeding):
 `[DEMO] Gulf Catering` also runs a demo burger restaurant (`[DEMO] Olaya
 Burgers`): menu, a till with an open shift (POS → TILL1 → Open till), eight
 tables, a drinks promotion, loyalty points, an online ordering page and a few
-sample orders that fill the overview dashboard.
+sample orders that fill the overview dashboard. Its five `[DEMO]` staff have the clock-in PIN `1234`; the
+branch tablet link is under HR → Attendance → Clock-in setup.
 
 Each demo organization also gets three `[DEMO]` products and opening stock,
 including an expired and a soon-expiring milk lot. The seed is idempotent and

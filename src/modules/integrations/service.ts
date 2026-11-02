@@ -437,7 +437,7 @@ export async function inboundKind(publicId: string) {
  */
 export async function verifyInbound(
   input: InboundInput,
-  kind: "INBOUND_SALES_WEBHOOK" | "DELIVERY_ORDERS",
+  kind: "INBOUND_SALES_WEBHOOK" | "DELIVERY_ORDERS" | "ATTENDANCE_DEVICE",
 ): Promise<
   | { ok: false; result: InboundResult }
   | {

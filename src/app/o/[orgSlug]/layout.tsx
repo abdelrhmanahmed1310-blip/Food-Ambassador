@@ -5,6 +5,7 @@ import { Logo } from "@/components/brand/logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-links";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
+import { hasEmployeeRecord } from "@/modules/hr/attendance";
 import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { listUserOrganizations } from "@/modules/organizations/service";
 import { canSeeReports } from "@/modules/analytics/service";
@@ -20,10 +21,11 @@ import { signOutAction } from "../../(auth)/actions";
 export default async function TenantLayout({ children, params }: LayoutProps<"/o/[orgSlug]">) {
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
-  const [t, user, orgs] = await Promise.all([
+  const [t, user, orgs, isEmployee] = await Promise.all([
     getTranslations("nav"),
     getCurrentUser(),
     listUserOrganizations(ctx.userId),
+    hasEmployeeRecord(ctx),
   ]);
   const base = `/o/${ctx.organizationSlug}`;
 
@@ -31,6 +33,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     items: [
       { href: base, label: t("overview"), exact: true, icon: "overview" },
       { href: `${base}/attention`, label: t("attention"), icon: "attention" },
+      ...(isEmployee
+        ? [{ href: `${base}/my/attendance`, label: t("myAttendance"), icon: "clock" as const }]
+        : []),
     ],
   };
   if (holdsAnyGrant(ctx.grants, "branches.view"))
@@ -185,6 +190,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     hr.items.push(
       { href: `${base}/hr`, label: t("hrOverview"), exact: true },
       { href: `${base}/hr/employees`, label: t("employees") },
+      { href: `${base}/hr/attendance`, label: t("attendance") },
       { href: `${base}/hr/departments`, label: t("departments") },
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );

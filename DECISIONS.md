@@ -1834,6 +1834,34 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   (training and food-handler certificates); HR6 HR analytics across the
   modules.
 
+### ADR-080 Time and attendance: every way of clocking in — Accepted (HR2a built)
+
+- All clock-in methods work side by side and end as the same immutable
+  **punch** (in or out, time, branch, source):
+  - **Branch tablet**: a secret link per tablet (switchable off); staff
+    enter their employee number and a 4–6 digit **PIN** (stored with scrypt,
+    set by HR, never shown). Wrong number and wrong PIN look the same; five
+    wrong PINs lock it for 15 minutes; taps are rate-limited per tablet and
+    address. Only active employees clock in.
+  - **Phone**: staff whose account is linked to their employee record use
+    "My attendance". If the branch has a location and radius (20–5000 m),
+    the phone must be inside it; only the **distance** is stored, never the
+    coordinates. The site's permissions policy allows location for itself.
+  - **Fingerprint or face devices**: a connector per device (signed webhook,
+    ADR-048) posting `{"punches": [{id, employeeNumber, at, kind?}]}`;
+    repeats are ignored by the device's id, unknown numbers are reported.
+    Vendor formats (e.g. ZKTeco) need their specifications; not built.
+  - **HR**: adds a missed punch with a reason, or voids a wrong one with a
+    reason. Punches are never edited (database trigger); both are audited.
+- A tap or punch without a kind alternates with the employee's previous
+  punch. **Timesheets** pair punches into sessions per local day (a night
+  shift counts for the day it began) and flag a missing clock-out or
+  clock-in instead of guessing; today's open clock-in is not an issue.
+- Access: `hr.view` sees the board and history; `hr.manage` (per branch)
+  sets PINs, tablets, locations and devices, adds and voids punches.
+- Next in HR2: rosters and shifts (lateness, overtime), leave with
+  approvals, onboarding checklists.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

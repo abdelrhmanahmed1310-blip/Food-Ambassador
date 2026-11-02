@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { createProduct, listUnits } from "@/modules/catalog/service";
 import { postOpeningBalance } from "@/modules/inventory/operations";
 import { addDays, businessDate } from "@/modules/inventory/rules";
+import { addManualPunch, createTerminal, setEmployeePin } from "@/modules/hr/attendance";
 import { addEmployeeDocument, createDepartment, createEmployee } from "@/modules/hr/service";
 import { addMenuItemPrice, createMenuCategory, createMenuItem } from "@/modules/menu/service";
 import { saveLoyaltySettings } from "@/modules/pos/customers";
@@ -308,4 +309,50 @@ export async function seedRestaurantStaff(ctx: TenantContext) {
   await person("[DEMO] Reem", "Al-Otaibi", "Line cook", kitchen, chef, 20, 340);
   await person("[DEMO] Majed", "Al-Dosari", "Cashier", front, manager, 60, 150);
   console.log("  [DEMO] restaurant staff: 2 departments, 5 employees");
+}
+
+/**
+ * [DEMO] attendance (HR2a, ADR-080): a clock-in tablet for the Olaya branch,
+ * PIN 1234 for the demo staff, and yesterday's shifts entered by HR (marked
+ * "Demo data"), so the board has hours to show. Idempotent by tablet.
+ */
+export async function seedRestaurantAttendance(ctx: TenantContext) {
+  const db = getDb();
+  const branch = await db.branch.findFirst({
+    where: { organizationId: ctx.organizationId, code: "RUH-BRG" },
+  });
+  if (!branch) return;
+  if (
+    await db.attendanceTerminal.findFirst({
+      where: { organizationId: ctx.organizationId, branchId: branch.id },
+    })
+  ) {
+    console.log("  [DEMO] attendance: present");
+    return;
+  }
+  // The tablet link is a secret: it is shown in HR → Attendance → Clock-in setup, not logged.
+  await createTerminal(ctx, { branchId: branch.id, name: "[DEMO] Staff door" });
+  const staff = await db.employee.findMany({
+    where: { organizationId: ctx.organizationId, branchId: branch.id, status: "ACTIVE" },
+    orderBy: { number: "asc" },
+  });
+  const yesterday = addDays(businessDate(TZ), -1);
+  for (const [i, e] of staff.entries()) {
+    await setEmployeePin(ctx, e.id, { pin: "1234" });
+    const start = `${String(9 + (i % 3)).padStart(2, "0")}:00`;
+    const end = `${String(17 + (i % 3)).padStart(2, "0")}:30`;
+    await addManualPunch(ctx, e.id, {
+      kind: "IN",
+      date: yesterday,
+      time: start,
+      reason: "Demo data",
+    });
+    await addManualPunch(ctx, e.id, {
+      kind: "OUT",
+      date: yesterday,
+      time: end,
+      reason: "Demo data",
+    });
+  }
+  console.log(`  [DEMO] attendance: 1 tablet, PIN 1234 for ${staff.length} staff`);
 }

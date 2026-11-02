@@ -214,6 +214,9 @@ model Organization {
   departments             Department[]
   employees               Employee[]
   employeeDocuments       EmployeeDocument[]
+  attendanceTerminals     AttendanceTerminal[]
+  branchGeofences         BranchGeofence[]
+  attendancePunches       AttendancePunch[]
   orderingChannels        OrderingChannel[]
   posShifts               PosShift[]
   posCashMovements        PosCashMovement[]
@@ -451,13 +454,16 @@ model Branch {
   menuItemPrices      MenuItemPrice[]
   menuItemUnavailable MenuItemUnavailable[]
 
-  posRegisters     PosRegister[]
-  posFloors        PosFloor[]
-  posTables        PosTable[]
-  posTabs          PosTab[]
-  orderingChannels OrderingChannel[]
-  kitchenStations  KitchenStation[]
-  employees        Employee[]
+  posRegisters        PosRegister[]
+  posFloors           PosFloor[]
+  posTables           PosTable[]
+  posTabs             PosTab[]
+  orderingChannels    OrderingChannel[]
+  kitchenStations     KitchenStation[]
+  employees           Employee[]
+  attendanceTerminals AttendanceTerminal[]
+  geofence            BranchGeofence?
+  attendancePunches   AttendancePunch[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3360,6 +3366,8 @@ enum ConnectorKind {
   OUTBOUND_WEBHOOK
   /// Orders from a delivery platform for one branch (POS5c, ADR-069).
   DELIVERY_ORDERS
+  /// Clock-ins from a fingerprint or face device at one branch (HR2a, ADR-080).
+  ATTENDANCE_DEVICE
 }
 
 enum ConnectorStatus {
@@ -3397,12 +3405,13 @@ model Connector {
   secretRotatedAt DateTime?       @map("secret_rotated_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  events          IntegrationEvent[]
-  deliveries      OutboundDelivery[]
-  deliveryOrders  DeliveryOrder[]
-  itemMaps        DeliveryItemMap[]
-  deliveryPayouts DeliveryPayout[]
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  events            IntegrationEvent[]
+  deliveries        OutboundDelivery[]
+  deliveryOrders    DeliveryOrder[]
+  itemMaps          DeliveryItemMap[]
+  deliveryPayouts   DeliveryPayout[]
+  attendancePunches AttendancePunch[]
 
   @@unique([organizationId, id])
   @@map("connectors")
@@ -4879,6 +4888,10 @@ model Employee {
   terminatedOn      DateTime?      @map("terminated_on") @db.Date
   terminationReason String?        @map("termination_reason")
   userId            String?        @map("user_id") @db.Uuid
+  /// Clock-in PIN for the branch tablet (scrypt; never shown).
+  pinHash           String?        @map("pin_hash")
+  pinFailures       Int            @default(0) @map("pin_failures")
+  pinLockedUntil    DateTime?      @map("pin_locked_until") @db.Timestamptz(3)
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -4889,6 +4902,7 @@ model Employee {
   reports      Employee[]         @relation("ReportingLine")
   user         User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
   documents    EmployeeDocument[]
+  punches      AttendancePunch[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -4915,4 +4929,89 @@ model EmployeeDocument {
   @@index([organizationId, expiresOn])
   @@index([organizationId, employeeId])
   @@map("employee_documents")
+}
+
+// ─── Attendance (HR2a, ADR-080) ───
+
+enum AttendanceSource {
+  /// The branch clock-in tablet (employee number and PIN).
+  TERMINAL
+  /// The employee's own phone, signed in.
+  PHONE
+  /// A fingerprint or face device, through a connector.
+  DEVICE
+  /// Entered by HR, with a reason.
+  MANUAL
+}
+
+enum PunchKind {
+  IN
+  OUT
+}
+
+/// A branch clock-in tablet, opened through its secret link.
+model AttendanceTerminal {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  name           String
+  publicToken    String   @unique @map("public_token")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  punches      AttendancePunch[]
+
+  @@unique([organizationId, id])
+  @@map("attendance_terminals")
+}
+
+/// Where staff may clock in from their phones (optional per branch).
+model BranchGeofence {
+  branchId       String   @id @map("branch_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  latitude       Decimal  @db.Decimal(9, 6)
+  longitude      Decimal  @db.Decimal(9, 6)
+  radiusMeters   Int      @map("radius_meters")
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, branchId])
+  @@map("branch_geofences")
+}
+
+model AttendancePunch {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  employeeId       String           @map("employee_id") @db.Uuid
+  branchId         String           @map("branch_id") @db.Uuid
+  kind             PunchKind
+  at               DateTime         @db.Timestamptz(3)
+  source           AttendanceSource
+  terminalId       String?          @map("terminal_id") @db.Uuid
+  connectorId      String?          @map("connector_id") @db.Uuid
+  /// The device's own id for the punch (repeats are ignored).
+  externalId       String?          @map("external_id")
+  /// Phone clock-in: distance from the branch, when the branch has a location. No coordinates are kept.
+  distanceMeters   Int?             @map("distance_meters")
+  recordedByUserId String?          @map("recorded_by_user_id") @db.Uuid
+  reason           String?
+  voidedAt         DateTime?        @map("voided_at") @db.Timestamptz(3)
+  voidedByUserId   String?          @map("voided_by_user_id") @db.Uuid
+  voidReason       String?          @map("void_reason")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee            @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  terminal     AttendanceTerminal? @relation(fields: [organizationId, terminalId], references: [organizationId, id], onDelete: Restrict)
+  connector    Connector?          @relation(fields: [organizationId, connectorId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([connectorId, externalId])
+  @@index([organizationId, employeeId, at])
+  @@index([organizationId, branchId, at])
+  @@map("attendance_punches")
 }

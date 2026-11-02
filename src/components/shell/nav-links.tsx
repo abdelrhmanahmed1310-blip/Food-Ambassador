@@ -10,6 +10,7 @@ import {
   Building2,
   ChefHat,
   ChevronDown,
+  Clock,
   Handshake,
   LayoutDashboard,
   Menu,
@@ -43,6 +44,7 @@ const ICONS = {
   settings: Settings,
   store: Store,
   hr: Users,
+  clock: Clock,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

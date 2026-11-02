@@ -1174,6 +1174,24 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### Attendance (HR2a, ADR-080)
+
+Migration `20261207090000_hr2a_attendance`.
+
+- **attendance_terminals**: branch tablet, `name`, unique `public_token`
+  (the secret link), `active`.
+- **branch_geofences**: per branch `latitude`, `longitude`, `radius_meters`
+  (20–5000) for phone clock-in.
+- **employees** gains `pin_hash` (scrypt), `pin_failures`,
+  `pin_locked_until`.
+- **attendance_punches**: `employee_id`, `branch_id`, `kind` IN | OUT, `at`,
+  `source` TERMINAL | PHONE | DEVICE | MANUAL (each with its reference:
+  terminal; connector and the device's `external_id`, unique per connector;
+  HR's user and `reason`), `distance_meters` (phone, no coordinates), and
+  `voided_at` / `voided_by_user_id` / `void_reason`. Only the void columns
+  can change (trigger).
+- **ConnectorKind** gains ATTENDANCE_DEVICE.
+
 ### HR — HRIS (HR1, ADR-079)
 
 Migration `20261206090000_hr1_hris`.

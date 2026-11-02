@@ -1,9 +1,10 @@
 import { handleDeliveryInbound } from "@/modules/delivery/service";
+import { handleAttendanceInbound } from "@/modules/hr/attendance";
 import { handleInboundSales, inboundKind } from "@/modules/integrations/service";
 import { logger } from "@/server/logger";
 
 // Signed inbound webhooks (docs/INTEGRATIONS.md, ADR-048): sales, and
-// delivery platform orders (docs/DELIVERY.md, ADR-069). Thin: reads the raw
+// delivery platform orders (docs/DELIVERY.md, ADR-069) and attendance devices (ADR-080). Thin: reads the raw
 // body (the signature covers its exact bytes) and hands over by connector kind.
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,13 @@ export async function POST(request: Request, context: { params: Promise<{ public
         idempotencyKey: request.headers.get("idempotency-key"),
       },
     };
+    const kind = await inboundKind(publicId);
     const result =
-      (await inboundKind(publicId)) === "DELIVERY_ORDERS"
+      kind === "DELIVERY_ORDERS"
         ? await handleDeliveryInbound(input)
-        : await handleInboundSales(input);
+        : kind === "ATTENDANCE_DEVICE"
+          ? await handleAttendanceInbound(input)
+          : await handleInboundSales(input);
     return Response.json(result.body, { status: result.status, headers: noStore });
   } catch (e) {
     logger.error("inbound webhook failed", { error: e instanceof Error ? e.message : "error" });

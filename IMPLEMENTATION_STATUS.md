@@ -19,6 +19,22 @@ Last updated: 2026-11-02 (HR1 HRIS; dashboard, demo restaurant)
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
 
+## HR2a — Time and attendance (built)
+
+Rules: DECISIONS.md ADR-080.
+
+| Area          | What works                                                                                                               | Where                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| Branch tablet | Secret link per tablet; employee number + PIN; lockout after 5 wrong PINs; rate limits; clock in/out alternates          | `/clock/<link>`, setup page     |
+| Phone         | "My attendance" for linked staff; optional branch location and radius (distance kept, not location)                      | `/my/attendance`                |
+| Devices       | Signed batches from fingerprint or face devices; repeats ignored; unknown numbers reported                               | setup page, `docs` in ADR-080   |
+| HR            | Board (who is in, sessions, hours, missing punches) by day; employee history; missed punch with reason; void with reason | `/hr/attendance`, employee page |
+
+Not yet: rosters and shifts (lateness, overtime), leave and approvals,
+onboarding checklists; native vendor device formats.
+
+Checks: `pnpm check` pass (unit 272; new: distance, clock-in alternation, PIN format, timesheet pairing with night shifts and unmatched punches); `pnpm test:integration` 354 pass (new: tablet PIN and lockout, switched-off tablet, employee on leave, phone radius with distance only, device batches with repeats and unknown numbers and signatures, manual punch and void, punches never edited, cross-tenant); `pnpm test:e2e` 57 of 58 in the full run — the HR test met two fields called "Reason" on the employee page; the attendance one was relabelled ("Why it is entered by hand") and both HR and attendance tests then pass.
+
 ## HR1 — HRIS (built)
 
 Rules: DECISIONS.md ADR-079. The HR tab lists all eleven HR capabilities
