@@ -13,7 +13,7 @@ import {
 } from "@/modules/inventory/queries";
 import { canViewValuation, valuationByWarehouse } from "@/modules/inventory/valuation-queries";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
+import { moneyFormatters, productName, quantityFormatter } from "@/server/inventory-view";
 
 export default async function InventoryOverviewPage({
   params,
@@ -31,7 +31,7 @@ export default async function InventoryOverviewPage({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatters(),
     inventoryDashboard(ctx, { warehouseId }),
     warehouseOptions(ctx),
     showValue ? valuationByWarehouse(ctx) : null,
@@ -41,6 +41,8 @@ export default async function InventoryOverviewPage({
   const stockValue = value
     ? {
         total: warehouseId ? valueRow?.totalValue : value.totalValue,
+        // A warehouse's value in its company's currency; all of them in the group's (ADR-086).
+        currency: warehouseId ? (valueRow?.currency ?? ctx.groupCurrency) : value.currency,
         missing: warehouseId ? (valueRow?.costMissingCount ?? 0) : value.costMissingCount,
       }
     : null;
@@ -158,7 +160,7 @@ export default async function InventoryOverviewPage({
         >
           <p className="text-muted text-xs">{t("inventory.stockValueCard")}</p>
           <p className="ltr-value mt-1 text-2xl font-semibold tabular-nums">
-            {money.money(stockValue.total)}
+            {money(stockValue.currency).money(stockValue.total)}
           </p>
           {stockValue.missing > 0 ? (
             <p className="text-muted mt-1 text-xs">

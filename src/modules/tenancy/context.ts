@@ -10,7 +10,14 @@ export interface TenantContext {
   organizationId: string;
   organizationSlug: string;
   organizationName: string;
+  /**
+   * The currency amounts are kept in for this context: the group's currency,
+   * or a company's own when a service works on one company's documents
+   * (inCompany, ADR-086).
+   */
   baseCurrency: string;
+  /** The group's (organization's) currency: consolidated figures and exchange rates. */
+  groupCurrency: string;
   timeZone: string;
   userId: string;
   membershipId: string;
@@ -78,10 +85,16 @@ export async function resolveTenantContext(
     organizationSlug: org.slug,
     organizationName: org.name,
     baseCurrency: org.baseCurrency,
+    groupCurrency: org.baseCurrency,
     timeZone: org.timeZone,
     userId,
     membershipId: membership.id,
     grants,
     requestId,
   };
+}
+
+/** The same user working on one company's documents, in that company's currency (ADR-086). */
+export function inCurrency(ctx: TenantContext, currency: string): TenantContext {
+  return currency === ctx.baseCurrency ? ctx : { ...ctx, baseCurrency: currency };
 }

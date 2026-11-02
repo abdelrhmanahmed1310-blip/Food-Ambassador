@@ -1,4 +1,5 @@
 import "server-only";
+import { assertFlowInGroupCurrency } from "@/modules/fx/service";
 import { Decimal, decimalString, roundMoney, toDecimal } from "@/lib/decimal";
 import { parseCsvRecords } from "@/lib/csv";
 import { isCalendarDate } from "@/lib/dates";
@@ -78,6 +79,7 @@ export async function importSales(
       const wh = await loadWarehouse(tx, ctx, input.warehouseId);
       assertPermission(ctx.grants, "sales.import", { branchId: wh.branchId, warehouseId: wh.id });
       assertActive(wh);
+      await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
       // One import at a time per organization, so "already imported" is reliable.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`sales-import:${ctx.organizationId}`}))`;
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { currencyConverter, warehouseCurrencies } from "@/modules/fx/service";
 import { z } from "zod";
 import { Decimal, roundMoney } from "@/lib/decimal";
 import { uuidv7 } from "@/lib/uuid";
@@ -28,7 +29,7 @@ import {
   todayFor,
 } from "./context";
 import { nextDocumentNumber, postDocument, type PostingLine } from "./posting";
-import { countAdjustment } from "./rules";
+import { businessDate, countAdjustment } from "./rules";
 import { addCountLineSchema, createCountSchema, recordCountSchema } from "./schemas";
 
 /**
@@ -298,9 +299,16 @@ export async function submitCount(ctx: TenantContext, countId: string): Promise<
         { uncounted },
       );
     const varianceValue = await varianceValueOf(tx, ctx, countId, count.warehouseId);
+    // Approval limits are in the group currency; the variance is in the warehouse's
+    // company's currency (ADR-086). Without a usable rate every level approves.
+    const currency = (await warehouseCurrencies(tx, ctx, [count.warehouseId])).get(
+      count.warehouseId,
+    )!;
+    const conv = await currencyConverter(tx, ctx, { date: businessDate(ctx.timeZone) });
+    const forLimits = varianceValue ? await conv.convert(varianceValue, currency) : null;
     const chain = chainFor(
       await loadLayers(tx, ctx, "STOCK_COUNT"),
-      varianceValue ?? new Decimal(Infinity),
+      forLimits ?? new Decimal(Infinity),
     );
     await tx.stockCount.update({
       where: { organizationId_id: { organizationId: ctx.organizationId, id: countId } },
@@ -583,6 +591,8 @@ export async function getCount(ctx: TenantContext, countId: string) {
     return {
       ...count,
       warehouse: wh,
+      /** Values are in the warehouse's company's currency (ADR-086). */
+      currency: (await warehouseCurrencies(tx, ctx, [count.warehouseId])).get(count.warehouseId)!,
       lines,
       approvalSteps: count.approvalChain.map((level, i) => {
         const a = approvals.find((x) => x.step === i + 1);

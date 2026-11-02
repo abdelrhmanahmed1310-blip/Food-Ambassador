@@ -23,7 +23,7 @@ export default async function DocumentPage({
     getFormatter(),
     getLocale(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(doc.currency),
   ]);
   const base = `/o/${orgSlug}/inventory/documents`;
   const rows = doc.entries.map((e) => ({ ...e, postedByName: doc.postedByName }));
@@ -212,7 +212,6 @@ export default async function DocumentPage({
             rows={rows}
             orgSlug={orgSlug}
             timeZone={ctx.timeZone}
-            currency={ctx.baseCurrency}
             showDocument={false}
           />
         ) : null}

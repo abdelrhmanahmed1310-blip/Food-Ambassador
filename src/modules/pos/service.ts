@@ -1,4 +1,5 @@
 import "server-only";
+import { assertFlowInGroupCurrency } from "@/modules/fx/service";
 import { z } from "zod";
 import { Decimal, decimalString, toDecimal } from "@/lib/decimal";
 import { assertPermission, accessibleScope, hasPermission } from "@/modules/access/authorize";
@@ -1069,6 +1070,7 @@ export async function recordOrderInTx(
   // Stock: recipes exploded into products, then FEFO; what is missing becomes a shortfall.
   await explodeUseInTx(tx, ctx, recipeUse, productUse);
   const wh = await loadWarehouse(tx, ctx, tab?.warehouseId ?? register.warehouseId, "pos.sell");
+  await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
   const plan = await planConsumptionInTx(tx, ctx, wh, productUse, { partial: true });
 
   const number = await nextDocumentNumber(tx, org, "POS", Number(date.slice(0, 4)));

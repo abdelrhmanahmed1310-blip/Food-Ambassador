@@ -20,13 +20,13 @@ export default async function WasteReportPage({
   const period = reportPeriod(sp, ctx.timeZone);
   const warehouseId =
     typeof sp.warehouseId === "string" && isUuid(sp.warehouseId) ? sp.warehouseId : undefined;
-  const [t, locale, money, fmt, r] = await Promise.all([
+  const [t, locale, fmt, r] = await Promise.all([
     getTranslations(),
     getLocale(),
-    moneyFormatter(ctx.baseCurrency),
     quantityFormatter(),
     wasteReport(ctx, period, { warehouseId }),
   ]);
+  const money = await moneyFormatter(r.currency);
   const reason = (code: string) =>
     code === ""
       ? "—"
@@ -51,6 +51,11 @@ export default async function WasteReportPage({
         }
       />
       <div className="space-y-6">
+        {r.missingRates.length > 0 ? (
+          <Alert tone="error">
+            {t("fx.missingRates", { currencies: r.missingRates.join(", ") })}
+          </Alert>
+        ) : null}
         <PeriodForm from={period.from} to={period.to}>
           <label className="text-sm">
             <span className="mb-1 block font-medium">{t("common.warehouse")}</span>

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertSameCurrency } from "@/modules/fx/service";
 import { refreshRequisitionStatus } from "@/modules/procurement/requisition-links";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
@@ -131,6 +132,7 @@ export async function createShipmentInTx(
   assertWarehousePermission(ctx, "inventory.transfer", from);
   assertActive(from);
   const to = await loadDestination(tx, ctx, input.toWarehouseId);
+  await assertSameCurrency(tx, ctx, from.id, to.id);
   const number = await nextDocumentNumber(tx, ctx.organizationId, "SHP", yearOf(todayFor(from)));
   const shipment = await tx.stockShipment.create({
     data: {

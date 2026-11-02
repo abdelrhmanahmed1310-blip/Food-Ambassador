@@ -3,7 +3,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { StatusBadge } from "@/components/inventory/stock-badges";
 import { Table, Td, Th } from "@/components/ui/primitives";
 import type { listMovements } from "@/modules/inventory/queries";
-import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
+import { moneyFormatters, productName, quantityFormatter } from "@/server/inventory-view";
 
 type Movement = Awaited<ReturnType<typeof listMovements>>["items"][number];
 
@@ -11,13 +11,11 @@ export async function MovementsTable({
   rows,
   orgSlug,
   timeZone,
-  currency,
   showDocument = true,
 }: {
   rows: Movement[];
   orgSlug: string;
   timeZone: string;
-  currency: string;
   showDocument?: boolean;
 }) {
   const [t, locale, format, fmt, money] = await Promise.all([
@@ -25,7 +23,7 @@ export async function MovementsTable({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    moneyFormatter(currency),
+    moneyFormatters(),
   ]);
   // Cost columns appear only when the user may see costs for some of the rows.
   const showCost = rows.some((m) => m.costVisible);
@@ -113,12 +111,12 @@ export async function MovementsTable({
                   {m.costVisible && m.valueDelta !== null && m.costSource ? (
                     <>
                       <span className="ltr-value whitespace-nowrap">
-                        {money.money(m.valueDelta)}
+                        {money(m.currency).money(m.valueDelta)}
                       </span>
                       <span className="text-muted block text-xs">
                         {m.unitCost !== null ? (
                           <span className="ltr-value whitespace-nowrap">
-                            {money.unitCost(m.unitCost)} / {m.product.baseUom.code}
+                            {money(m.currency).unitCost(m.unitCost)} / {m.product.baseUom.code}
                           </span>
                         ) : null}
                         <span className="block">{t(`inventory.costSources.${m.costSource}`)}</span>

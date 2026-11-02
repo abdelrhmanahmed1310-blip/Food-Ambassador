@@ -6,6 +6,8 @@ import type { Permission } from "@/modules/access/permissions";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { inSequence, withTenantTx } from "@/server/db/transactions";
 import { notFound } from "@/server/errors";
+import { currencyConverter, warehouseCurrencies } from "@/modules/fx/service";
+import { businessDate } from "./rules";
 import { PAGE_SIZE } from "./queries";
 
 /** Stock value reports (ADR-021). Costs are visible only with `inventory.valuation.view`. */
@@ -38,7 +40,15 @@ const valuationSelect = {
   averageUnitCost: true,
   costMissing: true,
   updatedAt: true,
-  warehouse: { select: { id: true, code: true, name: true, branchId: true } },
+  warehouse: {
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      branchId: true,
+      branch: { select: { company: { select: { currency: true } } } },
+    },
+  },
   product: {
     select: {
       id: true,
@@ -55,7 +65,14 @@ type ValuationRecord = Prisma.StockValuationGetPayload<{ select: typeof valuatio
 function toRow(r: ValuationRecord) {
   return {
     id: r.id,
-    warehouse: r.warehouse,
+    warehouse: {
+      id: r.warehouse.id,
+      code: r.warehouse.code,
+      name: r.warehouse.name,
+      branchId: r.warehouse.branchId,
+    },
+    /** Values are in the warehouse's company's currency (ADR-086). */
+    currency: r.warehouse.branch.company.currency,
     product: {
       id: r.product.id,
       sku: r.product.sku,
@@ -96,7 +113,7 @@ export async function listValuations(ctx: TenantContext, filters: ValuationFilte
   return withTenantTx(ctx.organizationId, async (tx) => {
     const [total, totals, missing, rows] = await inSequence([
       tx.stockValuation.count({ where }),
-      tx.stockValuation.aggregate({ where, _sum: { totalValue: true } }),
+      tx.stockValuation.groupBy({ by: ["warehouseId"], where, _sum: { totalValue: true } }),
       tx.stockValuation.count({ where: { ...where, costMissing: true } }),
       tx.stockValuation.findMany({
         where,
@@ -106,15 +123,53 @@ export async function listValuations(ctx: TenantContext, filters: ValuationFilte
         take: PAGE_SIZE,
       }),
     ]);
+    const sum = await totalInOneCurrency(
+      tx,
+      ctx,
+      totals.map((g) => ({ warehouseId: g.warehouseId, value: dec(g._sum.totalValue ?? 0) })),
+      filters.warehouseId,
+    );
     return {
       items: rows.map(toRow),
       total,
-      totalValue: dec(totals._sum.totalValue ?? 0),
+      totalValue: sum.value,
+      /** The total's currency: the warehouse's when filtered, else the group's (converted). */
+      currency: sum.currency,
+      missingRates: sum.missingRates,
       costMissingCount: missing,
       page,
       pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     };
   });
+}
+
+/**
+ * Stock values of several warehouses as one figure (ADR-086): in the one
+ * warehouse's currency, or in the group currency at today's rates. Values in
+ * a currency without a usable rate are left out and listed.
+ */
+async function totalInOneCurrency(
+  tx: Parameters<Parameters<typeof withTenantTx>[1]>[0],
+  ctx: TenantContext,
+  parts: Array<{ warehouseId: string; value: Decimal }>,
+  onlyWarehouseId?: string,
+) {
+  const currencies = await warehouseCurrencies(
+    tx,
+    ctx,
+    parts.map((p) => p.warehouseId),
+  );
+  const to = onlyWarehouseId
+    ? ((await warehouseCurrencies(tx, ctx, [onlyWarehouseId])).get(onlyWarehouseId) ??
+      ctx.groupCurrency)
+    : ctx.groupCurrency;
+  const conv = await currencyConverter(tx, ctx, { to, date: businessDate(ctx.timeZone) });
+  let value = new Decimal(0);
+  for (const p of parts) {
+    const v = await conv.convert(p.value, currencies.get(p.warehouseId) ?? to);
+    if (v) value = value.plus(v);
+  }
+  return { value, currency: conv.currency, missingRates: conv.missing() };
 }
 
 /** Value per warehouse (dashboard), within the user's valuation scope. */
@@ -135,19 +190,32 @@ export async function valuationByWarehouse(ctx: TenantContext) {
     ]);
     const warehouses = await tx.warehouse.findMany({
       where: { organizationId: ctx.organizationId, id: { in: groups.map((g) => g.warehouseId) } },
-      select: { id: true, code: true, name: true },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        branch: { select: { company: { select: { currency: true } } } },
+      },
       orderBy: { code: "asc" },
     });
     const value = new Map(groups.map((g) => [g.warehouseId, dec(g._sum.totalValue ?? 0)]));
     const missingBy = new Map(missing.map((m) => [m.warehouseId, m._count._all]));
     const rows = warehouses.map((w) => ({
-      warehouse: w,
+      warehouse: { id: w.id, code: w.code, name: w.name },
+      currency: w.branch.company.currency,
       totalValue: value.get(w.id)!,
       costMissingCount: missingBy.get(w.id) ?? 0,
     }));
+    const sum = await totalInOneCurrency(
+      tx,
+      ctx,
+      rows.map((r) => ({ warehouseId: r.warehouse.id, value: r.totalValue })),
+    );
     return {
       rows,
-      totalValue: rows.reduce((acc, r) => acc.plus(r.totalValue), new Decimal(0)),
+      totalValue: sum.value,
+      currency: sum.currency,
+      missingRates: sum.missingRates,
       costMissingCount: rows.reduce((acc, r) => acc + r.costMissingCount, 0),
     };
   });

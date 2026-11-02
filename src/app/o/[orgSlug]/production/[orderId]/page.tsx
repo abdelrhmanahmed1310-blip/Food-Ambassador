@@ -36,7 +36,7 @@ export default async function ProductionOrderPage({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(o.warehouse.branch.company.currency),
   ]);
   const dt = (d: Date | null) =>
     d

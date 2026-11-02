@@ -1955,7 +1955,7 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
 - New rates take a country (default: the group's VAT country), so a rate
   change in one country never reaches another country's companies.
 - **Step 2b** (ADR-085): ZATCA seller settings and units per company.
-  **Step 3:** per-company currency (design first).
+  **Step 3:** per-company currency (ADR-086).
 
 ### ADR-085 ZATCA per company — Accepted (F1b step 2b built)
 
@@ -1981,6 +1981,39 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   is step 3).
 - The ZATCA page shows one company at a time (company selector when the
   group has more than one).
+
+### ADR-086 Currency per company — Accepted (F1b step 3a built; 3b, 3c next)
+
+Design approved 2026-11-02. Stock transfers are between branches in the same
+country for now, so no inter-company transfer is built.
+
+- **Each company keeps its books in its own currency** (`companies.currency`,
+  the group's by default; a supported document currency). It can change only
+  while the company has no stock and no money documents (service rule and a
+  database trigger).
+- **The context knows both currencies**: `groupCurrency` (the
+  organization's) and `baseCurrency` (the currency a service keeps amounts
+  in — the group's, or a company's via `inCurrency`). Exchange rates stay
+  stored against the group currency; `rateFor` in a company's currency uses
+  the cross rate through the group currency, with the same no-guess rules
+  (missing or stale rates are refused).
+- **Stock is valued in the warehouse's company's currency** (warehouse →
+  branch → company). Stock never moves between companies with different
+  currencies (service check and database trigger on transfers and
+  shipments).
+- **Group figures are converted, never guessed** (`currencyConverter`):
+  balances at the rate on the date (stock value: today), flows at the
+  average of the period's rates (waste, food cost). A currency without a
+  usable rate is left out and named on the page. One company's figures stay
+  in its own currency. Recipe costs are in the group currency (average cost
+  converted per warehouse at the costing date). Stock-count approval limits
+  are in the group currency, so the variance is converted before choosing
+  the approval chain (no rate: every level approves).
+- **ZATCA** needs the company's currency to be SAR (no longer the group's).
+- **Not yet in a company's own currency (refused until converted):**
+  purchasing and payables (step 3b), point of sale, sales imports and B2B
+  (step 3c). The service refuses with a clear message and a database
+  trigger per document table refuses too; each step removes its guard.
 
 ## Business assumptions (recorded, not invented rules)
 

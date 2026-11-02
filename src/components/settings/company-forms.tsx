@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ActionState } from "@/components/forms/action-state";
-import { ActionForm, CheckboxField, TextField } from "@/components/forms/fields";
+import { ActionForm, CheckboxField, SelectField, TextField } from "@/components/forms/fields";
 
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -14,6 +14,7 @@ export function CompanyForm({
   idempotent = false,
   isDefault = false,
   vatRegistered = false,
+  currencies,
 }: {
   action: Action;
   defaults?: Record<string, string | null | undefined>;
@@ -22,6 +23,8 @@ export function CompanyForm({
   /** The default company's VAT registration is set on the VAT settings page (ADR-084). */
   isDefault?: boolean;
   vatRegistered?: boolean;
+  /** Currencies the company may keep its books in (ADR-086); the group's first. */
+  currencies: string[];
 }) {
   const t = useTranslations("companies");
   const d = (k: string) => defaults[k] ?? "";
@@ -68,6 +71,13 @@ export function CompanyForm({
             </div>
           </>
         )}
+        <SelectField
+          name="currency"
+          label={t("currency")}
+          hint={t("currencyHint")}
+          defaultValue={d("currency") || currencies[0]}
+          options={currencies.map((c) => ({ value: c, label: c }))}
+        />
         <TextField
           name="crNumber"
           label={t("crNumber")}

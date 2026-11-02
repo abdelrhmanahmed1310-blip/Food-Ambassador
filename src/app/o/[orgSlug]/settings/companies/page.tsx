@@ -4,6 +4,7 @@ import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { CompanyForm } from "@/components/settings/company-forms";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
+import { currencyChoices } from "@/modules/fx/rules";
 import { listCompanies } from "@/modules/organizations/companies";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import {
@@ -21,11 +22,12 @@ export default async function CompaniesPage({
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "org.settings.manage")) notFound();
   const [t, companies] = await Promise.all([getTranslations("companies"), listCompanies(ctx)]);
+  const currencies = currencyChoices(ctx.groupCurrency);
   return (
     <>
       <PageHeader title={t("title")} description={t("intro")} />
       <div className="space-y-6">
-        <Alert tone="info">{t("phaseNote", { currency: ctx.baseCurrency })}</Alert>
+        <Alert tone="info">{t("phaseNote", { currency: ctx.groupCurrency })}</Alert>
         {companies.map((c) => (
           <Card
             key={c.id}
@@ -33,6 +35,7 @@ export default async function CompaniesPage({
             actions={
               <span className="flex flex-wrap items-center gap-2" data-testid={`company-${c.code}`}>
                 {c.isDefault ? <Badge tone="success">{t("default")}</Badge> : null}
+                <Badge tone="muted">{c.currency}</Badge>
                 <Badge tone="muted">{t("branchCount", { count: c._count.branches })}</Badge>
                 {!c.isDefault ? (
                   <>
@@ -55,6 +58,7 @@ export default async function CompaniesPage({
               action={updateCompanyAction.bind(null, orgSlug, c.id)}
               submitLabel={t("save")}
               isDefault={c.isDefault}
+              currencies={currencies}
               vatRegistered={c.vatRegistered}
               defaults={{
                 code: c.code,
@@ -63,6 +67,7 @@ export default async function CompaniesPage({
                 country: c.country,
                 vatNumber: c.vatNumber,
                 crNumber: c.crNumber,
+                currency: c.currency,
               }}
             />
           </Card>
@@ -71,6 +76,7 @@ export default async function CompaniesPage({
           <CompanyForm
             action={createCompanyAction.bind(null, orgSlug)}
             submitLabel={t("add")}
+            currencies={currencies}
             idempotent
           />
         </Card>

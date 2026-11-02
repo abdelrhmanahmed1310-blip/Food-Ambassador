@@ -78,7 +78,21 @@ export async function quantityFormatter() {
  * currency, exactly, from its decimal string (same approach as quantities).
  */
 export async function moneyFormatter(currency: string) {
+  return formatterFor(await getLocale(), currency);
+}
+
+/** Formatters for amounts in several currencies on one page (company currencies, ADR-086). */
+export async function moneyFormatters() {
   const locale = await getLocale();
+  const cache = new Map<string, ReturnType<typeof formatterFor>>();
+  return (currency: string) => {
+    let f = cache.get(currency);
+    if (!f) cache.set(currency, (f = formatterFor(locale, currency)));
+    return f;
+  };
+}
+
+function formatterFor(locale: string, currency: string) {
   const money = new Intl.NumberFormat(`${locale}-u-nu-latn`, {
     style: "currency",
     currency,

@@ -3,7 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Banknote, ChefHat, Receipt, ShoppingBag, Tag, Trash2 } from "lucide-react";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { AttentionList } from "@/components/reports/attention-list";
-import { Card, PageHeader } from "@/components/ui/primitives";
+import { Card, PageHeader, Alert } from "@/components/ui/primitives";
 import { attentionItems } from "@/modules/analytics/attention";
 import { DASHBOARD_DAYS, salesDashboard } from "@/modules/analytics/service";
 import { listCompanies } from "@/modules/organizations/companies";
@@ -19,18 +19,20 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
   const ctx = await requireTenant(orgSlug);
   const sp = await searchParams;
   const company = (Array.isArray(sp.company) ? sp.company[0] : sp.company) ?? "";
-  const [t, ta, td, format, money, user, counts, attention, sales] = await Promise.all([
+  const [t, ta, td, format, tf, user, counts, attention, sales] = await Promise.all([
     getTranslations("overview"),
     getTranslations("attention"),
     getTranslations("dashboard"),
     getFormatter(),
-    moneyFormatter(ctx.baseCurrency).then((f) => f.money),
+    getTranslations("fx"),
     getCurrentUser(),
     getOverview(ctx),
     attentionItems(ctx),
     salesDashboard(ctx, company),
   ]);
   const companies = sales ? await listCompanies(ctx) : [];
+  // The group's currency, or the chosen company's (ADR-086).
+  const money = (await moneyFormatter(sales?.currency ?? ctx.groupCurrency)).money;
   const percent = (v: { toString(): string } | null) =>
     v === null
       ? "—"
@@ -110,6 +112,11 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
       />
       {sales ? (
         <section aria-label={td("title")} className="mb-6 space-y-4" data-testid="sales-dashboard">
+          {sales.missingRates.length > 0 ? (
+            <Alert tone="error">
+              {tf("missingRates", { currencies: sales.missingRates.join(", ") })}
+            </Alert>
+          ) : null}
           {companies.length > 1 ? (
             <form method="get" className="flex items-center gap-2" data-testid="company-filter">
               <label htmlFor="company" className="text-sm font-medium">

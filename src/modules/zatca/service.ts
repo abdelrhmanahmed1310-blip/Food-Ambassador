@@ -90,6 +90,7 @@ async function companyOf(tx: Tx, ctx: TenantContext, companyId?: string | null) 
       vatRegistered: true,
       vatNumber: true,
       isDefault: true,
+      currency: true,
     },
   });
   if (!c) throw notFound("Company");
@@ -117,18 +118,18 @@ const settingsSchema = z.object({
 
 export async function updateZatcaSettings(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "org.settings.manage");
-  // ZATCA documents report VAT in riyals; the base currency is fixed (Q-11).
-  if (ctx.baseCurrency !== "SAR")
-    throw businessRuleViolation(
-      "ZATCA_NEEDS_SAR",
-      "ZATCA e-invoicing is for organizations whose base currency is the Saudi riyal",
-    );
   const parsed = settingsSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const { companyId, ...rest } = parsed.data;
   const data = { ...rest, crNumber: rest.crNumber ?? null };
   await withTenantTx(ctx.organizationId, async (tx) => {
     const company = await companyOf(tx, ctx, companyId);
+    // ZATCA documents report VAT in riyals: the company keeps its books in SAR (ADR-086).
+    if (company.currency !== "SAR")
+      throw businessRuleViolation(
+        "ZATCA_NEEDS_SAR",
+        "ZATCA e-invoicing is for companies keeping their books in Saudi riyals",
+      );
     await tx.zatcaSettings.upsert({
       where: {
         organizationId_companyId: { organizationId: ctx.organizationId, companyId: company.id },
@@ -229,11 +230,11 @@ async function seller(tx: Tx, ctx: TenantContext, companyId: string): Promise<Za
     }),
     await tx.company.findFirst({
       where: { organizationId: ctx.organizationId, id: companyId },
-      select: { vatRegistered: true, vatNumber: true, country: true },
+      select: { vatRegistered: true, vatNumber: true, country: true, currency: true },
     }),
   ];
   if (!s || !c?.vatRegistered || !c.vatNumber || c.country !== "SA") return null;
-  if (ctx.baseCurrency !== "SAR") return null;
+  if (c.currency !== "SAR") return null;
   return {
     name: s.legalName,
     vatNumber: c.vatNumber.replace(/\s/g, ""),
@@ -273,7 +274,7 @@ async function prepareUnit(
       : null;
     if (registerId && !register) throw notFound("Register");
     const company = register
-      ? { id: register.branch.companyId, code: null, isDefault: false }
+      ? { id: register.branch.companyId, code: null, isDefault: false, currency: null }
       : await companyOf(tx, ctx, officeCompanyId);
     const existing = register
       ? register.zatcaDevice

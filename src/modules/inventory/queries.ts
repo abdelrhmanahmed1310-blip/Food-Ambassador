@@ -257,7 +257,14 @@ const movementSelect = {
   postedByUserId: true,
   reversesEntryId: true,
   document: { select: { id: true, number: true, type: true } },
-  warehouse: { select: { id: true, code: true, branchId: true } },
+  warehouse: {
+    select: {
+      id: true,
+      code: true,
+      branchId: true,
+      branch: { select: { company: { select: { currency: true } } } },
+    },
+  },
   location: { select: { code: true } },
   product: {
     select: {
@@ -281,9 +288,18 @@ function redactCosts(ctx: TenantContext, rows: MovementRecord[]) {
       branchId: r.warehouse.branchId,
       warehouseId: r.warehouse.id,
     });
+    // Costs are in the warehouse's company's currency (ADR-086).
+    const currency = r.warehouse.branch.company.currency;
     return visible
-      ? { ...r, costVisible: true as const }
-      : { ...r, unitCost: null, valueDelta: null, costSource: null, costVisible: false as const };
+      ? { ...r, currency, costVisible: true as const }
+      : {
+          ...r,
+          currency,
+          unitCost: null,
+          valueDelta: null,
+          costSource: null,
+          costVisible: false as const,
+        };
   });
 }
 
@@ -311,7 +327,13 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
         postedByUserId: true,
         warehouseId: true,
         destinationWarehouseId: true,
-        warehouse: { select: { code: true, name: true } },
+        warehouse: {
+          select: {
+            code: true,
+            name: true,
+            branch: { select: { company: { select: { currency: true } } } },
+          },
+        },
         destination: { select: { code: true, name: true } },
         reverses: { select: { id: true, number: true } },
         reversedBy: { select: { id: true, number: true } },
@@ -374,6 +396,8 @@ export async function getDocument(ctx: TenantContext, documentId: string) {
         : null,
       costVisible,
       canReverse,
+      /** Values are in the warehouse's company's currency (ADR-086). */
+      currency: doc.warehouse.branch.company.currency,
     };
   });
 }
@@ -606,6 +630,8 @@ export async function warehouseOptions(
         id: true,
         code: true,
         name: true,
+        /** Its company's currency: costs entered here are in it (ADR-086). */
+        branch: { select: { company: { select: { currency: true } } } },
         locations: {
           where: { archivedAt: null },
           select: { id: true, code: true, name: true },

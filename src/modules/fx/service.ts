@@ -15,6 +15,7 @@ import {
   isDocumentCurrency,
   pickRate,
   toBase,
+  type RatePick,
 } from "./rules";
 
 /**
@@ -32,26 +33,17 @@ export interface FxRate {
 
 /** Refuse currencies outside the allowed list. */
 export function assertDocumentCurrency(ctx: TenantContext, currency: string, field = "currency") {
-  if (!isDocumentCurrency(currency, ctx.baseCurrency))
+  if (!isDocumentCurrency(currency, ctx.baseCurrency) && currency !== ctx.groupCurrency)
     throw businessRuleViolation("CURRENCY_NOT_SUPPORTED", "This currency is not available", {
       field,
       currency,
     });
 }
 
-/**
- * The rate for a document in `currency` dated `date` (1 for the base
- * currency). Throws NO_EXCHANGE_RATE / EXCHANGE_RATE_STALE so nothing is
- * ever converted at a guessed rate.
- */
-export async function rateFor(
-  tx: Tx,
-  ctx: TenantContext,
-  currency: string,
-  date: string,
-  field = "currency",
-): Promise<FxRate> {
-  if (currency === ctx.baseCurrency) return { rate: new Decimal(1), rateDate: date };
+/** Group-currency units for one unit of `currency` on `date` (stored rates are against the group's currency). */
+async function groupRate(tx: Tx, ctx: TenantContext, currency: string, date: string) {
+  if (currency === ctx.groupCurrency)
+    return { ok: true as const, rate: new Decimal(1), rateDate: date };
   const rows = await tx.exchangeRate.findMany({
     where: {
       organizationId: ctx.organizationId,
@@ -62,19 +54,159 @@ export async function rateFor(
     take: 1,
     select: { rateDate: true, rate: true },
   });
-  const pick = pickRate(
+  return pickRate(
     currency,
-    ctx.baseCurrency,
+    ctx.groupCurrency,
     rows.map((r) => ({ rateDate: day(r.rateDate), rate: new Decimal(r.rate.toString()) })),
     date,
   );
-  if (!pick.ok)
+}
+
+/**
+ * The rate for a document in `currency` dated `date`, in units of the
+ * context's currency (1 for the same currency). A company keeping its books
+ * in another currency than the group's uses the cross rate through the group
+ * currency (ADR-086). Throws NO_EXCHANGE_RATE / EXCHANGE_RATE_STALE so
+ * nothing is ever converted at a guessed rate.
+ */
+export async function rateFor(
+  tx: Tx,
+  ctx: TenantContext,
+  currency: string,
+  date: string,
+  field = "currency",
+): Promise<FxRate> {
+  if (currency === ctx.baseCurrency) return { rate: new Decimal(1), rateDate: date };
+  const legs = [
+    { currency, pick: await groupRate(tx, ctx, currency, date) },
+    { currency: ctx.baseCurrency, pick: await groupRate(tx, ctx, ctx.baseCurrency, date) },
+  ];
+  for (const { currency: c, pick } of legs)
+    if (!pick.ok)
+      throw businessRuleViolation(
+        pick.reason === "NO_RATE" ? "NO_EXCHANGE_RATE" : "EXCHANGE_RATE_STALE",
+        "No usable exchange rate for this date",
+        { field, currency: c, date, latest: pick.latest ?? "", days: MAX_RATE_AGE_DAYS },
+      );
+  const [doc, books] = legs.map((l) => l.pick as Extract<RatePick, { ok: true }>);
+  return {
+    rate: doc.rate.dividedBy(books.rate).toDecimalPlaces(10, Decimal.ROUND_HALF_UP),
+    rateDate: doc.rateDate < books.rateDate ? doc.rateDate : books.rateDate,
+  };
+}
+
+/**
+ * Converts amounts kept in company currencies into one reporting currency —
+ * the group's for consolidated figures, or one company's (ADR-086): at the
+ * rate on `date` (period end, for balances), or the average of the period's
+ * rates when `from` is given (for flows such as sales, costs and waste).
+ * Rates are stored against the group currency, so other pairs go through it.
+ * A currency without a usable rate is not converted: it is reported in
+ * `missing()` and its amounts are left out rather than guessed.
+ */
+export async function currencyConverter(
+  tx: Tx,
+  ctx: TenantContext,
+  at: { to?: string; date: string; from?: string },
+) {
+  const to = at.to ?? ctx.groupCurrency;
+  const cache = new Map<string, Decimal | null>();
+  const missing = new Set<string>();
+  async function groupUnits(currency: string) {
+    if (currency === ctx.groupCurrency) return new Decimal(1);
+    if (cache.has(currency)) return cache.get(currency)!;
+    let rate: Decimal | null = null;
+    if (at.from) {
+      const inPeriod = await tx.exchangeRate.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          currency,
+          rateDate: {
+            gte: new Date(`${at.from}T00:00:00Z`),
+            lte: new Date(`${at.date}T00:00:00Z`),
+          },
+        },
+        select: { rate: true },
+      });
+      if (inPeriod.length > 0)
+        rate = inPeriod
+          .reduce((acc, r) => acc.plus(r.rate.toString()), new Decimal(0))
+          .dividedBy(inPeriod.length);
+    }
+    if (!rate) {
+      const pick = await groupRate(tx, ctx, currency, at.date);
+      rate = pick.ok ? pick.rate : null;
+    }
+    cache.set(currency, rate);
+    if (!rate) missing.add(currency);
+    return rate;
+  }
+  const decimals = currencyDecimals(to);
+  return {
+    currency: to,
+    /** The amount in the reporting currency, or null when a currency has no usable rate. */
+    async convert(amount: Decimal, currency: string) {
+      if (currency === to) return amount;
+      const [from, target] = [await groupUnits(currency), await groupUnits(to)];
+      if (!from || !target) return null;
+      return amount.times(from).dividedBy(target).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
+    },
+    /** Currencies left out for want of a rate. */
+    missing: () => [...missing].sort(),
+  };
+}
+
+/**
+ * Stock moves only between warehouses whose companies share a currency: an
+ * inter-company transfer (a sale and a purchase) does not exist yet (ADR-086).
+ */
+export async function assertSameCurrency(tx: Tx, ctx: TenantContext, fromId: string, toId: string) {
+  if (fromId === toId) return;
+  const currencies = await warehouseCurrencies(tx, ctx, [fromId, toId]);
+  if (currencies.get(fromId) !== currencies.get(toId))
     throw businessRuleViolation(
-      pick.reason === "NO_RATE" ? "NO_EXCHANGE_RATE" : "EXCHANGE_RATE_STALE",
-      "No usable exchange rate for this date",
-      { field, currency, date, latest: pick.latest ?? "", days: MAX_RATE_AGE_DAYS },
+      "TRANSFER_OTHER_CURRENCY",
+      "Stock cannot move between companies with different currencies",
+      { field: "toWarehouseId" },
     );
-  return { rate: pick.rate, rateDate: pick.rateDate };
+}
+
+/**
+ * Money flows not yet kept in a company's own currency (ADR-086 steps 3b/3c)
+ * refuse a company whose currency is not the group's (the database refuses
+ * too). Each step removes its calls as its flow is converted.
+ */
+export async function assertFlowInGroupCurrency(
+  tx: Tx,
+  ctx: TenantContext,
+  at: { warehouseId?: string; companyId?: string | null },
+) {
+  const currency = at.warehouseId
+    ? (await warehouseCurrencies(tx, ctx, [at.warehouseId])).get(at.warehouseId)
+    : (
+        await tx.company.findFirst({
+          where: {
+            organizationId: ctx.organizationId,
+            ...(at.companyId ? { id: at.companyId } : { isDefault: true }),
+          },
+          select: { currency: true },
+        })
+      )?.currency;
+  if (currency && currency !== ctx.groupCurrency)
+    throw businessRuleViolation(
+      "COMPANY_CURRENCY_NOT_YET_SUPPORTED",
+      "This is not yet available for a company keeping its books in another currency",
+      { currency },
+    );
+}
+
+/** The currency of each warehouse: its branch's company's (ADR-086). */
+export async function warehouseCurrencies(tx: Tx, ctx: TenantContext, ids?: string[]) {
+  const rows = await tx.warehouse.findMany({
+    where: { organizationId: ctx.organizationId, ...(ids ? { id: { in: ids } } : {}) },
+    select: { id: true, branch: { select: { company: { select: { currency: true } } } } },
+  });
+  return new Map(rows.map((w) => [w.id, w.branch.company.currency]));
 }
 
 /** Base-currency amount at a rate, rounded to the base unit. */
@@ -93,7 +225,7 @@ async function upsertRate(
   input: z.infer<typeof rateSchema>,
   source: "MANUAL" | "CSV",
 ) {
-  if (input.currency === ctx.baseCurrency)
+  if (input.currency === ctx.groupCurrency)
     throw businessRuleViolation("BASE_CURRENCY_RATE", "The base currency needs no rate", {
       field: "currency",
     });
@@ -145,7 +277,7 @@ export async function importExchangeRates(ctx: TenantContext, text: string) {
         rate: (r.rate ?? "").trim(),
       });
       if (!parsed.success) errors.push({ row: i + 2, message: "invalidRow" });
-      else if (parsed.data.currency === ctx.baseCurrency)
+      else if (parsed.data.currency === ctx.groupCurrency)
         errors.push({ row: i + 2, message: "baseCurrency" });
       else valid.push(parsed.data);
     });
@@ -180,7 +312,7 @@ export async function listExchangeRates(ctx: TenantContext) {
         updatedAt: true,
       },
     });
-    const latest = DOCUMENT_CURRENCIES.filter((c) => c !== ctx.baseCurrency).map((c) => ({
+    const latest = DOCUMENT_CURRENCIES.filter((c) => c !== ctx.groupCurrency).map((c) => ({
       currency: c,
       rate: history.find((h) => h.currency === c) ?? null,
     }));

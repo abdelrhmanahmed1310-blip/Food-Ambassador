@@ -1,5 +1,10 @@
 import "server-only";
-import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import {
+  assertDocumentCurrency,
+  baseAmount,
+  rateFor,
+  assertFlowInGroupCurrency,
+} from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
 import { optionalCurrency } from "@/modules/procurement/schemas";
 import { z } from "zod";
@@ -247,6 +252,7 @@ export async function createSalesOrder(ctx: TenantContext, rawInput: unknown) {
       assertDocumentCurrency(ctx, currency);
       const wh = await loadWarehouse(tx, ctx, input.warehouseId);
       assertActive(wh);
+      await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
       const number = await nextDocumentNumber(
         tx,
         ctx.organizationId,

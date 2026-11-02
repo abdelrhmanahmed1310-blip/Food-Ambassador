@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { assertPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
+import { DOCUMENT_CURRENCIES } from "@/modules/fx/rules";
 import { PRESETS, TAX_COUNTRIES, type TaxCountry } from "@/modules/tax/presets";
 import { vatNumberProblem } from "@/modules/tax/rules";
 import { optionalText, requiredText, uuidSchema } from "@/modules/shared/schemas";
@@ -16,7 +17,9 @@ import { businessRuleViolation, notFound, validationFailed } from "@/server/erro
  * branches commercially. Every branch belongs to one company and may carry a
  * brand. Each company has its own VAT registration and uses its country's
  * rates (ADR-084); the default company's registration is the one on the VAT
- * settings page. Currency is still the group's base currency.
+ * settings page. Each company keeps its books in its own currency (ADR-086),
+ * the group's by default; it can change only before the company has any
+ * stock or money documents.
  */
 
 const code = z
@@ -53,6 +56,12 @@ const companySchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "on" || v === "true"),
+  currency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .optional()
+    .transform((v) => v || undefined),
 });
 type CompanyInput = z.infer<typeof companySchema>;
 
@@ -62,7 +71,9 @@ type CompanyInput = z.infer<typeof companySchema>;
  * and are not changed here.
  */
 async function vatFields(tx: Tx, ctx: TenantContext, input: CompanyInput, isDefault: boolean) {
-  const { country, vatRegistered, vatNumber: rawNumber, ...rest } = input;
+  const { country, vatRegistered, vatNumber: rawNumber, ...others } = input;
+  delete others.currency; // set by the caller (currencyChoice)
+  const rest = others;
   if (isDefault) return rest;
   const vatNumber = rawNumber ? rawNumber.replace(/[\s-]/g, "") : null;
   if (vatRegistered) {
@@ -141,6 +152,39 @@ async function loadCompany(tx: Tx, ctx: TenantContext, id: string) {
   return c;
 }
 
+/** Whether the company has stock or money documents (its currency is then fixed). */
+async function hasActivity(tx: Tx, ctx: TenantContext, companyId: string) {
+  const org = ctx.organizationId;
+  const own = { organizationId: org, companyId };
+  const counts = [
+    await tx.posOrder.count({ where: own }),
+    await tx.purchaseOrder.count({ where: own }),
+    await tx.goodsReceipt.count({ where: own }),
+    await tx.salesOrder.count({ where: own }),
+    await tx.salesInvoice.count({ where: own }),
+    await tx.supplierInvoice.count({ where: own }),
+    await tx.inventoryLedgerEntry.count({
+      where: { organizationId: org, warehouse: { branch: { companyId } } },
+    }),
+    await tx.salesImport.count({
+      where: { organizationId: org, warehouse: { branch: { companyId } } },
+    }),
+    await tx.zatcaDevice.count({ where: own }),
+  ];
+  return counts.some((n) => n > 0);
+}
+
+/** The company's currency: the group's or one of the supported ones. */
+function currencyChoice(ctx: TenantContext, currency: string | undefined, current: string) {
+  const c = currency ?? current;
+  if (c !== ctx.groupCurrency && !(DOCUMENT_CURRENCIES as readonly string[]).includes(c))
+    throw businessRuleViolation("CURRENCY_NOT_SUPPORTED", "This currency is not available", {
+      field: "currency",
+      currency: c,
+    });
+  return c;
+}
+
 export async function createCompany(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "org.settings.manage");
   const parsed = companySchema.safeParse(rawInput);
@@ -148,8 +192,9 @@ export async function createCompany(ctx: TenantContext, rawInput: unknown) {
   try {
     return await withTenantTx(ctx.organizationId, async (tx) => {
       const data = await vatFields(tx, ctx, parsed.data, false);
+      const currency = currencyChoice(ctx, parsed.data.currency, ctx.groupCurrency);
       const c = await tx.company.create({
-        data: { organizationId: ctx.organizationId, ...data, currency: ctx.baseCurrency },
+        data: { organizationId: ctx.organizationId, ...data, currency },
       });
       await recordAudit(tx, actorOf(ctx), {
         action: "company.created",
@@ -172,7 +217,14 @@ export async function updateCompany(ctx: TenantContext, id: string, rawInput: un
     return await withTenantTx(ctx.organizationId, async (tx) => {
       const c = await loadCompany(tx, ctx, id);
       const data = await vatFields(tx, ctx, parsed.data, c.isDefault);
-      await tx.company.update({ where: { id: c.id }, data });
+      const currency = currencyChoice(ctx, parsed.data.currency, c.currency);
+      if (currency !== c.currency && (await hasActivity(tx, ctx, c.id)))
+        throw businessRuleViolation(
+          "COMPANY_CURRENCY_FIXED",
+          "The currency cannot change once the company has stock or documents",
+          { field: "currency" },
+        );
+      await tx.company.update({ where: { id: c.id }, data: { ...data, currency } });
       await recordAudit(tx, actorOf(ctx), {
         action: "company.updated",
         entityType: "company",

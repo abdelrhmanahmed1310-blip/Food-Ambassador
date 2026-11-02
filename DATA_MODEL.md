@@ -1174,6 +1174,22 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### Currency per company (F1b step 3a, ADR-086)
+
+Migration `20261213090000_f1b3a_company_currency` (rules only; no columns).
+
+- `companies.currency` is the currency of the company's books; trigger
+  `companies_currency_fixed` refuses a change once it has stock or money
+  documents.
+- `warehouse_currency(id)`: a warehouse's company's currency.
+- `stock_move_same_currency` on **inventory_documents** (transfers) and
+  **stock_shipments** refuses moves between companies with different
+  currencies.
+- `company_currency_supported` (temporary, removed by steps 3b/3c) on
+  pos_orders, purchase_orders, goods_receipts, sales_orders, sales_invoices,
+  supplier_invoices and sales_imports refuses companies whose currency is
+  not the group's.
+
 ### ZATCA per company (F1b step 2b, ADR-085)
 
 Migration `20261212090000_f1b2b_zatca_per_company`.

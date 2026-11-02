@@ -20,7 +20,7 @@ import { warehouseOptions } from "@/modules/inventory/queries";
 import { canViewValuation, listValuations } from "@/modules/inventory/valuation-queries";
 import { pageSchema } from "@/modules/shared/schemas";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter, productName, quantityFormatter } from "@/server/inventory-view";
+import { moneyFormatters, productName, quantityFormatter } from "@/server/inventory-view";
 
 export default async function ValuationPage({
   params,
@@ -42,7 +42,7 @@ export default async function ValuationPage({
     getTranslations(),
     getLocale(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatters(),
     listValuations(ctx, {
       q: filters.q,
       warehouseId: filters.warehouseId,
@@ -61,7 +61,7 @@ export default async function ValuationPage({
     <>
       <PageHeader
         title={t("inventory.valuationTitle")}
-        description={t("inventory.valuationHint", { currency: ctx.baseCurrency })}
+        description={t("inventory.valuationHint", { currency: ctx.groupCurrency })}
         actions={
           <LinkButton href={`${base}/export${query ? `?${query}` : ""}`} variant="secondary">
             {t("common.export")}
@@ -75,9 +75,14 @@ export default async function ValuationPage({
             className="ltr-value mt-1 text-2xl font-semibold tabular-nums"
             data-testid="total-value"
           >
-            {money.money(result.totalValue)}
+            {money(result.currency).money(result.totalValue)}
           </p>
         </Card>
+        {result.missingRates.length > 0 ? (
+          <Alert tone="error">
+            {t("fx.missingRates", { currencies: result.missingRates.join(", ") })}
+          </Alert>
+        ) : null}
         {result.costMissingCount > 0 ? (
           <Alert tone="info">
             <Link href={`${base}?costMissing=1`} className="hover:underline">
@@ -171,14 +176,14 @@ export default async function ValuationPage({
                       <Badge tone="warning">{t("inventory.costMissing")}</Badge>
                     ) : r.averageUnitCost ? (
                       <span className="ltr-value">
-                        {money.unitCost(r.averageUnitCost)} / {r.product.baseUom}
+                        {money(r.currency).unitCost(r.averageUnitCost)} / {r.product.baseUom}
                       </span>
                     ) : (
                       <span className="text-muted">{t("inventory.noAverage")}</span>
                     )}
                   </Td>
                   <Td className="tabular-nums">
-                    <span className="ltr-value">{money.money(r.totalValue)}</span>
+                    <span className="ltr-value">{money(r.currency).money(r.totalValue)}</span>
                   </Td>
                   <Td>
                     {canRevalue ? (

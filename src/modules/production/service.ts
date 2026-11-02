@@ -491,7 +491,10 @@ export async function listProductionOrders(
       },
       include: {
         recipe: { select: { code: true, name: true, nameAr: true } },
-        warehouse: { select: { code: true } },
+        // Costs are in the warehouse's company's currency (ADR-086).
+        warehouse: {
+          select: { code: true, branch: { select: { company: { select: { currency: true } } } } },
+        },
         plannedUom: { select: { code: true } },
         outputProduct: { select: { sku: true, baseUom: { select: { code: true } } } },
         outputLot: { select: { lotCode: true } },
@@ -510,7 +513,15 @@ export async function getProductionOrder(ctx: TenantContext, orderId: string) {
       include: {
         recipe: { select: { id: true, code: true, name: true, nameAr: true } },
         version: { select: { versionNo: true, yieldQuantity: true } },
-        warehouse: { select: { id: true, code: true, name: true, branchId: true } },
+        warehouse: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            branchId: true,
+            branch: { select: { company: { select: { currency: true } } } },
+          },
+        },
         plannedUom: { select: { code: true } },
         outputProduct: {
           select: {

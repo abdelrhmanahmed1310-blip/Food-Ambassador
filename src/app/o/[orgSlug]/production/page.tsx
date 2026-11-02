@@ -7,7 +7,7 @@ import { buttonClass } from "@/components/ui/styles";
 import { holdsAnyGrant } from "@/modules/access/authorize";
 import { listProductionOrders } from "@/modules/production/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { moneyFormatter, quantityFormatter } from "@/server/inventory-view";
+import { moneyFormatters, quantityFormatter } from "@/server/inventory-view";
 
 const STATUSES = ["PLANNED", "COMPLETED", "REVERSED", "CANCELLED"] as const;
 
@@ -25,7 +25,7 @@ export default async function ProductionPage({
     getLocale(),
     getFormatter(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatters(),
     listProductionOrders(ctx, { status }),
   ]);
   const base = `/o/${orgSlug}/production`;
@@ -114,7 +114,9 @@ export default async function ProductionPage({
                   ) : null}
                 </Td>
                 <Td className="tabular-nums">
-                  <span className="ltr-value">{o.cost ? money.money(o.cost) : "—"}</span>
+                  <span className="ltr-value">
+                    {o.cost ? money(o.warehouse.branch.company.currency).money(o.cost) : "—"}
+                  </span>
                 </Td>
                 <Td>
                   <ProductionStatusBadge status={o.status} />

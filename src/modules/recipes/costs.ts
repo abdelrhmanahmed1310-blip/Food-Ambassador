@@ -1,4 +1,5 @@
 import "server-only";
+import { currencyConverter, warehouseCurrencies } from "@/modules/fx/service";
 import { Decimal, roundUnitCost } from "@/lib/decimal";
 import { assertPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
@@ -74,8 +75,11 @@ async function productCosts(
 ) {
   const costs = new Map<string, ProductInfo["costs"]>(productIds.map((id) => [id, {}]));
   if (productIds.length === 0) return costs;
-  const averages = await tx.stockValuation.groupBy({
-    by: ["productId"],
+  // Recipe costs are in the group currency: each warehouse's value is converted
+  // from its company's currency at the rate on the costing date (ADR-086); a
+  // warehouse without a usable rate is left out of the average.
+  const byWarehouse = await tx.stockValuation.groupBy({
+    by: ["productId", "warehouseId"],
     where: {
       organizationId: ctx.organizationId,
       productId: { in: productIds },
@@ -85,6 +89,28 @@ async function productCosts(
     },
     _sum: { quantity: true, totalValue: true },
   });
+  const currencies = await warehouseCurrencies(
+    tx,
+    ctx,
+    [...new Set(byWarehouse.map((w) => w.warehouseId))],
+  );
+  const conv = await currencyConverter(tx, ctx, { date: options.asOf });
+  const sums = new Map<string, { quantity: Decimal; value: Decimal }>();
+  for (const w of byWarehouse) {
+    const value = await conv.convert(
+      dec(w._sum.totalValue ?? 0),
+      currencies.get(w.warehouseId) ?? ctx.groupCurrency,
+    );
+    if (value === null) continue;
+    const acc = sums.get(w.productId) ?? { quantity: new Decimal(0), value: new Decimal(0) };
+    acc.quantity = acc.quantity.plus(dec(w._sum.quantity ?? 0));
+    acc.value = acc.value.plus(value);
+    sums.set(w.productId, acc);
+  }
+  const averages = [...sums].map(([productId, t]) => ({
+    productId,
+    _sum: { quantity: t.quantity, totalValue: t.value },
+  }));
   for (const a of averages) {
     const qty = dec(a._sum.quantity ?? 0);
     if (!qty.gt(0)) continue;

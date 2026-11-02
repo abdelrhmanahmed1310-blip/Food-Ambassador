@@ -28,7 +28,7 @@ export default async function RevaluePage({
     getTranslations(),
     getLocale(),
     quantityFormatter(),
-    moneyFormatter(ctx.baseCurrency),
+    moneyFormatter(v.currency),
   ]);
   const name = productName(v.product, locale);
   return (
@@ -78,7 +78,7 @@ export default async function RevaluePage({
             action={revalueAction.bind(null, orgSlug, v.warehouse.id, v.product.id)}
             unitHint={t("inventory.newUnitCostHint", {
               unit: v.product.baseUom,
-              currency: ctx.baseCurrency,
+              currency: v.currency,
             })}
           />
         </Card>

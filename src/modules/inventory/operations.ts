@@ -1,4 +1,5 @@
 import "server-only";
+import { assertSameCurrency } from "@/modules/fx/service";
 import type { MovementType, StockStatus } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { uuidv7 } from "@/lib/uuid";
@@ -346,6 +347,7 @@ export async function postTransfer(ctx: TenantContext, rawInput: unknown): Promi
       assertWarehousePermission(ctx, "inventory.transfer", to);
       assertActive(from);
       assertActive(to);
+      await assertSameCurrency(tx, ctx, from.id, to.id);
       const product = await loadProductForPosting(tx, ctx, input.productId);
       const fromLocation = await loadLocation(tx, ctx, from.id, input.locationId, false);
       const toLocation = await loadLocation(tx, ctx, to.id, input.toLocationId, true);

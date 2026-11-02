@@ -100,7 +100,7 @@ export default async function CountPage({
             <span className="ltr-value tabular-nums">
               {count.varianceValue === null
                 ? t("inventory.varianceUnknown")
-                : `${ctx.baseCurrency} ${count.varianceValue.toFixed(2)}`}
+                : `${count.currency} ${count.varianceValue.toFixed(2)}`}
             </span>
           </p>
         ) : null}

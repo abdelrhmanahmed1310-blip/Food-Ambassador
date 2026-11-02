@@ -584,7 +584,10 @@
     "BRANCH_BRAND_INVALID": "Choose an active brand.",
     "BRANCH_COMPANY_FIXED": "A branch stays with its company.",
     "RECEIPT_OTHER_COMPANY": "The receipt belongs to another company than the invoice.",
-    "NO_VAT_RATES_FOR_COUNTRY": "Apply this country's VAT preset on the VAT settings page first."
+    "NO_VAT_RATES_FOR_COUNTRY": "Apply this country's VAT preset on the VAT settings page first.",
+    "COMPANY_CURRENCY_FIXED": "The currency cannot change once the company has stock or documents.",
+    "COMPANY_CURRENCY_NOT_YET_SUPPORTED": "This is not yet available for a company keeping its books in another currency than the group's.",
+    "TRANSFER_OTHER_CURRENCY": "Stock cannot move between companies with different currencies."
   },
   "notFound": {
     "title": "Page not found",
@@ -1015,7 +1018,7 @@
     "reverseHint": "Posts the exact opposite of this document. Posted documents are never edited or deleted.",
     "enteredAs": "Entered as",
     "unitCost": "Unit cost",
-    "unitCostHint": "Per entered unit, in {currency}. Without a cost the stock is marked “cost missing” until it is revalued.",
+    "unitCostHint": "Per entered unit, in the currency of the warehouse's company ({currency}). Without a cost the stock is marked “cost missing” until it is revalued.",
     "newOpeningTitle": "Opening balance",
     "newOpeningHint": "Initial stock before other movements of a product in a warehouse.",
     "newAdjustmentTitle": "Stock adjustment",
@@ -1139,7 +1142,7 @@
       "PREPARED_NOT_SOLD": "Prepared, not sold"
     },
     "valuationTitle": "Stock value",
-    "valuationHint": "Moving weighted average cost per product and warehouse, in {currency}.",
+    "valuationHint": "Moving weighted average cost per product and warehouse, in the currency of the warehouse's company. Totals across companies are in {currency} at today's exchange rates.",
     "totalValue": "Total value",
     "averageCost": "Average cost",
     "value": "Value",
@@ -2627,7 +2630,8 @@
       "CSV": "CSV import"
     },
     "amount": "Amount",
-    "customerCurrency": "Customer's currency"
+    "customerCurrency": "Customer's currency",
+    "missingRates": "No usable exchange rate for {currencies}: their amounts are left out of these figures. Enter the rate under Exchange rates."
   },
   "attachments": {
     "title": "Attachments",
@@ -3932,7 +3936,7 @@
   "companies": {
     "title": "Companies",
     "intro": "The group's legal entities. Every branch belongs to one company; a branch stays with its company.",
-    "phaseNote": "Each company has its own VAT registration and uses its country's VAT rates. Companies still share the group's base currency ({currency}) and e-invoicing settings; per-company ZATCA and currency come next.",
+    "phaseNote": "Each company has its own VAT registration, e-invoicing details and currency. Group figures are converted into {currency} at the recorded exchange rates.",
     "default": "Default",
     "branchCount": "{count, plural, one {# branch} other {# branches}}",
     "makeDefault": "Make default",
@@ -3961,6 +3965,8 @@
     "archiveBrandConfirm": "Archive this brand? Its branches keep working without a brand.",
     "vatRegistered": "Registered for VAT in its country",
     "vatManagedRegistered": "VAT registered in {country}, number {number}. Change it on the VAT settings page.",
-    "vatManagedNot": "Not registered for VAT. The default company's VAT registration is set on the VAT settings page."
+    "vatManagedNot": "Not registered for VAT. The default company's VAT registration is set on the VAT settings page.",
+    "currency": "Currency of its books",
+    "currencyHint": "Fixed once the company has stock or documents. Purchasing, sales and the point of sale in another currency than the group's come in the next steps."
   }
 }

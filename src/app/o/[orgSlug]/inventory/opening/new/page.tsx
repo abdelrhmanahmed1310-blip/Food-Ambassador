@@ -47,7 +47,8 @@ export default async function NewOpeningBalancePage({
               places: placeOptions(warehouses),
               products: productOptions(products, locale),
               units: unitOptions(units, locale),
-              currency: ctx.baseCurrency,
+              // Costs are in the warehouse's company's currency (ADR-086).
+              currency: [...new Set(warehouses.map((w) => w.branch.company.currency))].join(" / "),
             }}
             defaults={{ productId: typeof sp.productId === "string" ? sp.productId : "" }}
           />

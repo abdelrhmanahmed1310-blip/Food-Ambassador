@@ -19,12 +19,12 @@ export default async function FoodCostReportPage({
   const ctx = await requireTenant(orgSlug);
   if (!canSeeReports(ctx).foodCost) notFound();
   const period = reportPeriod(sp, ctx.timeZone);
-  const [t, money, r, trend] = await Promise.all([
+  const [t, r, trend] = await Promise.all([
     getTranslations(),
-    moneyFormatter(ctx.baseCurrency),
     foodCostReport(ctx, period),
     foodCostTrend(ctx, 12),
   ]);
+  const money = await moneyFormatter(r.currency);
   const amount = (v: Decimal | null) =>
     v === null ? (
       <span className="text-muted">—</span>
@@ -66,6 +66,11 @@ export default async function FoodCostReportPage({
         }
       />
       <div className="space-y-6">
+        {r.missingRates.length > 0 ? (
+          <Alert tone="error">
+            {t("fx.missingRates", { currencies: r.missingRates.join(", ") })}
+          </Alert>
+        ) : null}
         <PeriodForm from={period.from} to={period.to} />
         <Alert tone="info">{t("reports.foodCostNote")}</Alert>
         {r.branches.length === 0 ? (

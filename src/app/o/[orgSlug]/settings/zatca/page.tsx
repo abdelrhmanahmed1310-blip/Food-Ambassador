@@ -45,7 +45,7 @@ export default async function ZatcaPage({
     getZatcaSetup(ctx, companyParam),
   ]);
   const companyId = setup.company.id;
-  const ready = setup.vatRegistered && setup.country === "SA" && ctx.baseCurrency === "SAR";
+  const ready = setup.vatRegistered && setup.country === "SA" && setup.company.currency === "SAR";
   const s = setup.settings;
   return (
     <>

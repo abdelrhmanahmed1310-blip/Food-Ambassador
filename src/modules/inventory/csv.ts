@@ -436,7 +436,7 @@ export async function exportValuationsCsv(
         r.product.baseUom,
         r.costMissing ? "" : (r.averageUnitCost?.toFixed() ?? ""),
         r.totalValue.toFixed(),
-        ctx.baseCurrency,
+        r.currency,
         r.costMissing ? "yes" : "no",
       ]);
     }

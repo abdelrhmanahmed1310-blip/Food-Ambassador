@@ -7,7 +7,12 @@ import {
   type ApprovalLevel,
 } from "@/modules/approvals/rules";
 import { loadLayers } from "@/modules/approvals/service";
-import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import {
+  assertDocumentCurrency,
+  baseAmount,
+  rateFor,
+  assertFlowInGroupCurrency,
+} from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
@@ -371,6 +376,7 @@ export async function createDraftOrderInTx(
   const supplier = await loadSupplier(tx, ctx, input.supplierId);
   if (supplier.archivedAt)
     throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
+  await assertFlowInGroupCurrency(tx, ctx, { warehouseId: wh.id });
   const currency = input.currency ?? supplier.currency ?? ctx.baseCurrency;
   assertDocumentCurrency(ctx, currency);
   const today = businessDate(wh.branch.timeZone ?? ctx.timeZone);

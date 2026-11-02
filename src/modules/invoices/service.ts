@@ -1,5 +1,10 @@
 import "server-only";
-import { assertDocumentCurrency, baseAmount, rateFor } from "@/modules/fx/service";
+import {
+  assertDocumentCurrency,
+  baseAmount,
+  rateFor,
+  assertFlowInGroupCurrency,
+} from "@/modules/fx/service";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
@@ -237,6 +242,7 @@ export async function createInvoice(ctx: TenantContext, rawInput: unknown) {
         throw businessRuleViolation("BRANCH_COMPANY_INVALID", "Choose an active company", {
           field: "companyId",
         });
+      await assertFlowInGroupCurrency(tx, ctx, { companyId: input.companyId });
       const due = input.dueDate ?? dueDateFor(input.invoiceDate, supplier.paymentTermsDays);
       if (due && due < input.invoiceDate)
         throw businessRuleViolation(
