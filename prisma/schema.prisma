@@ -2578,6 +2578,8 @@ model TaxRate {
   taxCodeId       String   @map("tax_code_id") @db.Uuid
   rate            Decimal  @db.Decimal(7, 6)
   effectiveFrom   DateTime @map("effective_from") @db.Date
+  /// The country whose rate this is (ADR-084); a code's rates differ by country.
+  country         String?  @db.Char(2)
   /// Where the rate comes from (law, preset source).
   source          String?
   createdByUserId String   @map("created_by_user_id") @db.Uuid
@@ -2587,7 +2589,7 @@ model TaxRate {
   taxCode      TaxCode      @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
-  @@unique([organizationId, taxCodeId, effectiveFrom])
+  @@unique([organizationId, taxCodeId, country, effectiveFrom])
   @@map("tax_rates")
 }
 
@@ -2687,6 +2689,7 @@ model SupplierInvoice {
   @@unique([organizationId, number])
   @@index([organizationId, supplierId, invoiceDate])
   @@index([organizationId, status])
+  @@index([organizationId, companyId], map: "supplier_invoices_company_idx")
   @@map("supplier_invoices")
 }
 
@@ -3826,6 +3829,7 @@ model PosOrder {
   @@unique([organizationId, number])
   @@index([organizationId, shiftId])
   @@index([organizationId, businessDate])
+  @@index([organizationId, companyId, businessDate], map: "pos_orders_company_idx")
   @@map("pos_orders")
 }
 
@@ -5144,6 +5148,8 @@ model Company {
   /// ISO 4217; the group's base currency until per-company books (F1b).
   currency       String    @db.Char(3)
   vatNumber      String?   @map("vat_number")
+  /// VAT registered in its country (ADR-084): its sales charge VAT at its country's rates.
+  vatRegistered  Boolean   @default(false) @map("vat_registered")
   crNumber       String?   @map("cr_number")
   /// The company new branches join when none is chosen (one per organization).
   isDefault      Boolean   @default(false) @map("is_default")

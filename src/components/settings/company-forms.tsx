@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ActionState } from "@/components/forms/action-state";
-import { ActionForm, TextField } from "@/components/forms/fields";
+import { ActionForm, CheckboxField, TextField } from "@/components/forms/fields";
 
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -12,11 +12,16 @@ export function CompanyForm({
   defaults = {},
   submitLabel,
   idempotent = false,
+  isDefault = false,
+  vatRegistered = false,
 }: {
   action: Action;
   defaults?: Record<string, string | null | undefined>;
   submitLabel: string;
   idempotent?: boolean;
+  /** The default company's VAT registration is set on the VAT settings page (ADR-084). */
+  isDefault?: boolean;
+  vatRegistered?: boolean;
 }) {
   const t = useTranslations("companies");
   const d = (k: string) => defaults[k] ?? "";
@@ -31,21 +36,38 @@ export function CompanyForm({
         <TextField name="code" label={t("code")} defaultValue={d("code")} dir="ltr" required />
         <TextField name="name" label={t("name")} defaultValue={d("name")} required />
         <TextField name="legalName" label={t("legalName")} defaultValue={d("legalName")} required />
-        <TextField
-          name="country"
-          label={t("country")}
-          hint={t("countryHint")}
-          defaultValue={d("country")}
-          dir="ltr"
-          optionalLabel={t("optional")}
-        />
-        <TextField
-          name="vatNumber"
-          label={t("vatNumber")}
-          defaultValue={d("vatNumber")}
-          dir="ltr"
-          optionalLabel={t("optional")}
-        />
+        {isDefault ? (
+          <p className="text-muted text-sm sm:col-span-2" data-testid="company-vat-managed">
+            {vatRegistered
+              ? t("vatManagedRegistered", { country: d("country"), number: d("vatNumber") })
+              : t("vatManagedNot")}
+          </p>
+        ) : (
+          <>
+            <TextField
+              name="country"
+              label={t("country")}
+              hint={t("countryHint")}
+              defaultValue={d("country")}
+              dir="ltr"
+              optionalLabel={t("optional")}
+            />
+            <TextField
+              name="vatNumber"
+              label={t("vatNumber")}
+              defaultValue={d("vatNumber")}
+              dir="ltr"
+              optionalLabel={t("optional")}
+            />
+            <div className="sm:col-span-2">
+              <CheckboxField
+                name="vatRegistered"
+                label={t("vatRegistered")}
+                defaultChecked={vatRegistered}
+              />
+            </div>
+          </>
+        )}
         <TextField
           name="crNumber"
           label={t("crNumber")}

@@ -643,7 +643,7 @@ export async function invoiceDelivery(ctx: TenantContext, deliveryId: string, ra
       if (!d) throw notFound("Delivery");
       if (d.status !== "POSTED")
         throw businessRuleViolation("DELIVERY_REVERSED", "The delivery was reversed");
-      const taxes = await loadTaxContextInTx(tx, ctx);
+      const taxes = await loadTaxContextInTx(tx, ctx, { companyId: d.order.companyId });
       const lines: Array<{
         organizationId: string;
         lineNo: number;

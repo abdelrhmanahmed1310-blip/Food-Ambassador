@@ -1930,6 +1930,33 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   with group consolidation through the exchange-rate tables — its design
   will be presented before building.
 
+### ADR-084 VAT per company — Accepted (F1b step 2a built)
+
+- **Codes stay shared, rates are per country.** `tax_rates.country` tags
+  each rate with the country whose companies use it; existing rates were
+  tagged with the organization's VAT country. A rate's uniqueness is now
+  (code, country, start date), so Saudi 15 % and Egyptian 14 % live under
+  the same `STD` code.
+- **Each company has its own VAT registration** (`companies.vat_registered`
+  with its country and VAT number; a database check requires both when
+  registered). A company can be registered only in a country with VAT in
+  force, with a number in that country's format, and once that country's
+  rates exist (apply its preset on the VAT settings page first).
+- **The default company's registration is the VAT settings page's**: saving
+  VAT settings updates it, and the companies page does not edit its VAT
+  fields. Applying a second country's preset adds that country's rates and
+  leaves the group's VAT country unchanged.
+- **Every VAT calculation uses the document's company**: POS orders and the
+  till's menu (branch → company), supplier invoice lines (billed company),
+  B2B invoices (sales order's company), sales imports (warehouse's branch).
+  Recipe food-cost pricing and supplier credit notes (no document
+  company yet) use the default company. A company that is not registered
+  charges no VAT. The POS receipt shows the selling company's VAT number.
+- New rates take a country (default: the group's VAT country), so a rate
+  change in one country never reaches another country's companies.
+- **Next (step 2b):** ZATCA seller settings and e-invoice numbering per
+  company. **Step 3:** per-company currency (design first).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

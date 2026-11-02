@@ -54,6 +54,8 @@ export default async function CompaniesPage({
             <CompanyForm
               action={updateCompanyAction.bind(null, orgSlug, c.id)}
               submitLabel={t("save")}
+              isDefault={c.isDefault}
+              vatRegistered={c.vatRegistered}
               defaults={{
                 code: c.code,
                 name: c.name,

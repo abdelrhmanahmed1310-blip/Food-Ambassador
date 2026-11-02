@@ -583,7 +583,8 @@
     "BRANCH_COMPANY_INVALID": "Choose an active company.",
     "BRANCH_BRAND_INVALID": "Choose an active brand.",
     "BRANCH_COMPANY_FIXED": "A branch stays with its company.",
-    "RECEIPT_OTHER_COMPANY": "The receipt belongs to another company than the invoice."
+    "RECEIPT_OTHER_COMPANY": "The receipt belongs to another company than the invoice.",
+    "NO_VAT_RATES_FOR_COUNTRY": "Apply this country's VAT preset on the VAT settings page first."
   },
   "notFound": {
     "title": "Page not found",
@@ -3929,7 +3930,7 @@
   "companies": {
     "title": "Companies",
     "intro": "The group's legal entities. Every branch belongs to one company; a branch stays with its company.",
-    "phaseNote": "Companies currently share the group's base currency ({currency}), VAT settings and e-invoicing. Per-company currency, VAT and ZATCA come in the next step.",
+    "phaseNote": "Each company has its own VAT registration and uses its country's VAT rates. Companies still share the group's base currency ({currency}) and e-invoicing settings; per-company ZATCA and currency come next.",
     "default": "Default",
     "branchCount": "{count, plural, one {# branch} other {# branches}}",
     "makeDefault": "Make default",
@@ -3955,6 +3956,9 @@
     "branches": "Branches",
     "addBrand": "Add brand",
     "brandAdded": "Brand added.",
-    "archiveBrandConfirm": "Archive this brand? Its branches keep working without a brand."
+    "archiveBrandConfirm": "Archive this brand? Its branches keep working without a brand.",
+    "vatRegistered": "Registered for VAT in its country",
+    "vatManagedRegistered": "VAT registered in {country}, number {number}. Change it on the VAT settings page.",
+    "vatManagedNot": "Not registered for VAT. The default company's VAT registration is set on the VAT settings page."
   }
 }

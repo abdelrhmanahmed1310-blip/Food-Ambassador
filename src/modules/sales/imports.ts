@@ -113,7 +113,7 @@ export async function importSales(
         ).map((l) => l.externalId),
       );
 
-      const tax = await loadTaxContextInTx(tx, ctx);
+      const tax = await loadTaxContextInTx(tx, ctx, { branchId: wh.branchId });
       const errors: SalesRowError[] = [];
       const seen = new Set<string>();
       let skipped = 0;

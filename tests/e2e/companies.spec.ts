@@ -15,6 +15,8 @@ test("companies and brands: a legal entity, a brand, and a branch under them (AD
   // Every organization starts with its default company.
   await page.goto(`/o/${slug}/settings/companies`);
   await expect(page.getByTestId("company-MAIN")).toContainText("Default");
+  // Its VAT registration is the one on the VAT settings page (ADR-084).
+  await expect(page.getByTestId("company-vat-managed")).toContainText("Not registered for VAT");
   const add = page
     .locator("form")
     .filter({ has: page.getByRole("button", { name: "Add company" }) });

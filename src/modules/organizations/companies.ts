@@ -2,6 +2,8 @@ import "server-only";
 import { z } from "zod";
 import { assertPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
+import { PRESETS, TAX_COUNTRIES, type TaxCountry } from "@/modules/tax/presets";
+import { vatNumberProblem } from "@/modules/tax/rules";
 import { optionalText, requiredText, uuidSchema } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
@@ -12,8 +14,9 @@ import { businessRuleViolation, notFound, validationFailed } from "@/server/erro
  * The enterprise layer (DECISIONS.md ADR-082): the organization is the group;
  * companies are its legal entities (registrations, country); brands group
  * branches commercially. Every branch belongs to one company and may carry a
- * brand. Until per-company books (F1b), a company uses the group's base
- * currency, and VAT/e-invoicing settings stay at the organization.
+ * brand. Each company has its own VAT registration and uses its country's
+ * rates (ADR-084); the default company's registration is the one on the VAT
+ * settings page. Currency is still the group's base currency.
  */
 
 const code = z
@@ -46,7 +49,53 @@ const companySchema = z.object({
   country,
   vatNumber: registration(20),
   crNumber: registration(20),
+  vatRegistered: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
 });
+type CompanyInput = z.infer<typeof companySchema>;
+
+/**
+ * A registered company needs a VAT country with rates set up and a valid
+ * number. The default company's VAT fields belong to the VAT settings page
+ * and are not changed here.
+ */
+async function vatFields(tx: Tx, ctx: TenantContext, input: CompanyInput, isDefault: boolean) {
+  const { country, vatRegistered, vatNumber: rawNumber, ...rest } = input;
+  if (isDefault) return rest;
+  const vatNumber = rawNumber ? rawNumber.replace(/[\s-]/g, "") : null;
+  if (vatRegistered) {
+    if (
+      !country ||
+      !(TAX_COUNTRIES as readonly string[]).includes(country) ||
+      !PRESETS[country as TaxCountry].vatInForce
+    )
+      throw businessRuleViolation("NO_VAT_IN_COUNTRY", "There is no VAT in force in this country", {
+        field: "country",
+      });
+    if (!vatNumber)
+      throw businessRuleViolation("VAT_NUMBER_REQUIRED", "Enter the VAT registration number", {
+        field: "vatNumber",
+      });
+    if (vatNumberProblem(country as TaxCountry, vatNumber))
+      throw businessRuleViolation(
+        "INVALID_VAT_NUMBER",
+        "The VAT number does not have the expected format",
+        { field: "vatNumber" },
+      );
+    const rates = await tx.taxRate.count({
+      where: { organizationId: ctx.organizationId, country },
+    });
+    if (rates === 0)
+      throw businessRuleViolation(
+        "NO_VAT_RATES_FOR_COUNTRY",
+        "Apply this country's VAT preset on the VAT settings page first",
+        { field: "vatRegistered" },
+      );
+  }
+  return { ...rest, country, vatNumber, vatRegistered };
+}
 
 const brandSchema = z.object({ code, name: requiredText(120), nameAr: optionalText(120) });
 
@@ -98,8 +147,9 @@ export async function createCompany(ctx: TenantContext, rawInput: unknown) {
   if (!parsed.success) throw validationFailed(parsed.error);
   try {
     return await withTenantTx(ctx.organizationId, async (tx) => {
+      const data = await vatFields(tx, ctx, parsed.data, false);
       const c = await tx.company.create({
-        data: { organizationId: ctx.organizationId, ...parsed.data, currency: ctx.baseCurrency },
+        data: { organizationId: ctx.organizationId, ...data, currency: ctx.baseCurrency },
       });
       await recordAudit(tx, actorOf(ctx), {
         action: "company.created",
@@ -121,7 +171,8 @@ export async function updateCompany(ctx: TenantContext, id: string, rawInput: un
   try {
     return await withTenantTx(ctx.organizationId, async (tx) => {
       const c = await loadCompany(tx, ctx, id);
-      await tx.company.update({ where: { id: c.id }, data: parsed.data });
+      const data = await vatFields(tx, ctx, parsed.data, c.isDefault);
+      await tx.company.update({ where: { id: c.id }, data });
       await recordAudit(tx, actorOf(ctx), {
         action: "company.updated",
         entityType: "company",

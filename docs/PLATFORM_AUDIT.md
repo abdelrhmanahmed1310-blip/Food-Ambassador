@@ -2,8 +2,9 @@
 
 > Progress: D1 decided (companies = legal entities). **F1a built** (ADR-082):
 > companies, brands, branch → company/brand. **F1b step 1 built** (ADR-083):
-> company on money documents, dashboard by company. Next: F1b step 2 (VAT
-> and ZATCA per company), step 3 (currency per company), then F2.
+> company on money documents, dashboard by company. **F1b step 2a built**
+> (ADR-084): VAT registration and rates per company. Next: step 2b (ZATCA
+> per company), step 3 (currency per company), then F2.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

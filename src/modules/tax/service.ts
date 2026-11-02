@@ -70,6 +70,11 @@ const taxCodeSchema = z.object({
 });
 
 const rateSchema = z.object({
+  // The country whose companies use the rate; the group's VAT country when not given (ADR-084).
+  country: z
+    .enum(TAX_COUNTRIES, { error: "invalidOption" })
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   ratePercent: percentField,
   effectiveFrom: dateField,
   source: optionalText(200),
@@ -147,15 +152,17 @@ export async function applyCountryPreset(ctx: TenantContext, country: string) {
         for (const r of rates)
           await tx.taxRate.upsert({
             where: {
-              organizationId_taxCodeId_effectiveFrom: {
+              organizationId_taxCodeId_country_effectiveFrom: {
                 organizationId: ctx.organizationId,
                 taxCodeId: code.id,
+                country: preset.country,
                 effectiveFrom: new Date(`${r.effectiveFrom}T00:00:00Z`),
               },
             },
             create: {
               organizationId: ctx.organizationId,
               taxCodeId: code.id,
+              country: preset.country,
               rate: r.rate,
               effectiveFrom: new Date(`${r.effectiveFrom}T00:00:00Z`),
               source: preset.source,
@@ -165,6 +172,12 @@ export async function applyCountryPreset(ctx: TenantContext, country: string) {
           });
         if (def.category === "STANDARD") standardId = code.id;
       }
+    }
+    // A second country's preset adds its rates for that country's companies (ADR-084);
+    // the group's own VAT country stays as it is.
+    if (existing?.country && existing.country !== preset.country) {
+      await audit(tx, ctx, "preset_applied", { country: preset.country, source: preset.source });
+      return { vatInForce: preset.vatInForce };
     }
     await tx.taxSettings.upsert({
       where: { organizationId: ctx.organizationId },
@@ -238,6 +251,15 @@ export async function updateTaxSettings(ctx: TenantContext, rawInput: unknown) {
       create: { organizationId: ctx.organizationId, ...data },
       update: data,
     });
+    // The default company follows the group's VAT registration (ADR-084).
+    await tx.company.updateMany({
+      where: { organizationId: ctx.organizationId, isDefault: true },
+      data: {
+        country: data.country,
+        vatRegistered: data.vatRegistered,
+        vatNumber: data.vatNumber,
+      },
+    });
     await audit(tx, ctx, "settings_updated", data);
   });
 }
@@ -253,10 +275,15 @@ export async function createTaxCode(ctx: TenantContext, rawInput: unknown) {
         data: { organizationId: ctx.organizationId, ...code },
         select: { id: true },
       });
+      const settings = await tx.taxSettings.findUnique({
+        where: { organizationId: ctx.organizationId },
+        select: { country: true },
+      });
       await tx.taxRate.create({
         data: {
           organizationId: ctx.organizationId,
           taxCodeId: created.id,
+          country: settings?.country ?? null,
           rate: fraction(ratePercent),
           effectiveFrom: new Date(`${effectiveFrom}T00:00:00Z`),
           createdByUserId: ctx.userId,
@@ -291,10 +318,20 @@ export async function addTaxRate(ctx: TenantContext, taxCodeId: string, rawInput
             field: "ratePercent",
           },
         );
+      const country =
+        parsed.data.country ??
+        (
+          await tx.taxSettings.findUnique({
+            where: { organizationId: ctx.organizationId },
+            select: { country: true },
+          })
+        )?.country ??
+        null;
       await tx.taxRate.create({
         data: {
           organizationId: ctx.organizationId,
           taxCodeId: code.id,
+          country,
           rate: fraction(parsed.data.ratePercent),
           effectiveFrom: new Date(`${parsed.data.effectiveFrom}T00:00:00Z`),
           source: parsed.data.source,
@@ -304,7 +341,7 @@ export async function addTaxRate(ctx: TenantContext, taxCodeId: string, rawInput
       await audit(tx, ctx, "rate_added", { code: code.code, ...parsed.data });
     });
   } catch (error) {
-    if (isUniqueViolation(error, "tax_rates_organization_id_tax_code_id_effective_from_key"))
+    if (isUniqueViolation(error, "tax_rates_organization_id_tax_code_id_country_effective_fro_key"))
       throw conflict("A rate already starts on this date", {
         reason: "duplicate",
         field: "effectiveFrom",
@@ -313,21 +350,58 @@ export async function addTaxRate(ctx: TenantContext, taxCodeId: string, rawInput
   }
 }
 
-/** Organization tax context for other modules: which code and rate apply to a sale. */
-export async function loadTaxContextInTx(tx: Tx, ctx: TenantContext) {
+/**
+ * VAT for a document of one company (ADR-084): its country's rates and its
+ * registration. The company comes from `at` (company, branch or warehouse);
+ * without it, the default company. Codes are shared by the group.
+ */
+export async function loadTaxContextInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  at: { companyId?: string | null; branchId?: string | null; warehouseId?: string | null } = {},
+) {
   const settings = await tx.taxSettings.findUnique({
     where: { organizationId: ctx.organizationId },
   });
+  const companyId =
+    at.companyId ??
+    (at.branchId
+      ? (
+          await tx.branch.findFirst({
+            where: { organizationId: ctx.organizationId, id: at.branchId },
+            select: { companyId: true },
+          })
+        )?.companyId
+      : at.warehouseId
+        ? (
+            await tx.warehouse.findFirst({
+              where: { organizationId: ctx.organizationId, id: at.warehouseId },
+              select: { branch: { select: { companyId: true } } },
+            })
+          )?.branch.companyId
+        : undefined);
+  const company = await tx.company.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      ...(companyId ? { id: companyId } : { isDefault: true }),
+    },
+    select: { country: true, vatRegistered: true },
+  });
+  const country = company?.country ?? settings?.country ?? null;
+  const registered = company ? company.vatRegistered : (settings?.vatRegistered ?? false);
   const codes = await tx.taxCode.findMany({
     where: { organizationId: ctx.organizationId },
     include: { rates: true },
   });
+  // A rate counts for this company when it is its country's, or untagged (set before any VAT country).
+  const ratesOf = (code: (typeof codes)[number]) =>
+    code.rates.filter((r) => r.country === null || r.country === country);
   const byId = new Map(codes.map((c) => [c.id, c]));
   const byCode = new Map(codes.map((c) => [c.code, c]));
-  const active = Boolean(settings?.vatRegistered && settings.defaultSalesTaxCodeId);
+  const active = Boolean(registered && settings?.defaultSalesTaxCodeId);
   const rateFor = (code: (typeof codes)[number], date: string) => {
     const rate = rateOn(
-      code.rates.map((r) => ({
+      ratesOf(code).map((r) => ({
         rate: dec(r.rate),
         effectiveFrom: r.effectiveFrom.toISOString().slice(0, 10),
       })),
@@ -339,7 +413,8 @@ export async function loadTaxContextInTx(tx: Tx, ctx: TenantContext) {
   };
   return {
     active,
-    registered: settings?.vatRegistered ?? false,
+    registered,
+    country,
     pricesIncludeTax: settings?.pricesIncludeTax ?? false,
     byCode,
     /**

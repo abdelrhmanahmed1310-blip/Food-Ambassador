@@ -682,7 +682,7 @@ export async function priceLinesInTx(
       await loadMenuItems(tx, ctx, [...new Set(a.lines.map((l) => l.itemId))], a.branchId, a.asOf)
     ).map((i) => [i.id, i]),
   );
-  const taxes = await loadTaxContextInTx(tx, ctx);
+  const taxes = await loadTaxContextInTx(tx, ctx, { branchId: a.branchId });
   const lines: Array<{
     lineNo: number;
     menuItemId: string;
@@ -1457,7 +1457,14 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
         where: { id: ctx.organizationId },
         select: { name: true },
       }),
-      tx.taxSettings.findUnique({ where: { organizationId: ctx.organizationId } }),
+      // The receipt shows the VAT number of the company that sold (ADR-084).
+      tx.company.findFirst({
+        where: {
+          organizationId: ctx.organizationId,
+          ...(o.companyId ? { id: o.companyId } : { isDefault: true }),
+        },
+        select: { vatRegistered: true, vatNumber: true },
+      }),
       tx.branch.findFirstOrThrow({
         where: { organizationId: ctx.organizationId, id: o.branchId },
         select: { code: true, name: true, timeZone: true },
@@ -1593,7 +1600,7 @@ export async function sellableMenu(ctx: TenantContext, branchId: string, date: s
   );
   const ids = [...new Set(menus.flat().map((i) => i.id))];
   const rates = await withTenantTx(ctx.organizationId, async (tx) => {
-    const taxes = await loadTaxContextInTx(tx, ctx);
+    const taxes = await loadTaxContextInTx(tx, ctx, { branchId });
     const rows = await tx.menuItem.findMany({
       where: { organizationId: ctx.organizationId, id: { in: ids } },
       select: { id: true, taxCodeId: true, recipe: { select: { taxCodeId: true } } },

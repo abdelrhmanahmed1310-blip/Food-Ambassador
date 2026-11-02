@@ -1174,6 +1174,17 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### VAT per company (F1b step 2a, ADR-084)
+
+Migration `20261211090000_f1b2_vat_per_company`.
+
+- **tax_rates** gains `country` (char 2, optional; existing rates tagged
+  with the organization's VAT country). Unique key is now
+  (organization, tax code, country, effective from).
+- **companies** gains `vat_registered` (default false; the default company
+  backfilled from tax settings). Check `companies_vat_ck`: registered needs
+  a VAT number and a country.
+
 ### Company on documents (F1b step 1, ADR-083)
 
 Migration `20261210090000_f1b_company_on_documents`.

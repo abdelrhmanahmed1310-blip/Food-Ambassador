@@ -187,8 +187,10 @@ async function taxFor(
   field: string,
   /** The invoice's currency: VAT is rounded to its unit (ADR-050). */
   currency: string,
+  /** The company billed: its country's rates apply (ADR-084). */
+  companyId: string | null,
 ) {
-  const taxCtx = await loadTaxContextInTx(tx, ctx);
+  const taxCtx = await loadTaxContextInTx(tx, ctx, { companyId });
   const resolved = taxCtx.resolvePurchase(codeId, date);
   if (resolved && !resolved.ok)
     throw businessRuleViolation(
@@ -394,6 +396,7 @@ export async function addGoodsLine(ctx: TenantContext, invoiceId: string, rawInp
       net,
       "taxCodeId",
       inv.currency,
+      inv.companyId,
     );
     await tx.supplierInvoiceLine.create({
       data: {
@@ -443,6 +446,7 @@ export async function addChargeLine(ctx: TenantContext, invoiceId: string, rawIn
       net,
       "taxCodeId",
       inv.currency,
+      inv.companyId,
     );
     await tx.supplierInvoiceLine.create({
       data: {
