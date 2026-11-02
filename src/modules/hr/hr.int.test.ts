@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { businessDate } from "@/modules/inventory/rules";
 import { createBranch } from "@/modules/sites/branches";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
@@ -124,7 +125,8 @@ describe("HRIS (ADR-079)", () => {
       expiresOn: "2000-01-01",
     }).catch((e) => e);
     expect(doc.code).toBe("VALIDATION_FAILED"); // expiry before issue
-    const today = new Date().toISOString().slice(0, 10);
+    // The organization's business date (Riyadh), as the service uses — not UTC.
+    const today = businessDate(ctx.timeZone);
     await addEmployeeDocument(ctx, cook, {
       type: "HEALTH_CERTIFICATE",
       number: "HC-555",
