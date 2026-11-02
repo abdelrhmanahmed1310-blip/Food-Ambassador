@@ -293,7 +293,12 @@ async function main() {
     ],
     members: [{ name: "Demo Admin (Gulf)", email: "admin@gulf.demo.test", role: "admin" }],
   });
-  console.log(`Demo users share the password: ${PASSWORD} (override with SEED_PASSWORD).`);
+  // A password set through SEED_PASSWORD (a hosted demo) is never written to the logs.
+  console.log(
+    process.env.SEED_PASSWORD
+      ? "Demo users share the password set in SEED_PASSWORD."
+      : `Demo users share the password: ${PASSWORD} (override with SEED_PASSWORD).`,
+  );
 }
 
 main()

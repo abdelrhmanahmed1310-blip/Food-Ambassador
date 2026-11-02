@@ -28,9 +28,10 @@ Last updated: 2026-11-02 (two-step sign-in, strict CSP, check-screen customers, 
 | Check screen            | Customer, loyalty points and gift cards (with split payments) when paying a table's check                                                                                                                           | check screen                               |
 | Report discounts        | Food cost report shows discounts given per branch; CSV column `discounts_given`                                                                                                                                     | `/reports`                                 |
 | Delivery payouts        | Import a platform settlement statement (canonical CSV); lines matched with received orders; unpaid accepted orders of the period; commission rate; bank difference; confirming fixes it and settles each order once | `/pos/delivery/payouts` (ADR-075)          |
+| Hosted demo             | `render.yaml` Blueprint for Render (Frankfurt): app + PostgreSQL, migrations and [DEMO] seed before each deploy; rehearsed on an empty PostgreSQL 16 with a non-superuser owner, not yet run on Render              | `render.yaml` (ADR-076)                    |
 | Pick-up slot capacity   | Optional orders-per-slot limit; full slots hidden and refused                                                                                                                                                       | `/pos/online/setup`                        |
 
-Rules: DECISIONS.md ADR-073, ADR-074, ADR-075 (and ADR-068, ADR-067, ADR-071).
+Rules: DECISIONS.md ADR-073 – ADR-076 (and ADR-068, ADR-067, ADR-071).
 
 Checks: `pnpm check` pass (unit 50 files / 265 tests; new: CSP nonce and directives, payout statement parsing, merging, matching and totals); `pnpm test:integration` 51 files / 336 tests pass (new: payouts — matching, unpaid orders by local day, duplicate statements, settle-once on confirm, fixed confirmed rows, finance-only, cross-tenant); `pnpm test:e2e` 56 passed (new: two-step sign-in journey, strict CSP with an injected handler refused, payout import and confirm in the delivery journey).
 

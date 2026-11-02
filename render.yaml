@@ -1,0 +1,45 @@
+# Render Blueprint for a DEMO instance (ADR-076). Not for production: production
+# hosting and data residency are still open (DECISIONS.md Q-03).
+#
+# In Render: New → Blueprint → connect this repository → Apply. Render creates
+# the database and the web service, generates AUTH_SECRET and SEED_PASSWORD,
+# runs the migrations and the [DEMO] seed before each deploy, then starts the app.
+# The demo users' password is SEED_PASSWORD in the service's Environment tab.
+
+databases:
+  - name: food-ambassador-demo-db
+    databaseName: food_ambassador
+    user: food_ambassador
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"
+    # Reachable only from Render services, not from the internet.
+    ipAllowList: []
+
+services:
+  - type: web
+    name: food-ambassador-demo
+    runtime: node
+    plan: starter # pre-deploy commands need a paid instance
+    region: frankfurt
+    branch: milestone-0-foundation
+    autoDeploy: true
+    buildCommand: npx --yes pnpm@10.28.0 install --frozen-lockfile --prod=false && npx --yes pnpm@10.28.0 build
+    # Migrations, then the idempotent [DEMO] seed (it refuses NODE_ENV=production).
+    preDeployCommand: npm run db:deploy && npm run db:seed
+    # APP_URL defaults to the address Render gives the service.
+    startCommand: APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}" npx next start -p "$PORT"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: food-ambassador-demo-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: SEED_PASSWORD
+        generateValue: true
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"

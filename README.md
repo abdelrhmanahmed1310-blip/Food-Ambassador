@@ -179,6 +179,14 @@ docker run -p 3000:3000 \
   food-ambassador
 ```
 
+**Hosted demo (Render, ADR-076).** `render.yaml` describes a demo instance:
+in Render choose New → Blueprint, connect this repository and apply. Render
+creates the database and the web service, generates `AUTH_SECRET` and
+`SEED_PASSWORD`, runs the migrations and the `[DEMO]` seed before each
+deploy, and serves the app at its `onrender.com` address. Sign in with a demo
+account above, using the `SEED_PASSWORD` value from the service's
+Environment tab. Demo only: keep real customer data off it.
+
 Before starting a new version, run `pnpm db:deploy` from a checkout of the same
 commit against the target database (the runtime image does not contain the
 Prisma CLI). Serve over HTTPS so session cookies are marked `Secure`
