@@ -14,8 +14,11 @@ import {
   invoiceDelivery,
   removeSalesOrderLine,
   reverseDelivery,
+  updateCustomerEInvoiceDetails,
 } from "@/modules/b2b/service";
+import { clearSalesInvoice } from "@/modules/zatca/service";
 import { formValues } from "@/server/actions/handle";
+import { logger } from "@/server/logger";
 import { tenantMutation } from "@/server/actions/tenant";
 
 type S = ActionState;
@@ -118,6 +121,10 @@ export async function invoiceDeliveryAction(
   let id = "";
   const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
     id = (await invoiceDelivery(ctx, deliveryId, formValues(formData))).id;
+    // Clear with ZATCA now; if ZATCA does not answer, the scheduled job retries (ADR-072).
+    await clearSalesInvoice(ctx, id).catch((e) =>
+      logger.warn("zatca clearance deferred", { invoice: id, error: (e as Error).message }),
+    );
   });
   if (state.ok) redirect(`/o/${orgSlug}/b2b/invoices/${id}`);
   return state;
@@ -129,9 +136,24 @@ export async function cancelSalesInvoiceAction(
   previous: S,
   formData: FormData,
 ) {
-  return tenantMutation(orgSlug, previous, formData, (ctx) =>
-    cancelSalesInvoice(ctx, invoiceId, formValues(formData)),
-  );
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await cancelSalesInvoice(ctx, invoiceId, formValues(formData));
+    await clearSalesInvoice(ctx, invoiceId).catch((e) =>
+      logger.warn("zatca clearance deferred", { invoice: invoiceId, error: (e as Error).message }),
+    );
+  });
+}
+
+/** "Clear now" for an invoice ZATCA has not cleared yet. */
+export async function clearSalesInvoiceAction(
+  orgSlug: string,
+  invoiceId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await clearSalesInvoice(ctx, invoiceId);
+  });
 }
 
 export async function recordCustomerReceiptAction(
@@ -153,5 +175,16 @@ export async function voidCustomerReceiptAction(
 ) {
   return tenantMutation(orgSlug, previous, formData, (ctx) =>
     voidCustomerReceipt(ctx, receiptId, formValues(formData)),
+  );
+}
+
+export async function updateEInvoiceDetailsAction(
+  orgSlug: string,
+  customerId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    updateCustomerEInvoiceDetails(ctx, customerId, formValues(formData)),
   );
 }

@@ -507,7 +507,9 @@
     "PICKUP_CLOSED_NOW": "We are closed right now; choose a pick-up time.",
     "GUEST_ORDER_NOT_PAID": "This order is not paid yet.",
     "GUEST_ORDER_PAID": "This order is paid online: void its POS order and refund the payment instead.",
-    "GUEST_ORDER_NOT_ACCEPTED": "Accept the order first."
+    "GUEST_ORDER_NOT_ACCEPTED": "Accept the order first.",
+    "ZATCA_BUYER_INCOMPLETE": "The customer's e-invoice details are incomplete ({fields}); complete them on the customer's page.",
+    "ZATCA_INVOICE_DATE_TODAY": "E-invoices are dated the day they are issued: use today's date."
   },
   "notFound": {
     "title": "Page not found",
@@ -2403,7 +2405,19 @@
     "balancesHint": "What each B2B customer owes, with open invoices aged by due date.",
     "outputVat": "Output VAT (B2B invoices)",
     "exportTitle": "Accounting export",
-    "exportHint": "B2B invoices and receipts of the period with currency, rate and base amounts, and a balanced journal in base currency (exchange differences and revaluations included)."
+    "exportHint": "B2B invoices and receipts of the period with currency, rate and base amounts, and a balanced journal in base currency (exchange differences and revaluations included).",
+    "eInvoiceDetails": "E-invoice details",
+    "eInvoiceHint": "Needed on standard e-invoices in Saudi Arabia: the VAT number (or CR number) and the full national address.",
+    "vatNumberHint": "15 digits, starting and ending with 3.",
+    "crNumber": "CR number",
+    "country": "Country",
+    "countryHint": "Two letters, e.g. SA.",
+    "street": "Street",
+    "buildingNumber": "Building number",
+    "buildingNumberHint": "4 digits.",
+    "district": "District",
+    "city": "City",
+    "postalCode": "Postal code"
   },
   "integrations": {
     "title": "Integrations",
@@ -3069,7 +3083,9 @@
       "PENDING": "To report",
       "REPORTED": "Reported",
       "REPORTED_WITH_WARNINGS": "Reported with warnings",
-      "REJECTED": "Rejected"
+      "REJECTED": "Rejected",
+      "CLEARED": "Cleared",
+      "CLEARED_WITH_WARNINGS": "Cleared with warnings"
     },
     "types": {
       "INVOICE": "Simplified invoice",
@@ -3077,7 +3093,14 @@
       "DEBIT_NOTE": "Debit note"
     },
     "attempts": "({count} attempts)",
-    "reportResult": "Reported {reported}, rejected {rejected}, to retry {retrying}."
+    "reportResult": "Reported {reported}, rejected {rejected}, to retry {retrying}.",
+    "officeUnit": "Back-office unit (B2B standard invoices)",
+    "officeUnitIntro": "Sales invoices to businesses are standard tax invoices: ZATCA clears each one before it is given to the buyer. Onboard this unit with an OTP from the Fatoora portal (as for registers).",
+    "eInvoice": "E-invoice",
+    "creditNote": "Credit note",
+    "rejectedInvoice": "ZATCA rejected this invoice: it is not a valid tax invoice. Cancel it and issue a corrected one.",
+    "notClearedYet": "Not yet cleared by ZATCA: do not give this invoice to the buyer yet.",
+    "clearNow": "Clear now"
   },
   "settlements": {
     "title": "Card settlements",

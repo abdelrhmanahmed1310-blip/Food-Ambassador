@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { CustomerReceiptForm } from "@/components/b2b/forms";
+import { CustomerReceiptForm, EInvoiceDetailsForm } from "@/components/b2b/forms";
 import { TextReasonForm } from "@/components/invoices/forms";
 import {
   Badge,
@@ -22,7 +22,11 @@ import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import { moneyIn } from "@/server/fx-view";
-import { recordCustomerReceiptAction, voidCustomerReceiptAction } from "../../actions";
+import {
+  recordCustomerReceiptAction,
+  updateEInvoiceDetailsAction,
+  voidCustomerReceiptAction,
+} from "../../actions";
 
 export default async function CustomerPage({
   params,
@@ -67,6 +71,23 @@ export default async function CustomerPage({
             ]}
           />
         </Card>
+        {manage ? (
+          <Card title={t("b2b.eInvoiceDetails")}>
+            <EInvoiceDetailsForm
+              action={updateEInvoiceDetailsAction.bind(null, orgSlug, c.id)}
+              values={{
+                taxId: c.taxId,
+                crNumber: c.crNumber,
+                street: c.street,
+                buildingNumber: c.buildingNumber,
+                district: c.district,
+                city: c.city,
+                postalCode: c.postalCode,
+                countryCode: c.countryCode,
+              }}
+            />
+          </Card>
+        ) : null}
         <Card title={t("payables.openInvoices")}>
           {a.open.length === 0 ? (
             <EmptyState title={t("payables.noOpenInvoices")} />

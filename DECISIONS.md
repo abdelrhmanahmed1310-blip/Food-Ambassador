@@ -1631,6 +1631,41 @@ shipment_id`, CK: not both). The buyer (`purchasing.manage` for the
   returns or the staff list refreshes), refunds through Moyasar, slot
   capacity limits, SMS/WhatsApp notices.
 
+### ADR-072 ZATCA standard (B2B) tax invoices with clearance — Accepted (POS4b; ZATCA validation pending)
+
+- Sales invoices to businesses (B2B, ADR-044) are **standard tax
+  invoices** in Saudi Arabia: each is sent to ZATCA for **clearance**, and
+  ZATCA's cleared, stamped document — with its QR — is the legal invoice
+  given to the buyer. Simplified invoices (B2C, POS) stay reported
+  (ADR-064).
+- A **back-office e-invoicing unit** (one per organization, not tied to a
+  register) issues them: its CSR declares standard invoices ("1000"), and
+  onboarding signs three standard samples (invoice, credit note, debit
+  note) with a clearly labelled sample buyer. Its counter and hash chain
+  are separate from the registers'.
+- E-invoicing starts when that unit is onboarded; invoices before stay as
+  they were.
+- **Buyer details** on the B2B customer: VAT number (or CR number when not
+  VAT registered) and, for Saudi buyers, the national address (street,
+  4-digit building number, district, city, 5-digit postal code). An
+  invoice to a buyer with incomplete details is **refused** (nothing is
+  invoiced), since ZATCA would reject it.
+- The XML adds the buyer party, the supply date (the delivery), the
+  standard type (0100000), and VAT in SAR: invoices in another currency
+  carry the VAT total in SAR as well (BR-KSA-68), from the invoice's
+  exchange rate (ADR-054).
+- **The invoice date is the day of issue** while e-invoicing (ZATCA's issue
+  date is the moment of issue); backdated invoices are refused.
+- Clearance runs right after invoicing; if ZATCA does not answer, the
+  scheduled job retries with back-off ("Clear now" retries at once). A
+  rejected invoice keeps ZATCA's messages and must be cancelled and
+  reissued; the page says when an invoice is not cleared yet.
+- A **cancelled** e-invoiced invoice is corrected by a standard credit note
+  (cleared the same way); invoices are never deleted.
+- Not yet: debit notes and partial credit notes for B2B (price corrections),
+  and clearance switched off by ZATCA (HTTP 303 "reporting only") — handled
+  as a retry today.
+
 ---
 
 ## Business assumptions (recorded, not invented rules)

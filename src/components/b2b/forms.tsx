@@ -279,3 +279,86 @@ export function CustomerReceiptForm({
     </ActionForm>
   );
 }
+
+/** The buyer's VAT number and address for e-invoices in Saudi Arabia (ADR-072). */
+export function EInvoiceDetailsForm({
+  action,
+  values,
+}: {
+  action: (state: ActionState, formData: FormData) => Promise<ActionState>;
+  values: {
+    taxId: string | null;
+    crNumber: string | null;
+    street: string | null;
+    buildingNumber: string | null;
+    district: string | null;
+    city: string | null;
+    postalCode: string | null;
+    countryCode: string;
+  };
+}) {
+  const t = useTranslations();
+  const optional = t("common.optional");
+  return (
+    <ActionForm action={action} submitLabel={t("common.save")} pendingLabel={t("common.saving")}>
+      <p className="text-muted text-sm">{t("b2b.eInvoiceHint")}</p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField
+          name="taxId"
+          label={t("b2b.vatNumber")}
+          hint={t("b2b.vatNumberHint")}
+          defaultValue={values.taxId ?? ""}
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField
+          name="crNumber"
+          label={t("b2b.crNumber")}
+          defaultValue={values.crNumber ?? ""}
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField
+          name="countryCode"
+          label={t("b2b.country")}
+          hint={t("b2b.countryHint")}
+          defaultValue={values.countryCode}
+          dir="ltr"
+        />
+        <TextField
+          name="street"
+          label={t("b2b.street")}
+          defaultValue={values.street ?? ""}
+          optionalLabel={optional}
+        />
+        <TextField
+          name="buildingNumber"
+          label={t("b2b.buildingNumber")}
+          hint={t("b2b.buildingNumberHint")}
+          defaultValue={values.buildingNumber ?? ""}
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField
+          name="district"
+          label={t("b2b.district")}
+          defaultValue={values.district ?? ""}
+          optionalLabel={optional}
+        />
+        <TextField
+          name="city"
+          label={t("b2b.city")}
+          defaultValue={values.city ?? ""}
+          optionalLabel={optional}
+        />
+        <TextField
+          name="postalCode"
+          label={t("b2b.postalCode")}
+          defaultValue={values.postalCode ?? ""}
+          dir="ltr"
+          optionalLabel={optional}
+        />
+      </div>
+    </ActionForm>
+  );
+}

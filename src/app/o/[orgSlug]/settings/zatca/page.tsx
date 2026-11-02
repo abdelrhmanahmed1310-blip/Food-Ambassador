@@ -10,6 +10,7 @@ import { requireTenant } from "@/modules/tenancy/require-tenant";
 import {
   onboardDeviceAction,
   prepareDeviceAction,
+  prepareOfficeUnitAction,
   reportNowAction,
   updateZatcaSettingsAction,
 } from "./actions";
@@ -22,6 +23,8 @@ const tone = {
   PENDING: "warning",
   REPORTED: "success",
   REPORTED_WITH_WARNINGS: "warning",
+  CLEARED: "success",
+  CLEARED_WITH_WARNINGS: "warning",
   REJECTED: "danger",
 } as const;
 
@@ -109,6 +112,37 @@ export default async function ZatcaPage({ params }: PageProps<"/o/[orgSlug]/sett
               })}
             </ul>
           )}
+        </Card>
+        <Card title={t("zatca.officeUnit")}>
+          <p className="text-muted mb-3 text-sm">{t("zatca.officeUnitIntro")}</p>
+          <div className="space-y-2" data-testid="unit-OFFICE">
+            <div className="flex flex-wrap items-center gap-2">
+              {setup.office ? (
+                <Badge tone={tone[setup.office.status]}>
+                  {t(`zatca.deviceStatuses.${setup.office.status}`)}
+                </Badge>
+              ) : (
+                <Badge tone="muted">{t("zatca.noUnit")}</Badge>
+              )}
+              {setup.office?.status === "ACTIVE" ? (
+                <span className="text-muted text-xs">
+                  {t("zatca.documentsIssued", { count: setup.office.icv })} ·{" "}
+                  {t(`zatca.environments.${setup.office.environment}`)}
+                </span>
+              ) : null}
+            </div>
+            {ready && s && (!setup.office || setup.office.status === "NEW") ? (
+              <ConfirmActionButton
+                action={prepareOfficeUnitAction.bind(null, orgSlug)}
+                label={setup.office ? t("zatca.remakeKey") : t("zatca.prepare")}
+                variant="secondary"
+              />
+            ) : null}
+            {setup.office &&
+            (setup.office.status === "NEW" || setup.office.status === "COMPLIANCE") ? (
+              <OtpForm action={onboardDeviceAction.bind(null, orgSlug, setup.office.id)} />
+            ) : null}
+          </div>
         </Card>
         <Card title={t("zatca.documents")}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">

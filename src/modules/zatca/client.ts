@@ -155,3 +155,55 @@ export async function reportDocument(
     throw error;
   }
 }
+
+export type ClearOutcome = "CLEARED" | "CLEARED_WITH_WARNINGS" | "REJECTED" | "RETRY";
+
+/** What a clearance answer means (pure): 200 cleared, 202 cleared with warnings, 400 rejected. */
+export function clearOutcome(status: number | null, clearedInvoice: string | null): ClearOutcome {
+  if ((status === 200 || status === 202) && clearedInvoice)
+    return status === 200 ? "CLEARED" : "CLEARED_WITH_WARNINGS";
+  if (status === 400) return "REJECTED";
+  return "RETRY"; // no answer, 401/403, 429, 5xx, or no cleared document: try again later
+}
+
+/**
+ * Clear a standard (B2B) document (ADR-072): ZATCA validates it, stamps it
+ * and returns the cleared document — the legal invoice given to the buyer.
+ */
+export async function clearDocument(
+  fetchImpl: Fetch,
+  env: ZatcaEnv,
+  csid: { token: string; secret: string },
+  doc: SubmitBody,
+) {
+  try {
+    const r = await call(fetchImpl, env, "/invoices/clearance/single", {
+      headers: { Authorization: basic(csid), "Clearance-Status": "1" },
+      body: doc,
+    });
+    const cleared = (r.body as { clearedInvoice?: unknown } | null)?.clearedInvoice;
+    const clearedInvoice =
+      typeof cleared === "string" && cleared.length > 0
+        ? Buffer.from(cleared, "base64").toString("utf8")
+        : null;
+    return {
+      outcome: clearOutcome(r.status, clearedInvoice),
+      status: r.status,
+      body: r.body,
+      clearedInvoice,
+    };
+  } catch (error) {
+    if (error instanceof ZatcaHttpError)
+      return { outcome: "RETRY" as const, status: null, body: null, clearedInvoice: null };
+    throw error;
+  }
+}
+
+/** The QR of a cleared document (its "QR" additional document reference), or null. */
+export function qrOf(xml: string): string | null {
+  const m =
+    /<cbc:ID>QR<\/cbc:ID>\s*<cac:Attachment>\s*<cbc:EmbeddedDocumentBinaryObject[^>]*>([^<]+)<\/cbc:EmbeddedDocumentBinaryObject>/.exec(
+      xml,
+    );
+  return m ? m[1].trim() : null;
+}

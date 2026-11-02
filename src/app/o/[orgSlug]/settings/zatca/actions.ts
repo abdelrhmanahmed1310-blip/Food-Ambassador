@@ -5,6 +5,7 @@ import type { ActionState } from "@/components/forms/action-state";
 import {
   onboardDevice,
   prepareDevice,
+  prepareOfficeUnit,
   reportNow,
   updateZatcaSettings,
 } from "@/modules/zatca/service";
@@ -55,5 +56,12 @@ export async function reportNowAction(orgSlug: string, previous: S, formData: Fo
         retrying: count("PENDING"),
       }),
     };
+  });
+}
+
+/** The back office's unit for standard (B2B) invoices (ADR-072). */
+export async function prepareOfficeUnitAction(orgSlug: string, previous: S, formData: FormData) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await prepareOfficeUnit(ctx);
   });
 }

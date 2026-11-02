@@ -1165,3 +1165,17 @@ Migration `20261201090000_pos5e_guest_fulfilment`.
 - **pos_tabs** gains `pay_online`, `pickup_at`, `accepted_at`, `ready_at`,
   `picked_up_at` (staff checks have none; ready and handed over need
   accepted).
+
+### ZATCA standard invoices (POS4b, ADR-072)
+
+Migration `20261202090000_pos4b_zatca_standard`.
+
+- **zatca_devices** gains `purpose` POS | OFFICE (POS ⇔ a register; at most
+  one OFFICE unit per organization).
+- **zatca_documents** gains `kind` SIMPLIFIED | STANDARD, `sales_invoice_id`
+  (FK with the organization; standard only), `cleared_xml` (⇔ CLEARED or
+  CLEARED_WITH_WARNINGS, new statuses for standard documents). Only the
+  reporting/clearance state, the cleared document and its QR change.
+- **customers** gains `cr_number`, `street`, `building_number` (4 digits),
+  `district`, `city`, `postal_code` (5 digits in SA), `country_code`
+  (default SA).

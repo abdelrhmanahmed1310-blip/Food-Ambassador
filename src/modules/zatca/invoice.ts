@@ -3,8 +3,9 @@ import { Decimal } from "@/lib/decimal";
 import { el, leaf } from "./xml";
 
 /**
- * UBL 2.1 XML for ZATCA simplified tax invoices and credit notes (B2C, the
- * point of sale), and the invoice hash (DECISIONS.md ADR-064).
+ * UBL 2.1 XML for ZATCA tax invoices and notes — simplified (B2C, the point
+ * of sale, ADR-064) and standard (B2B, cleared, ADR-072) — and the invoice
+ * hash.
  *
  * NOT YET VALIDATED against ZATCA: the sandbox host was not reachable from
  * the development environment. Element order, amounts and the hash follow
@@ -36,6 +37,22 @@ export interface ZatcaParty {
   postalCode: string;
 }
 
+/** The buyer on a standard invoice (BR-KSA-10, -14, -63). */
+export interface ZatcaBuyer {
+  name: string;
+  /** 15-digit VAT number, when the buyer is VAT registered. */
+  vatNumber?: string | null;
+  /** Another identifier when there is no VAT number (e.g. CRN commercial registration). */
+  otherId?: { scheme: "CRN" | "MOM" | "MLS" | "SAG" | "OTH"; id: string } | null;
+  street: string;
+  building?: string | null;
+  district?: string | null;
+  city: string;
+  postalCode?: string | null;
+  /** ISO 3166 alpha-2. */
+  country: string;
+}
+
 export interface ZatcaLine {
   name: string;
   quantity: Decimal;
@@ -51,6 +68,13 @@ export interface ZatcaLine {
 
 export interface ZatcaInvoiceInput {
   type: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
+  /** SIMPLIFIED (B2C, reported; default) or STANDARD (B2B, cleared before it is given). */
+  kind?: "SIMPLIFIED" | "STANDARD";
+  /** Standard documents: the buyer, and the date of supply (KSA-5). */
+  buyer?: ZatcaBuyer;
+  deliveryDate?: string;
+  /** The VAT in SAR when the document is in another currency (BR-KSA-68). */
+  vatInSar?: Decimal;
   number: string;
   uuid: string;
   /** Seller's local date and time of issue. */
@@ -71,7 +95,7 @@ export interface ZatcaInvoiceInput {
   reason?: string;
 }
 
-/** 388 invoice, 381 credit note, 383 debit note (simplified: name 0200000). */
+/** 388 invoice, 381 credit note, 383 debit note; name 0100000 standard, 0200000 simplified. */
 const TYPE_CODE = { INVOICE: "388", CREDIT_NOTE: "381", DEBIT_NOTE: "383" } as const;
 
 const money = (d: Decimal) => d.toFixed(2);
@@ -117,6 +141,9 @@ export function invoiceXml(
     groups.set(key, [...(groups.get(key) ?? []), l]);
   }
   const s = input.seller;
+  const b = input.kind === "STANDARD" ? input.buyer : undefined;
+  if (input.kind === "STANDARD" && !b) throw new Error("A standard invoice needs its buyer");
+  const sar = { currencyID: "SAR" };
   return el(
     "Invoice",
     { xmlns: NS.inv, "xmlns:cac": NS.cac, "xmlns:cbc": NS.cbc, "xmlns:ext": NS.ext },
@@ -126,9 +153,12 @@ export function invoiceXml(
     leaf("cbc:UUID", input.uuid),
     leaf("cbc:IssueDate", input.issueDate),
     leaf("cbc:IssueTime", input.issueTime),
-    leaf("cbc:InvoiceTypeCode", TYPE_CODE[input.type], { name: "0200000" }),
+    leaf("cbc:InvoiceTypeCode", TYPE_CODE[input.type], {
+      name: input.kind === "STANDARD" ? "0100000" : "0200000",
+    }),
     leaf("cbc:DocumentCurrencyCode", input.currency),
-    leaf("cbc:TaxCurrencyCode", input.currency),
+    // VAT is always accounted in SAR (BR-KSA-68).
+    leaf("cbc:TaxCurrencyCode", "SAR"),
     input.billingReference
       ? el(
           "cac:BillingReference",
@@ -200,13 +230,18 @@ export function invoiceXml(
         el("cac:PartyLegalEntity", {}, leaf("cbc:RegistrationName", s.name)),
       ),
     ),
+    b ? buyerParty(b) : null,
+    input.deliveryDate
+      ? el("cac:Delivery", {}, leaf("cbc:ActualDeliveryDate", input.deliveryDate))
+      : null,
     el(
       "cac:PaymentMeans",
       {},
       leaf("cbc:PaymentMeansCode", input.paymentMeans),
       input.reason ? leaf("cbc:InstructionNote", input.reason) : null,
     ),
-    el("cac:TaxTotal", {}, leaf("cbc:TaxAmount", money(t.vat), cur)),
+    // The VAT total in the tax currency (SAR); the next one, with subtotals, in the document's.
+    el("cac:TaxTotal", {}, leaf("cbc:TaxAmount", money(input.vatInSar ?? t.vat), sar)),
     el(
       "cac:TaxTotal",
       {},
@@ -254,6 +289,65 @@ export function invoiceXml(
       ),
     ),
   );
+}
+
+function buyerParty(b: ZatcaBuyer) {
+  return el(
+    "cac:AccountingCustomerParty",
+    {},
+    el(
+      "cac:Party",
+      {},
+      !b.vatNumber && b.otherId
+        ? el(
+            "cac:PartyIdentification",
+            {},
+            leaf("cbc:ID", b.otherId.id, { schemeID: b.otherId.scheme }),
+          )
+        : null,
+      el(
+        "cac:PostalAddress",
+        {},
+        leaf("cbc:StreetName", b.street),
+        b.building ? leaf("cbc:BuildingNumber", b.building) : null,
+        b.district ? leaf("cbc:CitySubdivisionName", b.district) : null,
+        leaf("cbc:CityName", b.city),
+        b.postalCode ? leaf("cbc:PostalZone", b.postalCode) : null,
+        el("cac:Country", {}, leaf("cbc:IdentificationCode", b.country)),
+      ),
+      b.vatNumber
+        ? el(
+            "cac:PartyTaxScheme",
+            {},
+            leaf("cbc:CompanyID", b.vatNumber),
+            el("cac:TaxScheme", {}, leaf("cbc:ID", "VAT")),
+          )
+        : null,
+      el("cac:PartyLegalEntity", {}, leaf("cbc:RegistrationName", b.name)),
+    ),
+  );
+}
+
+/**
+ * What a standard invoice's buyer is missing for ZATCA (BR-KSA-63 and
+ * related rules): a Saudi buyer needs street, 4-digit building number,
+ * district, city and 5-digit postal code; every buyer a name and either a
+ * valid VAT number or another identifier.
+ */
+export function buyerProblems(b: Partial<ZatcaBuyer>): string[] {
+  const out: string[] = [];
+  if (!b.name?.trim()) out.push("name");
+  if (b.vatNumber && !/^3\d{13}3$/.test(b.vatNumber)) out.push("vatNumber");
+  if (!b.vatNumber && !b.otherId?.id) out.push("vatNumber");
+  if (!b.street?.trim()) out.push("street");
+  if (!b.city?.trim()) out.push("city");
+  if (!b.country || !/^[A-Z]{2}$/.test(b.country)) out.push("country");
+  if (b.country === "SA") {
+    if (!b.building || !/^\d{4}$/.test(b.building)) out.push("building");
+    if (!b.district?.trim()) out.push("district");
+    if (!b.postalCode || !/^\d{5}$/.test(b.postalCode)) out.push("postalCode");
+  }
+  return out;
 }
 
 /** Invoice hash (KSA-13 / digest): SHA-256 of the canonical pure invoice, base64. */

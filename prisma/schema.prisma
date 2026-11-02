@@ -3078,6 +3078,14 @@ model Customer {
   email            String?
   phone            String?
   address          String?
+  /// Buyer details on standard e-invoices in Saudi Arabia (ADR-072); `taxId` is the VAT number.
+  crNumber         String?   @map("cr_number")
+  street           String?
+  buildingNumber   String?   @map("building_number")
+  district         String?
+  city             String?
+  postalCode       String?   @map("postal_code")
+  countryCode      String    @default("SA") @map("country_code") @db.Char(2)
   paymentTermsDays Int?      @map("payment_terms_days")
   /// Default currency of this customer's orders, invoices and receipts (ADR-054); null = base.
   currency         String?   @db.Char(3)
@@ -3228,11 +3236,12 @@ model SalesInvoice {
   cancelledByUserId String?            @map("cancelled_by_user_id") @db.Uuid
   cancelReason      String?            @map("cancel_reason")
 
-  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  customer     Customer                    @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
-  delivery     CustomerDelivery            @relation(fields: [organizationId, deliveryId], references: [organizationId, id], onDelete: Restrict)
-  lines        SalesInvoiceLine[]
-  allocations  CustomerReceiptAllocation[]
+  organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer       Customer                    @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+  delivery       CustomerDelivery            @relation(fields: [organizationId, deliveryId], references: [organizationId, id], onDelete: Restrict)
+  lines          SalesInvoiceLine[]
+  allocations    CustomerReceiptAllocation[]
+  zatcaDocuments ZatcaDocument[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -4206,6 +4215,21 @@ enum ZatcaDocumentStatus {
   REPORTED
   REPORTED_WITH_WARNINGS
   REJECTED
+  /// Standard (B2B) documents: cleared by ZATCA before they are given to the buyer (ADR-072).
+  CLEARED
+  CLEARED_WITH_WARNINGS
+}
+
+/// Simplified (B2C, reported) or standard (B2B, cleared) — ADR-072.
+enum ZatcaDocumentKind {
+  SIMPLIFIED
+  STANDARD
+}
+
+/// A unit for a register's simplified invoices, or the back office's standard invoices.
+enum ZatcaUnitPurpose {
+  POS
+  OFFICE
 }
 
 /// Seller details printed on e-invoices and the ZATCA environment (POS4, ADR-064).
@@ -4231,7 +4255,9 @@ model ZatcaSettings {
 model ZatcaDevice {
   id                  String            @id @default(uuid(7)) @db.Uuid
   organizationId      String            @map("organization_id") @db.Uuid
-  registerId          String            @map("register_id") @db.Uuid
+  /// The register (POS); none for the back-office unit (OFFICE, ADR-072).
+  registerId          String?           @map("register_id") @db.Uuid
+  purpose             ZatcaUnitPurpose  @default(POS)
   environment         ZatcaEnvironment
   commonName          String            @map("common_name")
   serialNumber        String            @map("serial_number")
@@ -4252,7 +4278,7 @@ model ZatcaDevice {
   createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  register     PosRegister     @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
+  register     PosRegister?    @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
   documents    ZatcaDocument[]
 
   @@unique([organizationId, id])
@@ -4268,6 +4294,11 @@ model ZatcaDocument {
   type           ZatcaDocumentType
   orderId        String?             @map("order_id") @db.Uuid
   refundId       String?             @map("refund_id") @db.Uuid
+  /// Standard documents (ADR-072): the B2B sales invoice, and ZATCA's cleared document (the legal one).
+  kind           ZatcaDocumentKind   @default(SIMPLIFIED)
+  salesInvoiceId String?             @map("sales_invoice_id") @db.Uuid
+  clearedXml     String?             @map("cleared_xml")
+  salesInvoice   SalesInvoice?       @relation(fields: [organizationId, salesInvoiceId], references: [organizationId, id], onDelete: Restrict)
   number         String
   uuid           String              @db.Uuid
   icv            Int
@@ -4287,6 +4318,7 @@ model ZatcaDocument {
 
   @@unique([deviceId, icv])
   @@index([organizationId, orderId])
+  @@index([organizationId, salesInvoiceId])
   @@index([status, nextAttemptAt])
   @@map("zatca_documents")
 }

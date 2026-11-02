@@ -34,6 +34,7 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
+import { issueSalesCreditNoteInTx, issueSalesInvoiceDocumentInTx } from "@/modules/zatca/service";
 
 /**
  * B2B sales (DECISIONS.md ADR-047): customers, sales orders, deliveries
@@ -72,6 +73,36 @@ async function audit(
 
 // ─── Customers ───
 
+/** Buyer details printed on standard e-invoices in Saudi Arabia (ADR-072). */
+const eInvoiceFields = {
+  crNumber: optionalText(20),
+  street: optionalText(120),
+  buildingNumber: z
+    .union([
+      z
+        .string()
+        .trim()
+        .regex(/^\d{4}$/, { error: "invalid" }),
+      z.literal(""),
+    ])
+    .optional()
+    .transform(blank),
+  district: optionalText(120),
+  city: optionalText(80),
+  postalCode: optionalText(10),
+  countryCode: z
+    .union([
+      z
+        .string()
+        .trim()
+        .toUpperCase()
+        .regex(/^[A-Z]{2}$/, { error: "invalid" }),
+      z.literal(""),
+    ])
+    .optional()
+    .transform((v) => v || "SA"),
+};
+
 const customerSchema = z.object({
   code: codeSchema,
   name: requiredText(160),
@@ -89,7 +120,44 @@ const customerSchema = z.object({
     }),
   /** Default document currency (ADR-054); empty = base currency. */
   currency: optionalCurrency,
+  ...eInvoiceFields,
 });
+
+const eInvoiceSchema = z
+  .object({ taxId: optionalText(40), ...eInvoiceFields })
+  .refine((v) => v.countryCode !== "SA" || !v.postalCode || /^\d{5}$/.test(v.postalCode), {
+    error: "invalid",
+    path: ["postalCode"],
+  });
+
+/** The customer's VAT number and address for e-invoices (ADR-072). */
+export async function updateCustomerEInvoiceDetails(
+  ctx: TenantContext,
+  customerId: string,
+  rawInput: unknown,
+) {
+  assertPermission(ctx.grants, "b2b.manage");
+  const parsed = eInvoiceSchema.safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    const c = await tx.customer.findFirst({
+      where: { organizationId: ctx.organizationId, id: customerId },
+    });
+    if (!c) throw notFound("Customer");
+    const data = {
+      taxId: parsed.data.taxId ?? null,
+      crNumber: parsed.data.crNumber ?? null,
+      street: parsed.data.street ?? null,
+      buildingNumber: parsed.data.buildingNumber ?? null,
+      district: parsed.data.district ?? null,
+      city: parsed.data.city ?? null,
+      postalCode: parsed.data.postalCode ?? null,
+      countryCode: parsed.data.countryCode,
+    };
+    await tx.customer.update({ where: { id: c.id }, data });
+    await audit(tx, ctx, "customer", c, "einvoice_details", data);
+  });
+}
 
 export async function createCustomer(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "b2b.manage");
@@ -660,6 +728,8 @@ export async function invoiceDelivery(ctx: TenantContext, deliveryId: string, ra
       await tx.salesInvoiceLine.createMany({
         data: lines.map((l) => ({ ...l, invoiceId: inv.id })),
       });
+      // Saudi Arabia: the standard tax invoice, cleared by ZATCA right after (ADR-072).
+      await issueSalesInvoiceDocumentInTx(tx, ctx, inv.id);
       await emitEvent(tx, ctx, "sales_invoice.issued", inv.id, {
         invoiceId: inv.id,
         number: inv.number,
@@ -715,6 +785,8 @@ export async function cancelSalesInvoice(ctx: TenantContext, invoiceId: string, 
         cancelReason: parsed.data.reason,
       },
     });
+    // An e-invoiced invoice is never deleted: a standard credit note corrects it (ADR-072).
+    await issueSalesCreditNoteInTx(tx, ctx, inv.id, parsed.data.reason);
     await audit(tx, ctx, "sales_invoice", inv, "cancelled", { reason: parsed.data.reason });
   });
 }

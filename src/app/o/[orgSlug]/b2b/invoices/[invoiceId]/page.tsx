@@ -1,17 +1,28 @@
 import Link from "next/link";
+import QRCode from "qrcode";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { TextReasonForm } from "@/components/invoices/forms";
+import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { Alert, Badge, Card } from "@/components/ui/primitives";
 import { PrintButton } from "@/components/ui/print-button";
 import { isUuid } from "@/lib/uuid";
+import { hasPermission } from "@/modules/access/authorize";
 import { getSalesInvoice } from "@/modules/b2b/service";
+import { salesInvoiceEInvoice } from "@/modules/zatca/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
 import { moneyFormatter, quantityFormatter } from "@/server/inventory-view";
-import { cancelSalesInvoiceAction } from "../../actions";
+import { cancelSalesInvoiceAction, clearSalesInvoiceAction } from "../../actions";
 
-/** Printable sales invoice. Not an e-invoice (ZATCA / ETA formats are POS4). */
+const CLEARED = ["CLEARED", "CLEARED_WITH_WARNINGS"];
+type ZatcaMessage = { code?: string; message?: string };
+
+/**
+ * Printable sales invoice. In Saudi Arabia, once the back office's unit is
+ * onboarded, the legal invoice is ZATCA's cleared document: its QR is
+ * printed, and an invoice not yet cleared says so (ADR-072).
+ */
 export default async function SalesInvoicePage({
   params,
 }: PageProps<"/o/[orgSlug]/b2b/invoices/[invoiceId]">) {
@@ -19,6 +30,25 @@ export default async function SalesInvoicePage({
   if (!isUuid(invoiceId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const inv = await notFoundOnAppError(getSalesInvoice(ctx, invoiceId));
+  const einvoice = await salesInvoiceEInvoice(ctx, invoiceId);
+  const doc = einvoice.find((d) => d.type === "INVOICE");
+  const note = einvoice.find((d) => d.type === "CREDIT_NOTE");
+  const cleared = doc ? CLEARED.includes(doc.status) : false;
+  const qrSvg =
+    doc && cleared
+      ? await QRCode.toString(doc.qr, { type: "svg", margin: 1, errorCorrectionLevel: "M" })
+      : null;
+  const messages = (d: (typeof einvoice)[number]) => {
+    const r = (d.response ?? {}) as {
+      validationResults?: { errorMessages?: ZatcaMessage[]; warningMessages?: ZatcaMessage[] };
+    };
+    return [
+      ...(r.validationResults?.errorMessages ?? []),
+      ...(r.validationResults?.warningMessages ?? []),
+    ]
+      .map((m) => [m.code, m.message].filter(Boolean).join(": "))
+      .slice(0, 5);
+  };
   const [t, locale, fmt, money] = await Promise.all([
     getTranslations(),
     getLocale(),
@@ -50,6 +80,54 @@ export default async function SalesInvoicePage({
           {inv.status === "POSTED" ? <PrintButton label={t("recipes.print")} /> : null}
         </div>
       </div>
+      {doc ? (
+        <section
+          className="border-border space-y-2 rounded-md border p-3 text-sm print:border-0 print:p-0"
+          data-testid="einvoice"
+        >
+          <p className="flex flex-wrap items-center gap-2 print:hidden">
+            <strong>{t("zatca.eInvoice")}</strong>
+            <Badge tone={cleared ? "success" : doc.status === "REJECTED" ? "danger" : "warning"}>
+              {t(`zatca.statuses.${doc.status}`)}
+            </Badge>
+            {note ? (
+              <span>
+                {t("zatca.creditNote")} {note.number} · {t(`zatca.statuses.${note.status}`)}
+              </span>
+            ) : null}
+          </p>
+          {!cleared ? (
+            <Alert tone={doc.status === "REJECTED" ? "error" : "info"}>
+              {doc.status === "REJECTED" ? t("zatca.rejectedInvoice") : t("zatca.notClearedYet")}
+            </Alert>
+          ) : null}
+          {[doc, note]
+            .filter(Boolean)
+            .flatMap((d) => messages(d!))
+            .map((m, i) => (
+              <p key={i} className="text-muted ltr-value text-xs print:hidden">
+                {m}
+              </p>
+            ))}
+          {[doc, note].some((d) => d?.status === "PENDING") &&
+          hasPermission(ctx.grants, "b2b.manage") ? (
+            <div className="print:hidden">
+              <ConfirmActionButton
+                action={clearSalesInvoiceAction.bind(null, orgSlug, inv.id)}
+                label={t("zatca.clearNow")}
+                variant="secondary"
+              />
+            </div>
+          ) : null}
+          {qrSvg ? (
+            <div
+              className="w-36"
+              data-testid="zatca-qr"
+              dangerouslySetInnerHTML={{ __html: qrSvg }}
+            />
+          ) : null}
+        </section>
+      ) : null}
       {inv.cancelReason ? (
         <Alert tone="info">{t("invoices.cancelledBecause", { reason: inv.cancelReason })}</Alert>
       ) : null}
