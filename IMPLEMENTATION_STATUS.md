@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-02 (F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,22 @@ Last updated: 2026-11-02 (F1b step 3 currency per company complete; step 2b ZATC
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F2a — Job runner and notification centre (built)
+
+Rules: DECISIONS.md ADR-087. Plan: docs/PLATFORM_AUDIT.md (phase F2).
+
+| Area          | What works                                                                                                                                                                   | Where                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Job runner    | PostgreSQL queue; `pnpm jobs:run` (or `--watch`) schedules webhook delivery, ZATCA reporting, attachment purge and the daily digest; retries with backoff; failures notified | `scripts/run-jobs.ts`  |
+| Notifications | Written with the change: PO and stock-count approvals and decisions, leave requests and decisions, invoice exceptions, daily attention digest, failed jobs                   | bell, `/notifications` |
+| Recipients    | From their grants (approval level and site, HR branch or direct manager, invoice managers, administrators); never the person who acted                                       | services               |
+| Preferences   | Each user turns kinds on or off                                                                                                                                              | `/notifications`       |
+| Jobs page     | The organization's recent jobs, attempts, outcome or error                                                                                                                   | `/settings/jobs`       |
+
+Not yet: email, SMS and WhatsApp (need the provider decision D2); the Render free plan has no background worker, so `pnpm jobs:run` runs from another machine or a paid Render cron job. Next in F2: global search (F2b), XLSX/PDF export (F2c), REST API v1 + OpenAPI (F2d).
+
+Checks: `pnpm check` pass (unit 278); `pnpm test:integration` 398/398 pass (new: approvers at the order's branch notified, not another branch nor the submitter; decision notified to the submitter; only the user's own notifications opened, none across organizations; preferences respected; daily digest written once per day; a failing job retried with backoff, then failed and the administrators told; jobs visible only to the organization's administrators); `pnpm test:e2e` 61/61 pass (new: bell, empty list, preferences saved).
 
 ## F1b steps 3b and 3c — Purchasing, payables and sales in the company's currency (built)
 
