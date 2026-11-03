@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-03 (C1d supplier returns; C1c purchase order revisions; C1
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C1e — Spend and purchase price variance (built)
+
+Rules: DECISIONS.md ADR-095. With this, C1 (procurement compliance) is complete: supplier approval and documents (C1a), requests for quotation (C1b), order revisions (C1c), supplier returns (C1d), spend and price variance (C1e).
+
+| Area           | What works                                                                                                                                                                                             | Where                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| Basis          | Posted receipts' accepted lines at the charged price and each receipt's rate, less returns posted in the period; excl. VAT; company currency, or group converted at average rates; missing rates named | both reports             |
+| Spend          | Received, returned, net by supplier (share, paid over order price), category (supplier count, single source flagged), branch, month; top-5 supplier share                                              | Reports → Spend          |
+| Price variance | Over / under / net against order prices; by supplier with rate of spend; lines off the order price linked to receipts; average price per product against the previous period with impact               | Reports → Price variance |
+| Access, export | `purchasing.view` at the warehouses held; CSV and Excel                                                                                                                                                | both reports             |
+
+Not yet: spend from invoices or payments, budgets per category, contract price compliance.
+
+Checks: `pnpm check` pass (unit 306; new: grouping with returns netted, shares and supplier counts, concentration, average price change and impact, previous period); `pnpm test:integration` 435/435 pass (new: EGP and USD receipts valued at their rates, a return netted: received 1680, returned 220, net 1460; suppliers 980 / 480 with shares; categories with a single-source flag; variance 100 over the order price; company currency; cashier refused, branch-scoped user outside sees nothing; invalid period refused; the line off the order price and its supplier rate; a delivery the day before gives the flour price change 90 → 105.33 with impact 230; CSV rows); `pnpm test:e2e` 69/69 pass (new: receive at 22 against 20 ordered; spend shows 220 for the supplier and its CSV row; price variance shows 20 over).
 
 ## C1d — Supplier returns (built)
 
