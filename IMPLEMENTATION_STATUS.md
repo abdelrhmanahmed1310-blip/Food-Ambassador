@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,23 @@ Last updated: 2026-11-03 (F2d REST API v1 — F2 complete; F2c Excel and PDF; F2
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C1a — Supplier compliance (built)
+
+Rules: DECISIONS.md ADR-091. First part of C1 procurement compliance.
+
+| Area             | What works                                                                                                                                                                                                                  | Where                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Approval         | Optional "New suppliers need approval"; a new supplier waits until someone other than the person who added it approves it (`suppliers.approve`: Administrator, Finance); approvers notified and shown under Needs attention | Settings → Purchasing, supplier page |
+| Blocking         | Block with a reason, lift the block; who, when and why kept                                                                                                                                                                 | supplier page                        |
+| Effect on orders | Blocked: no new order or switch to the supplier, no submit or approval. Waiting: orders can be prepared, not submitted. Receiving, invoices and payments are not stopped                                                    | purchase orders                      |
+| Documents        | Commercial registration, VAT, municipality, food safety, halal, ISO, insurance, contract, other; number and dates; files attached; "required to buy" stops orders once expired; flagged 30 days ahead and in the digest     | supplier page, Needs attention       |
+| Bank accounts    | IBAN (mod-97) or account number + SWIFT; encrypted, shown masked; full number on request (audited) for bank managers and payers; details never change; verified by a second person; approvers notified                      | supplier page                        |
+| List and API     | Status column; filters for waiting, approved, blocked, document expired, expiring; `status` in `/api/v1/suppliers`                                                                                                          | `/suppliers`, API                    |
+
+Not yet (rest of C1): RFQs and quotation comparison, PO revisions, supplier returns as a document, purchase price variance and spend reports. Payments do not yet record which bank account was paid.
+
+Checks: `pnpm check` pass (unit 293; new: order block per status and step, IBAN shape, length and checksum, SWIFT, masking); `pnpm test:integration` 420/420 pass (new: approval off keeps old behaviour; a new supplier waits, approvers notified, the adder cannot approve (service and database); orders prepared but not submitted until approval; blocking stops new orders and approval of a waiting order, lifting restores it; a never-approved supplier returns to waiting; an expired required document stops submission until renewed, flagged under Needs attention; bad IBAN and missing SWIFT refused; the number stored encrypted, never in the audit log or page data, hidden from read-only users, revealed with an audit entry; verification only by someone else; details cannot be changed in the database; another organization sees nothing); `pnpm test:e2e` 65/65 pass (new: turn approval on, add a supplier, an expired required certificate and a bank account; wrong IBAN refused; masked number and reveal; finance sees it under Needs attention, approves the supplier and verifies the account).
 
 ## F2d — REST API v1 (built)
 
