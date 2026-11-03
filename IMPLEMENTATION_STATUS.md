@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-03 (F2a job runner and notifications; F1b step 3 currency 
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F2b — Global search (built)
+
+Rules: DECISIONS.md ADR-088.
+
+| Area          | What works                                                                                                                                                                                                                     | Where             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| Search box    | In the header (search icon on small screens); results grouped by kind, up to six each, linking to the record                                                                                                                   | header, `/search` |
+| What is found | Products (SKU, names, barcode), suppliers, B2B customers, guests (name or phone in any format), employees, recipes, menu items, lots, POs, receipts, supplier invoices, sales orders and invoices, POS orders, stock documents | `/search`         |
+| Permissions   | A group only with the permission its page needs; documents and employees only at the user's branches and warehouses                                                                                                            | service           |
+| Speed         | Trigram indexes (`pg_trgm`) on the searched columns                                                                                                                                                                            | migration         |
+
+Not yet: saved filters and views; searching inside notes.
+
+Checks: `pnpm check` pass (unit 281); `pnpm test:integration` 402/402 pass (new: master data by code or name in English and Arabic; documents by number; a guest by a local phone number; a branch manager sees only their branch's people; a waiter only menu items; a kitchen role nothing; another organization nothing; too-short queries ignored); `pnpm test:e2e` 62/62 pass (new: search from the header and open the product).
 
 ## F2a — Job runner and notification centre (built)
 
