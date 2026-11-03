@@ -1,5 +1,6 @@
 import "server-only";
 import { getSalesInvoice } from "@/modules/b2b/service";
+import { companyContext } from "@/modules/fx/service";
 import { getOrder } from "@/modules/procurement/orders";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
@@ -74,4 +75,12 @@ export async function salesInvoiceForPrint(ctx: TenantContext, invoiceId: string
     invoice,
     seller: await letterheadInTx(tx, ctx, invoice.companyId),
   }));
+}
+
+/** The company that owns a warehouse, as letterhead (requests for quotation, ADR-092). */
+export async function letterheadForWarehouse(ctx: TenantContext, warehouseId: string) {
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const { companyId } = await companyContext(tx, ctx, { warehouseId });
+    return letterheadInTx(tx, ctx, companyId);
+  });
 }

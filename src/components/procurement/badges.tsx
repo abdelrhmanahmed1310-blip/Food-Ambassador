@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/primitives";
+import type { RfqStatus } from "@/modules/procurement/rfq-rules";
 import type { PoStatus, RequisitionStatus } from "@/modules/procurement/rules";
 
 export async function OrderStatusBadge({ status }: { status: PoStatus }) {
@@ -26,6 +27,19 @@ export async function RequisitionStatusBadge({ status }: { status: RequisitionSt
     status === "ORDERED"
       ? "success"
       : status === "SUBMITTED" || status === "PARTIALLY_ORDERED"
+        ? "warning"
+        : status === "DRAFT"
+          ? "neutral"
+          : "muted";
+  return <Badge tone={tone}>{t(status)}</Badge>;
+}
+
+export async function RfqStatusBadge({ status }: { status: RfqStatus }) {
+  const t = await getTranslations("rfqs.statuses");
+  const tone =
+    status === "AWARDED"
+      ? "success"
+      : status === "SENT"
         ? "warning"
         : status === "DRAFT"
           ? "neutral"

@@ -319,3 +319,78 @@ export const orderRequisitionSchema = z.object({
     }),
   idempotencyKey: idempotencyKeySchema,
 });
+
+// ─── Requests for quotation (ADR-092) ───
+
+export const rfqHeaderSchema = z
+  .object({
+    title: requiredText(160),
+    neededBy: dateSchema,
+    respondBy: dateSchema,
+    note: optionalText(1000),
+  })
+  .refine((v) => !v.neededBy || !v.respondBy || v.respondBy <= v.neededBy, {
+    error: "respondAfterNeeded",
+    path: ["respondBy"],
+  });
+
+export const createRfqSchema = z
+  .object({
+    warehouseId: uuidSchema,
+    title: requiredText(160),
+    neededBy: dateSchema,
+    respondBy: dateSchema,
+    note: optionalText(1000),
+    idempotencyKey: idempotencyKeySchema,
+  })
+  .refine((v) => !v.neededBy || !v.respondBy || v.respondBy <= v.neededBy, {
+    error: "respondAfterNeeded",
+    path: ["respondBy"],
+  });
+
+export const rfqSupplierSchema = z.object({ supplierId: uuidSchema });
+
+export const quotationSchema = z.object({
+  supplierId: uuidSchema,
+  /** Empty = the supplier's currency, else the company's. */
+  currency: optionalCurrency,
+  reference: optionalText(80),
+  quotedOn: z
+    .string()
+    .transform((v) => v.trim())
+    .refine(isCalendarDate, { error: "invalidDate" }),
+  validUntil: dateSchema,
+  leadTimeDays: optionalDays,
+  note: optionalText(1000),
+  lines: z
+    .array(
+      z
+        .object({
+          rfqLineId: uuidSchema,
+          /** Empty = not quoted. */
+          unitPrice: optionalDecimal({ maxScale: 6, min: "0" }),
+          /** Empty = all of the requested quantity. */
+          quantity: optionalDecimal({ maxScale: 6, min: "0.000001" }),
+          note: optionalText(200),
+        })
+        .strict(),
+    )
+    .max(500),
+});
+
+export const awardRfqSchema = z.object({
+  expectedOn: dateSchema,
+  lines: z
+    .array(
+      z
+        .object({
+          rfqLineId: uuidSchema,
+          /** Empty = not awarded. */
+          quotationLineId: optionalUuidSchema,
+          reason: optionalText(500),
+        })
+        .strict(),
+    )
+    .max(500),
+  idempotencyKey: idempotencyKeySchema,
+});

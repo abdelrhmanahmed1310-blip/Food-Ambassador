@@ -155,7 +155,8 @@
     "brands": "Brands",
     "notifications": "Notifications",
     "jobs": "Background jobs",
-    "apiKeys": "API keys"
+    "apiKeys": "API keys",
+    "rfqs": "Requests for quotation"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -277,7 +278,8 @@
     "pinFormat": "Use 4 to 6 digits.",
     "leaveOneYear": "A request must be within one calendar year: split it.",
     "expiryBeforeIssue": "The expiry date is before the issue date.",
-    "requiredDocumentNeedsExpiry": "A document required to buy needs an expiry date."
+    "requiredDocumentNeedsExpiry": "A document required to buy needs an expiry date.",
+    "respondAfterNeeded": "Quotes must be wanted on or before the day the goods are needed."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -305,7 +307,9 @@
     "deliveryInvoiced": "This delivery is already invoiced.",
     "revaluationExists": "This date is already revalued.",
     "duplicate": "This order was already recorded.",
-    "phoneTaken": "A customer already has this phone number."
+    "phoneTaken": "A customer already has this phone number.",
+    "productOnRfq": "This product is already on the request.",
+    "supplierOnRfq": "This supplier is already asked."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -609,7 +613,16 @@
     "IBAN_CHECKSUM": "This IBAN's check digits do not match — check for a typing mistake.",
     "INVALID_ACCOUNT_NUMBER": "The account number must be 4–34 letters and digits.",
     "INVALID_SWIFT": "The SWIFT/BIC code must be 8 or 11 characters.",
-    "SWIFT_REQUIRED": "A SWIFT/BIC code is required for an account without IBAN."
+    "SWIFT_REQUIRED": "A SWIFT/BIC code is required for an account without IBAN.",
+    "RFQ_STATUS": "This is not possible in the request's current status.",
+    "RFQ_HAS_NO_LINES": "Add at least one line first.",
+    "RFQ_HAS_NO_SUPPLIERS": "Ask at least one supplier first.",
+    "SUPPLIER_NOT_ASKED": "This supplier was not asked to quote.",
+    "QUOTATION_HAS_NO_PRICES": "Enter a price for at least one line.",
+    "QUOTATION_VALIDITY": "Valid until is before the quotation date.",
+    "QUOTATION_EXPIRED": "This quotation is no longer valid.",
+    "NOTHING_AWARDED": "Choose an offer for at least one line.",
+    "AWARD_REASON_REQUIRED": "Say why this offer is chosen over a lower one, or one that could not be compared."
   },
   "notFound": {
     "title": "Page not found",
@@ -4227,7 +4240,11 @@
       "RECEIVED": "Received",
       "CLOSED": "Closed",
       "CANCELLED": "Cancelled"
-    }
+    },
+    "rfq": "Request for quotation",
+    "respondBy": "Please quote by",
+    "neededBy": "Needed by",
+    "rfqNote": "Please give your unit price per the unit shown, your validity date and lead time."
   },
   "api": {
     "title": "API keys",
@@ -4258,5 +4275,71 @@
       "invoices_read": "Supplier invoices",
       "sales_read": "Sales invoices and point-of-sale orders"
     }
+  },
+  "rfqs": {
+    "title": "Requests for quotation",
+    "hint": "Ask several suppliers to quote, compare their offers in the company currency, and award lines to create draft purchase orders.",
+    "new": "New request",
+    "newTitle": "New request for quotation",
+    "empty": "No requests for quotation yet.",
+    "titleField": "Title",
+    "deliverTo": "Deliver to",
+    "respondBy": "Quotes wanted by",
+    "neededBy": "Goods needed by",
+    "noteForSuppliers": "Note for suppliers",
+    "quotationsCount": "Quotes / asked",
+    "statuses": {
+      "DRAFT": "Draft",
+      "SENT": "Sent",
+      "AWARDED": "Awarded",
+      "CANCELLED": "Cancelled"
+    },
+    "send": "Mark as sent",
+    "sendConfirm": "Lines and suppliers can no longer change after this. Send the PDF to each supplier yourself — no e-mail is sent from here.",
+    "cancel": "Cancel request",
+    "cancelReason": "Reason for cancelling",
+    "linesTitle": "What to buy",
+    "noLines": "No lines yet.",
+    "suppliersTitle": "Suppliers asked",
+    "suppliersHint": "Blocked suppliers cannot be asked. Download each supplier's PDF and send it to them.",
+    "noSuppliers": "No suppliers asked yet.",
+    "askSupplier": "Ask supplier",
+    "quoted": "Quoted",
+    "pdf": "PDF",
+    "comparisonTitle": "Comparison",
+    "comparisonHint": "Unit price as quoted, and below it the cost of the requested quantity in {currency} at today's exchange rate. The lowest valid offer per line is marked.",
+    "missingRates": "No exchange rate for {currencies}: offers in these currencies are not compared. Add the rate under Exchange rates.",
+    "noQuotations": "No quotations recorded yet.",
+    "noRate": "no rate",
+    "offersOnly": "Offers only {quantity}",
+    "lowest": "Lowest",
+    "awarded": "Awarded",
+    "expired": "Expired",
+    "total": "Total in {currency}",
+    "incomplete": "Does not cover every line in full",
+    "quotationsTitle": "Quotations received",
+    "quotedOn": "Quotation date",
+    "validUntil": "Valid until",
+    "leadTimeDays": "Lead time (days)",
+    "reference": "Supplier's reference",
+    "correctOrAttach": "Correct or attach the supplier's file",
+    "files": "Files",
+    "recordQuotation": "Record quotation",
+    "recordHint": "Enter the supplier's prices per the requested unit. Leave a price empty for a line not quoted.",
+    "supplierCurrency": "Supplier's currency",
+    "unitPricePer": "Unit price per {unit}",
+    "offeredQuantity": "Quantity offered ({unit})",
+    "blankNotQuoted": "Empty = not quoted.",
+    "blankFullQuantity": "Empty = all of it.",
+    "awardTitle": "Award",
+    "awardHint": "Choose an offer for each line. One draft purchase order is created per supplier, at the quoted prices, and then follows the normal approval.",
+    "award": "Award and create orders",
+    "notAwarded": "Do not order",
+    "noOffers": "No offers for this line.",
+    "awardReason": "Reason",
+    "awardReasonHint": "Required when the chosen offer is not the lowest, or another offer could not be compared.",
+    "reasonNeeded": "Needs a reason",
+    "ordersTitle": "Purchase orders created",
+    "fromRfq": "From {number}"
   }
 }

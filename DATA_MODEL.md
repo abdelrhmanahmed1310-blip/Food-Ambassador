@@ -567,6 +567,25 @@ Supplier compliance (C1a, ADR-091; migration `20261219090000_c1a_supplier_compli
   `verified_at/_by` (never the creator), `archived_at/_by`. A trigger
   refuses any change to the account details, and to verification or
   archiving once set.
+
+Requests for quotation (C1b, ADR-092; migration `20261220090000_c1b_rfq_quotations`):
+
+- **rfqs**: `number` (RFQ-YYYY-n, UQ per org), `warehouse_id`, `title`,
+  `status` (`DRAFT` | `SENT` | `AWARDED` | `CANCELLED`), `needed_by`,
+  `respond_by`, note, created by, `sent_at/_by`, `decided_at/_by`,
+  `cancel_reason` (required when cancelled). Checks keep the status and
+  its who/when fields consistent.
+- **rfq_lines**: UQ (rfq, line_no), UQ (rfq, product); product, unit,
+  `quantity` > 0, note, `awarded_quotation_line_id` (UQ; a trigger checks it
+  answers this line), `award_reason`.
+- **rfq_suppliers**: PK (org, rfq, supplier) — who was asked.
+- **quotations**: UQ (rfq, supplier); `currency`, `reference`, `quoted_on`,
+  `valid_until` (≥ quoted), `lead_time_days`, note. A trigger refuses a
+  supplier not asked. Files: attachments with entity `QUOTATION`.
+- **quotation_lines**: UQ (quotation, rfq line); `unit_price` ≥ 0 per the
+  RFQ line's unit, optional `quantity` offered (> 0). A trigger keeps the
+  line within the quotation's RFQ.
+- **purchase_orders.quotation_id**: the quotation an order was awarded from.
 - **approval_layers** (ADR-049, migration `20261112090000_approval_matrix`):
   PK (organization, `document` PURCHASE_ORDER | STOCK_COUNT, `position`
   1–4: 1–3 branch, 4 head office), `above_amount` ≥ 0 — the layer is

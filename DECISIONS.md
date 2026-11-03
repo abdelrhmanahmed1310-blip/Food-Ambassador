@@ -2188,6 +2188,42 @@ country for now, so no inter-company transfer is built.
   Payments do not yet record which account was paid.
 - **API**: suppliers carry `status` (ADR-090).
 
+### ADR-092 Requests for quotation — Accepted (C1b built)
+
+- **Flow.** A buyer (`purchasing.manage` at the warehouse) creates a
+  request for quotation for one warehouse — title, quotes wanted by, goods
+  needed by, note — adds lines (product, quantity, unit that converts to the
+  product's base unit; one line per product) and the suppliers to ask
+  (never a blocked one, ADR-091; one waiting for approval may quote). "Mark
+  as sent" fixes lines and suppliers. Nothing is e-mailed (no provider, D2):
+  each supplier's PDF, on the company letterhead and without prices, is
+  downloaded and sent by the buyer. Statuses: draft → sent → awarded, or
+  cancelled with a reason.
+- **Quotations** are entered by a buyer as received, one per supplier
+  (corrections replace it, audited): currency (default the supplier's),
+  the supplier's reference, quotation date, valid until, lead time, and per
+  line a unit price per the requested unit (empty = not quoted) and
+  optionally a smaller quantity offered. The supplier's file is attached
+  (ADR-051). The database refuses a quotation from a supplier not asked and
+  a price for another RFQ's line.
+- **Comparison** is in the warehouse's company currency (ADR-086): each
+  offer's cost for the requested quantity at today's rate. Offers in a
+  currency without a rate are shown but not compared, and the missing
+  currencies are named — never guessed. Expired quotations are shown and
+  cannot be awarded. The lowest valid offer per line is marked; per
+  quotation, the total and whether it covers every line in full.
+- **Award.** For each line the buyer picks one offer or none. Choosing an
+  offer that is not the lowest valid one, or when another valid offer
+  could not be compared, needs a written reason, kept on the line. One
+  draft purchase order per supplier is created at the quoted prices in the
+  quotation's currency (quantity: as requested, or less if less was
+  offered), linked to the quotation; the order then follows the approval
+  matrix (ADR-049) and the supplier checks (ADR-091) as any other. The RFQ
+  is closed as awarded; unawarded lines are not ordered.
+- **Not yet:** a supplier portal or e-mailing the RFQ (needs D2), sealed
+  bids, a minimum number of quotes, and splitting one line between
+  suppliers.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

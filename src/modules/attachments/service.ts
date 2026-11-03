@@ -35,6 +35,7 @@ export const ATTACHMENT_ENTITIES = [
   "SUPPLIER_SETTLEMENT",
   "STOCK_COUNT",
   "SUPPLIER_DOCUMENT",
+  "QUOTATION",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -106,6 +107,18 @@ async function accessTo(
         (await tx.supplierInvoice.count({ where: { organizationId: org, id: entityId } })) > 0,
         "invoices.view",
         "invoices.manage",
+      );
+    case "QUOTATION":
+      // The supplier's quotation file, at the RFQ's warehouse (ADR-092).
+      return onSite(
+        (
+          await tx.quotation.findFirst({
+            where: { organizationId: org, id: entityId },
+            select: { rfq: { select: { warehouse } } },
+          })
+        )?.rfq.warehouse,
+        "purchasing.view",
+        "purchasing.manage",
       );
     case "SUPPLIER_DOCUMENT":
       // A supplier's licences and certificates (ADR-091).

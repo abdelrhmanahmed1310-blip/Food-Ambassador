@@ -90,7 +90,21 @@ export default async function OrderPage({
     <>
       <PageHeader
         title={order.number}
-        description={supplierName}
+        description={
+          order.quotation ? (
+            <>
+              {supplierName} ·{" "}
+              <Link
+                href={`/o/${orgSlug}/purchasing/rfqs/${order.quotation.rfq.id}`}
+                className="text-primary hover:underline"
+              >
+                {t("rfqs.fromRfq", { number: order.quotation.rfq.number })}
+              </Link>
+            </>
+          ) : (
+            supplierName
+          )
+        }
         actions={
           <>
             <OrderStatusBadge status={order.status} />

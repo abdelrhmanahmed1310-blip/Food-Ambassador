@@ -170,6 +170,11 @@ model Organization {
   revaluations            StockRevaluation[]
   suppliers               Supplier[]
   supplierDocuments       SupplierDocument[]
+  rfqs                    Rfq[]
+  rfqLines                RfqLine[]
+  rfqSuppliers            RfqSupplier[]
+  quotations              Quotation[]
+  quotationLines          QuotationLine[]
   supplierBankAccounts    SupplierBankAccount[]
   supplierProducts        SupplierProduct[]
   procurementSettings     ProcurementSettings?
@@ -538,6 +543,7 @@ model Warehouse {
   posRegisters PosRegister[]
   posFloors    PosFloor[]
   posTabs      PosTab[]
+  rfqs         Rfq[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -657,6 +663,7 @@ model UnitOfMeasure {
   invoiceLines       SupplierInvoiceLine[]
   salesOrderLines    SalesOrderLine[]
   productionOrders   ProductionOrder[]
+  rfqLines           RfqLine[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
   @@unique([organizationId, code], map: "units_of_measure_code_key")
@@ -734,6 +741,7 @@ model Product {
   modifierOptions ModifierOption[]
 
   posShortfalls PosConsumptionShortfall[]
+  rfqLines      RfqLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -1192,6 +1200,7 @@ enum AttachmentEntity {
   SUPPLIER_SETTLEMENT
   STOCK_COUNT
   SUPPLIER_DOCUMENT
+  QUOTATION
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -1328,6 +1337,8 @@ model Supplier {
   organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   documents          SupplierDocument[]
   bankAccounts       SupplierBankAccount[]
+  rfqInvitations     RfqSupplier[]
+  quotations         Quotation[]
   products           SupplierProduct[]
   purchaseOrders     PurchaseOrder[]
   receipts           GoodsReceipt[]
@@ -1513,10 +1524,13 @@ model PurchaseOrder {
   closedAt             DateTime?           @map("closed_at") @db.Timestamptz(3)
   closedByUserId       String?             @map("closed_by_user_id") @db.Uuid
   closeReason          String?             @map("close_reason")
+  /// Created by awarding this quotation (ADR-092).
+  quotationId          String?             @map("quotation_id") @db.Uuid
   createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quotation    Quotation?              @relation(fields: [organizationId, quotationId], references: [organizationId, id], onDelete: Restrict)
   supplier     Supplier                @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
   warehouse    Warehouse               @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
   lines        PurchaseOrderLine[]
@@ -1944,6 +1958,141 @@ enum RequisitionStatus {
 }
 
 /// A branch's request for goods; buyers turn its lines into purchase orders.
+enum RfqStatus {
+  DRAFT
+  SENT
+  AWARDED
+  CANCELLED
+}
+
+/// Request for quotation (ADR-092): what to buy, for which warehouse, asked
+/// of several suppliers. Their quotations are compared and lines awarded,
+/// which creates draft purchase orders at the quoted prices.
+model Rfq {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  number          String
+  warehouseId     String    @map("warehouse_id") @db.Uuid
+  title           String
+  status          RfqStatus @default(DRAFT)
+  neededBy        DateTime? @map("needed_by") @db.Date
+  /// Quotations are asked for by this day.
+  respondBy       DateTime? @map("respond_by") @db.Date
+  note            String?
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  sentAt          DateTime? @map("sent_at") @db.Timestamptz(3)
+  sentByUserId    String?   @map("sent_by_user_id") @db.Uuid
+  /// Awarded or cancelled: who, when (and why, when cancelled).
+  decidedAt       DateTime? @map("decided_at") @db.Timestamptz(3)
+  decidedByUserId String?   @map("decided_by_user_id") @db.Uuid
+  cancelReason    String?   @map("cancel_reason")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse     @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  lines        RfqLine[]
+  suppliers    RfqSupplier[]
+  quotations   Quotation[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@map("rfqs")
+}
+
+model RfqLine {
+  id                     String  @id @default(uuid(7)) @db.Uuid
+  organizationId         String  @map("organization_id") @db.Uuid
+  rfqId                  String  @map("rfq_id") @db.Uuid
+  lineNo                 Int     @map("line_no")
+  productId              String  @map("product_id") @db.Uuid
+  uomId                  String  @map("uom_id") @db.Uuid
+  quantity               Decimal @db.Decimal(20, 6)
+  note                   String?
+  /// The offer chosen at award; null = not awarded.
+  awardedQuotationLineId String? @map("awarded_quotation_line_id") @db.Uuid
+  /// Why, when the chosen offer was not the lowest comparable price.
+  awardReason            String? @map("award_reason")
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  rfq            Rfq             @relation(fields: [organizationId, rfqId], references: [organizationId, id], onDelete: Cascade)
+  product        Product         @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom            UnitOfMeasure   @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  quotationLines QuotationLine[] @relation("QuotedLine")
+  awardedLine    QuotationLine?  @relation("AwardedLine", fields: [organizationId, awardedQuotationLineId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, rfqId, lineNo])
+  @@unique([organizationId, rfqId, productId])
+  @@unique([organizationId, awardedQuotationLineId])
+  @@map("rfq_lines")
+}
+
+/// A supplier asked to quote.
+model RfqSupplier {
+  organizationId String   @map("organization_id") @db.Uuid
+  rfqId          String   @map("rfq_id") @db.Uuid
+  supplierId     String   @map("supplier_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  rfq          Rfq          @relation(fields: [organizationId, rfqId], references: [organizationId, id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, rfqId, supplierId])
+  @@map("rfq_suppliers")
+}
+
+/// One supplier's answer to an RFQ, as received (entered by a buyer).
+model Quotation {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  rfqId           String    @map("rfq_id") @db.Uuid
+  supplierId      String    @map("supplier_id") @db.Uuid
+  currency        String    @db.Char(3)
+  /// The supplier's own quotation number.
+  reference       String?
+  quotedOn        DateTime  @map("quoted_on") @db.Date
+  validUntil      DateTime? @map("valid_until") @db.Date
+  leadTimeDays    Int?      @map("lead_time_days")
+  note            String?
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  rfq            Rfq             @relation(fields: [organizationId, rfqId], references: [organizationId, id], onDelete: Restrict)
+  supplier       Supplier        @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  lines          QuotationLine[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, rfqId, supplierId])
+  @@map("quotations")
+}
+
+model QuotationLine {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  quotationId    String   @map("quotation_id") @db.Uuid
+  rfqLineId      String   @map("rfq_line_id") @db.Uuid
+  /// Per the RFQ line's unit, in the quotation's currency.
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(20, 6)
+  /// What the supplier can supply, in the RFQ line's unit; null = all of it.
+  quantity       Decimal? @db.Decimal(20, 6)
+  note           String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quotation    Quotation    @relation(fields: [organizationId, quotationId], references: [organizationId, id], onDelete: Cascade)
+  rfqLine      RfqLine      @relation("QuotedLine", fields: [organizationId, rfqLineId], references: [organizationId, id], onDelete: Restrict)
+  awardedFor   RfqLine?     @relation("AwardedLine")
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, quotationId, rfqLineId])
+  @@map("quotation_lines")
+}
+
 model PurchaseRequisition {
   id                String            @id @default(uuid(7)) @db.Uuid
   organizationId    String            @map("organization_id") @db.Uuid

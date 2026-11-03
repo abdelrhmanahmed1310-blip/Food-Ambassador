@@ -255,6 +255,8 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
         supplier: { select: { id: true, code: true, name: true, nameAr: true, archivedAt: true } },
         // Base amounts are in the order's company's currency (ADR-086).
         company: { select: { code: true, name: true, currency: true } },
+        // Awarded from a request for quotation (ADR-092).
+        quotation: { select: { reference: true, rfq: { select: { id: true, number: true } } } },
         warehouse: {
           select: {
             id: true,

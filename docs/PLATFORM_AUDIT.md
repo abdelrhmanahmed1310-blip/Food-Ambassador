@@ -12,8 +12,10 @@
 > purchase orders and sales invoices. **F2d built** (ADR-090): read-only REST
 > API v1 with API keys and OpenAPI. F2 is complete. **C1a built** (ADR-091):
 > supplier approval and blocking, licences and certificates with expiry,
-> encrypted bank accounts verified by a second person. Next in C1: RFQs and
-> quotations, PO revisions, supplier returns, price variance and spend.
+> encrypted bank accounts verified by a second person. **C1b built**
+> (ADR-092): requests for quotation, quotations, comparison in the company
+> currency and award to draft orders. Next in C1: PO revisions, supplier
+> returns, price variance and spend.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

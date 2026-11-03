@@ -102,6 +102,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     purchasing.items.push({ href: `${base}/purchasing/requisitions`, label: t("requisitions") });
   if (holdsAnyGrant(ctx.grants, "purchasing.view")) {
     purchasing.items.push(
+      { href: `${base}/purchasing/rfqs`, label: t("rfqs") },
       { href: `${base}/purchasing/orders`, label: t("purchaseOrders") },
       { href: `${base}/purchasing/receipts`, label: t("receipts") },
       { href: `${base}/purchasing/reorder`, label: t("reorder") },
