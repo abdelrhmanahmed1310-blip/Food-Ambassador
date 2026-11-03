@@ -22,8 +22,9 @@
 > Codex decision tree, control points monitored by checkpoints, deviations
 > raising non-conformances, approval and versions. **C2b built** (ADR-097):
 > document control with versions, approval, review dates and read
-> confirmation. Next in C2: audits and complaints, calibration, compliance
-> score, mock recall.
+> confirmation. **C2c built** (ADR-098): audits with findings and customer
+> complaints, both opening non-conformances. Next in C2: calibration and
+> maintenance, compliance score, mock recall, batch report.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

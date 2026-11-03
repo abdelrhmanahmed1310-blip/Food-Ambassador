@@ -917,6 +917,24 @@ Document control (C2b, ADR-097; migration `20261224090000_c2b_document_control`)
 - **fs_document_reads**: PK (version, user), read at; only for approved
   versions (trigger). Insert-only.
 
+Audits and complaints (C2c, ADR-098; migration `20261225090000_c2c_audits_complaints`):
+
+- **audits**: `number` (AUD-YYYY-n), branch, `type`, auditor, scope,
+  `planned_on`, `status` (`PLANNED` | `COMPLETED` | `CANCELLED`),
+  `conducted_on`, result and summary as reported, completed by/at,
+  cancelled at with a reason. A trigger closes it once completed or
+  cancelled.
+- **audit_findings**: audit, `severity` (observation…critical), reference,
+  description, `non_conformance_id` (required above an observation). Added
+  only while the audit is planned; never changed (trigger).
+- **complaints**: `number` (CMP-YYYY-n), branch, received at, `channel`,
+  `category`, optional customer name and contact, order reference, product
+  and lot (FK to that product's lot), description, `status` (`OPEN` |
+  `INVESTIGATING` | `RESOLVED`), investigation, resolution, customer
+  response, `non_conformance_id` (required for foreign object, illness and
+  allergen), resolved by/at.
+- **non_conformances.source** gains `AUDIT` and `COMPLAINT`.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

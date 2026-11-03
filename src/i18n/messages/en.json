@@ -161,7 +161,9 @@
     "spendReport": "Spend",
     "priceVarianceReport": "Price variance",
     "haccpPlans": "HACCP plans",
-    "fsDocuments": "Documents"
+    "fsDocuments": "Documents",
+    "audits": "Audits",
+    "complaints": "Complaints"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -658,7 +660,15 @@
     "EFFECTIVE_DATE_PAST": "A version cannot take effect in the past.",
     "NO_APPROVED_VERSION": "No version is in force yet.",
     "NO_DRAFT_VERSION": "There is no draft: start a new version first.",
-    "DOCUMENT_SELF_APPROVAL": "You wrote this version, so someone else must approve it."
+    "DOCUMENT_SELF_APPROVAL": "You wrote this version, so someone else must approve it.",
+    "AUDIT_CLOSED": "The audit is completed or cancelled.",
+    "AUDIT_HAS_FINDINGS": "An audit with findings is completed, not cancelled.",
+    "AUDIT_IN_FUTURE": "An audit cannot be completed before it takes place.",
+    "COMPLAINT_HAS_NC": "A non-conformance is already open for this complaint.",
+    "COMPLAINT_IN_FUTURE": "A complaint cannot be received in the future.",
+    "COMPLAINT_RESOLVED": "The complaint is resolved.",
+    "LOT_NEEDS_PRODUCT": "Choose the product the lot belongs to.",
+    "LOT_NOT_FOUND": "No lot with this code for the product."
   },
   "notFound": {
     "title": "Page not found",
@@ -1975,7 +1985,9 @@
     "sources": {
       "MANUAL": "Raised by hand",
       "RECORD": "Out-of-spec record",
-      "CHECKLIST": "Failed checklist"
+      "CHECKLIST": "Failed checklist",
+      "AUDIT": "Audit finding",
+      "COMPLAINT": "Customer complaint"
     },
     "ncStatuses": {
       "OPEN": "Open",
@@ -2544,7 +2556,9 @@
       "SUPPLIER_RETURNS_AWAITING_CREDIT": "{count, plural, one {# supplier return awaiting a credit note} other {# supplier returns awaiting a credit note}}",
       "HACCP_REVIEWS_DUE": "{count, plural, one {# HACCP plan due for review} other {# HACCP plans due for review}}",
       "FS_DOCUMENT_REVIEWS_DUE": "{count, plural, one {# document due for review} other {# documents due for review}}",
-      "FS_DOCUMENTS_UNREAD": "{count, plural, one {# document to read} other {# documents to read}}"
+      "FS_DOCUMENTS_UNREAD": "{count, plural, one {# document to read} other {# documents to read}}",
+      "COMPLAINTS_OPEN": "{count, plural, one {# complaint to resolve} other {# complaints to resolve}}",
+      "AUDITS_OVERDUE": "{count, plural, one {# audit past its planned date} other {# audits past their planned date}}"
     }
   },
   "production": {
@@ -4670,5 +4684,107 @@
     "withdraw": "Withdraw document",
     "withdrawnNote": "Withdrawn on {date}: {reason}",
     "reviewOverdue": "The review date has passed: review the document and approve a new version."
+  },
+  "audits": {
+    "title": "Audits",
+    "hint": "Internal audits, certification audits, authority inspections and customer audits of each branch. Findings above an observation open a non-conformance at once.",
+    "empty": "No audits yet.",
+    "number": "Audit",
+    "branch": "Branch",
+    "type": "Type",
+    "auditor": "Auditor",
+    "scope": "Scope",
+    "plannedOn": "Planned for",
+    "conductedOn": "Carried out on",
+    "findings": "Findings",
+    "noFindings": "No findings recorded.",
+    "finding": "Finding",
+    "severity": "Severity",
+    "reference": "Requirement or clause",
+    "nonConformance": "Non-conformance",
+    "findingHint": "Minor findings open a MEDIUM non-conformance, major ones HIGH and critical ones CRITICAL; observations open none.",
+    "addFinding": "Add finding",
+    "result": "Result",
+    "resultHint": "As given by the auditor, e.g. a grade or score.",
+    "summary": "Summary",
+    "complete": "Complete audit",
+    "completeTitle": "Complete",
+    "cancel": "Cancel audit",
+    "cancelReason": "Reason for cancelling",
+    "plan": "Plan audit",
+    "planTitle": "Plan an audit",
+    "types": {
+      "INTERNAL": "Internal audit",
+      "EXTERNAL": "Certification / external audit",
+      "AUTHORITY": "Authority inspection",
+      "CUSTOMER": "Customer audit"
+    },
+    "severities": {
+      "OBSERVATION": "Observation",
+      "MINOR": "Minor",
+      "MAJOR": "Major",
+      "CRITICAL": "Critical"
+    },
+    "statuses": {
+      "PLANNED": "Planned",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "complaints": {
+    "title": "Complaints",
+    "hint": "Customer complaints about food, safety and service. Foreign objects, illness and allergen reactions open a HIGH non-conformance at once.",
+    "new": "Log complaint",
+    "newTitle": "Log a complaint",
+    "empty": "No complaints.",
+    "openOnly": "Open",
+    "number": "Complaint",
+    "branch": "Branch",
+    "receivedOn": "Received",
+    "channel": "How it came",
+    "category": "Category",
+    "product": "Product",
+    "lot": "Lot",
+    "orderReference": "Order or receipt",
+    "customerName": "Customer name",
+    "customerContact": "Phone or e-mail",
+    "customer": "Customer",
+    "description": "What happened",
+    "safetyHint": "Ask only for the contact details needed to reply. Give the product and lot when known: it traces the complaint to the batch.",
+    "log": "Log complaint",
+    "nonConformance": "Non-conformance",
+    "investigation": "Investigation",
+    "resolution": "Resolution",
+    "customerResponse": "What the customer was told or given",
+    "resolvedAt": "Resolved",
+    "investigateTitle": "Investigate",
+    "saveInvestigation": "Save investigation",
+    "raiseNc": "Open a non-conformance",
+    "resolveTitle": "Resolve",
+    "resolve": "Resolve complaint",
+    "channels": {
+      "IN_PERSON": "In person",
+      "PHONE": "Phone",
+      "EMAIL": "E-mail",
+      "ONLINE": "Website or app",
+      "DELIVERY_PLATFORM": "Delivery platform",
+      "SOCIAL_MEDIA": "Social media",
+      "OTHER": "Other"
+    },
+    "categories": {
+      "FOREIGN_OBJECT": "Foreign object",
+      "ILLNESS": "Illness",
+      "ALLERGEN": "Allergen reaction",
+      "QUALITY": "Quality",
+      "TEMPERATURE": "Temperature",
+      "HYGIENE": "Hygiene",
+      "SERVICE": "Service",
+      "OTHER": "Other"
+    },
+    "statuses": {
+      "OPEN": "Open",
+      "INVESTIGATING": "Investigating",
+      "RESOLVED": "Resolved"
+    }
   }
 }

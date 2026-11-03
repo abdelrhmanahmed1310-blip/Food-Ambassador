@@ -7,6 +7,7 @@ import type { Permission } from "@/modules/access/permissions";
 import { EXPIRY_WARNING_DAYS } from "@/modules/inventory/queries";
 import { fsDocumentReviewsDue, fsDocumentsUnread } from "@/modules/foodsafety/documents";
 import { haccpReviewsDue } from "@/modules/foodsafety/haccp";
+import { qualityAttention } from "@/modules/foodsafety/quality";
 import { supplierDocumentsDue } from "@/modules/procurement/compliance";
 import { addDays, businessDate } from "@/modules/inventory/rules";
 import type { TenantContext } from "@/modules/tenancy/context";
@@ -43,7 +44,9 @@ export type AttentionKey =
   | "SUPPLIER_RETURNS_AWAITING_CREDIT"
   | "HACCP_REVIEWS_DUE"
   | "FS_DOCUMENT_REVIEWS_DUE"
-  | "FS_DOCUMENTS_UNREAD";
+  | "FS_DOCUMENTS_UNREAD"
+  | "COMPLAINTS_OPEN"
+  | "AUDITS_OVERDUE";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -523,6 +526,23 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         count: await fsDocumentsUnread(tx, ctx),
         href: "/food-safety/documents?unread=1",
       });
+
+    // Complaints to resolve and audits past their planned date (ADR-098).
+    if (holdsAnyGrant(ctx.grants, "foodsafety.manage")) {
+      const q = await qualityAttention(tx, ctx);
+      push({
+        key: "COMPLAINTS_OPEN",
+        tone: "warning",
+        count: q.openComplaints,
+        href: "/food-safety/complaints?open=1",
+      });
+      push({
+        key: "AUDITS_OVERDUE",
+        tone: "warning",
+        count: q.auditsOverdue,
+        href: "/food-safety/audits",
+      });
+    }
 
     // Goods sent back whose credit note has not been linked yet (ADR-094).
     if (hasPermission(ctx.grants, "invoices.manage"))

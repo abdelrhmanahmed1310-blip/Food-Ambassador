@@ -2389,6 +2389,33 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** assigning documents to roles that must read them, links from
   HACCP control points and checklists to their SOPs, rich text.
 
+### ADR-098 Audits and customer complaints — Accepted (C2c built)
+
+- **Audits** (`AUD-`): internal, certification / external, authority
+  inspection or customer audit of one branch — auditor, scope, planned
+  date. Findings are recorded while it is open: observation, minor, major,
+  critical, with the requirement concerned. A minor finding opens a MEDIUM
+  non-conformance, a major one HIGH, a critical one CRITICAL, at once and
+  linked to the finding (ADR-035); an observation opens none. The audit is
+  completed with the date it was carried out (not in the future) and the
+  auditor's own result as given (a grade or score — nothing is computed);
+  an audit with no findings may instead be cancelled with a reason. A
+  completed or cancelled audit and its findings never change (database
+  triggers). Planned audits past their date appear under Needs attention.
+- **Complaints** (`CMP-`): branch, when received, channel (in person,
+  phone, e-mail, website/app, delivery platform, social media, other),
+  category, what happened, the order reference, and the product and lot
+  when known (the lot is matched to the product's lots and linked to
+  traceability). Customer name and contact are optional and kept out of
+  the audit log. **Foreign object, illness and allergen** complaints open a
+  HIGH non-conformance in the same transaction (database check: they always
+  have one); others can open a MEDIUM one on request. Staff who record food
+  safety log complaints; managers investigate and resolve (resolution and
+  what the customer was told or given). Open complaints appear under Needs
+  attention.
+- **Not yet:** audit checklists and scoring templates, scheduling recurring
+  audits, complaint trends by product and branch (C4), notifying customers.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

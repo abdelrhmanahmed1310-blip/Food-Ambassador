@@ -76,7 +76,7 @@ export async function openNonConformanceInTx(
     title: string;
     description: string;
     severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-    source: "MANUAL" | "RECORD" | "CHECKLIST";
+    source: "MANUAL" | "RECORD" | "CHECKLIST" | "AUDIT" | "COMPLAINT";
     /** A deviation from a HACCP control point (ADR-096). */
     controlPointId?: string;
   },

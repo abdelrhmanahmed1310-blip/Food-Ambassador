@@ -161,7 +161,9 @@
     "spendReport": "الإنفاق",
     "priceVarianceReport": "فروق أسعار الشراء",
     "haccpPlans": "خطط الهاسب",
-    "fsDocuments": "المستندات"
+    "fsDocuments": "المستندات",
+    "audits": "التدقيقات",
+    "complaints": "الشكاوى"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -658,7 +660,15 @@
     "EFFECTIVE_DATE_PAST": "لا يمكن أن يسري إصدار في الماضي.",
     "NO_APPROVED_VERSION": "لا يوجد إصدار ساري بعد.",
     "NO_DRAFT_VERSION": "لا توجد مسودة: ابدأ إصدارًا جديدًا أولًا.",
-    "DOCUMENT_SELF_APPROVAL": "أنت كتبت هذا الإصدار، لذا يجب أن يعتمده شخص آخر."
+    "DOCUMENT_SELF_APPROVAL": "أنت كتبت هذا الإصدار، لذا يجب أن يعتمده شخص آخر.",
+    "AUDIT_CLOSED": "التدقيق مكتمل أو ملغى.",
+    "AUDIT_HAS_FINDINGS": "التدقيق الذي له ملاحظات يُتمّ ولا يُلغى.",
+    "AUDIT_IN_FUTURE": "لا يمكن إتمام تدقيق قبل حدوثه.",
+    "COMPLAINT_HAS_NC": "توجد عدم مطابقة مفتوحة لهذه الشكوى بالفعل.",
+    "COMPLAINT_IN_FUTURE": "لا يمكن استلام شكوى في المستقبل.",
+    "COMPLAINT_RESOLVED": "الشكوى محلولة.",
+    "LOT_NEEDS_PRODUCT": "اختر المنتج الذي تنتمي إليه التشغيلة.",
+    "LOT_NOT_FOUND": "لا توجد تشغيلة بهذا الرمز لهذا المنتج."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1975,7 +1985,9 @@
     "sources": {
       "MANUAL": "سُجلت يدويًا",
       "RECORD": "سجل خارج الحدود",
-      "CHECKLIST": "قائمة فحص راسبة"
+      "CHECKLIST": "قائمة فحص راسبة",
+      "AUDIT": "ملاحظة تدقيق",
+      "COMPLAINT": "شكوى عميل"
     },
     "ncStatuses": {
       "OPEN": "مفتوحة",
@@ -2544,7 +2556,9 @@
       "SUPPLIER_RETURNS_AWAITING_CREDIT": "{count, plural, one {مرتجع واحد بانتظار إشعار دائن} two {مرتجعان بانتظار إشعار دائن} few {# مرتجعات بانتظار إشعار دائن} many {# مرتجعًا بانتظار إشعار دائن} other {# مرتجع بانتظار إشعار دائن}}",
       "HACCP_REVIEWS_DUE": "{count, plural, one {خطة هاسب واحدة حان موعد مراجعتها} two {خطتا هاسب حان موعد مراجعتهما} few {# خطط هاسب حان موعد مراجعتها} many {# خطة هاسب حان موعد مراجعتها} other {# خطة هاسب حان موعد مراجعتها}}",
       "FS_DOCUMENT_REVIEWS_DUE": "{count, plural, one {مستند واحد حان موعد مراجعته} two {مستندان حان موعد مراجعتهما} few {# مستندات حان موعد مراجعتها} many {# مستندًا حان موعد مراجعته} other {# مستند حان موعد مراجعته}}",
-      "FS_DOCUMENTS_UNREAD": "{count, plural, one {مستند واحد للقراءة} two {مستندان للقراءة} few {# مستندات للقراءة} many {# مستندًا للقراءة} other {# مستند للقراءة}}"
+      "FS_DOCUMENTS_UNREAD": "{count, plural, one {مستند واحد للقراءة} two {مستندان للقراءة} few {# مستندات للقراءة} many {# مستندًا للقراءة} other {# مستند للقراءة}}",
+      "COMPLAINTS_OPEN": "{count, plural, one {شكوى واحدة للحل} two {شكويان للحل} few {# شكاوى للحل} many {# شكوى للحل} other {# شكوى للحل}}",
+      "AUDITS_OVERDUE": "{count, plural, one {تدقيق واحد فات موعده} two {تدقيقان فات موعدهما} few {# تدقيقات فات موعدها} many {# تدقيقًا فات موعده} other {# تدقيق فات موعده}}"
     }
   },
   "production": {
@@ -4670,5 +4684,107 @@
     "withdraw": "سحب المستند",
     "withdrawnNote": "سُحب في {date}: {reason}",
     "reviewOverdue": "فات موعد المراجعة: راجع المستند واعتمد إصدارًا جديدًا."
+  },
+  "audits": {
+    "title": "التدقيقات",
+    "hint": "التدقيقات الداخلية وتدقيقات الشهادات وتفتيش الجهات الرقابية وتدقيقات العملاء لكل فرع. الملاحظات الأعلى من الملاحظة العامة تفتح حالة عدم مطابقة فورًا.",
+    "empty": "لا توجد تدقيقات بعد.",
+    "number": "التدقيق",
+    "branch": "الفرع",
+    "type": "النوع",
+    "auditor": "المدقق",
+    "scope": "النطاق",
+    "plannedOn": "مخطط في",
+    "conductedOn": "نُفّذ في",
+    "findings": "الملاحظات",
+    "noFindings": "لا توجد ملاحظات مسجلة.",
+    "finding": "الملاحظة",
+    "severity": "الدرجة",
+    "reference": "المتطلب أو البند",
+    "nonConformance": "عدم المطابقة",
+    "findingHint": "الملاحظة البسيطة تفتح عدم مطابقة متوسطة، والكبيرة عالية، والحرجة حرجة؛ الملاحظات العامة لا تفتح شيئًا.",
+    "addFinding": "إضافة ملاحظة",
+    "result": "النتيجة",
+    "resultHint": "كما أعطاها المدقق، مثل درجة أو تقييم.",
+    "summary": "الملخص",
+    "complete": "إتمام التدقيق",
+    "completeTitle": "الإتمام",
+    "cancel": "إلغاء التدقيق",
+    "cancelReason": "سبب الإلغاء",
+    "plan": "تخطيط التدقيق",
+    "planTitle": "تخطيط تدقيق",
+    "types": {
+      "INTERNAL": "تدقيق داخلي",
+      "EXTERNAL": "تدقيق شهادة / خارجي",
+      "AUTHORITY": "تفتيش جهة رقابية",
+      "CUSTOMER": "تدقيق عميل"
+    },
+    "severities": {
+      "OBSERVATION": "ملاحظة عامة",
+      "MINOR": "بسيطة",
+      "MAJOR": "كبيرة",
+      "CRITICAL": "حرجة"
+    },
+    "statuses": {
+      "PLANNED": "مخطط",
+      "COMPLETED": "مكتمل",
+      "CANCELLED": "ملغى"
+    }
+  },
+  "complaints": {
+    "title": "الشكاوى",
+    "hint": "شكاوى العملاء بشأن الطعام والسلامة والخدمة. الأجسام الغريبة والتسمم وتفاعلات الحساسية تفتح عدم مطابقة عالية فورًا.",
+    "new": "تسجيل شكوى",
+    "newTitle": "تسجيل شكوى",
+    "empty": "لا توجد شكاوى.",
+    "openOnly": "المفتوحة",
+    "number": "الشكوى",
+    "branch": "الفرع",
+    "receivedOn": "تاريخ الاستلام",
+    "channel": "طريقة الورود",
+    "category": "الفئة",
+    "product": "المنتج",
+    "lot": "التشغيلة",
+    "orderReference": "الطلب أو الإيصال",
+    "customerName": "اسم العميل",
+    "customerContact": "الهاتف أو البريد",
+    "customer": "العميل",
+    "description": "ماذا حدث",
+    "safetyHint": "اطلب فقط بيانات التواصل اللازمة للرد. اذكر المنتج والتشغيلة إن عُرفا: يربط ذلك الشكوى بالدفعة.",
+    "log": "تسجيل الشكوى",
+    "nonConformance": "عدم المطابقة",
+    "investigation": "التحقيق",
+    "resolution": "الحل",
+    "customerResponse": "ما أُبلغ به العميل أو ما أُعطي له",
+    "resolvedAt": "تاريخ الحل",
+    "investigateTitle": "التحقيق",
+    "saveInvestigation": "حفظ التحقيق",
+    "raiseNc": "فتح عدم مطابقة",
+    "resolveTitle": "الحل",
+    "resolve": "حل الشكوى",
+    "channels": {
+      "IN_PERSON": "حضوريًا",
+      "PHONE": "هاتف",
+      "EMAIL": "بريد إلكتروني",
+      "ONLINE": "الموقع أو التطبيق",
+      "DELIVERY_PLATFORM": "منصة توصيل",
+      "SOCIAL_MEDIA": "وسائل التواصل",
+      "OTHER": "أخرى"
+    },
+    "categories": {
+      "FOREIGN_OBJECT": "جسم غريب",
+      "ILLNESS": "مرض",
+      "ALLERGEN": "تفاعل حساسية",
+      "QUALITY": "الجودة",
+      "TEMPERATURE": "الحرارة",
+      "HYGIENE": "النظافة",
+      "SERVICE": "الخدمة",
+      "OTHER": "أخرى"
+    },
+    "statuses": {
+      "OPEN": "مفتوحة",
+      "INVESTIGATING": "قيد التحقيق",
+      "RESOLVED": "محلولة"
+    }
   }
 }

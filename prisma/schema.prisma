@@ -313,6 +313,9 @@ model Organization {
   fsDocuments                  FsDocument[]
   fsDocumentVersions           FsDocumentVersion[]
   fsDocumentReads              FsDocumentRead[]
+  audits                       Audit[]
+  auditFindings                AuditFinding[]
+  complaints                   Complaint[]
 
   @@map("organizations")
 }
@@ -500,6 +503,8 @@ model Branch {
   brand               Brand?               @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
   haccpPlans          HaccpPlan[]
   fsDocuments         FsDocument[]
+  audits              Audit[]
+  complaints          Complaint[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -758,6 +763,7 @@ model Product {
   posShortfalls       PosConsumptionShortfall[]
   rfqLines            RfqLine[]
   supplierReturnLines SupplierReturnLine[]
+  complaints          Complaint[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -2789,6 +2795,8 @@ enum NcSource {
   MANUAL
   RECORD
   CHECKLIST
+  AUDIT
+  COMPLAINT
 }
 
 enum NcStatus {
@@ -2818,12 +2826,14 @@ model NonConformance {
   controlPointId String?    @map("control_point_id") @db.Uuid
   updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
-  controlPoint HaccpControlPoint? @relation(fields: [organizationId, controlPointId], references: [organizationId, id], onDelete: Restrict)
-  actions      CorrectiveAction[]
-  records      FoodSafetyRecord[]
-  runs         ChecklistRun[]
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch        Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  controlPoint  HaccpControlPoint? @relation(fields: [organizationId, controlPointId], references: [organizationId, id], onDelete: Restrict)
+  actions       CorrectiveAction[]
+  records       FoodSafetyRecord[]
+  runs          ChecklistRun[]
+  auditFindings AuditFinding[]
+  complaints    Complaint[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3097,6 +3107,152 @@ model FsDocumentRead {
 
   @@id([organizationId, versionId, userId])
   @@map("fs_document_reads")
+}
+
+// ─── Audits and customer complaints (C2c, ADR-098) ───
+
+enum AuditType {
+  INTERNAL
+  EXTERNAL
+  AUTHORITY
+  CUSTOMER
+}
+
+enum AuditStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+}
+
+enum FindingSeverity {
+  OBSERVATION
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+/// An audit or inspection of a branch, planned and then carried out.
+model Audit {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  organizationId    String      @map("organization_id") @db.Uuid
+  number            String
+  branchId          String      @map("branch_id") @db.Uuid
+  type              AuditType
+  /// Who audits: a person, a certification body, an authority.
+  auditor           String
+  scope             String
+  plannedOn         DateTime    @map("planned_on") @db.Date
+  status            AuditStatus @default(PLANNED)
+  conductedOn       DateTime?   @map("conducted_on") @db.Date
+  /// As reported by the auditor (e.g. a grade or a score); not computed here.
+  result            String?
+  summary           String?
+  createdByUserId   String      @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt       DateTime?   @map("completed_at") @db.Timestamptz(3)
+  completedByUserId String?     @map("completed_by_user_id") @db.Uuid
+  cancelledAt       DateTime?   @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason      String?     @map("cancel_reason")
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch         @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  findings     AuditFinding[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, branchId, plannedOn])
+  @@map("audits")
+}
+
+/// What an audit found. Anything above an observation opens a non-conformance.
+model AuditFinding {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  auditId          String          @map("audit_id") @db.Uuid
+  severity         FindingSeverity
+  /// The requirement or clause concerned.
+  reference        String?
+  description      String
+  nonConformanceId String?         @map("non_conformance_id") @db.Uuid
+  createdByUserId  String          @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  audit          Audit           @relation(fields: [organizationId, auditId], references: [organizationId, id], onDelete: Restrict)
+  nonConformance NonConformance? @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, auditId])
+  @@map("audit_findings")
+}
+
+enum ComplaintChannel {
+  IN_PERSON
+  PHONE
+  EMAIL
+  ONLINE
+  DELIVERY_PLATFORM
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum ComplaintCategory {
+  FOREIGN_OBJECT
+  ILLNESS
+  ALLERGEN
+  QUALITY
+  TEMPERATURE
+  HYGIENE
+  SERVICE
+  OTHER
+}
+
+enum ComplaintStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+}
+
+/// A customer complaint about a branch, its products or service.
+model Complaint {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  organizationId   String            @map("organization_id") @db.Uuid
+  number           String
+  branchId         String            @map("branch_id") @db.Uuid
+  receivedAt       DateTime          @map("received_at") @db.Timestamptz(3)
+  channel          ComplaintChannel
+  category         ComplaintCategory
+  /// Only what is needed to reply; optional.
+  customerName     String?           @map("customer_name")
+  customerContact  String?           @map("customer_contact")
+  /// The order or receipt the customer refers to, as given.
+  orderReference   String?           @map("order_reference")
+  productId        String?           @map("product_id") @db.Uuid
+  lotId            String?           @map("lot_id") @db.Uuid
+  description      String
+  status           ComplaintStatus   @default(OPEN)
+  investigation    String?
+  resolution       String?
+  /// What the customer was told or given.
+  customerResponse String?           @map("customer_response")
+  nonConformanceId String?           @map("non_conformance_id") @db.Uuid
+  recordedByUserId String            @map("recorded_by_user_id") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt       DateTime?         @map("resolved_at") @db.Timestamptz(3)
+  resolvedByUserId String?           @map("resolved_by_user_id") @db.Uuid
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch         Branch          @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  product        Product?        @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  nonConformance NonConformance? @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, branchId, receivedAt(sort: Desc)])
+  @@index([organizationId, status])
+  @@map("complaints")
 }
 
 // ─── Sales import and recipe consumption (Milestone 7a, ADR-036) ───
