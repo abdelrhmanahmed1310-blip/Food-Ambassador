@@ -120,7 +120,6 @@ from `AUTH_SECRET`; set it explicitly in production so the two can be
 rotated separately. Changing it makes existing secrets unreadable — rotate
 every connector's secret afterwards.
 
-
 ## REST API v1 (ADR-090)
 
 Other systems read this organization's data with an API key:
