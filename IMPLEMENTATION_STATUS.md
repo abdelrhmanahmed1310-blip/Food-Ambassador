@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,22 @@ Last updated: 2026-11-03 (C1e spend and price variance — C1 complete; C1d supp
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C2a — HACCP plans (built)
+
+Rules: DECISIONS.md ADR-096. First part of C2 (food safety system).
+
+| Area           | What works                                                                                                                                                                                               | Where                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Plan           | Code, product or process, scope, intended use, team; one branch or all; process steps in order                                                                                                           | Food safety → HACCP plans |
+| Hazards        | Biological, chemical, physical, allergen; likelihood × severity (1–5) as the team scores them; significant or not; Codex decision tree Q1–Q4 → CCP / OPRP / PRP; a reason to classify otherwise          | plan page                 |
+| Control points | Critical limit (text, optional min/max and unit), monitoring, frequency, who, corrective action, verification, records; monitored by temperature checkpoints whose limits sit inside the critical limits | plan page                 |
+| Deviations     | A reading out of spec at a linked checkpoint opens a HIGH non-conformance tied to the control point, with the critical limit and planned correction; open deviations and 30-day evidence on the plan     | records, plan page        |
+| Approval       | Refused while anything is missing; by someone other than the author; review date; fixed once approved; new versions copied and approved to supersede; reviews due under Needs attention; PDF             | plan page                 |
+
+Not yet (rest of C2): document control, audits and complaints, calibration and maintenance, compliance score, mock recall, batch report.
+
+Checks: `pnpm check` pass (unit 313; new: decision tree paths and stopping, risk score, readiness problems, checkpoint limits inside critical limits); `pnpm test:integration` 437/437 pass (new: plan code unique; incomplete plan refused; PRP called CCP needs a reason; tree gives CCP for cooking and OPRP for cold storage; a fridge alarmed at 8 °C refused for a 5 °C limit, one at 4 °C accepted; self-approval and a past review date refused; approved plan fixed in the service and the database; an under-cooked reading opens a HIGH "CCP deviation (CHK v1)" with the planned correction, a reading elsewhere stays MEDIUM; evidence and deviations on the plan; a new version copies steps, hazards, control points and checkpoints, its approval supersedes v1 and new deviations name v2; cashier refused; other organizations see nothing); `pnpm test:e2e` 70/70 pass (new: create a plan, add a step and a significant hazard answered yes / yes → CCP with risk 20, set the critical limit and monitoring, the plan shows as complete, PDF served).
 
 ## C1e — Spend and purchase price variance (built)
 
