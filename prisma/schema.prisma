@@ -294,6 +294,7 @@ model Organization {
   jobs                    Job[]
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  apiClients              ApiClient[]
 
   @@map("organizations")
 }
@@ -5226,6 +5227,7 @@ model Company {
   settlements      SupplierSettlement[]
   fxRevaluations   FxRevaluation[]
   customerReceipts CustomerReceipt[]
+  apiClients       ApiClient[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -5322,4 +5324,29 @@ model NotificationPreference {
 
   @@id([organizationId, userId, kind])
   @@map("notification_preferences")
+}
+
+/// A key for the REST API v1 (ADR-090). The secret is shown once; only its SHA-256 is kept.
+model ApiClient {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  name            String
+  /// Public part of the key (fa_<prefix>_<secret>), used to find the client.
+  keyPrefix       String    @unique @map("key_prefix")
+  keyHash         String    @map("key_hash")
+  /// Read scopes, e.g. "products:read".
+  scopes          String[]
+  /// Only this company's documents and sites, when set (ADR-082).
+  companyId       String?   @map("company_id") @db.Uuid
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt      DateTime? @map("last_used_at") @db.Timestamptz(3)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedByUserId String?   @map("revoked_by_user_id") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  company      Company?     @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@map("api_clients")
 }

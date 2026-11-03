@@ -2117,6 +2117,32 @@ country for now, so no inter-company transfer is built.
   delivery notes) and scheduled report e-mails (need the email provider,
   D2). The existing print pages remain for everything else.
 
+### ADR-090 REST API v1 — Accepted (F2d built)
+
+- **Read-only, versioned** at `/api/v1`, described by a hand-written
+  OpenAPI 3.1 document at `/api/v1/openapi.json` (a test checks that every
+  described path is served). Resources: companies, branches, warehouses,
+  products, suppliers, stock on hand, purchase orders (list and one),
+  supplier invoices, B2B sales invoices and POS orders. Writes wait:
+  every write in the system is audited against a named person, and API
+  writes need that settled (who acts, approvals, idempotency) first.
+- **API keys** (`api_clients`): created under Settings → API keys by
+  people who manage integrations, with a name, read scopes
+  (`sites:read`, `products:read`, `suppliers:read`, `stock:read`,
+  `purchasing:read`, `invoices:read`, `sales:read`) and optionally one
+  company. The key (`fa_<prefix>_<secret>`) is shown once; only the
+  SHA-256 of the secret is stored, compared in constant time. Keys are
+  revoked, never deleted; creation and revocation are audited; the last
+  use is recorded (at most once a minute).
+- **Same rules as the pages**: a key's scopes become read permissions;
+  every query runs in the organization's row-level-security transaction;
+  a company-limited key sees only that company's documents and sites.
+  600 requests per minute per key (429 with Retry-After).
+- **Contract**: JSON; amounts and quantities as decimal strings; dates ISO
+  8601; cursor pages (`limit` up to 200, `after` = the previous page's
+  `nextCursor`, ids are time-ordered); errors `{error: {code, message}}`
+  with 401, 403, 404, 429. Changing a shape means a new version.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

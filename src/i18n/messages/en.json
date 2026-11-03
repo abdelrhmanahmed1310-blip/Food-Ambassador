@@ -154,7 +154,8 @@
     "companies": "Companies",
     "brands": "Brands",
     "notifications": "Notifications",
-    "jobs": "Background jobs"
+    "jobs": "Background jobs",
+    "apiKeys": "API keys"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -4110,6 +4111,36 @@
       "RECEIVED": "Received",
       "CLOSED": "Closed",
       "CANCELLED": "Cancelled"
+    }
+  },
+  "api": {
+    "title": "API keys",
+    "intro": "Keys let other systems (ERP, BI, accounting) read this organization's data through the REST API. Read-only; each key sees only the scopes you choose.",
+    "docs": "The API is described in OpenAPI 3.1 at",
+    "none": "No API keys yet.",
+    "name": "Name",
+    "nameHint": "What uses it, e.g. Power BI.",
+    "keyStart": "Key",
+    "scopes": "What it may read",
+    "company": "Company",
+    "allCompanies": "All companies",
+    "lastUsed": "Last used",
+    "create": "Create key",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this key? Systems using it stop working at once.",
+    "revoked": "Revoked",
+    "key": "API key",
+    "keyOnce": "Copy the key now: it is shown only once and cannot be read again. Store it as a secret.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "scopeNames": {
+      "sites_read": "Companies, branches and warehouses",
+      "products_read": "Products",
+      "suppliers_read": "Suppliers",
+      "stock_read": "Stock on hand",
+      "purchasing_read": "Purchase orders",
+      "invoices_read": "Supplier invoices",
+      "sales_read": "Sales invoices and point-of-sale orders"
     }
   }
 }

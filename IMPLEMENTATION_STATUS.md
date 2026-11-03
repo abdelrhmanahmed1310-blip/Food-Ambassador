@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,20 @@ Last updated: 2026-11-03 (F2b global search; F2a job runner and notifications; F
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F2c — Excel and PDF exports (built)
+
+Rules: DECISIONS.md ADR-089.
+
+| Area   | What works                                                                                                                                                            | Where                                 |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Excel  | Every CSV export also as `.xlsx` (same rows; amounts as numbers, identifiers as text): products, stock, valuation, waste, food cost, payables and receivables exports | "Excel" buttons beside the CSV links  |
+| PDF    | Purchase order for the supplier and B2B sales invoice for the customer, with the company letterhead (e-invoicing seller name, address, VAT and CR numbers)            | "PDF" button on the order and invoice |
+| Arabic | Bundled DejaVu fonts; Arabic names shaped and ordered correctly; labels and values in separate cells                                                                  | PDFs                                  |
+
+Not yet: PDFs of statements, delivery notes and goods receipts; scheduled report e-mails (need the email provider, D2). Print pages remain for the rest.
+
+Checks: `pnpm check` pass (unit 283); `pnpm test:integration` 405/405 pass (new: letterhead from the company and its e-invoicing details; a 45-line purchase order renders as a two-page PDF with the font embedded; another organization and a cashier cannot read the order); output checked visually (Arabic words, spacing and page breaks); `pnpm test:e2e` 63/63 pass (new: products downloaded as Excel; the purchase order PDF served as `application/pdf`).
 
 ## F2b — Global search (built)
 

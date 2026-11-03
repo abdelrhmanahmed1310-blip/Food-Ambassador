@@ -1174,6 +1174,15 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### API keys (F2d, ADR-090)
+
+Migration `20261218090000_f2d_api_clients`.
+
+- **api_clients**: `name`, unique `key_prefix`, `key_hash` (SHA-256 of the
+  secret), `scopes` (text array), optional `company_id`,
+  `created_by_user_id`, `last_used_at`, `revoked_at` / `revoked_by_user_id`
+  (check: both or neither). Row-level security like every tenant table.
+
 ### Global search (F2b, ADR-088)
 
 Migration `20261217090000_f2b_search`: extension `pg_trgm`; GIN trigram

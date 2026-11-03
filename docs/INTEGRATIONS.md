@@ -119,3 +119,23 @@ Without a worker running, events wait — nothing is lost.
 from `AUTH_SECRET`; set it explicitly in production so the two can be
 rotated separately. Changing it makes existing secrets unreadable — rotate
 every connector's secret afterwards.
+
+
+## REST API v1 (ADR-090)
+
+Other systems read this organization's data with an API key:
+
+1. Settings → API keys → create a key with the scopes it needs (and a
+   company, to limit it to that company's documents). Copy the key: it is
+   shown once.
+2. Call `GET /api/v1/<resource>` with `Authorization: Bearer fa_…`.
+3. The full description (OpenAPI 3.1) is at `/api/v1/openapi.json`; import
+   it into Postman, Power BI, or a client generator.
+
+```sh
+curl -H "Authorization: Bearer $FA_KEY" "https://<host>/api/v1/products?limit=100"
+curl -H "Authorization: Bearer $FA_KEY" "https://<host>/api/v1/products?limit=100&after=<nextCursor>"
+```
+
+The API is read-only. Revoke a key at once if it leaks; a new one can be
+created at any time.
