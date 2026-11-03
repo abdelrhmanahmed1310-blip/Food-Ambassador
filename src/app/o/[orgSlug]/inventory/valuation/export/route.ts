@@ -1,7 +1,7 @@
 import { isUuid } from "@/lib/uuid";
 import { exportValuationsCsv } from "@/modules/inventory/csv";
 import { canViewValuation } from "@/modules/inventory/valuation-queries";
-import { csvResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
+import { exportResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
 
 export async function GET(
   request: Request,
@@ -18,7 +18,7 @@ export async function GET(
       warehouseId: isUuid(warehouseId) ? (warehouseId as string) : undefined,
       costMissing: sp.get("costMissing") === "1",
     });
-    return csvResponse(csv, `stock-value-${new Date().toISOString().slice(0, 10)}.csv`);
+    return exportResponse(request, csv, `stock-value-${new Date().toISOString().slice(0, 10)}.csv`);
   } catch (error) {
     return errorResponse(error);
   }

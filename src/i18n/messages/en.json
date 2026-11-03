@@ -50,7 +50,8 @@
     "allWarehouses": "All warehouses",
     "allStatuses": "All statuses",
     "select": "Select…",
-    "printInBrowser": "Printing is not available in the store app yet — open this page in the browser or the installed web app to print."
+    "printInBrowser": "Printing is not available in the store app yet — open this page in the browser or the installed web app to print.",
+    "excel": "Excel"
   },
   "locale": {
     "en": "English",
@@ -4070,6 +4071,45 @@
       "salesInvoices": "Sales invoices",
       "posOrders": "Point-of-sale orders",
       "inventoryDocuments": "Stock documents"
+    }
+  },
+  "documents": {
+    "purchaseOrder": "Purchase order",
+    "invoice": "Invoice",
+    "taxInvoice": "Tax invoice",
+    "supplier": "Supplier",
+    "customer": "Customer",
+    "vatNumber": "VAT number",
+    "crNumber": "CR number",
+    "date": "Date",
+    "expectedOn": "Expected on",
+    "deliverTo": "Deliver to",
+    "currency": "Currency",
+    "status": "Status",
+    "item": "Item",
+    "quantity": "Quantity",
+    "unitPrice": "Unit price",
+    "amount": "Amount",
+    "total": "Total",
+    "net": "Net",
+    "vat": "VAT",
+    "vatRate": "VAT %",
+    "invoiceDate": "Invoice date",
+    "dueDate": "Due date",
+    "salesOrder": "Sales order",
+    "yourReference": "Your reference",
+    "cancelled": "Cancelled",
+    "poNote": "Please quote the purchase order number on your delivery note and invoice.",
+    "invoiceNote": "Where ZATCA e-invoicing applies, the cleared electronic invoice is the legal document; this PDF is its readable copy.",
+    "pdf": "PDF",
+    "poStatuses": {
+      "DRAFT": "Draft",
+      "PENDING_APPROVAL": "Waiting for approval",
+      "APPROVED": "Approved",
+      "PARTIALLY_RECEIVED": "Partly received",
+      "RECEIVED": "Received",
+      "CLOSED": "Closed",
+      "CANCELLED": "Cancelled"
     }
   }
 }

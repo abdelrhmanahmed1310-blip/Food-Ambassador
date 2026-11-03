@@ -18,6 +18,7 @@ import {
   Th,
 } from "@/components/ui/primitives";
 import { PrintButton } from "@/components/ui/print-button";
+import { buttonClass } from "@/components/ui/styles";
 import { isUuid } from "@/lib/uuid";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
 import { getOrder, purchasingWarehouseOptions } from "@/modules/procurement/orders";
@@ -94,6 +95,15 @@ export default async function OrderPage({
           <>
             <OrderStatusBadge status={order.status} />
             {order.status !== "DRAFT" ? <PrintButton label={t("purchasing.print")} /> : null}
+            {order.status !== "DRAFT" ? (
+              <a
+                href={`/o/${orgSlug}/purchasing/orders/${order.id}/pdf`}
+                className={`${buttonClass("secondary")} print:hidden`}
+                data-testid="po-pdf"
+              >
+                {t("documents.pdf")}
+              </a>
+            ) : null}
             {order.can.receive ? (
               <span className="print:hidden">
                 <LinkButton href={`/o/${orgSlug}/purchasing/orders/${order.id}/receive`}>

@@ -58,6 +58,12 @@ export default async function StockPage({
             <LinkButton href={`${base}/export${query ? `?${query}` : ""}`} variant="secondary">
               {t("common.export")}
             </LinkButton>
+            <LinkButton
+              href={`${base}/export?${query ? `${query}&` : ""}format=xlsx`}
+              variant="secondary"
+            >
+              {t("common.excel")}
+            </LinkButton>
             {holdsAnyGrant(ctx.grants, "inventory.adjust") ? (
               <LinkButton href={`/o/${orgSlug}/inventory/opening/new`}>
                 {t("inventory.openingBalance")}

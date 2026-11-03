@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
   // Self-contained server bundle for the Docker image (set in Dockerfile).
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
+  // PDF and Excel export (ADR-089) read their own data files at run time.
+  serverExternalPackages: ["pdfkit", "exceljs"],
+  // The PDF fonts travel with the standalone server.
+  outputFileTracingIncludes: { "/o/**": ["./assets/fonts/*.ttf"] },
   experimental: {
     // Attachments up to 3 MB (ADR-051, Q-08) plus multipart overhead. Other
     // uploads keep their own, lower limits in their actions.

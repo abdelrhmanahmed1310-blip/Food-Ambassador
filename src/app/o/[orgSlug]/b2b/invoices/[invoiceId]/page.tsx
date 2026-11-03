@@ -7,6 +7,7 @@ import { TextReasonForm } from "@/components/invoices/forms";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { Alert, Badge, Card } from "@/components/ui/primitives";
 import { PrintButton } from "@/components/ui/print-button";
+import { buttonClass } from "@/components/ui/styles";
 import { isUuid } from "@/lib/uuid";
 import { hasPermission } from "@/modules/access/authorize";
 import { getSalesInvoice } from "@/modules/b2b/service";
@@ -80,6 +81,13 @@ export default async function SalesInvoicePage({
             {t(`b2b.invoiceStatuses.${inv.status}`)}
           </Badge>
           {inv.status === "POSTED" ? <PrintButton label={t("recipes.print")} /> : null}
+          <a
+            href={`/o/${orgSlug}/b2b/invoices/${inv.id}/pdf`}
+            className={`${buttonClass("secondary")} print:hidden`}
+            data-testid="invoice-pdf"
+          >
+            {t("documents.pdf")}
+          </a>
         </div>
       </div>
       {doc ? (

@@ -55,6 +55,9 @@ export default async function ProductsPage({
             <LinkButton href={`${base}/export`} variant="secondary">
               {t("catalog.exportProducts")}
             </LinkButton>
+            <LinkButton href={`${base}/export?format=xlsx`} variant="secondary">
+              {t("common.excel")}
+            </LinkButton>
             {canManage ? (
               <LinkButton href={`/o/${orgSlug}/catalog/import`} variant="secondary">
                 {t("nav.import")}

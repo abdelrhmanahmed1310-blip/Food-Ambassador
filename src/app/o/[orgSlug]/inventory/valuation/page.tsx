@@ -63,9 +63,17 @@ export default async function ValuationPage({
         title={t("inventory.valuationTitle")}
         description={t("inventory.valuationHint", { currency: ctx.groupCurrency })}
         actions={
-          <LinkButton href={`${base}/export${query ? `?${query}` : ""}`} variant="secondary">
-            {t("common.export")}
-          </LinkButton>
+          <>
+            <LinkButton href={`${base}/export${query ? `?${query}` : ""}`} variant="secondary">
+              {t("common.export")}
+            </LinkButton>
+            <LinkButton
+              href={`${base}/export?${query ? `${query}&` : ""}format=xlsx`}
+              variant="secondary"
+            >
+              {t("common.excel")}
+            </LinkButton>
+          </>
         }
       />
       <div className="mb-4 grid gap-4 sm:grid-cols-2">

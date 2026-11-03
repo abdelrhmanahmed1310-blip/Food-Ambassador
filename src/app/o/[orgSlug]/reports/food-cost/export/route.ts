@@ -1,6 +1,6 @@
 import { canSeeReports, exportBranchComparisonCsv } from "@/modules/analytics/service";
 import { reportPeriod } from "@/server/report-period";
-import { csvResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
+import { exportResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
 
 export async function GET(
   request: Request,
@@ -11,7 +11,8 @@ export async function GET(
   if (!canSeeReports(ctx).foodCost) return new Response("Not found", { status: 404 });
   const period = reportPeriod(Object.fromEntries(new URL(request.url).searchParams), ctx.timeZone);
   try {
-    return csvResponse(
+    return exportResponse(
+      request,
       await exportBranchComparisonCsv(ctx, period),
       `food-cost-${period.from}-${period.to}.csv`,
     );

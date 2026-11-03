@@ -57,12 +57,20 @@ export default async function FoodCostReportPage({
         title={t("reports.foodCostTitle")}
         description={t("reports.foodCostHint")}
         actions={
-          <a
-            href={`/o/${orgSlug}/reports/food-cost/export?from=${period.from}&to=${period.to}`}
-            className={buttonClass("secondary")}
-          >
-            {t("reports.downloadCsv")}
-          </a>
+          <span className="flex flex-wrap gap-2">
+            <a
+              href={`/o/${orgSlug}/reports/food-cost/export?from=${period.from}&to=${period.to}`}
+              className={buttonClass("secondary")}
+            >
+              {t("reports.downloadCsv")}
+            </a>
+            <a
+              href={`/o/${orgSlug}/reports/food-cost/export?from=${period.from}&to=${period.to}&format=xlsx`}
+              className={buttonClass("secondary")}
+            >
+              {t("common.excel")}
+            </a>
+          </span>
         }
       />
       <div className="space-y-6">

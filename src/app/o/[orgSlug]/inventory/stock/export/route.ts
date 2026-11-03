@@ -1,7 +1,7 @@
 import { isUuid } from "@/lib/uuid";
 import { exportBalancesCsv } from "@/modules/inventory/csv";
 import { STOCK_STATUSES, type StockStatus } from "@/modules/inventory/rules";
-import { csvResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
+import { exportResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
 
 export async function GET(
   request: Request,
@@ -24,7 +24,7 @@ export async function GET(
           : undefined,
       expiry: expiry === "expired" || expiry === "expiring" ? expiry : undefined,
     });
-    return csvResponse(csv, `stock-${new Date().toISOString().slice(0, 10)}.csv`);
+    return exportResponse(request, csv, `stock-${new Date().toISOString().slice(0, 10)}.csv`);
   } catch (error) {
     return errorResponse(error);
   }

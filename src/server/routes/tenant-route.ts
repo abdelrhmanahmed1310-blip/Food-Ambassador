@@ -1,4 +1,5 @@
 import "server-only";
+import { csvToXlsx } from "@/lib/xlsx";
 import { headers } from "next/headers";
 import { resolveTenantContext, type TenantContext } from "@/modules/tenancy/context";
 import { getCurrentUser } from "@/server/auth/session";
@@ -16,6 +17,26 @@ export async function tenantForRoute(slug: string): Promise<TenantContext | Resp
   const requestId = (await headers()).get("x-request-id") ?? undefined;
   const ctx = await withSystemTx((tx) => resolveTenantContext(tx, user.id, slug, requestId));
   return ctx ?? new Response("Not found", { status: 404 });
+}
+
+/**
+ * A CSV export, or the same rows as an Excel workbook when the request asks
+ * for `?format=xlsx` (ADR-089).
+ */
+export async function exportResponse(
+  request: Request,
+  csv: string,
+  filename: string,
+): Promise<Response> {
+  if (new URL(request.url).searchParams.get("format") !== "xlsx") return csvResponse(csv, filename);
+  const xlsx = await csvToXlsx(csv, filename.replace(/\.csv$/, "").slice(0, 31));
+  return new Response(xlsx as BodyInit, {
+    headers: {
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="${filename.replace(/\.csv$/, ".xlsx")}"`,
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export function csvResponse(csv: string, filename: string): Response {

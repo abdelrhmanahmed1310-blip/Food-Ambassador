@@ -1,6 +1,6 @@
 import { hasPermission } from "@/modules/access/authorize";
 import { exportReceivablesJournalCsv } from "@/modules/b2b/accounting";
-import { csvResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
+import { exportResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
 
 export async function GET(
   request: Request,
@@ -17,7 +17,8 @@ export async function GET(
     companyId: sp.get("companyId") || undefined,
   };
   try {
-    return csvResponse(
+    return exportResponse(
+      request,
       await exportReceivablesJournalCsv(ctx, period),
       `receivables-journal-${period.from}-${period.to}.csv`,
     );

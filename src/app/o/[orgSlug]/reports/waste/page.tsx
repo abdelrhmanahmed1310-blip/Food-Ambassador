@@ -42,12 +42,20 @@ export default async function WasteReportPage({
         title={t("reports.wasteTitle")}
         description={t("reports.wasteHint")}
         actions={
-          <a
-            href={`/o/${orgSlug}/reports/waste/export?from=${period.from}&to=${period.to}`}
-            className={buttonClass("secondary")}
-          >
-            {t("reports.downloadCsv")}
-          </a>
+          <span className="flex flex-wrap gap-2">
+            <a
+              href={`/o/${orgSlug}/reports/waste/export?from=${period.from}&to=${period.to}`}
+              className={buttonClass("secondary")}
+            >
+              {t("reports.downloadCsv")}
+            </a>
+            <a
+              href={`/o/${orgSlug}/reports/waste/export?from=${period.from}&to=${period.to}&format=xlsx`}
+              className={buttonClass("secondary")}
+            >
+              {t("common.excel")}
+            </a>
+          </span>
         }
       />
       <div className="space-y-6">

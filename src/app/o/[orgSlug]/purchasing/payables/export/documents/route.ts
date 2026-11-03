@@ -1,6 +1,6 @@
 import { hasPermission } from "@/modules/access/authorize";
 import { exportPayablesDocumentsCsv } from "@/modules/invoices/accounting";
-import { csvResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
+import { exportResponse, errorResponse, tenantForRoute } from "@/server/routes/tenant-route";
 
 export async function GET(
   request: Request,
@@ -19,7 +19,7 @@ export async function GET(
   };
   try {
     const csv = await exportPayablesDocumentsCsv(ctx, period);
-    return csvResponse(csv, `payables-documents-${period.from}-${period.to}.csv`);
+    return exportResponse(request, csv, `payables-documents-${period.from}-${period.to}.csv`);
   } catch (error) {
     return errorResponse(error);
   }

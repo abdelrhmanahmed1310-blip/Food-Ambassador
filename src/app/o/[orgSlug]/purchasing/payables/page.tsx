@@ -192,6 +192,12 @@ export default async function PayablesPage({
             >
               {t("payables.exportDocuments")}
             </a>
+            <a
+              href={`${base}/export/documents?from=${from}&to=${to}&companyId=${companyId}&format=xlsx`}
+              className={buttonClass("secondary")}
+            >
+              {t("payables.exportDocuments")} — {t("common.excel")}
+            </a>
             <a href={`${base}/revaluation`} className={buttonClass("secondary")}>
               {t("revaluation.title")}
             </a>
@@ -201,6 +207,14 @@ export default async function PayablesPage({
                 className={buttonClass("secondary")}
               >
                 {t("payables.exportJournal")}
+              </a>
+            ) : null}
+            {ready ? (
+              <a
+                href={`${base}/export/journal?from=${from}&to=${to}&companyId=${companyId}&format=xlsx`}
+                className={buttonClass("secondary")}
+              >
+                {t("payables.exportJournal")} — {t("common.excel")}
               </a>
             ) : null}
           </div>
