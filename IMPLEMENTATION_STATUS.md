@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-03 (C2b document control; C2a HACCP plans; C1e spend and p
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C2c — Audits and customer complaints (built)
+
+Rules: DECISIONS.md ADR-098.
+
+| Area       | What works                                                                                                                                                                              | Where                    |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Audits     | Internal, certification, authority inspection, customer; branch, auditor, scope, planned date; late ones under Needs attention                                                          | Food safety → Audits     |
+| Findings   | Observation / minor / major / critical with the requirement; minor → MEDIUM, major → HIGH, critical → CRITICAL non-conformance at once; completed with the auditor's result, then fixed | audit page               |
+| Complaints | Channel, category, what happened, order reference, product and lot (linked to traceability), optional customer contact (kept out of the audit log)                                      | Food safety → Complaints |
+| Follow-up  | Foreign object, illness, allergen → HIGH non-conformance at once; others on request (MEDIUM); investigation, resolution, what the customer was told; open ones under Needs attention    | complaint page           |
+
+Not yet: audit checklists and scoring templates, recurring audit schedules, complaint trends (C4), notifying customers (needs D2).
+
+Checks: `pnpm check` pass (unit 316; new: finding → non-conformance severity, finding counts, food safety complaint categories); `pnpm test:integration` 443/443 pass (new: an inspection with an observation (no NC), a major finding (HIGH, source audit) and a minor one; completing in the future and cancelling with findings refused; completed with grade B, closed to more findings and fixed in the database; a late audit flagged then cancelled with a reason; branch staff cannot plan audits; a foreign object complaint on a real lot opens a HIGH NC naming the product and lot, unknown lots refused, contact details absent from the audit log; staff log but cannot resolve; investigation and resolution; a hygiene complaint opens a MEDIUM NC on request, only once; a future date refused; the database refuses a food safety complaint without its NC; branches and organizations kept apart); `pnpm test:e2e` 72/72 pass (new: plan an authority inspection, add a major finding → NC link, complete it; log a foreign-object complaint → NC link, resolve it).
 
 ## C2b — Document control (built)
 
