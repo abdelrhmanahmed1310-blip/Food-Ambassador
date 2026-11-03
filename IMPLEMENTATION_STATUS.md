@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-03 (F2c Excel and PDF; F2b global search; F2a job runner a
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## F2d — REST API v1 (built)
+
+Rules: DECISIONS.md ADR-090. With this, F2 (platform services) is complete.
+
+| Area      | What works                                                                                                                                                           | Where                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| API keys  | Created with a name, read scopes and an optional company; shown once (only a hash kept); revocable; last use shown; audited                                          | `/settings/api`        |
+| Resources | Companies, branches, warehouses, products, suppliers, stock on hand, purchase orders (list and one), supplier invoices, B2B sales invoices, POS orders; cursor pages | `/api/v1/…`            |
+| Rules     | Scopes become read permissions; row-level security; company-limited keys see only that company; 600 requests per minute per key                                      | every request          |
+| Contract  | OpenAPI 3.1, checked against the served paths                                                                                                                        | `/api/v1/openapi.json` |
+
+Not yet: writing through the API (needs a decision on who acts and how writes are approved and audited); webhooks already cover outbound events (ADR-048).
+
+Checks: `pnpm check` pass (unit 286); `pnpm test:integration` 410/410 pass (new: key shown once and only hashed; only integration managers create keys; scopes enforced (403); pages continue with the cursor; missing, wrong and revoked keys refused (401); a company-limited key sees only that company's orders; another organization's key sees nothing; every documented path is served); `pnpm test:e2e` 64/64 pass (new: create a key, read products with it, a missing scope refused, revoke it).
 
 ## F2c — Excel and PDF exports (built)
 
