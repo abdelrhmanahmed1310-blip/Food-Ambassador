@@ -71,6 +71,12 @@ test("purchasing journey: supplier → order → receive with rejection → over
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Submit" }).click();
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
+  // The order as a PDF for the supplier (ADR-089).
+  const pdfHref = await page.getByTestId("po-pdf").getAttribute("href");
+  const pdf = await page.request.get(pdfHref!);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+  expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
 
   // Receive: 6 kg flour of which 1 damaged; all milk, chilled, with lot, expiry and temperature.
   await page.getByRole("link", { name: "Receive delivery" }).click();

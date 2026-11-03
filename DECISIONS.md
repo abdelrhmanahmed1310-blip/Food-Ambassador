@@ -2089,6 +2089,34 @@ country for now, so no inter-company transfer is built.
   ranking beyond "newest first / by code", search inside free text such
   as notes.
 
+### ADR-089 Excel and PDF exports — Accepted (F2c built)
+
+- **Excel from the same rows as CSV.** Every CSV export (products, stock,
+  valuation, waste, food cost, payables and receivables documents and
+  journals) can be downloaded as `.xlsx` (`?format=xlsx`, an "Excel"
+  button beside each CSV link). The workbook is built from the CSV the
+  export already produces, so the two can never disagree. Amounts and
+  quantities become numbers; identifier columns (codes, SKUs, numbers,
+  references, phones, VAT and account numbers) and values with leading
+  zeros or more than 15 digits stay text. Import templates stay CSV.
+- **PDF documents made on the server** (pdfkit, no browser): the purchase
+  order for the supplier and the B2B sales invoice for the customer, with
+  the issuing company's letterhead (its e-invoicing seller name, national
+  address, VAT and CR numbers — ADR-082/085), the other party, details,
+  lines, totals, notes and page numbers. They are read through the same
+  services as their pages, so the same permissions apply. Where ZATCA
+  e-invoicing applies, the cleared XML stays the legal invoice and the PDF
+  is its readable copy (said on the PDF).
+- **Arabic**: DejaVu Sans (redistributable, licence in `assets/fonts`) is
+  bundled; pdfkit shapes Arabic and orders right-to-left words. Spaces
+  between Arabic words are kept as no-break spaces (pdfkit drops plain
+  ones), and a label and its value are separate cells — pdfkit misplaces
+  punctuation and spaces when Arabic and numbers share a line. Page
+  numbers are "1 / 2". Labels follow the user's language.
+- Not built: PDFs of other documents (statements, receipts of goods,
+  delivery notes) and scheduled report e-mails (need the email provider,
+  D2). The existing print pages remain for everything else.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
