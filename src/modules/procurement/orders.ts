@@ -30,9 +30,14 @@ import {
   isClosable,
   isEditable,
   isReceivable,
+  isRevisable,
   lineTotal,
   openQuantity,
+  revisionChanges,
+  revisionLineProblem,
+  statusFromReceipts,
   type PoStatus,
+  type RevisionLine,
 } from "./rules";
 import { createOrderSchema, orderHeaderSchema, orderLineSchema, reasonSchema } from "./schemas";
 import { assertSupplierOrderable } from "./compliance";
@@ -137,6 +142,45 @@ async function notifyApprovers(
 
 function requireOn(ctx: TenantContext, permission: Permission, order: LockedOrder) {
   assertPermission(ctx.grants, permission, target(order.warehouse));
+}
+
+/** A draft (or pending) order that was approved before and is being revised (ADR-093). */
+const underRevision = (order: { status: PoStatus; revision: number }) =>
+  order.revision > 0 && (order.status === "DRAFT" || order.status === "PENDING_APPROVAL");
+
+/** Status once approved: what its receipts say (a revised order may be part-received). */
+const approvedStatus = (order: LockedOrder) =>
+  statusFromReceipts(
+    order.lines.map((l) => ({
+      orderedBase: dec(l.quantityBase),
+      receivedBase: dec(l.receivedQuantityBase),
+    })),
+  );
+
+const REVISION_MESSAGES = {
+  RECEIVED_LINE_REMOVED: "A line with goods received cannot be removed",
+  RECEIVED_LINE_CHANGED: "A line with goods received keeps its product and unit",
+  RECEIVED_LINE_PRICE: "A line with goods received keeps its price",
+  BELOW_RECEIVED: "The quantity cannot be less than what has been received",
+} as const;
+
+function guardReceivedLine(
+  line: LockedOrder["lines"][number],
+  next: { productId: string; uomId: string; quantityBase: string; unitPrice: string } | null,
+) {
+  const problem = revisionLineProblem({
+    receivedBase: dec(line.receivedQuantityBase),
+    oldBase: dec(line.quantityBase),
+    next: next && {
+      base: new Decimal(next.quantityBase),
+      sameProductAndUnit: next.productId === line.productId && next.uomId === line.uomId,
+      samePrice: new Decimal(next.unitPrice).equals(dec(line.unitPrice)),
+    },
+  });
+  if (problem)
+    throw businessRuleViolation(problem, REVISION_MESSAGES[problem], {
+      ...(problem === "BELOW_RECEIVED" ? { field: "quantity" } : {}),
+    });
 }
 
 function requireStatus(order: LockedOrder, ok: boolean) {
@@ -329,8 +373,13 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
           )
         : null;
     const chain = order.autoApproved ? [] : chainOf(order);
+    const revisions = await orderRevisions(tx, ctx, order);
+    const receivedSome = order.lines.some((l) => dec(l.receivedQuantityBase).greaterThan(0));
     return {
       ...order,
+      revisions,
+      /** Being revised: approved before, back in draft or approval (ADR-093). */
+      underRevision: underRevision({ status, revision: order.revision }),
       lines: order.lines.map((l) => {
         const open = openQuantity(dec(l.quantityBase), dec(l.receivedQuantityBase));
         // The same quantities in the order line's unit, for display and receipt defaults.
@@ -365,7 +414,13 @@ export async function getOrder(ctx: TenantContext, orderId: string) {
         approve: status === "PENDING_APPROVAL" && on("purchasing.approve") && block === null,
         reject: status === "PENDING_APPROVAL" && holdsLevel(ctx, order),
         receive: isReceivable(status) && on("purchasing.receive"),
-        close: isClosable(status) && on("purchasing.manage"),
+        close:
+          (isClosable(status) ||
+            (status === "DRAFT" &&
+              underRevision({ status, revision: order.revision }) &&
+              receivedSome)) &&
+          on("purchasing.manage"),
+        revise: isRevisable(status) && on("purchasing.manage"),
         cancel: isCancellable(status, postedReceipts > 0) && on("purchasing.manage"),
       },
       /** Why an approver cannot sign the current step (own order, already signed, other level). */
@@ -463,6 +518,17 @@ export async function updateOrderHeader(ctx: TenantContext, orderId: string, raw
     const order = await lockOrder(tx, ctx, orderId);
     requireOn(ctx, "purchasing.manage", order);
     requireStatus(order, isEditable(order.status));
+    // A revision keeps the supplier, warehouse and currency the order was approved with.
+    if (
+      underRevision(order) &&
+      (input.supplierId !== order.supplierId ||
+        input.warehouseId !== order.warehouseId ||
+        (input.currency !== undefined && input.currency !== order.currency))
+    )
+      throw businessRuleViolation(
+        "REVISION_HEADER_FIXED",
+        "A revision keeps the order's supplier, warehouse and currency",
+      );
     if (input.warehouseId !== order.warehouseId) {
       const wh = await loadWarehouseRef(tx, ctx, input.warehouseId);
       if (!canOnWarehouse(ctx, "purchasing.view", wh)) throw notFound("Warehouse");
@@ -558,6 +624,7 @@ export async function updateOrderLine(
     const existing = order.lines.find((l) => l.id === lineId);
     if (!existing) throw notFound("Order line");
     const { data } = await lineValues(tx, ctx, rawInput);
+    guardReceivedLine(existing, data);
     if (order.lines.some((l) => l.id !== existing.id && l.productId === data.productId))
       throw productAlreadyOnOrder();
     await tx.purchaseOrderLine.update({ where: { id: existing.id }, data }).catch(duplicateProduct);
@@ -577,6 +644,7 @@ export async function removeOrderLine(ctx: TenantContext, orderId: string, lineI
     requireStatus(order, isEditable(order.status));
     const existing = order.lines.find((l) => l.id === lineId);
     if (!existing) throw notFound("Order line");
+    guardReceivedLine(existing, null);
     await releaseRequisitionLines(tx, ctx, [existing.id]);
     await tx.purchaseOrderLine.delete({ where: { id: existing.id } });
     const total = await recomputeTotal(tx, order.id);
@@ -632,7 +700,7 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
         totalAmountBase: totalBase.toFixed(),
         ...(outcome === "AUTO_APPROVED"
           ? {
-              status: "APPROVED",
+              status: approvedStatus(order),
               approvedAt: now,
               approvedByUserId: ctx.userId,
               autoApproved: true,
@@ -656,18 +724,19 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     if (outcome === "AUTO_APPROVED")
       await emitEvent(tx, ctx, "purchase_order.approved", order.id, orderEvent(order, total));
     else await notifyApprovers(tx, ctx, order, chain[0], [ctx.userId]);
-    return { status: outcome === "AUTO_APPROVED" ? "APPROVED" : "PENDING_APPROVAL" };
+    return { status: outcome === "AUTO_APPROVED" ? approvedStatus(order) : "PENDING_APPROVAL" };
   });
 }
 
 /** Outbound webhook payload (ADR-048): identifiers and totals only. */
 function orderEvent(
-  order: { id: string; number: string; supplierId: string; warehouseId: string },
+  order: { id: string; number: string; supplierId: string; warehouseId: string; revision: number },
   total: Decimal,
 ) {
   return {
     orderId: order.id,
     number: order.number,
+    revision: order.revision,
     supplierId: order.supplierId,
     warehouseId: order.warehouseId,
     total: total.toFixed(),
@@ -788,7 +857,7 @@ export async function approveOrder(ctx: TenantContext, orderId: string) {
         : {
             approvalsGiven: step,
             pendingApprovalLevel: null,
-            status: "APPROVED",
+            status: approvedStatus(order),
             approvedAt: now,
             approvedByUserId: ctx.userId,
             autoApproved: false,
@@ -821,7 +890,7 @@ export async function approveOrder(ctx: TenantContext, orderId: string) {
         },
       );
     } else await notifyApprovers(tx, ctx, order, next, [ctx.userId, order.submittedByUserId]);
-    return { status: next ? "PENDING_APPROVAL" : "APPROVED", step, of: chain.length };
+    return { status: next ? "PENDING_APPROVAL" : approvedStatus(order), step, of: chain.length };
   });
 }
 
@@ -909,7 +978,13 @@ export async function closeOrder(ctx: TenantContext, orderId: string, rawInput: 
   await withTenantTx(ctx.organizationId, async (tx) => {
     const order = await lockOrder(tx, ctx, orderId);
     requireOn(ctx, "purchasing.manage", order);
-    requireStatus(order, isClosable(order.status));
+    // A revision of a part-received order can also be closed instead of resubmitted (ADR-093).
+    const receivedSome = order.lines.some((l) => dec(l.receivedQuantityBase).greaterThan(0));
+    requireStatus(
+      order,
+      isClosable(order.status) ||
+        (order.status === "DRAFT" && underRevision(order) && receivedSome),
+    );
     await tx.purchaseOrder.update({
       where: { id: order.id },
       data: {
@@ -947,6 +1022,143 @@ export async function purchasingWarehouseOptions(
         },
       },
       orderBy: { code: "asc" },
+    }),
+  );
+}
+
+// ─── Revisions (ADR-093) ───
+
+/** The order as it stands, kept when a revision starts. */
+function snapshotOf(order: LockedOrder) {
+  return {
+    expectedOn: order.expectedOn ? order.expectedOn.toISOString().slice(0, 10) : null,
+    note: order.note,
+    currency: order.currency,
+    totalAmount: dec(order.totalAmount).toFixed(),
+    approvedAt: order.approvedAt?.toISOString() ?? null,
+    approvedByUserId: order.approvedByUserId,
+    lines: order.lines.map((l) => ({
+      lineNo: l.lineNo,
+      productId: l.productId,
+      uomId: l.uomId,
+      quantity: dec(l.quantity).toFixed(),
+      unitPrice: dec(l.unitPrice).toFixed(),
+      lineTotal: dec(l.lineTotal).toFixed(),
+    })),
+  };
+}
+
+export type OrderSnapshot = ReturnType<typeof snapshotOf>;
+
+/**
+ * Start a revision of an approved order: its current version is kept, and it
+ * returns to draft as the next revision. Receiving stops until the revision
+ * is approved again through the approval matrix; lines with goods received
+ * keep their product, unit and price and cannot go below what was received.
+ */
+export async function reviseOrder(ctx: TenantContext, orderId: string, rawInput: unknown) {
+  const parsed = reasonSchema.safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const order = await lockOrder(tx, ctx, orderId);
+    requireOn(ctx, "purchasing.manage", order);
+    requireStatus(order, isRevisable(order.status));
+    await tx.purchaseOrderRevision.create({
+      data: {
+        organizationId: ctx.organizationId,
+        purchaseOrderId: order.id,
+        revision: order.revision,
+        reason: parsed.data.reason,
+        snapshot: snapshotOf(order),
+        createdByUserId: ctx.userId,
+      },
+    });
+    const revision = order.revision + 1;
+    await tx.purchaseOrder.update({
+      where: { id: order.id },
+      data: {
+        revision,
+        status: "DRAFT",
+        approvalChain: [],
+        approvalsGiven: 0,
+        pendingApprovalLevel: null,
+        rejectionNote: null,
+      },
+    });
+    await audit(tx, ctx, order, "revision_started", {
+      from: order.revision,
+      to: revision,
+      reason: parsed.data.reason,
+    });
+    return { revision };
+  });
+}
+
+/**
+ * Earlier versions of an order, each with what changed in the version that
+ * followed it (the last one compared with the order as it is now).
+ */
+export async function orderRevisions(
+  tx: Tx,
+  ctx: TenantContext,
+  order: {
+    id: string;
+    expectedOn: Date | null;
+    totalAmount: { toString(): string };
+    lines: ReadonlyArray<{
+      productId: string;
+      uomId: string;
+      quantity: { toString(): string };
+      unitPrice: { toString(): string };
+    }>;
+  },
+) {
+  const rows = await tx.purchaseOrderRevision.findMany({
+    where: { organizationId: ctx.organizationId, purchaseOrderId: order.id },
+    orderBy: { revision: "asc" },
+  });
+  const current: RevisionLine[] = order.lines.map((l) => ({
+    productId: l.productId,
+    uomId: l.uomId,
+    quantity: dec(l.quantity).toFixed(),
+    unitPrice: dec(l.unitPrice).toFixed(),
+  }));
+  const users = new Map(
+    (
+      await tx.user.findMany({
+        where: { id: { in: [...new Set(rows.map((r) => r.createdByUserId))] } },
+        select: { id: true, name: true },
+      })
+    ).map((u) => [u.id, u.name]),
+  );
+  return rows.map((r, i) => {
+    const snap = r.snapshot as unknown as OrderSnapshot;
+    const nextSnap = rows[i + 1]?.snapshot as unknown as OrderSnapshot | undefined;
+    const nextLines = nextSnap ? nextSnap.lines : current;
+    const nextExpected = nextSnap
+      ? nextSnap.expectedOn
+      : order.expectedOn
+        ? order.expectedOn.toISOString().slice(0, 10)
+        : null;
+    return {
+      revision: r.revision,
+      reason: r.reason,
+      startedAt: r.createdAt,
+      startedBy: users.get(r.createdByUserId) ?? null,
+      totalAmount: new Decimal(snap.totalAmount),
+      nextTotal: nextSnap ? new Decimal(nextSnap.totalAmount) : dec(order.totalAmount),
+      expectedOn: { from: snap.expectedOn, to: nextExpected },
+      changes: revisionChanges(snap.lines, nextLines),
+    };
+  });
+}
+
+/** SKU and names of products, for order history (removed lines). */
+export async function productsNamed(ctx: TenantContext, ids: string[]) {
+  return withTenantTx(ctx.organizationId, (tx) =>
+    tx.product.findMany({
+      where: { organizationId: ctx.organizationId, id: { in: ids } },
+      select: { id: true, sku: true, nameEn: true, nameAr: true },
     }),
   );
 }

@@ -622,7 +622,12 @@
     "QUOTATION_VALIDITY": "Valid until is before the quotation date.",
     "QUOTATION_EXPIRED": "This quotation is no longer valid.",
     "NOTHING_AWARDED": "Choose an offer for at least one line.",
-    "AWARD_REASON_REQUIRED": "Say why this offer is chosen over a lower one, or one that could not be compared."
+    "AWARD_REASON_REQUIRED": "Say why this offer is chosen over a lower one, or one that could not be compared.",
+    "RECEIVED_LINE_REMOVED": "A line with goods received cannot be removed.",
+    "RECEIVED_LINE_CHANGED": "A line with goods received keeps its product and unit.",
+    "RECEIVED_LINE_PRICE": "A line with goods received keeps its price — receipts and invoices were valued at it.",
+    "BELOW_RECEIVED": "The quantity cannot be less than what has been received.",
+    "REVISION_HEADER_FIXED": "A revision keeps the order's supplier, warehouse and currency. Cancel or close it and create a new order instead."
   },
   "notFound": {
     "title": "Page not found",
@@ -1441,7 +1446,23 @@
     "settingsTitle": "Purchasing settings",
     "tolerance": "Over-receipt tolerance (%)",
     "toleranceHint": "How much more than ordered may be accepted on a line. 0 = never more than ordered.",
-    "print": "Print"
+    "print": "Print",
+    "revisionLabel": "Revision {revision}",
+    "editLine": "Change",
+    "underRevision": "Revision {revision} is being prepared. Receiving is paused until it is approved again. Send the supplier the new PDF once approved.",
+    "reviseTitle": "Revise this order",
+    "reviseHint": "Changes after approval (quantities, prices, dates, extra lines) are made as a new revision: the current version is kept, the order returns to draft and needs approval again. Lines already received keep their product, unit and price and cannot go below what was received.",
+    "reviseReason": "Why is the order being revised?",
+    "revise": "Start revision",
+    "revisionsTitle": "Revisions",
+    "revisionFromTo": "Revision {from} → {to}",
+    "noChanges": "No changes.",
+    "changeAdded": "Added {product}: {quantity} at {price}",
+    "changeRemoved": "Removed {product}",
+    "changeQuantity": "{product}: quantity {from} → {to}",
+    "changePrice": "{product}: price {from} → {to}",
+    "changeExpected": "Expected date {from} → {to}",
+    "changeTotal": "Total {from} → {to}"
   },
   "reorder": {
     "title": "Reorder",
@@ -4244,7 +4265,8 @@
     "rfq": "Request for quotation",
     "respondBy": "Please quote by",
     "neededBy": "Needed by",
-    "rfqNote": "Please give your unit price per the unit shown, your validity date and lead time."
+    "rfqNote": "Please give your unit price per the unit shown, your validity date and lead time.",
+    "revision": "Revision"
   },
   "api": {
     "title": "API keys",

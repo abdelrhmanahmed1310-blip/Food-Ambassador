@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
   allocateCharge,
+  revisionChanges,
+  revisionLineProblem,
   isCancellable,
   isClosable,
   isEditable,
@@ -202,5 +204,73 @@ describe("requisition rules", () => {
     });
     for (const s of ["ORDERED", "REJECTED", "CLOSED", "CANCELLED"] as const)
       expect(Object.values(requisitionActions(s, 0)).some(Boolean)).toBe(false);
+  });
+});
+
+describe("order revisions (ADR-093)", () => {
+  const d = (v: string) => new Decimal(v);
+  const keep = { sameProductAndUnit: true, samePrice: true };
+
+  it("leaves unreceived lines free", () => {
+    expect(revisionLineProblem({ receivedBase: d("0"), oldBase: d("10"), next: null })).toBeNull();
+    expect(
+      revisionLineProblem({
+        receivedBase: d("0"),
+        oldBase: d("10"),
+        next: { base: d("1"), sameProductAndUnit: false, samePrice: false },
+      }),
+    ).toBeNull();
+  });
+
+  it("protects what was received", () => {
+    const received = { receivedBase: d("6"), oldBase: d("10") };
+    expect(revisionLineProblem({ ...received, next: null })).toBe("RECEIVED_LINE_REMOVED");
+    expect(
+      revisionLineProblem({
+        ...received,
+        next: { ...keep, base: d("8"), sameProductAndUnit: false },
+      }),
+    ).toBe("RECEIVED_LINE_CHANGED");
+    expect(
+      revisionLineProblem({ ...received, next: { ...keep, base: d("8"), samePrice: false } }),
+    ).toBe("RECEIVED_LINE_PRICE");
+    expect(revisionLineProblem({ ...received, next: { ...keep, base: d("5") } })).toBe(
+      "BELOW_RECEIVED",
+    );
+    expect(revisionLineProblem({ ...received, next: { ...keep, base: d("6") } })).toBeNull();
+    expect(revisionLineProblem({ ...received, next: { ...keep, base: d("20") } })).toBeNull();
+    // Over-received within tolerance: may stay at the old quantity.
+    expect(
+      revisionLineProblem({
+        receivedBase: d("10.5"),
+        oldBase: d("10"),
+        next: { ...keep, base: d("10") },
+      }),
+    ).toBeNull();
+  });
+
+  it("lists added, removed and changed lines", () => {
+    const line = (productId: string, quantity: string, unitPrice: string, uomId = "kg") => ({
+      productId,
+      quantity,
+      unitPrice,
+      uomId,
+    });
+    expect(
+      revisionChanges(
+        [line("a", "10", "5"), line("b", "2", "1"), line("c", "1", "1")],
+        [line("a", "12.0", "5.00"), line("c", "1", "1"), line("d", "3", "4")],
+      ),
+    ).toEqual([
+      {
+        kind: "CHANGED",
+        productId: "a",
+        quantity: { from: "10", to: "12.0" },
+        unitPrice: null,
+        uomChanged: false,
+      },
+      { kind: "REMOVED", productId: "b", quantity: "2", unitPrice: "1" },
+      { kind: "ADDED", productId: "d", quantity: "3", unitPrice: "4" },
+    ]);
   });
 });

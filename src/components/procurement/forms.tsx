@@ -877,3 +877,52 @@ export function FulfilFromStockForm({
     </ActionForm>
   );
 }
+
+/** Change an order line's quantity and price (product and unit stay; ADR-093). */
+export function OrderLineEditForm({
+  action,
+  productId,
+  uomId,
+  unit,
+  currency,
+  defaults,
+}: {
+  action: Action;
+  productId: string;
+  uomId: string;
+  unit: string;
+  currency: string;
+  defaults: { quantity: string; unitPrice: string; note?: string };
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("common.save")}
+      pendingLabel={t("common.saving")}
+      submitVariant="secondary"
+    >
+      <input type="hidden" name="productId" value={productId} />
+      <input type="hidden" name="uomId" value={uomId} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TextField
+          name="quantity"
+          label={`${t("common.quantity")} (${unit})`}
+          defaultValue={defaults.quantity}
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+        <TextField
+          name="unitPrice"
+          label={`${t("purchasing.unitPrice")} (${currency})`}
+          defaultValue={defaults.unitPrice}
+          inputMode="decimal"
+          dir="ltr"
+          required
+        />
+      </div>
+      {defaults.note ? <input type="hidden" name="note" value={defaults.note} /> : null}
+    </ActionForm>
+  );
+}

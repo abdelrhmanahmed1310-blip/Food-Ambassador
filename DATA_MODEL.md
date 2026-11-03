@@ -586,6 +586,17 @@ Requests for quotation (C1b, ADR-092; migration `20261220090000_c1b_rfq_quotatio
   RFQ line's unit, optional `quantity` offered (> 0). A trigger keeps the
   line within the quotation's RFQ.
 - **purchase_orders.quotation_id**: the quotation an order was awarded from.
+
+Purchase order revisions (C1c, ADR-093; migration `20261221090000_c1c_po_revisions`):
+
+- **purchase_orders.revision** (≥ 0, default 0): the version; a trigger
+  allows only +1, and only once that version is kept.
+- **purchase_order_revisions**: UQ (order, revision); `reason`, `snapshot`
+  (JSON: expected date, note, currency, total, approval, lines with
+  product, unit, quantity, price, total), created by/at. Insert-only; a
+  trigger accepts only the order's current revision.
+- **purchase_order_lines**: a trigger refuses deleting a line with goods
+  received, or changing its product, unit or price.
 - **approval_layers** (ADR-049, migration `20261112090000_approval_matrix`):
   PK (organization, `document` PURCHASE_ORDER | STOCK_COUNT, `position`
   1–4: 1–3 branch, 4 head office), `above_amount` ≥ 0 — the layer is

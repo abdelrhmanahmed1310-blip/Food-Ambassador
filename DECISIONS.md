@@ -2224,6 +2224,34 @@ country for now, so no inter-company transfer is built.
   bids, a minimum number of quotes, and splitting one line between
   suppliers.
 
+### ADR-093 Purchase order revisions — Accepted (C1c built)
+
+- **When.** An approved order — before or after goods arrive — that needs
+  changing (quantity, price, expected date, an extra line, a line dropped)
+  is revised, not edited in place. "Start revision" needs a reason and
+  `purchasing.manage` at the warehouse.
+- **What happens.** The current version (header and lines, as approved) is
+  kept in `purchase_order_revisions` with the reason, who and when; the
+  order goes back to draft as revision n + 1. Receiving and invoicing wait
+  until it is approved again: resubmission runs the approval matrix
+  (ADR-049) and supplier checks (ADR-091) on the new total, as any order.
+  Once approved, its status follows its receipts (approved, part-received
+  or received — an order cut down to what arrived is complete).
+- **Limits.** A revision keeps the supplier, warehouse and currency (a
+  different one is a new order). A line with goods received keeps its
+  product, unit and price — receipts and invoices were valued at that
+  price — cannot be removed, and cannot be ordered below what was received
+  (or below its old quantity when more was accepted within the tolerance).
+  The database enforces the same: a trigger on order lines, versions kept
+  only for the order's current revision, and revisions one step at a time.
+- **If the revision cannot go ahead** (e.g. the supplier is blocked): an
+  order with nothing received can be cancelled; a part-received one can be
+  closed from the revision draft.
+- **History.** The order page lists every revision with its reason and
+  what changed (lines added, removed, quantity and price changes, expected
+  date, total). The PDF and the approval webhook carry the revision number;
+  the buyer sends the new PDF to the supplier (no e-mail yet, D2).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

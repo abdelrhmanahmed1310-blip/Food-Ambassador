@@ -42,6 +42,10 @@ export async function GET(
       },
       details: [
         [t("date"), f.date(order.submittedAt ?? order.createdAt)],
+        // A revised order says so, so the supplier replaces the earlier copy (ADR-093).
+        ...(order.revision > 0
+          ? ([[t("revision"), String(order.revision)]] as Array<[string, string]>)
+          : []),
         ...(order.expectedOn
           ? ([[t("expectedOn"), f.date(order.expectedOn)]] as Array<[string, string]>)
           : []),

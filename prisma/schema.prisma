@@ -171,6 +171,7 @@ model Organization {
   suppliers               Supplier[]
   supplierDocuments       SupplierDocument[]
   rfqs                    Rfq[]
+  purchaseOrderRevisions  PurchaseOrderRevision[]
   rfqLines                RfqLine[]
   rfqSuppliers            RfqSupplier[]
   quotations              Quotation[]
@@ -1526,6 +1527,8 @@ model PurchaseOrder {
   closeReason          String?             @map("close_reason")
   /// Created by awarding this quotation (ADR-092).
   quotationId          String?             @map("quotation_id") @db.Uuid
+  /// Version of the order (ADR-093): 0 as first approved; each revision adds one.
+  revision             Int                 @default(0)
   createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1536,6 +1539,7 @@ model PurchaseOrder {
   lines        PurchaseOrderLine[]
   receipts     GoodsReceipt[]
   approvals    PurchaseOrderApproval[]
+  revisions    PurchaseOrderRevision[]
 
   company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
@@ -1614,6 +1618,28 @@ model PurchaseOrderApproval {
   @@unique([organizationId, purchaseOrderId, round, step], map: "po_approvals_step_key")
   @@unique([organizationId, purchaseOrderId, round, approvedByUserId], map: "po_approvals_person_key")
   @@map("purchase_order_approvals")
+}
+
+/// The version an order had when a revision was started (ADR-093): header and
+/// lines as approved, and why it was revised. Written once, never changed.
+model PurchaseOrderRevision {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  purchaseOrderId String   @map("purchase_order_id") @db.Uuid
+  /// The version kept here (the order moves on to revision + 1).
+  revision        Int
+  reason          String
+  /// { expectedOn, note, currency, totalAmount, approvedAt, approvedByUserId, lines: [{ lineNo, productId, uomId, quantity, unitPrice, lineTotal }] }
+  snapshot        Json
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, purchaseOrderId, revision])
+  @@map("purchase_order_revisions")
 }
 
 model PurchaseOrderLine {

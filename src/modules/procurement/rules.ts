@@ -196,3 +196,91 @@ export const requisitionActions = (status: RequisitionStatus, ordered: number) =
   reject: status === "SUBMITTED" && ordered === 0,
   close: status === "PARTIALLY_ORDERED",
 });
+
+// ─── Revisions (ADR-093) ───
+
+/** An approved order, received or not, can be revised: it goes back to draft as revision n + 1. */
+export const isRevisable = (status: PoStatus) =>
+  status === "APPROVED" || status === "PARTIALLY_RECEIVED";
+
+/**
+ * Why a change to a line of an order under revision is refused, or null.
+ * A line with goods received keeps its product, unit and price (receipts
+ * and invoices were valued at it), cannot be removed, and cannot be
+ * ordered below what was received (or below the old quantity when more
+ * than that was accepted within the tolerance).
+ */
+export function revisionLineProblem(input: {
+  receivedBase: Decimal;
+  oldBase: Decimal;
+  /** null = the line is being removed. */
+  next: { base: Decimal; sameProductAndUnit: boolean; samePrice: boolean } | null;
+}):
+  | "RECEIVED_LINE_REMOVED"
+  | "RECEIVED_LINE_CHANGED"
+  | "RECEIVED_LINE_PRICE"
+  | "BELOW_RECEIVED"
+  | null {
+  if (input.receivedBase.isZero()) return null;
+  if (input.next === null) return "RECEIVED_LINE_REMOVED";
+  if (!input.next.sameProductAndUnit) return "RECEIVED_LINE_CHANGED";
+  if (!input.next.samePrice) return "RECEIVED_LINE_PRICE";
+  if (input.next.base.lessThan(Decimal.min(input.oldBase, input.receivedBase)))
+    return "BELOW_RECEIVED";
+  return null;
+}
+
+export interface RevisionLine {
+  productId: string;
+  quantity: string;
+  unitPrice: string;
+  uomId: string;
+}
+
+export type RevisionChange =
+  | { kind: "ADDED"; productId: string; quantity: string; unitPrice: string }
+  | { kind: "REMOVED"; productId: string; quantity: string; unitPrice: string }
+  | {
+      kind: "CHANGED";
+      productId: string;
+      quantity: { from: string; to: string } | null;
+      unitPrice: { from: string; to: string } | null;
+      uomChanged: boolean;
+    };
+
+/** What changed between two versions of an order's lines, by product. */
+export function revisionChanges(
+  before: readonly RevisionLine[],
+  after: readonly RevisionLine[],
+): RevisionChange[] {
+  const eq = (a: string, b: string) => new Decimal(a).equals(new Decimal(b));
+  const old = new Map(before.map((l) => [l.productId, l]));
+  const next = new Map(after.map((l) => [l.productId, l]));
+  const out: RevisionChange[] = [];
+  for (const b of before) {
+    const a = next.get(b.productId);
+    if (!a) {
+      out.push({
+        kind: "REMOVED",
+        productId: b.productId,
+        quantity: b.quantity,
+        unitPrice: b.unitPrice,
+      });
+      continue;
+    }
+    const quantity = eq(a.quantity, b.quantity) ? null : { from: b.quantity, to: a.quantity };
+    const unitPrice = eq(a.unitPrice, b.unitPrice) ? null : { from: b.unitPrice, to: a.unitPrice };
+    const uomChanged = a.uomId !== b.uomId;
+    if (quantity || unitPrice || uomChanged)
+      out.push({ kind: "CHANGED", productId: b.productId, quantity, unitPrice, uomChanged });
+  }
+  for (const a of after)
+    if (!old.has(a.productId))
+      out.push({
+        kind: "ADDED",
+        productId: a.productId,
+        quantity: a.quantity,
+        unitPrice: a.unitPrice,
+      });
+  return out;
+}

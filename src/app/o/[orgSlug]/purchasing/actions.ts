@@ -11,6 +11,8 @@ import {
   createOrder,
   rejectOrder,
   removeOrderLine,
+  reviseOrder,
+  updateOrderLine,
   submitOrder,
   updateOrderHeader,
 } from "@/modules/procurement/orders";
@@ -70,6 +72,32 @@ export async function addOrderLineAction(
 ) {
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await addOrderLine(ctx, orderId, formValues(formData));
+  });
+}
+
+export async function updateOrderLineAction(
+  orgSlug: string,
+  orderId: string,
+  lineId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  const t = await getTranslations("common");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await updateOrderLine(ctx, orderId, lineId, formValues(formData));
+    return { message: t("savedSuccessfully") };
+  });
+}
+
+/** Start a revision of an approved order (ADR-093). */
+export async function reviseOrderAction(
+  orgSlug: string,
+  orderId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await reviseOrder(ctx, orderId, formValues(formData));
   });
 }
 
