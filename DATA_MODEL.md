@@ -1174,6 +1174,14 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### Global search (F2b, ADR-088)
+
+Migration `20261217090000_f2b_search`: extension `pg_trgm`; GIN trigram
+indexes (`*_trgm`) on product SKU and names, supplier, customer, guest,
+employee, recipe and menu item names, lot codes, and the numbers of
+purchase orders, goods receipts, supplier invoices (and the supplier's
+reference), sales orders and invoices, POS orders and stock documents.
+
 ### Jobs and notifications (F2a, ADR-087)
 
 Migration `20261216090000_f2a_jobs_notifications`.

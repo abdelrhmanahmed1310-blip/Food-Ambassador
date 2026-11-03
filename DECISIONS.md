@@ -2067,6 +2067,28 @@ country for now, so no inter-company transfer is built.
 - **In-app only.** Email, SMS and WhatsApp adapters wait for the provider
   decision (D2); nothing is sent outside the app.
 
+### ADR-088 Global search — Accepted (F2b built)
+
+- **One box in the header** (a search icon on small screens) opens the
+  search page with results grouped by kind: products (SKU, English or
+  Arabic name, barcode), suppliers, B2B customers (code, name, VAT
+  number), guests (name or phone — "050 777 1234" finds +966507771234),
+  employees (number, name, job title), recipes, menu items, lots,
+  purchase orders, goods receipts, supplier invoices (our number or the
+  supplier's), sales orders and invoices, POS orders and stock documents.
+  Up to six hits per group, each linking to its page.
+- **Same permissions as the pages**: a group is searched only when the
+  user holds the permission its page needs, and documents and employees
+  only at the branches and warehouses where they hold it. Row-level
+  security keeps other organizations out as everywhere else.
+- **In the database**: "contains" matching (case-insensitive) with
+  PostgreSQL trigram indexes (`pg_trgm`) on the searched names, codes and
+  numbers — no separate search service to run or keep in sync. Queries
+  are 2–80 characters.
+- Not built: saved filters / saved views (the audit's `saved_views`),
+  ranking beyond "newest first / by code", search inside free text such
+  as notes.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

@@ -735,6 +735,10 @@ model Product {
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
   @@index([organizationId, categoryId])
+  /// Global search (ADR-088).
+  @@index([sku(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_sku_trgm")
+  @@index([nameEn(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_name_en_trgm")
+  @@index([nameAr(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_name_ar_trgm")
   @@map("products")
 }
 
@@ -816,6 +820,8 @@ model InventoryLot {
   /// Lets ledger rows prove their lot belongs to their product.
   @@unique([organizationId, productId, id])
   @@unique([organizationId, productId, lotCode])
+  /// Global search (ADR-088).
+  @@index([lotCode(ops: raw("gin_trgm_ops"))], type: Gin, map: "inventory_lots_lot_code_trgm")
   @@map("inventory_lots")
 }
 
@@ -920,6 +926,8 @@ model InventoryDocument {
   /// A document can be reversed at most once.
   @@unique([organizationId, reversesDocumentId])
   @@index([organizationId, postedAt(sort: Desc)])
+  /// Global search (ADR-088).
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin, map: "inventory_documents_number_trgm")
   @@map("inventory_documents")
 }
 
@@ -1314,6 +1322,8 @@ model Supplier {
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
+  /// Global search (ADR-088).
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "suppliers_name_trgm")
   @@map("suppliers")
 }
 
@@ -1420,6 +1430,8 @@ model PurchaseOrder {
   @@unique([organizationId, number])
   @@index([organizationId, status])
   @@index([organizationId, supplierId])
+  /// Global search (ADR-088).
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin, map: "purchase_orders_number_trgm")
   @@map("purchase_orders")
 }
 
@@ -1573,6 +1585,8 @@ model GoodsReceipt {
   @@unique([organizationId, reversalDocumentId])
   @@index([organizationId, purchaseOrderId])
   @@index([organizationId, supplierId, receivedAt])
+  /// Global search (ADR-088).
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin, map: "goods_receipts_number_trgm")
   @@map("goods_receipts")
 }
 
@@ -1949,6 +1963,8 @@ model Recipe {
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
+  /// Global search (ADR-088).
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "recipes_name_trgm")
   @@map("recipes")
 }
 
@@ -2698,6 +2714,9 @@ model SupplierInvoice {
   @@index([organizationId, supplierId, invoiceDate])
   @@index([organizationId, status])
   @@index([organizationId, companyId], map: "supplier_invoices_company_idx")
+  /// Global search (ADR-088).
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin, map: "supplier_invoices_number_trgm")
+  @@index([supplierInvoiceNo(ops: raw("gin_trgm_ops"))], type: Gin, map: "supplier_invoices_ref_trgm")
   @@map("supplier_invoices")
 }
 
@@ -3171,6 +3190,8 @@ model Customer {
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
+  /// Global search (ADR-088).
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "customers_name_trgm")
   @@map("customers")
 }
 
@@ -3207,6 +3228,8 @@ model SalesOrder {
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, customerId, status])
+  /// Global search (ADR-088).
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin, map: "sales_orders_number_trgm")
   @@map("sales_orders")
 }
 
@@ -3324,6 +3347,8 @@ model SalesInvoice {
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, customerId, invoiceDate])
+  /// Global search (ADR-088).
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin, map: "sales_invoices_number_trgm")
   @@map("sales_invoices")
 }
 
@@ -3579,6 +3604,8 @@ model MenuItem {
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@index([organizationId, categoryId])
+  /// Global search (ADR-088).
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "menu_items_name_trgm")
   @@map("menu_items")
 }
 
@@ -3845,6 +3872,8 @@ model PosOrder {
   @@index([organizationId, shiftId])
   @@index([organizationId, businessDate])
   @@index([organizationId, companyId, businessDate], map: "pos_orders_company_idx")
+  /// Global search (ADR-088).
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin, map: "pos_orders_number_trgm")
   @@map("pos_orders")
 }
 
@@ -4614,6 +4643,8 @@ model PosCustomer {
 
   @@unique([organizationId, id])
   @@unique([organizationId, phone])
+  /// Global search (ADR-088).
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "pos_customers_name_trgm")
   @@map("pos_customers")
 }
 
@@ -4970,6 +5001,9 @@ model Employee {
   @@unique([organizationId, number])
   @@unique([organizationId, userId])
   @@index([organizationId, branchId, status])
+  /// Global search (ADR-088).
+  @@index([firstName(ops: raw("gin_trgm_ops"))], type: Gin, map: "employees_first_name_trgm")
+  @@index([lastName(ops: raw("gin_trgm_ops"))], type: Gin, map: "employees_last_name_trgm")
   @@map("employees")
 }
 

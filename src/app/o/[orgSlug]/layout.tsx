@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Bell, ChevronDown, LogOut, ShieldCheck, Store } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Search, ShieldCheck, Store } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-links";
@@ -22,9 +22,10 @@ import { signOutAction } from "../../(auth)/actions";
 export default async function TenantLayout({ children, params }: LayoutProps<"/o/[orgSlug]">) {
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
-  const [t, tn, user, orgs, isEmployee, unread] = await Promise.all([
+  const [t, tn, ts, user, orgs, isEmployee, unread] = await Promise.all([
     getTranslations("nav"),
     getTranslations("notifications"),
+    getTranslations("search"),
     getCurrentUser(),
     listUserOrganizations(ctx.userId),
     hasEmployeeRecord(ctx),
@@ -271,6 +272,27 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
             </details>
           </div>
           <div className="flex items-center gap-1">
+            <form method="get" action={`${base}/search`} role="search" className="hidden md:block">
+              <label htmlFor="global-search" className="sr-only">
+                {ts("label")}
+              </label>
+              <input
+                id="global-search"
+                name="q"
+                type="search"
+                minLength={2}
+                maxLength={80}
+                placeholder={ts("placeholder")}
+                className="border-border bg-surface w-56 rounded-md border px-3 py-1.5 text-sm"
+              />
+            </form>
+            <Link
+              href={`${base}/search`}
+              className="hover:bg-surface-muted rounded-md p-2 md:hidden"
+              aria-label={ts("title")}
+            >
+              <Search aria-hidden="true" className="size-5" />
+            </Link>
             <Link
               href={`${base}/notifications`}
               className="hover:bg-surface-muted relative rounded-md p-2"

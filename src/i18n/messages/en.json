@@ -4045,5 +4045,31 @@
       "attachments_purge": "Attachment clean-up",
       "attention_digest": "Daily attention summary"
     }
+  },
+  "search": {
+    "title": "Search",
+    "intro": "Find products, suppliers, customers, people, recipes, menu items, lots and documents by code, number or name. Only what you may open is shown.",
+    "label": "Search",
+    "placeholder": "Search code, number or name…",
+    "submit": "Search",
+    "hint": "Type at least {min} characters.",
+    "none": "Nothing found for “{query}”.",
+    "groups": {
+      "products": "Products",
+      "suppliers": "Suppliers",
+      "customers": "B2B customers",
+      "guests": "Guests",
+      "employees": "Employees",
+      "recipes": "Recipes",
+      "menuItems": "Menu items",
+      "lots": "Lots",
+      "purchaseOrders": "Purchase orders",
+      "receipts": "Goods receipts",
+      "supplierInvoices": "Supplier invoices",
+      "salesOrders": "Sales orders",
+      "salesInvoices": "Sales invoices",
+      "posOrders": "Point-of-sale orders",
+      "inventoryDocuments": "Stock documents"
+    }
   }
 }
