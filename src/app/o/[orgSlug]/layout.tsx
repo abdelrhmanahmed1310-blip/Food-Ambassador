@@ -146,6 +146,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/food-safety/documents`, label: t("fsDocuments") },
       { href: `${base}/food-safety/audits`, label: t("audits") },
       { href: `${base}/food-safety/complaints`, label: t("complaints") },
+      { href: `${base}/food-safety/equipment`, label: t("equipment") },
       { href: `${base}/food-safety/records`, label: t("safetyRecords") },
       { href: `${base}/food-safety/checklists`, label: t("checklists") },
       { href: `${base}/food-safety/non-conformances`, label: t("nonConformances") },

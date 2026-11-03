@@ -163,7 +163,8 @@
     "haccpPlans": "HACCP plans",
     "fsDocuments": "Documents",
     "audits": "Audits",
-    "complaints": "Complaints"
+    "complaints": "Complaints",
+    "equipment": "Equipment"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -668,7 +669,16 @@
     "COMPLAINT_IN_FUTURE": "A complaint cannot be received in the future.",
     "COMPLAINT_RESOLVED": "The complaint is resolved.",
     "LOT_NEEDS_PRODUCT": "Choose the product the lot belongs to.",
-    "LOT_NOT_FOUND": "No lot with this code for the product."
+    "LOT_NOT_FOUND": "No lot with this code for the product.",
+    "CALIBRATION_NEEDED": "Its last calibration failed: record a passing one.",
+    "CALIBRATION_RESULT_REQUIRED": "Say whether it passed.",
+    "CALIBRATION_INCOMPLETE": "Give the reference value, the reading and the tolerance together.",
+    "CHECKPOINT_OTHER_BRANCH": "The checkpoint is at another branch.",
+    "DATE_IN_FUTURE": "It cannot be recorded before it happens.",
+    "EQUIPMENT_NOT_ACTIVE": "The equipment is not in service.",
+    "EQUIPMENT_NOT_OUT_OF_SERVICE": "The equipment is not out of service.",
+    "EQUIPMENT_RETIRED": "The equipment is retired.",
+    "NEXT_DUE_BEFORE": "The next date must come after this one."
   },
   "notFound": {
     "title": "Page not found",
@@ -1987,7 +1997,8 @@
       "RECORD": "Out-of-spec record",
       "CHECKLIST": "Failed checklist",
       "AUDIT": "Audit finding",
-      "COMPLAINT": "Customer complaint"
+      "COMPLAINT": "Customer complaint",
+      "EQUIPMENT": "Equipment calibration"
     },
     "ncStatuses": {
       "OPEN": "Open",
@@ -2558,7 +2569,10 @@
       "FS_DOCUMENT_REVIEWS_DUE": "{count, plural, one {# document due for review} other {# documents due for review}}",
       "FS_DOCUMENTS_UNREAD": "{count, plural, one {# document to read} other {# documents to read}}",
       "COMPLAINTS_OPEN": "{count, plural, one {# complaint to resolve} other {# complaints to resolve}}",
-      "AUDITS_OVERDUE": "{count, plural, one {# audit past its planned date} other {# audits past their planned date}}"
+      "AUDITS_OVERDUE": "{count, plural, one {# audit past its planned date} other {# audits past their planned date}}",
+      "EQUIPMENT_OVERDUE": "{count, plural, one {# piece of equipment overdue for calibration or maintenance} other {# pieces of equipment overdue for calibration or maintenance}}",
+      "EQUIPMENT_DUE_SOON": "{count, plural, one {# piece of equipment due for calibration or maintenance within 30 days} other {# pieces of equipment due within 30 days}}",
+      "EQUIPMENT_OUT_OF_SERVICE": "{count, plural, one {# piece of equipment out of service} other {# pieces of equipment out of service}}"
     }
   },
   "production": {
@@ -4785,6 +4799,89 @@
       "OPEN": "Open",
       "INVESTIGATING": "Investigating",
       "RESOLVED": "Resolved"
+    }
+  },
+  "equipment": {
+    "title": "Equipment",
+    "hint": "Thermometers, fridges, ovens, scales and other equipment per branch, with their calibration and maintenance. Intervals are set by you.",
+    "empty": "No equipment registered.",
+    "showRetired": "Show retired equipment",
+    "hideRetired": "Hide retired equipment",
+    "register": "Register",
+    "registerTitle": "Register equipment",
+    "branch": "Branch",
+    "code": "Code",
+    "name": "Name",
+    "type": "Type",
+    "serialNumber": "Serial number",
+    "location": "Location",
+    "checkpoint": "Monitoring checkpoint",
+    "checkpointHint": "The temperature checkpoint this equipment is or measures.",
+    "calibrationInterval": "Calibrate every (days)",
+    "maintenanceInterval": "Maintain every (days)",
+    "intervalHint": "Leave empty when it is not calibrated.",
+    "intervals": "Intervals",
+    "intervalsValue": "Calibration every {cal} days · maintenance every {maint} days",
+    "calibrationDue": "Calibration due",
+    "maintenanceDue": "Maintenance due",
+    "notPlanned": "Not planned",
+    "overdue": "overdue",
+    "calibrations": "Calibrations and checks",
+    "noCalibrations": "No calibration recorded.",
+    "recordCalibration": "Record calibration",
+    "performedOn": "Date",
+    "performedBy": "By",
+    "performedByHint": "The person in-house or the calibration provider.",
+    "method": "Method",
+    "reference": "Reference value",
+    "reading": "Reading",
+    "tolerance": "Allowed deviation (±)",
+    "toleranceHint": "E.g. ±1 for a probe in iced water at 0 °C.",
+    "unit": "Unit",
+    "result": "Result",
+    "resultHint": "Only when nothing is measured; otherwise it follows from the numbers.",
+    "fromNumbers": "From the numbers",
+    "certificate": "Certificate number",
+    "nextDue": "Next due",
+    "nextDueHint": "Empty = date + the interval.",
+    "measurement": "Reading / reference",
+    "results": {
+      "PASS": "Pass",
+      "FAIL": "Fail"
+    },
+    "passed": "Calibration passed.",
+    "failed": "Calibration failed: the equipment is out of service and {number} was opened.",
+    "maintenanceTitle": "Maintenance",
+    "noMaintenance": "No maintenance recorded.",
+    "recordMaintenance": "Record maintenance",
+    "maintenanceType": "Kind",
+    "work": "Work done",
+    "maintenanceTypes": {
+      "PREVENTIVE": "Preventive maintenance",
+      "REPAIR": "Repair",
+      "CLEANING": "Deep cleaning",
+      "INSPECTION": "Inspection"
+    },
+    "outOfService": "Take out of service",
+    "outOfServiceReason": "Why is it out of service?",
+    "returnToService": "Return to service",
+    "retire": "Retire",
+    "retireReason": "Why is it retired?",
+    "types": {
+      "THERMOMETER": "Thermometer or probe",
+      "FRIDGE": "Fridge",
+      "FREEZER": "Freezer",
+      "OVEN": "Oven",
+      "HOT_HOLDING": "Hot holding unit",
+      "SCALE": "Scale",
+      "DISHWASHER": "Dishwasher",
+      "EXTRACTION": "Extraction hood",
+      "OTHER": "Other"
+    },
+    "statuses": {
+      "ACTIVE": "In service",
+      "OUT_OF_SERVICE": "Out of service",
+      "RETIRED": "Retired"
     }
   }
 }

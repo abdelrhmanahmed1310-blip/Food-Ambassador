@@ -316,6 +316,9 @@ model Organization {
   audits                       Audit[]
   auditFindings                AuditFinding[]
   complaints                   Complaint[]
+  equipment                    Equipment[]
+  calibrations                 Calibration[]
+  maintenanceRecords           MaintenanceRecord[]
 
   @@map("organizations")
 }
@@ -505,6 +508,7 @@ model Branch {
   fsDocuments         FsDocument[]
   audits              Audit[]
   complaints          Complaint[]
+  equipment           Equipment[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1227,6 +1231,7 @@ enum AttachmentEntity {
   SUPPLIER_DOCUMENT
   QUOTATION
   FS_DOCUMENT_VERSION
+  CALIBRATION
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -2650,6 +2655,7 @@ model SafetyCheckpoint {
   branch        Branch                        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
   records       FoodSafetyRecord[]
   controlPoints HaccpControlPointCheckpoint[]
+  equipment     Equipment[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, branchId, code])
@@ -2797,6 +2803,7 @@ enum NcSource {
   CHECKLIST
   AUDIT
   COMPLAINT
+  EQUIPMENT
 }
 
 enum NcStatus {
@@ -2834,6 +2841,7 @@ model NonConformance {
   runs          ChecklistRun[]
   auditFindings AuditFinding[]
   complaints    Complaint[]
+  calibrations  Calibration[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3253,6 +3261,123 @@ model Complaint {
   @@index([organizationId, branchId, receivedAt(sort: Desc)])
   @@index([organizationId, status])
   @@map("complaints")
+}
+
+// ─── Equipment, calibration and maintenance (C2d, ADR-099) ───
+
+enum EquipmentType {
+  THERMOMETER
+  FRIDGE
+  FREEZER
+  OVEN
+  HOT_HOLDING
+  SCALE
+  DISHWASHER
+  EXTRACTION
+  OTHER
+}
+
+enum EquipmentStatus {
+  ACTIVE
+  OUT_OF_SERVICE
+  RETIRED
+}
+
+/// A piece of equipment at a branch that needs calibration and/or maintenance.
+model Equipment {
+  id                      String          @id @default(uuid(7)) @db.Uuid
+  organizationId          String          @map("organization_id") @db.Uuid
+  branchId                String          @map("branch_id") @db.Uuid
+  code                    String
+  name                    String
+  type                    EquipmentType
+  serialNumber            String?         @map("serial_number")
+  location                String?
+  /// The temperature checkpoint this equipment is (or measures).
+  checkpointId            String?         @map("checkpoint_id") @db.Uuid
+  /// Set by the organization; null = not calibrated / no planned maintenance.
+  calibrationIntervalDays Int?            @map("calibration_interval_days")
+  maintenanceIntervalDays Int?            @map("maintenance_interval_days")
+  status                  EquipmentStatus @default(ACTIVE)
+  statusReason            String?         @map("status_reason")
+  statusChangedAt         DateTime?       @map("status_changed_at") @db.Timestamptz(3)
+  createdByUserId         String          @map("created_by_user_id") @db.Uuid
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  checkpoint   SafetyCheckpoint?   @relation(fields: [organizationId, checkpointId], references: [organizationId, id], onDelete: Restrict)
+  calibrations Calibration[]
+  maintenance  MaintenanceRecord[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, code])
+  @@map("equipment")
+}
+
+enum CalibrationResult {
+  PASS
+  FAIL
+}
+
+/// A calibration or check of a piece of equipment. Append-only.
+model Calibration {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  organizationId   String            @map("organization_id") @db.Uuid
+  equipmentId      String            @map("equipment_id") @db.Uuid
+  performedOn      DateTime          @map("performed_on") @db.Date
+  /// In-house or the calibration provider.
+  performedBy      String            @map("performed_by")
+  method           String?
+  /// Reference value, reading and allowed deviation, when measured (e.g. ice point 0 °C, reads 0.4, ±1).
+  referenceValue   Decimal?          @map("reference_value") @db.Decimal(12, 3)
+  readingValue     Decimal?          @map("reading_value") @db.Decimal(12, 3)
+  tolerance        Decimal?          @db.Decimal(12, 3)
+  unit             String?
+  result           CalibrationResult
+  certificateNo    String?           @map("certificate_no")
+  nextDueOn        DateTime?         @map("next_due_on") @db.Date
+  note             String?
+  nonConformanceId String?           @map("non_conformance_id") @db.Uuid
+  recordedByUserId String            @map("recorded_by_user_id") @db.Uuid
+  recordedAt       DateTime          @default(now()) @map("recorded_at") @db.Timestamptz(3)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  equipment      Equipment       @relation(fields: [organizationId, equipmentId], references: [organizationId, id], onDelete: Restrict)
+  nonConformance NonConformance? @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, equipmentId, performedOn(sort: Desc)])
+  @@map("calibrations")
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  REPAIR
+  CLEANING
+  INSPECTION
+}
+
+/// Maintenance carried out on a piece of equipment. Append-only.
+model MaintenanceRecord {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  equipmentId      String          @map("equipment_id") @db.Uuid
+  type             MaintenanceType
+  performedOn      DateTime        @map("performed_on") @db.Date
+  performedBy      String          @map("performed_by")
+  description      String
+  nextDueOn        DateTime?       @map("next_due_on") @db.Date
+  recordedByUserId String          @map("recorded_by_user_id") @db.Uuid
+  recordedAt       DateTime        @default(now()) @map("recorded_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  equipment    Equipment    @relation(fields: [organizationId, equipmentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, equipmentId, performedOn(sort: Desc)])
+  @@map("maintenance_records")
 }
 
 // ─── Sales import and recipe consumption (Milestone 7a, ADR-036) ───

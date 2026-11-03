@@ -163,7 +163,8 @@
     "haccpPlans": "خطط الهاسب",
     "fsDocuments": "المستندات",
     "audits": "التدقيقات",
-    "complaints": "الشكاوى"
+    "complaints": "الشكاوى",
+    "equipment": "المعدات"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -668,7 +669,16 @@
     "COMPLAINT_IN_FUTURE": "لا يمكن استلام شكوى في المستقبل.",
     "COMPLAINT_RESOLVED": "الشكوى محلولة.",
     "LOT_NEEDS_PRODUCT": "اختر المنتج الذي تنتمي إليه التشغيلة.",
-    "LOT_NOT_FOUND": "لا توجد تشغيلة بهذا الرمز لهذا المنتج."
+    "LOT_NOT_FOUND": "لا توجد تشغيلة بهذا الرمز لهذا المنتج.",
+    "CALIBRATION_NEEDED": "فشلت آخر معايرة: سجّل معايرة ناجحة.",
+    "CALIBRATION_RESULT_REQUIRED": "اذكر هل نجحت.",
+    "CALIBRATION_INCOMPLETE": "اذكر القيمة المرجعية والقراءة والانحراف معًا.",
+    "CHECKPOINT_OTHER_BRANCH": "نقطة القياس في فرع آخر.",
+    "DATE_IN_FUTURE": "لا يمكن تسجيله قبل حدوثه.",
+    "EQUIPMENT_NOT_ACTIVE": "المعدة ليست في الخدمة.",
+    "EQUIPMENT_NOT_OUT_OF_SERVICE": "المعدة ليست خارج الخدمة.",
+    "EQUIPMENT_RETIRED": "المعدة مسحوبة.",
+    "NEXT_DUE_BEFORE": "يجب أن يأتي الموعد التالي بعد هذا."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1987,7 +1997,8 @@
       "RECORD": "سجل خارج الحدود",
       "CHECKLIST": "قائمة فحص راسبة",
       "AUDIT": "ملاحظة تدقيق",
-      "COMPLAINT": "شكوى عميل"
+      "COMPLAINT": "شكوى عميل",
+      "EQUIPMENT": "معايرة معدة"
     },
     "ncStatuses": {
       "OPEN": "مفتوحة",
@@ -2558,7 +2569,10 @@
       "FS_DOCUMENT_REVIEWS_DUE": "{count, plural, one {مستند واحد حان موعد مراجعته} two {مستندان حان موعد مراجعتهما} few {# مستندات حان موعد مراجعتها} many {# مستندًا حان موعد مراجعته} other {# مستند حان موعد مراجعته}}",
       "FS_DOCUMENTS_UNREAD": "{count, plural, one {مستند واحد للقراءة} two {مستندان للقراءة} few {# مستندات للقراءة} many {# مستندًا للقراءة} other {# مستند للقراءة}}",
       "COMPLAINTS_OPEN": "{count, plural, one {شكوى واحدة للحل} two {شكويان للحل} few {# شكاوى للحل} many {# شكوى للحل} other {# شكوى للحل}}",
-      "AUDITS_OVERDUE": "{count, plural, one {تدقيق واحد فات موعده} two {تدقيقان فات موعدهما} few {# تدقيقات فات موعدها} many {# تدقيقًا فات موعده} other {# تدقيق فات موعده}}"
+      "AUDITS_OVERDUE": "{count, plural, one {تدقيق واحد فات موعده} two {تدقيقان فات موعدهما} few {# تدقيقات فات موعدها} many {# تدقيقًا فات موعده} other {# تدقيق فات موعده}}",
+      "EQUIPMENT_OVERDUE": "{count, plural, one {معدة واحدة متأخرة المعايرة أو الصيانة} two {معدتان متأخرتا المعايرة أو الصيانة} few {# معدات متأخرة} many {# معدة متأخرة} other {# معدة متأخرة}}",
+      "EQUIPMENT_DUE_SOON": "{count, plural, one {معدة واحدة يحين موعدها خلال 30 يومًا} two {معدتان يحين موعدهما خلال 30 يومًا} few {# معدات يحين موعدها خلال 30 يومًا} many {# معدة يحين موعدها خلال 30 يومًا} other {# معدة يحين موعدها خلال 30 يومًا}}",
+      "EQUIPMENT_OUT_OF_SERVICE": "{count, plural, one {معدة واحدة خارج الخدمة} two {معدتان خارج الخدمة} few {# معدات خارج الخدمة} many {# معدة خارج الخدمة} other {# معدة خارج الخدمة}}"
     }
   },
   "production": {
@@ -4785,6 +4799,89 @@
       "OPEN": "مفتوحة",
       "INVESTIGATING": "قيد التحقيق",
       "RESOLVED": "محلولة"
+    }
+  },
+  "equipment": {
+    "title": "المعدات",
+    "hint": "موازين الحرارة والثلاجات والأفران والموازين وغيرها لكل فرع، مع معايرتها وصيانتها. أنت من يحدد الفترات.",
+    "empty": "لا توجد معدات مسجلة.",
+    "showRetired": "إظهار المعدات المسحوبة",
+    "hideRetired": "إخفاء المعدات المسحوبة",
+    "register": "تسجيل",
+    "registerTitle": "تسجيل معدة",
+    "branch": "الفرع",
+    "code": "الرمز",
+    "name": "الاسم",
+    "type": "النوع",
+    "serialNumber": "الرقم التسلسلي",
+    "location": "الموقع",
+    "checkpoint": "نقطة القياس",
+    "checkpointHint": "نقطة قياس الحرارة التي تمثلها المعدة أو تقيسها.",
+    "calibrationInterval": "المعايرة كل (أيام)",
+    "maintenanceInterval": "الصيانة كل (أيام)",
+    "intervalHint": "اتركه فارغًا إن لم تكن تُعاير.",
+    "intervals": "الفترات",
+    "intervalsValue": "المعايرة كل {cal} يومًا · الصيانة كل {maint} يومًا",
+    "calibrationDue": "موعد المعايرة",
+    "maintenanceDue": "موعد الصيانة",
+    "notPlanned": "غير مخطط",
+    "overdue": "متأخر",
+    "calibrations": "المعايرات والفحوص",
+    "noCalibrations": "لا توجد معايرة مسجلة.",
+    "recordCalibration": "تسجيل معايرة",
+    "performedOn": "التاريخ",
+    "performedBy": "بواسطة",
+    "performedByHint": "الشخص داخليًا أو مزود المعايرة.",
+    "method": "الطريقة",
+    "reference": "القيمة المرجعية",
+    "reading": "القراءة",
+    "tolerance": "الانحراف المسموح (±)",
+    "toleranceHint": "مثل ±1 لمجس في ماء مثلج عند 0 °C.",
+    "unit": "الوحدة",
+    "result": "النتيجة",
+    "resultHint": "فقط عند عدم القياس؛ وإلا تتبع الأرقام.",
+    "fromNumbers": "من الأرقام",
+    "certificate": "رقم الشهادة",
+    "nextDue": "الموعد التالي",
+    "nextDueHint": "فارغ = التاريخ + الفترة.",
+    "measurement": "القراءة / المرجع",
+    "results": {
+      "PASS": "ناجحة",
+      "FAIL": "فاشلة"
+    },
+    "passed": "نجحت المعايرة.",
+    "failed": "فشلت المعايرة: المعدة خارج الخدمة وفُتحت {number}.",
+    "maintenanceTitle": "الصيانة",
+    "noMaintenance": "لا توجد صيانة مسجلة.",
+    "recordMaintenance": "تسجيل صيانة",
+    "maintenanceType": "النوع",
+    "work": "العمل المنجز",
+    "maintenanceTypes": {
+      "PREVENTIVE": "صيانة وقائية",
+      "REPAIR": "إصلاح",
+      "CLEANING": "تنظيف عميق",
+      "INSPECTION": "فحص"
+    },
+    "outOfService": "إخراج من الخدمة",
+    "outOfServiceReason": "لماذا هي خارج الخدمة؟",
+    "returnToService": "إعادة إلى الخدمة",
+    "retire": "سحب",
+    "retireReason": "لماذا تُسحب؟",
+    "types": {
+      "THERMOMETER": "ميزان حرارة أو مجس",
+      "FRIDGE": "ثلاجة",
+      "FREEZER": "مجمد",
+      "OVEN": "فرن",
+      "HOT_HOLDING": "وحدة حفظ ساخن",
+      "SCALE": "ميزان",
+      "DISHWASHER": "غسالة صحون",
+      "EXTRACTION": "شفاط",
+      "OTHER": "أخرى"
+    },
+    "statuses": {
+      "ACTIVE": "في الخدمة",
+      "OUT_OF_SERVICE": "خارج الخدمة",
+      "RETIRED": "مسحوبة"
     }
   }
 }

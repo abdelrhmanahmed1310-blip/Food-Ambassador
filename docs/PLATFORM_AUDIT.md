@@ -23,8 +23,9 @@
 > raising non-conformances, approval and versions. **C2b built** (ADR-097):
 > document control with versions, approval, review dates and read
 > confirmation. **C2c built** (ADR-098): audits with findings and customer
-> complaints, both opening non-conformances. Next in C2: calibration and
-> maintenance, compliance score, mock recall, batch report.
+> complaints, both opening non-conformances. **C2d built** (ADR-099):
+> equipment register with calibration and maintenance. Next in C2:
+> compliance score, mock recall, batch report.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

@@ -38,6 +38,7 @@ export const ATTACHMENT_ENTITIES = [
   "SUPPLIER_DOCUMENT",
   "QUOTATION",
   "FS_DOCUMENT_VERSION",
+  "CALIBRATION",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -110,6 +111,19 @@ async function accessTo(
         "invoices.view",
         "invoices.manage",
       );
+    case "CALIBRATION": {
+      // A calibration certificate (ADR-099), at the equipment's branch.
+      const c = await tx.calibration.findFirst({
+        where: { organizationId: org, id: entityId },
+        select: { equipment: { select: { branchId: true } } },
+      });
+      if (!c || !hasPermission(ctx.grants, "foodsafety.view", { branchId: c.equipment.branchId }))
+        throw notFound("Document");
+      return {
+        view: true,
+        upload: hasPermission(ctx.grants, "foodsafety.record", { branchId: c.equipment.branchId }),
+      };
+    }
     case "FS_DOCUMENT_VERSION": {
       // A controlled document's file; added only while the version is a draft (ADR-097).
       const access = await fsDocumentVersionAccess(tx, ctx, entityId);

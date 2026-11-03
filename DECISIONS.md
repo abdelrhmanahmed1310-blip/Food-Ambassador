@@ -2416,6 +2416,36 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** audit checklists and scoring templates, scheduling recurring
   audits, complaint trends by product and branch (C4), notifying customers.
 
+### ADR-099 Equipment, calibration and maintenance — Accepted (C2d built)
+
+- **Equipment** per branch: code (unique at the branch), name, type
+  (thermometer or probe, fridge, freezer, oven, hot holding, scale,
+  dishwasher, extraction, other), serial number, location, optionally the
+  temperature checkpoint it is or measures (same branch). Calibration and
+  maintenance intervals in days are set by the organization — none are
+  assumed; empty means not planned. Status: in service, out of service
+  (with a reason), retired (with a reason).
+- **Calibrations** are evidence: who, when, method, certificate number,
+  files (ADR-051); never changed (insert-only). When measured — reference
+  value, reading and allowed deviation — the result follows from the
+  numbers (|reading − reference| ≤ tolerance, inclusive; also a database
+  check); otherwise pass/fail is entered. A pass sets the next date (given,
+  else date + interval). A **failure** takes the equipment out of service
+  and opens a non-conformance (source equipment; HIGH when it serves a
+  checkpoint, MEDIUM otherwise) stating that measurements since the last
+  passing calibration are in doubt; a later passing calibration returns it
+  to service. It cannot be put back in service by hand while its latest
+  calibration failed.
+- **Maintenance** (preventive, repair, deep cleaning, inspection) is
+  recorded the same way, with its own next date. Staff who record food
+  safety record calibrations and maintenance and may take equipment out of
+  service; managers register, return to service and retire.
+- **Due dates** are flagged 30 days ahead (as documents) and when passed;
+  equipment with an interval but no record is due at once. Overdue, due
+  soon and out-of-service equipment appear under Needs attention.
+- **Not yet:** blocking temperature readings from out-of-service
+  thermometers, spare parts and costs, maintenance contracts.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

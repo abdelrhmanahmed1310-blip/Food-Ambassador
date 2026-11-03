@@ -935,6 +935,21 @@ Audits and complaints (C2c, ADR-098; migration `20261225090000_c2c_audits_compla
   allergen), resolved by/at.
 - **non_conformances.source** gains `AUDIT` and `COMPLAINT`.
 
+Equipment (C2d, ADR-099; migration `20261226090000_c2d_equipment`):
+
+- **equipment**: branch, `code` (UQ per branch), name, `type`, serial
+  number, location, `checkpoint_id`, `calibration_interval_days`,
+  `maintenance_interval_days` (1–3650 or null), `status` (`ACTIVE` |
+  `OUT_OF_SERVICE` | `RETIRED`, a reason when not active).
+- **calibrations**: equipment, `performed_on`, performed by, method,
+  `reference_value` / `reading_value` / `tolerance` / unit (all or none),
+  `result` (follows the numbers when measured — check), certificate number,
+  `next_due_on` (after it), note, `non_conformance_id` (required on a
+  failure). Insert-only. Files: attachments with entity `CALIBRATION`.
+- **maintenance_records**: equipment, `type`, `performed_on`, performed by,
+  description, `next_due_on`. Insert-only.
+- **non_conformances.source** gains `EQUIPMENT`.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

@@ -6,6 +6,7 @@ import { approvalBlock, holdsApprovalLevel } from "@/modules/approvals/rules";
 import type { Permission } from "@/modules/access/permissions";
 import { EXPIRY_WARNING_DAYS } from "@/modules/inventory/queries";
 import { fsDocumentReviewsDue, fsDocumentsUnread } from "@/modules/foodsafety/documents";
+import { equipmentAttention } from "@/modules/foodsafety/equipment";
 import { haccpReviewsDue } from "@/modules/foodsafety/haccp";
 import { qualityAttention } from "@/modules/foodsafety/quality";
 import { supplierDocumentsDue } from "@/modules/procurement/compliance";
@@ -46,7 +47,10 @@ export type AttentionKey =
   | "FS_DOCUMENT_REVIEWS_DUE"
   | "FS_DOCUMENTS_UNREAD"
   | "COMPLAINTS_OPEN"
-  | "AUDITS_OVERDUE";
+  | "AUDITS_OVERDUE"
+  | "EQUIPMENT_OVERDUE"
+  | "EQUIPMENT_DUE_SOON"
+  | "EQUIPMENT_OUT_OF_SERVICE";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -541,6 +545,29 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         tone: "warning",
         count: q.auditsOverdue,
         href: "/food-safety/audits",
+      });
+    }
+
+    // Equipment calibration and maintenance (ADR-099).
+    if (holdsAnyGrant(ctx.grants, "foodsafety.record")) {
+      const e = await equipmentAttention(ctx);
+      push({
+        key: "EQUIPMENT_OVERDUE",
+        tone: "danger",
+        count: e.overdue,
+        href: "/food-safety/equipment",
+      });
+      push({
+        key: "EQUIPMENT_DUE_SOON",
+        tone: "warning",
+        count: e.dueSoon,
+        href: "/food-safety/equipment",
+      });
+      push({
+        key: "EQUIPMENT_OUT_OF_SERVICE",
+        tone: "warning",
+        count: e.outOfService,
+        href: "/food-safety/equipment",
       });
     }
 
