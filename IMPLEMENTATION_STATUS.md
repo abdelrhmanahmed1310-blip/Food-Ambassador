@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-03 (C2a HACCP plans; C1e spend and price variance — C1 c
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C2b — Document control (built)
+
+Rules: DECISIONS.md ADR-097.
+
+| Area      | What works                                                                                                                                         | Where                   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Documents | Policies, SOPs, work instructions, forms, manuals; code, title, one branch or all; text plus attached files                                        | Food safety → Documents |
+| Versions  | Draft → approved by someone other than the author, with effective and review dates → fixed; new versions copied and superseding; full history kept | document page           |
+| Reading   | "I have read this version" per version; who and when listed; "to read" list and Needs attention per person; new versions need reading again        | document page, list     |
+| Control   | Withdraw with a reason (kept); reviews due under Needs attention; branch documents only seen at that branch                                        | document page           |
+
+Not yet: required readers by role, links from HACCP control points and checklists to their SOPs, rich text.
+
+Checks: `pnpm check` pass (unit 313); `pnpm test:integration` 439/439 pass (new: code unique; self-approval, a past effective date and a review date not after it refused; nothing to read before approval; draft edited then approved; read confirmed once and shown; approved version fixed in the database; new version copied, the old one stays in force until approval, then superseded and the new one needs reading again; withdrawal needs a reason, blocks reading and new versions, moves it to the withdrawn list; a branch document hidden from another branch; branch managers cannot write; cashier refused; other organizations see nothing); `pnpm test:e2e` 71/71 pass (new: the owner writes an SOP, a food safety lead approves it, the owner finds it under "to read", confirms reading it, and the page shows one reader).
 
 ## C2a — HACCP plans (built)
 
