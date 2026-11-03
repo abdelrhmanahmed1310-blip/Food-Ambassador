@@ -389,6 +389,7 @@ export function ProcurementSettingsForm({
   defaults: {
     overReceiptTolerancePercent: string;
     invoicePriceTolerancePercent: string;
+    supplierApprovalRequired: boolean;
   };
 }) {
   const t = useTranslations();
@@ -412,6 +413,12 @@ export function ProcurementSettingsForm({
           dir="ltr"
         />
       </div>
+      <Checkbox
+        name="supplierApprovalRequired"
+        label={t("suppliers.compliance.approvalRequired")}
+        hint={t("suppliers.compliance.approvalRequiredHint")}
+        defaultChecked={defaults.supplierApprovalRequired}
+      />
     </ActionForm>
   );
 }

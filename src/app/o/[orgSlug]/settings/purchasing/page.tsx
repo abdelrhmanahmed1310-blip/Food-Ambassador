@@ -30,6 +30,7 @@ export default async function PurchasingSettingsPage({
           defaults={{
             overReceiptTolerancePercent: rules.overReceiptTolerance.times(100).toFixed(),
             invoicePriceTolerancePercent: rules.invoicePriceTolerance.times(100).toFixed(),
+            supplierApprovalRequired: rules.supplierApprovalRequired,
           }}
         />
       </Card>

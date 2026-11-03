@@ -161,6 +161,8 @@ export async function listSuppliers(api: ApiContext, query: URLSearchParams) {
         vatNumber: s.taxId,
         currency: s.currency,
         paymentTermsDays: s.paymentTermsDays,
+        /** PENDING_APPROVAL, APPROVED or BLOCKED (ADR-091). */
+        status: s.status,
         archived: s.archivedAt !== null,
       }),
     ),

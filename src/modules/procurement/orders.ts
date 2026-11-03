@@ -35,6 +35,7 @@ import {
   type PoStatus,
 } from "./rules";
 import { createOrderSchema, orderHeaderSchema, orderLineSchema, reasonSchema } from "./schemas";
+import { assertSupplierOrderable } from "./compliance";
 import { loadSupplier } from "./suppliers";
 
 export const ORDER_PAGE_SIZE = 25;
@@ -397,11 +398,12 @@ export async function createDraftOrderInTx(
   const supplier = await loadSupplier(tx, ctx, input.supplierId);
   if (supplier.archivedAt)
     throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
+  const today = businessDate(wh.branch.timeZone ?? ctx.timeZone);
+  await assertSupplierOrderable(tx, ctx, supplier, "draft", today);
   // Default currency: the supplier's, else the warehouse's company's (ADR-086).
   const company = await companyContext(tx, ctx, { warehouseId: wh.id });
   const currency = input.currency ?? supplier.currency ?? company.currency;
   assertDocumentCurrency(company.ctx, currency);
-  const today = businessDate(wh.branch.timeZone ?? ctx.timeZone);
   const number = await nextDocumentNumber(tx, ctx.organizationId, "PO", Number(today.slice(0, 4)));
   const order = await tx.purchaseOrder.create({
     data: {
@@ -470,6 +472,7 @@ export async function updateOrderHeader(ctx: TenantContext, orderId: string, raw
       const supplier = await loadSupplier(tx, ctx, input.supplierId);
       if (supplier.archivedAt)
         throw businessRuleViolation("SUPPLIER_ARCHIVED", "The supplier is archived");
+      await assertSupplierOrderable(tx, ctx, supplier, "draft", businessDate(ctx.timeZone));
     }
     if (input.currency) assertDocumentCurrency(ctx, input.currency);
     const data = {
@@ -602,6 +605,7 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     const total = dec(order.totalAmount);
     // Approval limits are in the base currency (ADR-049/050): convert at today's rate.
     const today = businessDate(order.warehouse.branch.timeZone ?? ctx.timeZone);
+    await assertSupplierOrderable(tx, ctx, supplier, "send", today);
     // The base amount is in the order's company's currency; approval limits are in
     // the group's, so the limits are checked on the group-currency total (ADR-086).
     const company = await companyContext(tx, ctx, { companyId: order.companyId });
@@ -724,6 +728,14 @@ export async function approveOrder(ctx: TenantContext, orderId: string) {
     const order = await lockOrder(tx, ctx, orderId);
     requireOn(ctx, "purchasing.approve", order);
     requireStatus(order, order.status === "PENDING_APPROVAL");
+    // The supplier may have been blocked, or a required document expired, since submission (ADR-091).
+    await assertSupplierOrderable(
+      tx,
+      ctx,
+      await loadSupplier(tx, ctx, order.supplierId),
+      "send",
+      businessDate(order.warehouse.branch.timeZone ?? ctx.timeZone),
+    );
     const signed = await tx.purchaseOrderApproval.findMany({
       where: {
         organizationId: ctx.organizationId,

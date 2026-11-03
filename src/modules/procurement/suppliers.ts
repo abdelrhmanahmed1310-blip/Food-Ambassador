@@ -1,6 +1,7 @@
 import "server-only";
 import { currencyConverter } from "@/modules/fx/service";
-import { businessDate } from "@/modules/inventory/rules";
+import { EXPIRY_WARNING_DAYS } from "@/modules/hr/rules";
+import { addDays, businessDate } from "@/modules/inventory/rules";
 import { assertDocumentCurrency } from "@/modules/fx/service";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
@@ -13,6 +14,7 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
+import { initialSupplierStatus, notifySupplierWaiting } from "./compliance";
 import { supplierPerformance } from "./rules";
 import { createSupplierSchema, supplierProductSchema, supplierSchema } from "./schemas";
 
@@ -46,14 +48,38 @@ export async function loadSupplier(tx: Tx, ctx: TenantContext, supplierId: strin
 
 export async function listSuppliers(
   ctx: TenantContext,
-  options: { q?: string; status?: ListStatus; page?: number } = {},
+  options: {
+    q?: string;
+    status?: ListStatus;
+    page?: number;
+    /** Approval state (ADR-091). */
+    approval?: "PENDING_APPROVAL" | "APPROVED" | "BLOCKED";
+    /** Suppliers with a document already expired, or expiring within 30 days. */
+    documents?: "expired" | "expiring";
+  } = {},
 ) {
   assertPermission(ctx.grants, "suppliers.view");
   const page = Math.max(1, options.page ?? 1);
   const q = options.q?.trim();
   const status = options.status ?? "active";
+  const today = businessDate(ctx.timeZone);
+  const asDate = (d: string) => new Date(`${d}T00:00:00Z`);
   const where: Prisma.SupplierWhereInput = {
     organizationId: ctx.organizationId,
+    ...(options.approval ? { status: options.approval } : {}),
+    ...(options.documents
+      ? {
+          documents: {
+            some: {
+              archivedAt: null,
+              expiresOn:
+                options.documents === "expired"
+                  ? { lt: asDate(today) }
+                  : { gte: asDate(today), lte: asDate(addDays(today, EXPIRY_WARNING_DAYS)) },
+            },
+          },
+        }
+      : {}),
     ...(status === "active"
       ? { archivedAt: null }
       : status === "archived"
@@ -95,7 +121,7 @@ export async function supplierOptions(ctx: TenantContext) {
   return withTenantTx(ctx.organizationId, (tx) =>
     tx.supplier.findMany({
       where: { organizationId: ctx.organizationId, archivedAt: null },
-      select: { id: true, code: true, name: true, nameAr: true, currency: true },
+      select: { id: true, code: true, name: true, nameAr: true, currency: true, status: true },
       orderBy: { code: "asc" },
       take: 2000,
     }),
@@ -113,16 +139,24 @@ export async function createSupplier(ctx: TenantContext, rawInput: unknown) {
       ctx,
       { key: idempotencyKey, operation: "supplier.create", input },
       async (tx) => {
+        // Waits for a second person's approval when the organization asks for it (ADR-091).
+        const status = await initialSupplierStatus(tx, ctx);
         const supplier = await tx.supplier.create({
-          data: { ...input, organizationId: ctx.organizationId },
-          select: { id: true },
+          data: {
+            ...input,
+            organizationId: ctx.organizationId,
+            status,
+            createdByUserId: ctx.userId,
+          },
+          select: { id: true, code: true },
         });
         await recordAudit(tx, actorOf(ctx), {
           action: "supplier.created",
           entityType: "supplier",
           entityId: supplier.id,
-          changes: input,
+          changes: { ...input, status },
         });
+        if (status === "PENDING_APPROVAL") await notifySupplierWaiting(tx, ctx, supplier);
         return { id: supplier.id };
       },
     );

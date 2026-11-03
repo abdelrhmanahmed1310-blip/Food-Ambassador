@@ -19,6 +19,7 @@ import { isUuid } from "@/lib/uuid";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import { currencyChoices } from "@/modules/fx/rules";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
+import { supplierCompliance } from "@/modules/procurement/compliance";
 import { getSupplier } from "@/modules/procurement/suppliers";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -30,6 +31,7 @@ import {
   quantityFormatter,
   unitOptions,
 } from "@/server/inventory-view";
+import { ComplianceSection } from "./compliance-section";
 import {
   removeSupplierProductAction,
   saveSupplierProductAction,
@@ -43,8 +45,8 @@ export default async function SupplierPage({
   const { orgSlug, supplierId } = await params;
   if (!isUuid(supplierId)) notFound();
   const ctx = await requireTenant(orgSlug);
-  const { supplier, products, performance, priceHistory } = await notFoundOnAppError(
-    getSupplier(ctx, supplierId),
+  const [{ supplier, products, performance, priceHistory }, compliance] = await notFoundOnAppError(
+    Promise.all([getSupplier(ctx, supplierId), supplierCompliance(ctx, supplierId)]),
   );
   const moneyOf = await moneyIn([
     supplier.currency ?? ctx.baseCurrency,
@@ -76,6 +78,11 @@ export default async function SupplierPage({
         actions={
           <>
             {archived ? <Badge tone="muted">{t("common.archived")}</Badge> : null}
+            {supplier.status !== "APPROVED" ? (
+              <Badge tone={supplier.status === "BLOCKED" ? "danger" : "warning"}>
+                {t(`suppliers.compliance.status.${supplier.status}`)}
+              </Badge>
+            ) : null}
             {holdsAnyGrant(ctx.grants, "purchasing.view") ? (
               <LinkButton
                 href={`/o/${orgSlug}/purchasing/orders?supplierId=${supplier.id}`}
@@ -84,7 +91,9 @@ export default async function SupplierPage({
                 {t("suppliers.viewOrders")}
               </LinkButton>
             ) : null}
-            {!archived && holdsAnyGrant(ctx.grants, "purchasing.manage") ? (
+            {!archived &&
+            supplier.status !== "BLOCKED" &&
+            holdsAnyGrant(ctx.grants, "purchasing.manage") ? (
               <LinkButton href={`/o/${orgSlug}/purchasing/orders/new?supplierId=${supplier.id}`}>
                 {t("suppliers.newOrder")}
               </LinkButton>
@@ -93,6 +102,14 @@ export default async function SupplierPage({
         }
       />
       <div className="space-y-6">
+        <ComplianceSection
+          ctx={ctx}
+          orgSlug={orgSlug}
+          supplierId={supplier.id}
+          compliance={compliance}
+          currencies={currencyChoices(ctx.baseCurrency).map((c) => ({ value: c, label: c }))}
+          archived={archived}
+        />
         <Card title={t("suppliers.performanceTitle")}>
           <p className="text-muted mb-3 text-xs">{t("suppliers.performanceHint")}</p>
           <DescriptionList

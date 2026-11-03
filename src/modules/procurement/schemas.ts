@@ -89,6 +89,64 @@ export const settingsSchema = z.object({
     .optional()
     .transform((v) => blank(v) ?? "0")
     .pipe(decimalString({ maxScale: 4, min: "0", max: "100" })),
+  /** New suppliers wait for approval (ADR-091). */
+  supplierApprovalRequired: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
+});
+
+// ─── Supplier compliance (ADR-091) ───
+
+export const SUPPLIER_DOCUMENT_TYPES = [
+  "COMMERCIAL_REGISTRATION",
+  "VAT_CERTIFICATE",
+  "MUNICIPALITY_LICENSE",
+  "FOOD_SAFETY_CERTIFICATE",
+  "HALAL_CERTIFICATE",
+  "ISO_CERTIFICATE",
+  "INSURANCE",
+  "CONTRACT",
+  "OTHER",
+] as const;
+
+const checkbox = z
+  .string()
+  .optional()
+  .transform((v) => v === "on" || v === "true");
+
+export const supplierDocumentSchema = z
+  .object({
+    type: z.enum(SUPPLIER_DOCUMENT_TYPES, { error: "invalidOption" }),
+    title: optionalText(160),
+    number: optionalText(80),
+    issuedOn: dateSchema,
+    expiresOn: dateSchema,
+    requiredToBuy: checkbox,
+    note: optionalText(1000),
+  })
+  .refine((v) => v.type !== "OTHER" || v.title !== undefined, {
+    error: "required",
+    path: ["title"],
+  })
+  .refine((v) => !v.issuedOn || !v.expiresOn || v.expiresOn >= v.issuedOn, {
+    error: "expiryBeforeIssue",
+    path: ["expiresOn"],
+  })
+  .refine((v) => !v.requiredToBuy || v.expiresOn !== undefined, {
+    error: "requiredDocumentNeedsExpiry",
+    path: ["expiresOn"],
+  });
+
+export const blockSupplierSchema = z.object({ reason: requiredText(500) });
+
+export const supplierBankAccountSchema = z.object({
+  bankName: requiredText(120),
+  accountName: requiredText(160),
+  kind: z.enum(["IBAN", "ACCOUNT_NUMBER"], { error: "invalidOption" }),
+  account: requiredText(64),
+  swiftBic: optionalText(16),
+  currency: optionalCurrency,
 });
 
 export const orderHeaderSchema = z.object({

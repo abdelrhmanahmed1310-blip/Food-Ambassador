@@ -69,6 +69,7 @@ const schemas = {
     vatNumber: nstr,
     currency: nstr,
     paymentTermsDays: { type: ["integer", "null"] },
+    status: { type: "string", enum: ["PENDING_APPROVAL", "APPROVED", "BLOCKED"] },
     archived: bool,
   }),
   StockBalance: obj({

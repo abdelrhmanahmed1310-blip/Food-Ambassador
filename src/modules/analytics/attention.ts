@@ -5,6 +5,7 @@ import { accessibleScope, hasPermission, holdsAnyGrant } from "@/modules/access/
 import { approvalBlock, holdsApprovalLevel } from "@/modules/approvals/rules";
 import type { Permission } from "@/modules/access/permissions";
 import { EXPIRY_WARNING_DAYS } from "@/modules/inventory/queries";
+import { supplierDocumentsDue } from "@/modules/procurement/compliance";
 import { addDays, businessDate } from "@/modules/inventory/rules";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
@@ -32,7 +33,11 @@ export type AttentionKey =
   | "ACTIONS_OVERDUE"
   | "RECALLS_ACTIVE"
   | "CUSTOMER_INVOICES_OVERDUE"
-  | "POS_SHORTFALLS";
+  | "POS_SHORTFALLS"
+  | "SUPPLIERS_TO_APPROVE"
+  | "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY"
+  | "SUPPLIER_DOCUMENTS_EXPIRED"
+  | "SUPPLIER_DOCUMENTS_EXPIRING";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -430,6 +435,63 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         count: await tx.recall.count({ where: { organizationId: org, status: "ACTIVE" } }),
         href: "/recalls",
       });
+
+    // Supplier compliance (ADR-091): never the user's own additions to approve.
+    if (hasPermission(ctx.grants, "suppliers.approve")) {
+      push({
+        key: "SUPPLIERS_TO_APPROVE",
+        tone: "info",
+        count: await tx.supplier.count({
+          where: {
+            organizationId: org,
+            status: "PENDING_APPROVAL",
+            archivedAt: null,
+            NOT: { createdByUserId: ctx.userId },
+          },
+        }),
+        href: "/suppliers?approval=PENDING_APPROVAL",
+      });
+      const accounts = await tx.supplierBankAccount.findMany({
+        where: {
+          organizationId: org,
+          verifiedAt: null,
+          archivedAt: null,
+          NOT: { createdByUserId: ctx.userId },
+        },
+        select: { supplier: { select: { id: true, code: true } } },
+        take: 50,
+      });
+      push({
+        key: "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY",
+        tone: "warning",
+        count: accounts.length,
+        href: `/suppliers/${accounts[0]?.supplier.id ?? ""}`,
+        links: accounts
+          .slice(0, 5)
+          .map((a) => ({ label: a.supplier.code, href: `/suppliers/${a.supplier.id}` })),
+      });
+    }
+    if (hasPermission(ctx.grants, "suppliers.manage")) {
+      const due = await supplierDocumentsDue(tx, ctx);
+      const links = (rows: typeof due.expired) =>
+        [...new Map(rows.map((r) => [r.supplier.id, r.supplier])).values()]
+          .slice(0, 5)
+          .map((s) => ({ label: s.code, href: `/suppliers/${s.id}` }));
+      push({
+        key: "SUPPLIER_DOCUMENTS_EXPIRED",
+        tone: "danger",
+        count: due.expired.length,
+        href: "/suppliers?documents=expired",
+        links: links(due.expired),
+      });
+      push({
+        key: "SUPPLIER_DOCUMENTS_EXPIRING",
+        tone: "warning",
+        count: due.expiring.length,
+        href: "/suppliers?documents=expiring",
+        links: links(due.expiring),
+      });
+    }
 
     const order = { danger: 0, warning: 1, info: 2 };
     return items.sort((a, b) => order[a.tone] - order[b.tone]);

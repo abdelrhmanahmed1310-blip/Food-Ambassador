@@ -275,7 +275,9 @@
     "invalidGiftCard": "أدخل أرقام بطاقة الهدية الستة عشر.",
     "webNoDineIn": "صفحة الإنترنت للطلبات الخارجية فقط؛ طلبات الأكل في المطعم للأكشاك.",
     "pinFormat": "استخدم من 4 إلى 6 أرقام.",
-    "leaveOneYear": "يجب أن يكون الطلب ضمن سنة واحدة: قسّمه."
+    "leaveOneYear": "يجب أن يكون الطلب ضمن سنة واحدة: قسّمه.",
+    "expiryBeforeIssue": "تاريخ الانتهاء قبل تاريخ الإصدار.",
+    "requiredDocumentNeedsExpiry": "المستند الإلزامي للشراء يحتاج إلى تاريخ انتهاء."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -591,7 +593,23 @@
     "NO_VAT_RATES_FOR_COUNTRY": "طبّق إعداد ضريبة القيمة المضافة لهذا البلد من صفحة إعدادات الضريبة أولاً.",
     "COMPANY_CURRENCY_FIXED": "لا يمكن تغيير العملة بعد أن يصبح لدى الشركة مخزون أو مستندات.",
     "COMPANY_CURRENCY_NOT_YET_SUPPORTED": "هذا غير متاح بعد لشركة تمسك دفاترها بعملة غير عملة المجموعة.",
-    "TRANSFER_OTHER_CURRENCY": "لا يمكن نقل المخزون بين شركات بعملات مختلفة."
+    "TRANSFER_OTHER_CURRENCY": "لا يمكن نقل المخزون بين شركات بعملات مختلفة.",
+    "SUPPLIER_BLOCKED": "المورد محظور. ارفع الحظر قبل الطلب.",
+    "SUPPLIER_NOT_APPROVED": "المورد بانتظار الاعتماد؛ يمكن إرسال الطلب بعد اعتماده.",
+    "SUPPLIER_DOCUMENT_EXPIRED": "انتهى في {expiredOn} مستند إلزامي للشراء من هذا المورد. جدّده من صفحة المورد أولًا.",
+    "SUPPLIER_NOT_PENDING": "المورد ليس بانتظار الاعتماد.",
+    "SUPPLIER_NOT_BLOCKED": "المورد غير محظور.",
+    "SUPPLIER_SELF_APPROVAL": "أنت أضفت هذا المورد، لذا يجب أن يعتمده شخص آخر.",
+    "BANK_ACCOUNT_SELF_VERIFICATION": "أنت أضفت هذا الحساب البنكي، لذا يجب أن يتحقق منه شخص آخر.",
+    "BANK_ACCOUNT_VERIFIED": "تم التحقق من الحساب البنكي مسبقًا.",
+    "BANK_ACCOUNT_ARCHIVED": "تم حذف الحساب البنكي.",
+    "DOCUMENT_ARCHIVED": "تم حذف المستند.",
+    "IBAN_FORMAT": "هذا ليس آيبان: حرفان ثم رقمان للتحقق ثم الحساب.",
+    "IBAN_LENGTH": "طول هذا الآيبان غير صحيح لبلده.",
+    "IBAN_CHECKSUM": "أرقام التحقق في هذا الآيبان لا تتطابق — تحقّق من خطأ الكتابة.",
+    "INVALID_ACCOUNT_NUMBER": "يجب أن يتكون رقم الحساب من 4 إلى 34 حرفًا ورقمًا.",
+    "INVALID_SWIFT": "يجب أن يتكون رمز السويفت من 8 أو 11 خانة.",
+    "SWIFT_REQUIRED": "رمز السويفت مطلوب للحساب بدون آيبان."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -776,6 +794,8 @@
       "inventory.valuation.revalue": "إعادة تقييم المخزون (تغيير متوسط التكلفة)",
       "suppliers.view": "عرض الموردين",
       "suppliers.manage": "إدارة الموردين ومنتجاتهم",
+      "suppliers.approve": "اعتماد الموردين وحظرهم والتحقق من حساباتهم البنكية",
+      "suppliers.bank.manage": "إضافة حسابات الموردين البنكية ورؤية أرقامها كاملة",
       "purchasing.view": "عرض أوامر الشراء والاستلامات",
       "purchasing.manage": "إنشاء أوامر الشراء وتعديلها وتقديمها وإغلاقها وإلغاؤها، وعكس الاستلامات",
       "purchasing.approve": "اعتماد أوامر الشراء",
@@ -1223,7 +1243,95 @@
     "priceHistory": "سجل الأسعار",
     "noPriceHistory": "لا توجد استلامات من هذا المورد بعد.",
     "currency": "العملة",
-    "currencyHint": "العملة الافتراضية لأوامر الشراء والفواتير والمدفوعات لهذا المورد."
+    "currencyHint": "العملة الافتراضية لأوامر الشراء والفواتير والمدفوعات لهذا المورد.",
+    "compliance": {
+      "title": "الاعتماد والامتثال",
+      "filter": "تصفية الموردين",
+      "all": "الكل",
+      "statusLabel": "الحالة",
+      "status": {
+        "PENDING_APPROVAL": "بانتظار الاعتماد",
+        "APPROVED": "معتمد",
+        "BLOCKED": "محظور"
+      },
+      "documentsFilter": {
+        "expired": "مستند منتهي",
+        "expiring": "مستند قارب على الانتهاء"
+      },
+      "pendingHint": "يمكن تجهيز الطلبات لكن لا يمكن إرسالها حتى يعتمد هذا المورد شخص غير الذي أضافه.",
+      "approvedHint": "يمكن إرسال الطلبات إلى هذا المورد.",
+      "approvedBy": "اعتمده {name} في {date}.",
+      "blockedBy": "حظره {name} في {date}: {reason}",
+      "ownSupplier": "أنت أضفت هذا المورد، لذا يجب أن يعتمده شخص آخر.",
+      "approve": "اعتماد المورد",
+      "block": "حظر المورد",
+      "blockReason": "سبب الحظر",
+      "unblock": "رفع الحظر",
+      "unblockConfirm": "رفع الحظر عن هذا المورد؟",
+      "expiredRequired": "{count, plural, one {مستند إلزامي واحد منتهي} two {مستندان إلزاميان منتهيان} few {# مستندات إلزامية منتهية} many {# مستندًا إلزاميًا منتهيًا} other {# مستند إلزامي منتهٍ}}",
+      "approvalRequired": "الموردون الجدد يحتاجون إلى اعتماد",
+      "approvalRequiredHint": "ينتظر المورد الجديد حتى يعتمده شخص غير الذي أضافه. يمكن تجهيز الطلبات في الأثناء دون تقديمها.",
+      "documentsTitle": "التراخيص والشهادات",
+      "documentsHint": "المستندات المعلَّمة «إلزامية للشراء» تمنع تقديم الطلبات أو اعتمادها بعد انتهائها. وتُنبَّه البقية قبل انتهائها بثلاثين يومًا.",
+      "noDocuments": "لا توجد مستندات مسجلة.",
+      "addDocument": "إضافة مستند",
+      "attachHint": "بعد إضافة المستند، افتحه في القائمة لإرفاق نسخة ممسوحة.",
+      "documentType": "النوع",
+      "documentTitle": "العنوان",
+      "documentTitleHint": "مطلوب لنوع «أخرى».",
+      "documentNumber": "الرقم",
+      "issuedOn": "تاريخ الإصدار",
+      "expiresOn": "تاريخ الانتهاء",
+      "documentState": "الحالة",
+      "requiredToBuy": "إلزامي للشراء",
+      "requiredToBuyHint": "لا يمكن تقديم الطلبات أو اعتمادها ما دام هذا المستند منتهيًا. يحتاج إلى تاريخ انتهاء.",
+      "requiredBadge": "إلزامي للشراء",
+      "renew": "تجديد أو تعديل أو إرفاق",
+      "files": "الملفات",
+      "removeDocumentConfirm": "حذف هذا المستند؟ يبقى في سجل التدقيق.",
+      "documentTypes": {
+        "COMMERCIAL_REGISTRATION": "السجل التجاري",
+        "VAT_CERTIFICATE": "شهادة التسجيل في ضريبة القيمة المضافة",
+        "MUNICIPALITY_LICENSE": "رخصة البلدية",
+        "FOOD_SAFETY_CERTIFICATE": "شهادة سلامة الغذاء (مثل HACCP)",
+        "HALAL_CERTIFICATE": "شهادة حلال",
+        "ISO_CERTIFICATE": "شهادة ISO",
+        "INSURANCE": "تأمين",
+        "CONTRACT": "عقد",
+        "OTHER": "أخرى"
+      },
+      "documentStates": {
+        "EXPIRED": "منتهي",
+        "EXPIRING": "ينتهي قريبًا",
+        "VALID": "ساري",
+        "NO_EXPIRY": "بلا انتهاء"
+      },
+      "bankTitle": "الحسابات البنكية",
+      "bankHint": "تُحفظ أرقام الحسابات مشفّرة وتُعرض مخفية. يجب أن يتحقق من الحساب الجديد شخص غير الذي أضافه — أكّده مع المورد هاتفيًا على رقم معروف لديك مسبقًا.",
+      "noBankAccounts": "لا توجد حسابات بنكية مسجلة.",
+      "addBankAccount": "إضافة حساب بنكي",
+      "bankAccountHint": "لتغيير الحساب، أضف الحساب الجديد واحذف القديم؛ لا تتغير بيانات الحساب بعد حفظها.",
+      "bankName": "البنك",
+      "accountName": "اسم صاحب الحساب",
+      "accountNameHint": "اسم المستفيد كما هو مسجل لدى البنك.",
+      "accountKind": "نوع الحساب",
+      "accountKinds": {
+        "IBAN": "آيبان",
+        "ACCOUNT_NUMBER": "رقم حساب (بدون آيبان)"
+      },
+      "account": "الآيبان أو رقم الحساب",
+      "swiftBic": "رمز السويفت",
+      "swiftHint": "مطلوب للحساب بدون آيبان.",
+      "verification": "التحقق",
+      "verified": "تم التحقق",
+      "notVerified": "لم يتم التحقق",
+      "verifiedBy": "بواسطة {name} في {date}",
+      "addedBy": "أضافه {name} في {date}",
+      "verify": "تأكيد التحقق",
+      "verifyConfirm": "هل أكّدت هذا الحساب مع المورد عبر جهة اتصال تثق بها مسبقًا؟",
+      "removeBankConfirm": "حذف هذا الحساب البنكي؟",
+      "reveal": "إظهار الرقم كاملًا"
+    }
   },
   "purchasing": {
     "ordersTitle": "أوامر الشراء",
@@ -2361,7 +2469,11 @@
       "ACTIONS_OVERDUE": "{count, plural, one {إجراء تصحيحي متأخر} other {# إجراءات تصحيحية متأخرة}}",
       "RECALLS_ACTIVE": "{count, plural, one {استدعاء نشط} other {# استدعاءات نشطة}}",
       "CUSTOMER_INVOICES_OVERDUE": "{count, plural, one {فاتورة عميل متأخرة} other {# فواتير عملاء متأخرة}}",
-      "POS_SHORTFALLS": "{count, plural, one {# نقص مخزون من نقطة البيع بانتظار الترحيل} other {# نواقص مخزون من نقطة البيع بانتظار الترحيل}}"
+      "POS_SHORTFALLS": "{count, plural, one {# نقص مخزون من نقطة البيع بانتظار الترحيل} other {# نواقص مخزون من نقطة البيع بانتظار الترحيل}}",
+      "SUPPLIERS_TO_APPROVE": "{count, plural, one {مورد واحد بانتظار الاعتماد} two {موردان بانتظار الاعتماد} few {# موردين بانتظار الاعتماد} many {# موردًا بانتظار الاعتماد} other {# مورد بانتظار الاعتماد}}",
+      "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY": "{count, plural, one {حساب بنكي واحد لمورد بحاجة إلى تحقق} two {حسابان بنكيان لموردين بحاجة إلى تحقق} few {# حسابات بنكية لموردين بحاجة إلى تحقق} many {# حسابًا بنكيًا لموردين بحاجة إلى تحقق} other {# حساب بنكي لموردين بحاجة إلى تحقق}}",
+      "SUPPLIER_DOCUMENTS_EXPIRED": "{count, plural, one {مستند مورد واحد منتهي} two {مستندا موردين منتهيان} few {# مستندات موردين منتهية} many {# مستندًا لموردين منتهيًا} other {# مستند موردين منتهٍ}}",
+      "SUPPLIER_DOCUMENTS_EXPIRING": "{count, plural, one {مستند مورد واحد ينتهي خلال 30 يومًا} two {مستندا موردين ينتهيان خلال 30 يومًا} few {# مستندات موردين تنتهي خلال 30 يومًا} many {# مستندًا لموردين ينتهي خلال 30 يومًا} other {# مستند موردين ينتهي خلال 30 يومًا}}"
     }
   },
   "production": {
@@ -3998,7 +4110,9 @@
       "LEAVE_DECIDED": "إجازتك من {from} إلى {to}: {outcome}",
       "INVOICE_EXCEPTION": "فاتورة المورد {number} غير مطابقة وتحتاج موافقة شخص آخر",
       "ATTENTION_DIGEST": "اليوم: {items, plural, one {نوع واحد} other {# أنواع}} تحتاج انتباهك ({total} إجمالاً)",
-      "JOB_FAILED": "فشلت مهمة في الخلفية: {kind}"
+      "JOB_FAILED": "فشلت مهمة في الخلفية: {kind}",
+      "SUPPLIER_APPROVAL_NEEDED": "المورد {code} بانتظار اعتمادك",
+      "SUPPLIER_BANK_ACCOUNT_ADDED": "أُضيف حساب بنكي ينتهي بـ {last4} إلى المورد {code} — تحقّق منه قبل الدفع"
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "أوامر الشراء التي تنتظر موافقتي",
@@ -4010,7 +4124,9 @@
       "LEAVE_DECIDED": "القرارات بشأن إجازتي",
       "INVOICE_EXCEPTION": "فواتير الموردين التي تحتاج موافقة على الاستثناء",
       "ATTENTION_DIGEST": "ملخص يومي لما يحتاج الانتباه",
-      "JOB_FAILED": "المهام في الخلفية التي فشلت"
+      "JOB_FAILED": "المهام في الخلفية التي فشلت",
+      "SUPPLIER_APPROVAL_NEEDED": "موردون بانتظار اعتمادي",
+      "SUPPLIER_BANK_ACCOUNT_ADDED": "حسابات بنكية للموردين أُضيفت أو تغيّرت"
     },
     "outcomes": {
       "POSTED": "تم الترحيل",

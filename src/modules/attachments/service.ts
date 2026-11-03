@@ -34,6 +34,7 @@ export const ATTACHMENT_ENTITIES = [
   "SUPPLIER_INVOICE",
   "SUPPLIER_SETTLEMENT",
   "STOCK_COUNT",
+  "SUPPLIER_DOCUMENT",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -105,6 +106,13 @@ async function accessTo(
         (await tx.supplierInvoice.count({ where: { organizationId: org, id: entityId } })) > 0,
         "invoices.view",
         "invoices.manage",
+      );
+    case "SUPPLIER_DOCUMENT":
+      // A supplier's licences and certificates (ADR-091).
+      return orgWide(
+        (await tx.supplierDocument.count({ where: { organizationId: org, id: entityId } })) > 0,
+        "suppliers.view",
+        "suppliers.manage",
       );
     case "SUPPLIER_SETTLEMENT":
       return orgWide(

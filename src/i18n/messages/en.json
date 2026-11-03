@@ -275,7 +275,9 @@
     "invalidGiftCard": "Enter the 16 digits of the gift card.",
     "webNoDineIn": "The web page takes pick-up orders only; eat-in orders are for kiosks.",
     "pinFormat": "Use 4 to 6 digits.",
-    "leaveOneYear": "A request must be within one calendar year: split it."
+    "leaveOneYear": "A request must be within one calendar year: split it.",
+    "expiryBeforeIssue": "The expiry date is before the issue date.",
+    "requiredDocumentNeedsExpiry": "A document required to buy needs an expiry date."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -591,7 +593,23 @@
     "NO_VAT_RATES_FOR_COUNTRY": "Apply this country's VAT preset on the VAT settings page first.",
     "COMPANY_CURRENCY_FIXED": "The currency cannot change once the company has stock or documents.",
     "COMPANY_CURRENCY_NOT_YET_SUPPORTED": "This is not yet available for a company keeping its books in another currency than the group's.",
-    "TRANSFER_OTHER_CURRENCY": "Stock cannot move between companies with different currencies."
+    "TRANSFER_OTHER_CURRENCY": "Stock cannot move between companies with different currencies.",
+    "SUPPLIER_BLOCKED": "The supplier is blocked. Lift the block before ordering.",
+    "SUPPLIER_NOT_APPROVED": "The supplier is waiting for approval; the order can be sent once it is approved.",
+    "SUPPLIER_DOCUMENT_EXPIRED": "A document required to buy from this supplier expired on {expiredOn}. Renew it on the supplier page first.",
+    "SUPPLIER_NOT_PENDING": "The supplier is not waiting for approval.",
+    "SUPPLIER_NOT_BLOCKED": "The supplier is not blocked.",
+    "SUPPLIER_SELF_APPROVAL": "You added this supplier, so someone else must approve it.",
+    "BANK_ACCOUNT_SELF_VERIFICATION": "You added this bank account, so someone else must verify it.",
+    "BANK_ACCOUNT_VERIFIED": "The bank account is already verified.",
+    "BANK_ACCOUNT_ARCHIVED": "The bank account has been removed.",
+    "DOCUMENT_ARCHIVED": "The document has been removed.",
+    "IBAN_FORMAT": "This is not an IBAN: two letters, two check digits, then the account.",
+    "IBAN_LENGTH": "This IBAN has the wrong length for its country.",
+    "IBAN_CHECKSUM": "This IBAN's check digits do not match — check for a typing mistake.",
+    "INVALID_ACCOUNT_NUMBER": "The account number must be 4–34 letters and digits.",
+    "INVALID_SWIFT": "The SWIFT/BIC code must be 8 or 11 characters.",
+    "SWIFT_REQUIRED": "A SWIFT/BIC code is required for an account without IBAN."
   },
   "notFound": {
     "title": "Page not found",
@@ -776,6 +794,8 @@
       "inventory.valuation.revalue": "Revalue stock (change average cost)",
       "suppliers.view": "View suppliers",
       "suppliers.manage": "Manage suppliers and their products",
+      "suppliers.approve": "Approve, block suppliers and verify bank accounts",
+      "suppliers.bank.manage": "Add supplier bank accounts and see full numbers",
       "purchasing.view": "View purchase orders and receipts",
       "purchasing.manage": "Create, edit, submit, close and cancel purchase orders; reverse receipts",
       "purchasing.approve": "Approve purchase orders",
@@ -1223,7 +1243,95 @@
     "priceHistory": "Price history",
     "noPriceHistory": "No receipts from this supplier yet.",
     "currency": "Currency",
-    "currencyHint": "Default currency of this supplier's orders, invoices and payments."
+    "currencyHint": "Default currency of this supplier's orders, invoices and payments.",
+    "compliance": {
+      "title": "Approval and compliance",
+      "filter": "Filter suppliers",
+      "all": "All",
+      "statusLabel": "Status",
+      "status": {
+        "PENDING_APPROVAL": "Waiting for approval",
+        "APPROVED": "Approved",
+        "BLOCKED": "Blocked"
+      },
+      "documentsFilter": {
+        "expired": "Document expired",
+        "expiring": "Document expiring"
+      },
+      "pendingHint": "Orders can be prepared but not sent until someone other than the person who added this supplier approves it.",
+      "approvedHint": "Orders can be sent to this supplier.",
+      "approvedBy": "Approved by {name} on {date}.",
+      "blockedBy": "Blocked by {name} on {date}: {reason}",
+      "ownSupplier": "You added this supplier, so someone else must approve it.",
+      "approve": "Approve supplier",
+      "block": "Block supplier",
+      "blockReason": "Reason for blocking",
+      "unblock": "Lift block",
+      "unblockConfirm": "Lift the block on this supplier?",
+      "expiredRequired": "{count, plural, one {# required document expired} other {# required documents expired}}",
+      "approvalRequired": "New suppliers need approval",
+      "approvalRequiredHint": "A new supplier waits until someone other than the person who added it approves it. Orders can be prepared meanwhile but not submitted.",
+      "documentsTitle": "Licences and certificates",
+      "documentsHint": "Documents marked “required to buy” stop orders from being submitted or approved once they expire. Others are flagged 30 days before expiry.",
+      "noDocuments": "No documents recorded.",
+      "addDocument": "Add document",
+      "attachHint": "After adding a document, open it in the list to attach a scan.",
+      "documentType": "Type",
+      "documentTitle": "Title",
+      "documentTitleHint": "Required for “Other”.",
+      "documentNumber": "Number",
+      "issuedOn": "Issued",
+      "expiresOn": "Expires",
+      "documentState": "State",
+      "requiredToBuy": "Required to buy",
+      "requiredToBuyHint": "Orders cannot be submitted or approved while this document is expired. Needs an expiry date.",
+      "requiredBadge": "Required to buy",
+      "renew": "Renew, edit or attach",
+      "files": "Files",
+      "removeDocumentConfirm": "Remove this document? It stays in the audit log.",
+      "documentTypes": {
+        "COMMERCIAL_REGISTRATION": "Commercial registration",
+        "VAT_CERTIFICATE": "VAT registration certificate",
+        "MUNICIPALITY_LICENSE": "Municipality licence",
+        "FOOD_SAFETY_CERTIFICATE": "Food safety certificate (e.g. HACCP)",
+        "HALAL_CERTIFICATE": "Halal certificate",
+        "ISO_CERTIFICATE": "ISO certificate",
+        "INSURANCE": "Insurance",
+        "CONTRACT": "Contract",
+        "OTHER": "Other"
+      },
+      "documentStates": {
+        "EXPIRED": "Expired",
+        "EXPIRING": "Expiring soon",
+        "VALID": "Valid",
+        "NO_EXPIRY": "No expiry"
+      },
+      "bankTitle": "Bank accounts",
+      "bankHint": "Account numbers are stored encrypted and shown masked. A new account must be verified by someone other than the person who added it — confirm it with the supplier by phone on a number you already have.",
+      "noBankAccounts": "No bank accounts recorded.",
+      "addBankAccount": "Add bank account",
+      "bankAccountHint": "To change an account, add the new one and remove the old one; account details never change after they are saved.",
+      "bankName": "Bank",
+      "accountName": "Account holder",
+      "accountNameHint": "The beneficiary name as the bank holds it.",
+      "accountKind": "Account type",
+      "accountKinds": {
+        "IBAN": "IBAN",
+        "ACCOUNT_NUMBER": "Account number (no IBAN)"
+      },
+      "account": "IBAN or account number",
+      "swiftBic": "SWIFT / BIC",
+      "swiftHint": "Required for an account without IBAN.",
+      "verification": "Verification",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "verifiedBy": "By {name} on {date}",
+      "addedBy": "Added by {name} on {date}",
+      "verify": "Mark as verified",
+      "verifyConfirm": "Have you confirmed this account with the supplier through a contact you already trust?",
+      "removeBankConfirm": "Remove this bank account?",
+      "reveal": "Show full number"
+    }
   },
   "purchasing": {
     "ordersTitle": "Purchase orders",
@@ -2361,7 +2469,11 @@
       "ACTIONS_OVERDUE": "{count, plural, one {# corrective action overdue} other {# corrective actions overdue}}",
       "RECALLS_ACTIVE": "{count, plural, one {# active recall} other {# active recalls}}",
       "CUSTOMER_INVOICES_OVERDUE": "{count, plural, one {# customer invoice overdue} other {# customer invoices overdue}}",
-      "POS_SHORTFALLS": "{count, plural, one {# point-of-sale stock shortfall to post} other {# point-of-sale stock shortfalls to post}}"
+      "POS_SHORTFALLS": "{count, plural, one {# point-of-sale stock shortfall to post} other {# point-of-sale stock shortfalls to post}}",
+      "SUPPLIERS_TO_APPROVE": "{count, plural, one {# supplier waiting for approval} other {# suppliers waiting for approval}}",
+      "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY": "{count, plural, one {# supplier bank account to verify} other {# supplier bank accounts to verify}}",
+      "SUPPLIER_DOCUMENTS_EXPIRED": "{count, plural, one {# supplier document expired} other {# supplier documents expired}}",
+      "SUPPLIER_DOCUMENTS_EXPIRING": "{count, plural, one {# supplier document expiring within 30 days} other {# supplier documents expiring within 30 days}}"
     }
   },
   "production": {
@@ -3998,7 +4110,9 @@
       "LEAVE_DECIDED": "Your leave from {from} to {to}: {outcome}",
       "INVOICE_EXCEPTION": "Supplier invoice {number} does not match and needs another person's approval",
       "ATTENTION_DIGEST": "Today: {items, plural, one {# kind of item} other {# kinds of item}} need attention ({total} in all)",
-      "JOB_FAILED": "A background job failed: {kind}"
+      "JOB_FAILED": "A background job failed: {kind}",
+      "SUPPLIER_APPROVAL_NEEDED": "Supplier {code} is waiting for your approval",
+      "SUPPLIER_BANK_ACCOUNT_ADDED": "A bank account ending {last4} was added to supplier {code} — verify it before paying"
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "Purchase orders waiting for my approval",
@@ -4010,7 +4124,9 @@
       "LEAVE_DECIDED": "Decisions on my leave",
       "INVOICE_EXCEPTION": "Supplier invoices that need an exception approved",
       "ATTENTION_DIGEST": "Daily summary of what needs attention",
-      "JOB_FAILED": "Background jobs that failed"
+      "JOB_FAILED": "Background jobs that failed",
+      "SUPPLIER_APPROVAL_NEEDED": "Suppliers waiting for my approval",
+      "SUPPLIER_BANK_ACCOUNT_ADDED": "Supplier bank accounts added or changed"
     },
     "outcomes": {
       "POSTED": "posted",

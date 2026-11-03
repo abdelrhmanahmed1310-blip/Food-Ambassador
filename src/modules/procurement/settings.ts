@@ -12,6 +12,8 @@ export interface ProcurementRules {
   overReceiptTolerance: Decimal;
   /** Fraction 0–1 an invoice price may differ from the order price. */
   invoicePriceTolerance: Decimal;
+  /** New suppliers wait for approval before orders can be sent (ADR-091). */
+  supplierApprovalRequired: boolean;
 }
 
 /** Defaults until an organization changes them: 0 % tolerances (ADR-023, Q-09). Approvals: approvals/service (ADR-049). */
@@ -22,6 +24,7 @@ export async function loadRules(tx: Tx, ctx: TenantContext): Promise<Procurement
   return {
     overReceiptTolerance: new Decimal(row?.overReceiptTolerance.toString() ?? "0"),
     invoicePriceTolerance: new Decimal(row?.invoicePriceTolerance.toString() ?? "0"),
+    supplierApprovalRequired: row?.supplierApprovalRequired ?? false,
   };
 }
 
@@ -40,6 +43,7 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
   const invoicePriceTolerance = toDecimal(parsed.data.invoicePriceTolerancePercent)
     .dividedBy(100)
     .toFixed();
+  const { supplierApprovalRequired } = parsed.data;
   await withTenantTx(ctx.organizationId, async (tx) => {
     const before = await loadRules(tx, ctx);
     await tx.procurementSettings.upsert({
@@ -48,8 +52,9 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
         organizationId: ctx.organizationId,
         overReceiptTolerance,
         invoicePriceTolerance,
+        supplierApprovalRequired,
       },
-      update: { overReceiptTolerance, invoicePriceTolerance },
+      update: { overReceiptTolerance, invoicePriceTolerance, supplierApprovalRequired },
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "procurement.settings_updated",
@@ -63,6 +68,10 @@ export async function updateProcurementSettings(ctx: TenantContext, rawInput: un
         invoicePriceTolerance: {
           from: before.invoicePriceTolerance.toFixed(),
           to: invoicePriceTolerance,
+        },
+        supplierApprovalRequired: {
+          from: before.supplierApprovalRequired,
+          to: supplierApprovalRequired,
         },
       },
     });

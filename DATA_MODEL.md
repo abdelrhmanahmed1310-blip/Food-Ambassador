@@ -548,6 +548,25 @@ tenant foreign keys and the `tenant_isolation` RLS policy.
   order, `preferred`, `archived_at` (removal archives, history kept).
 - **procurement_settings** (one row per org, optional): `over_receipt_tolerance`
   (fraction 0–1, default 0). Approval limits moved to `approval_layers`.
+  `supplier_approval_required` (default false, ADR-091).
+
+Supplier compliance (C1a, ADR-091; migration `20261219090000_c1a_supplier_compliance`):
+
+- **suppliers** gain `status` (`PENDING_APPROVAL` | `APPROVED` | `BLOCKED`,
+  existing rows approved), `created_by_user_id`, `approved_at/_by`,
+  `blocked_at/_by`, `blocked_reason`. Checks: blocked ⇔ `blocked_at` set,
+  with who and a non-empty reason; the approver is not the creator.
+- **supplier_documents**: supplier, `type` (commercial registration, VAT
+  certificate, municipality licence, food safety, halal, ISO, insurance,
+  contract, other), `title` (required for other), `number`, `issued_on`,
+  `expires_on` (≥ issued), `required_to_buy`, note, created by,
+  `archived_at/_by`. Files are attachments with entity `SUPPLIER_DOCUMENT`.
+- **supplier_bank_accounts**: supplier, `bank_name`, `account_name`, `kind`
+  (`IBAN` | `ACCOUNT_NUMBER`), `account_sealed` (AES-256-GCM),
+  `account_last4`, `swift_bic`, `currency`, created by/at,
+  `verified_at/_by` (never the creator), `archived_at/_by`. A trigger
+  refuses any change to the account details, and to verification or
+  archiving once set.
 - **approval_layers** (ADR-049, migration `20261112090000_approval_matrix`):
   PK (organization, `document` PURCHASE_ORDER | STOCK_COUNT, `position`
   1–4: 1–3 branch, 4 head office), `above_amount` ≥ 0 — the layer is

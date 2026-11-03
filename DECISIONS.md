@@ -2143,6 +2143,51 @@ country for now, so no inter-company transfer is built.
   `nextCursor`, ids are time-ordered); errors `{error: {code, message}}`
   with 401, 403, 404, 429. Changing a shape means a new version.
 
+### ADR-091 Supplier compliance — Accepted (C1a built)
+
+- **Status.** A supplier is `PENDING_APPROVAL`, `APPROVED` or `BLOCKED`.
+  Existing suppliers are approved. A new setting under Settings →
+  Purchasing, "New suppliers need approval" (off by default, so nothing
+  changes for organizations that do not want it), makes new suppliers wait.
+  Approval needs the new permission `suppliers.approve` (Administrator,
+  Finance) and is never given by the person who added the supplier —
+  refused by the service and by a database check. Those who may approve
+  are notified (`SUPPLIER_APPROVAL_NEEDED`) and see it under Needs
+  attention.
+- **What the status stops.** An order to a blocked supplier cannot be
+  created or moved to it. An order to a supplier waiting for approval can
+  be prepared but not submitted or approved. Blocking also stops approval
+  of orders already waiting. Receiving against orders already approved,
+  supplier invoices and payments are **not** stopped: goods that arrive
+  must be recorded, and amounts owed must still be settled. Blocking needs
+  a reason; who, when and why are kept (database check). Lifting a block
+  returns the supplier to approved, or to waiting if it was never
+  approved and approval is required.
+- **Licences and certificates** (`supplier_documents`): commercial
+  registration, VAT certificate, municipality licence, food safety (e.g.
+  HACCP), halal, ISO, insurance, contract, other (with a title); number,
+  issue and expiry dates, files through attachments (ADR-051). A document
+  marked **required to buy** must have an expiry date; while it is
+  expired, orders cannot be submitted or approved (`SUPPLIER_DOCUMENT_EXPIRED`,
+  naming the date). Documents are flagged 30 days before expiry (the HR
+  document window, ADR-079) under Needs attention, and so in the daily
+  digest (ADR-087). Renewal edits the dates; removal archives; both audited.
+- **Bank accounts** (`supplier_bank_accounts`): IBAN (shape, country
+  length, ISO 13616 mod-97 check) or an account number with a SWIFT/BIC.
+  The number is stored encrypted (AES-256-GCM with the connector key,
+  ADR-048) with only its last four characters in clear; it never enters
+  the audit log. It is shown masked to those who add, verify or pay
+  accounts; the full number is shown on request to those with the new
+  permission `suppliers.bank.manage` (Administrator, Procurement,
+  Finance) or `payments.manage`, and each look is audited. Account details
+  never change after saving (database trigger): a change is a new account
+  and the old one archived. A new account is marked verified only by
+  someone other than the person who added it (service and database
+  check); approvers are notified at once (`SUPPLIER_BANK_ACCOUNT_ADDED`),
+  since a changed bank account is the usual supplier-payment fraud.
+  Payments do not yet record which account was paid.
+- **API**: suppliers carry `status` (ADR-090).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

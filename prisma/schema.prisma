@@ -169,6 +169,8 @@ model Organization {
   valuations              StockValuation[]
   revaluations            StockRevaluation[]
   suppliers               Supplier[]
+  supplierDocuments       SupplierDocument[]
+  supplierBankAccounts    SupplierBankAccount[]
   supplierProducts        SupplierProduct[]
   procurementSettings     ProcurementSettings?
   purchaseOrders          PurchaseOrder[]
@@ -1189,6 +1191,7 @@ enum AttachmentEntity {
   SUPPLIER_INVOICE
   SUPPLIER_SETTLEMENT
   STOCK_COUNT
+  SUPPLIER_DOCUMENT
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -1294,26 +1297,37 @@ model FxRevaluationLine {
 }
 
 model Supplier {
-  id               String    @id @default(uuid(7)) @db.Uuid
-  organizationId   String    @map("organization_id") @db.Uuid
+  id               String         @id @default(uuid(7)) @db.Uuid
+  organizationId   String         @map("organization_id") @db.Uuid
   code             String
   name             String
-  nameAr           String?   @map("name_ar")
-  taxId            String?   @map("tax_id")
-  contactName      String?   @map("contact_name")
+  nameAr           String?        @map("name_ar")
+  taxId            String?        @map("tax_id")
+  contactName      String?        @map("contact_name")
   email            String?
   phone            String?
   address          String?
-  paymentTermsDays Int?      @map("payment_terms_days")
-  leadTimeDays     Int?      @map("lead_time_days")
+  paymentTermsDays Int?           @map("payment_terms_days")
+  leadTimeDays     Int?           @map("lead_time_days")
   /// Default currency of this supplier's documents (ADR-050); null = base currency.
-  currency         String?   @db.Char(3)
+  currency         String?        @db.Char(3)
   note             String?
-  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(3)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// Approval and blocking (ADR-091). Orders can be sent only to APPROVED suppliers.
+  status           SupplierStatus @default(APPROVED)
+  /// Who created the supplier: the approver must be someone else (ADR-091). Null before C1a.
+  createdByUserId  String?        @map("created_by_user_id") @db.Uuid
+  approvedAt       DateTime?      @map("approved_at") @db.Timestamptz(3)
+  approvedByUserId String?        @map("approved_by_user_id") @db.Uuid
+  blockedAt        DateTime?      @map("blocked_at") @db.Timestamptz(3)
+  blockedByUserId  String?        @map("blocked_by_user_id") @db.Uuid
+  blockedReason    String?        @map("blocked_reason")
+  archivedAt       DateTime?      @map("archived_at") @db.Timestamptz(3)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  documents          SupplierDocument[]
+  bankAccounts       SupplierBankAccount[]
   products           SupplierProduct[]
   purchaseOrders     PurchaseOrder[]
   receipts           GoodsReceipt[]
@@ -1326,6 +1340,88 @@ model Supplier {
   /// Global search (ADR-088).
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "suppliers_name_trgm")
   @@map("suppliers")
+}
+
+enum SupplierStatus {
+  PENDING_APPROVAL
+  APPROVED
+  BLOCKED
+}
+
+enum SupplierDocumentType {
+  COMMERCIAL_REGISTRATION
+  VAT_CERTIFICATE
+  MUNICIPALITY_LICENSE
+  FOOD_SAFETY_CERTIFICATE
+  HALAL_CERTIFICATE
+  ISO_CERTIFICATE
+  INSURANCE
+  CONTRACT
+  OTHER
+}
+
+/// A supplier's licence, certificate or contract with its expiry (ADR-091).
+/// When `requiredToBuy` and expired, orders to the supplier cannot be submitted or approved.
+model SupplierDocument {
+  id               String               @id @default(uuid(7)) @db.Uuid
+  organizationId   String               @map("organization_id") @db.Uuid
+  supplierId       String               @map("supplier_id") @db.Uuid
+  type             SupplierDocumentType
+  /// Required for OTHER; otherwise an optional label.
+  title            String?
+  number           String?
+  issuedOn         DateTime?            @map("issued_on") @db.Date
+  expiresOn        DateTime?            @map("expires_on") @db.Date
+  requiredToBuy    Boolean              @default(false) @map("required_to_buy")
+  note             String?
+  createdByUserId  String               @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt       DateTime?            @map("archived_at") @db.Timestamptz(3)
+  archivedByUserId String?              @map("archived_by_user_id") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, supplierId])
+  @@index([organizationId, expiresOn])
+  @@map("supplier_documents")
+}
+
+enum SupplierBankAccountKind {
+  IBAN
+  ACCOUNT_NUMBER
+}
+
+/// Where a supplier is paid (ADR-091). The account number is stored encrypted
+/// (AES-256-GCM) with only its last four characters in clear. The number never
+/// changes: a new account is added and the old one archived. An account is
+/// usable once someone other than the person who added it has verified it.
+model SupplierBankAccount {
+  id               String                  @id @default(uuid(7)) @db.Uuid
+  organizationId   String                  @map("organization_id") @db.Uuid
+  supplierId       String                  @map("supplier_id") @db.Uuid
+  bankName         String                  @map("bank_name")
+  accountName      String                  @map("account_name")
+  kind             SupplierBankAccountKind
+  accountSealed    String                  @map("account_sealed")
+  accountLast4     String                  @map("account_last4")
+  swiftBic         String?                 @map("swift_bic")
+  currency         String?                 @db.Char(3)
+  createdByUserId  String                  @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  verifiedAt       DateTime?               @map("verified_at") @db.Timestamptz(3)
+  verifiedByUserId String?                 @map("verified_by_user_id") @db.Uuid
+  archivedAt       DateTime?               @map("archived_at") @db.Timestamptz(3)
+  archivedByUserId String?                 @map("archived_by_user_id") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, supplierId])
+  @@map("supplier_bank_accounts")
 }
 
 /// A product a supplier sells, in the unit it is ordered in, with the last price paid.
@@ -1359,12 +1455,14 @@ model SupplierProduct {
 
 /// Purchasing rules of one organization (DECISIONS.md ADR-023).
 model ProcurementSettings {
-  organizationId        String   @id @map("organization_id") @db.Uuid
+  organizationId           String   @id @map("organization_id") @db.Uuid
   /// Fraction 0–1 by which accepted quantity may exceed the ordered quantity.
-  overReceiptTolerance  Decimal  @default(0) @map("over_receipt_tolerance") @db.Decimal(9, 6)
+  overReceiptTolerance     Decimal  @default(0) @map("over_receipt_tolerance") @db.Decimal(9, 6)
   /// Fraction 0–1 by which an invoice unit price may differ from the order price (ADR-038).
-  invoicePriceTolerance Decimal  @default(0) @map("invoice_price_tolerance") @db.Decimal(9, 6)
-  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  invoicePriceTolerance    Decimal  @default(0) @map("invoice_price_tolerance") @db.Decimal(9, 6)
+  /// New suppliers wait for approval before orders can be sent to them (ADR-091).
+  supplierApprovalRequired Boolean  @default(false) @map("supplier_approval_required")
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
