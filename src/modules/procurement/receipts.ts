@@ -24,6 +24,7 @@ import { canOnWarehouse, lockOrder, warehouseScope } from "./orders";
 import { isReceivable, maxAcceptable, statusFromReceipts } from "./rules";
 import { receiptSchema } from "./schemas";
 import { loadRules } from "./settings";
+import { activeReturnsOnReceipt } from "./returns";
 import { loadSupplier } from "./suppliers";
 
 export const RECEIPT_PAGE_SIZE = 25;
@@ -332,6 +333,12 @@ export async function reverseReceipt(ctx: TenantContext, receiptId: string, rawI
       throw businessRuleViolation(
         "RECEIPT_HAS_LANDED_COST",
         "The receipt has landed costs; correct the stock with an adjustment instead",
+      );
+    // Goods already sent back cannot be "un-received" (ADR-094).
+    if ((await activeReturnsOnReceipt(tx, ctx, receipt.id)) > 0)
+      throw businessRuleViolation(
+        "RECEIPT_HAS_RETURNS",
+        "Goods from this receipt were returned to the supplier; reverse the returns first",
       );
     if (order.status === "CLOSED" || order.status === "CANCELLED")
       throw businessRuleViolation(

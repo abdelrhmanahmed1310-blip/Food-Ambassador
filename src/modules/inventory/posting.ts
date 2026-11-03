@@ -113,6 +113,7 @@ const NUMBER_PREFIX: Record<InventoryDocumentType, string> = {
   CONSUMPTION: "CON",
   PRODUCTION: "PRO",
   CUSTOMER_DELIVERY: "DN",
+  SUPPLIER_RETURN: "SRT",
 };
 
 /** Atomically allocate the next number for (organization, series, year). */

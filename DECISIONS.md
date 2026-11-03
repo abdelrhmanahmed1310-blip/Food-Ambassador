@@ -2253,6 +2253,43 @@ country for now, so no inter-company transfer is built.
   date, total). The PDF and the approval webhook carry the revision number;
   the buyer sends the new PDF to the supplier (no e-mail yet, D2).
 
+### ADR-094 Supplier returns — Accepted (C1d built)
+
+- **What.** Goods sent back to a supplier after they were accepted (a
+  quality problem found later, damage, expiry, wrong item, a recall, too
+  much delivered). Refusals at the door stay on the receipt (rejected
+  quantity, ADR-023); a supplier return is its own document, `RTS-YYYY-n`.
+- **From receipts.** A return is started from a posted receipt (the "Return
+  goods" button) and may take lines from any posted receipt of the same
+  supplier, warehouse and currency. Each line keeps the receipt line's
+  product, lot, unit and charged price; the quantity cannot exceed what was
+  accepted less what earlier posted returns sent back. The line says whether
+  the goods come from available stock or quarantine. Expired and
+  recall-held lots can be returned.
+- **Posting** (`purchasing.receive` at the warehouse) takes the goods out of
+  stock in the inventory module: one `SUPPLIER_RETURN` document with
+  `RETURN_TO_SUPPLIER` entries from the receipt's location, valued at the
+  warehouse's average cost like any issue (ADR-021). The expected credit is
+  quantity × charged price, excl. VAT, in the receipt currency; any gap
+  between that and the stock value is the price variance of those goods.
+  Returns are serialized per supplier, and the database refuses returning
+  more than was accepted.
+- **Credit.** Someone with `invoices.manage` links the supplier's credit note
+  (recorded under Payables, ADR-039; same supplier and currency — database
+  check). The return is then credited. Posted returns without a credit note
+  appear under Needs attention.
+- **Reversal.** If the supplier refuses the goods, a posted, uncredited
+  return is reversed from its page: the stock comes back as it left
+  (inventory reversal) and the quantity becomes returnable again. The
+  generic ledger reversal refuses return documents, and a receipt with
+  posted returns cannot be reversed.
+- **Return note** PDF for the supplier, on the company letterhead, with
+  receipts, lots and prices.
+- **Not yet:** a return reduces neither the quantity that can be invoiced
+  nor the supplier's balance by itself — the credit note does; returning
+  goods that were moved to another location (the return takes them from the
+  receipt's location); supplier collection and transport documents.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

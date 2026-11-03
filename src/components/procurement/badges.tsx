@@ -46,3 +46,20 @@ export async function RfqStatusBadge({ status }: { status: RfqStatus }) {
           : "muted";
   return <Badge tone={tone}>{t(status)}</Badge>;
 }
+
+export async function ReturnStatusBadge({
+  status,
+}: {
+  status: "DRAFT" | "POSTED" | "CREDITED" | "REVERSED" | "CANCELLED";
+}) {
+  const t = await getTranslations("returns.statuses");
+  const tone =
+    status === "CREDITED"
+      ? "success"
+      : status === "POSTED"
+        ? "warning"
+        : status === "DRAFT"
+          ? "neutral"
+          : "muted";
+  return <Badge tone={tone}>{t(status)}</Badge>;
+}

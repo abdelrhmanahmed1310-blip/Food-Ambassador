@@ -105,6 +105,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/purchasing/rfqs`, label: t("rfqs") },
       { href: `${base}/purchasing/orders`, label: t("purchaseOrders") },
       { href: `${base}/purchasing/receipts`, label: t("receipts") },
+      { href: `${base}/purchasing/returns`, label: t("supplierReturns") },
       { href: `${base}/purchasing/reorder`, label: t("reorder") },
     );
   }

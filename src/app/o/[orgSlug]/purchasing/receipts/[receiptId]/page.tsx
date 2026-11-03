@@ -9,6 +9,7 @@ import {
   Badge,
   Card,
   DescriptionList,
+  LinkButton,
   PageHeader,
   Table,
   Td,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/primitives";
 import { Decimal } from "@/lib/decimal";
 import { isUuid } from "@/lib/uuid";
+import { hasPermission } from "@/modules/access/authorize";
 import { getReceipt } from "@/modules/procurement/receipts";
 import { currencyChoices } from "@/modules/fx/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
@@ -72,7 +74,23 @@ export default async function ReceiptPage({
       <PageHeader
         title={receipt.number}
         description={(locale === "ar" && receipt.supplier.nameAr) || receipt.supplier.name}
-        actions={<ReceiptStatusBadge status={receipt.status} />}
+        actions={
+          <>
+            <ReceiptStatusBadge status={receipt.status} />
+            {receipt.status === "POSTED" &&
+            hasPermission(ctx.grants, "purchasing.receive", {
+              branchId: receipt.warehouse.branchId,
+              warehouseId: receipt.warehouse.id,
+            }) ? (
+              <LinkButton
+                href={`/o/${orgSlug}/purchasing/returns/new?receiptId=${receipt.id}`}
+                variant="secondary"
+              >
+                {t("returns.returnGoods")}
+              </LinkButton>
+            ) : null}
+          </>
+        }
       />
       <div className="space-y-6">
         <Card>

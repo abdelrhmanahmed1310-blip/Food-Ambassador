@@ -588,6 +588,78 @@ export async function postReceiptInTx(
   return { documentId: result.documentId, number: result.number, lines: posted };
 }
 
+// ─── Supplier return (ADR-094) ───
+
+/**
+ * Take returned goods out of stock, inside the purchasing transaction: one
+ * RETURN_TO_SUPPLIER entry per line, from the lot and status (available or
+ * quarantine) given, valued at the warehouse's average cost like any issue
+ * (ADR-021). Recall-held and expired lots may be returned.
+ */
+export async function postSupplierReturnInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  input: {
+    warehouseId: string;
+    returnNumber: string;
+    note?: string;
+    lines: Array<{
+      sourceLineId: string;
+      /** Where the receipt put it. */
+      locationId: string | null;
+      productId: string;
+      lotId: string | null;
+      uomId: string;
+      quantity: string;
+      quantityBase: string;
+      stockStatus: "AVAILABLE" | "QUARANTINE";
+    }>;
+  },
+): Promise<PostedDocument> {
+  const wh = await loadWarehouse(tx, ctx, input.warehouseId);
+  assertWarehousePermission(ctx, "purchasing.receive", wh);
+  assertActive(wh);
+  const documentId = uuidv7();
+  const lines: PostingLine[] = [];
+  for (const l of input.lines) {
+    const locationId = l.locationId
+      ? await loadLocation(tx, ctx, wh.id, l.locationId, false)
+      : null;
+    lines.push(
+      line(
+        {
+          movementType: "RETURN_TO_SUPPLIER",
+          warehouseId: wh.id,
+          locationId,
+          productId: l.productId,
+          lotId: l.lotId,
+          stockStatus: l.stockStatus,
+          quantity: toDecimal(l.quantityBase),
+          entered: toDecimal(l.quantity),
+          sign: -1,
+          enteredUomId: l.uomId,
+          sourceLineId: l.sourceLineId,
+          note: input.note,
+        },
+        `supplier_return:${l.sourceLineId}`,
+      ),
+    );
+  }
+  const result = await postDocument(
+    tx,
+    ctx,
+    {
+      id: documentId,
+      type: "SUPPLIER_RETURN",
+      warehouseId: wh.id,
+      note: input.note,
+    },
+    lines,
+    { year: yearOf(todayFor(wh)), auditChanges: { supplierReturn: input.returnNumber } },
+  );
+  return { documentId: result.documentId, number: result.number };
+}
+
 // ─── Revaluation ───
 
 /**
@@ -661,6 +733,7 @@ export async function reverseDocumentInTx(
     allowConsumption?: boolean;
     allowProduction?: boolean;
     allowDelivery?: boolean;
+    allowSupplierReturn?: boolean;
     permission?: Permission;
   },
 ): Promise<PostedDocument> {
@@ -702,6 +775,11 @@ export async function reverseDocumentInTx(
     throw businessRuleViolation(
       "DELIVERY_REVERSE_IN_SALES",
       "Reverse customer deliveries from the delivery",
+    );
+  if (doc.type === "SUPPLIER_RETURN" && !options.allowSupplierReturn)
+    throw businessRuleViolation(
+      "SUPPLIER_RETURN_REVERSE_IN_PURCHASING",
+      "Reverse supplier returns from the return",
     );
   if (doc.type === "PRODUCTION" && !options.allowProduction)
     throw businessRuleViolation(

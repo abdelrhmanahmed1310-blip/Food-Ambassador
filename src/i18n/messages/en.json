@@ -156,7 +156,8 @@
     "notifications": "Notifications",
     "jobs": "Background jobs",
     "apiKeys": "API keys",
-    "rfqs": "Requests for quotation"
+    "rfqs": "Requests for quotation",
+    "supplierReturns": "Supplier returns"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -279,7 +280,8 @@
     "leaveOneYear": "A request must be within one calendar year: split it.",
     "expiryBeforeIssue": "The expiry date is before the issue date.",
     "requiredDocumentNeedsExpiry": "A document required to buy needs an expiry date.",
-    "respondAfterNeeded": "Quotes must be wanted on or before the day the goods are needed."
+    "respondAfterNeeded": "Quotes must be wanted on or before the day the goods are needed.",
+    "invalidQuantity": "Enter a quantity greater than zero."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -309,7 +311,8 @@
     "duplicate": "This order was already recorded.",
     "phoneTaken": "A customer already has this phone number.",
     "productOnRfq": "This product is already on the request.",
-    "supplierOnRfq": "This supplier is already asked."
+    "supplierOnRfq": "This supplier is already asked.",
+    "lineOnReturn": "This receipt line is already on the return."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -627,7 +630,14 @@
     "RECEIVED_LINE_CHANGED": "A line with goods received keeps its product and unit.",
     "RECEIVED_LINE_PRICE": "A line with goods received keeps its price — receipts and invoices were valued at it.",
     "BELOW_RECEIVED": "The quantity cannot be less than what has been received.",
-    "REVISION_HEADER_FIXED": "A revision keeps the order's supplier, warehouse and currency. Cancel or close it and create a new order instead."
+    "REVISION_HEADER_FIXED": "A revision keeps the order's supplier, warehouse and currency. Cancel or close it and create a new order instead.",
+    "RETURN_STATUS": "This is not possible in the return's current status.",
+    "RETURN_EXCEEDS_RECEIVED": "More than is left to return ({remaining}).",
+    "RETURN_HAS_NO_LINES": "Add at least one line first.",
+    "RECEIPT_NOT_POSTED": "The receipt was reversed.",
+    "CREDIT_NOTE_MISMATCH": "Choose a posted credit note from this supplier in the return's currency.",
+    "RECEIPT_HAS_RETURNS": "Goods from this receipt were returned to the supplier; reverse those returns first.",
+    "SUPPLIER_RETURN_REVERSE_IN_PURCHASING": "Reverse supplier returns from the return page."
   },
   "notFound": {
     "title": "Page not found",
@@ -1151,7 +1161,8 @@
       "LANDED_COST": "Landed cost",
       "CONSUMPTION": "Sales consumption",
       "PRODUCTION": "Production",
-      "CUSTOMER_DELIVERY": "Customer delivery"
+      "CUSTOMER_DELIVERY": "Customer delivery",
+      "SUPPLIER_RETURN": "Supplier return"
     },
     "reasons": {
       "DATA_CORRECTION": "Data correction",
@@ -1181,7 +1192,8 @@
       "SHORT_SHIPPED": "Short-shipped",
       "SALES": "Sales",
       "PRODUCTION": "Production",
-      "PREPARED_NOT_SOLD": "Prepared, not sold"
+      "PREPARED_NOT_SOLD": "Prepared, not sold",
+      "SUPPLIER_RETURN_REVERSED": "Supplier return reversed"
     },
     "valuationTitle": "Stock value",
     "valuationHint": "Moving weighted average cost per product and warehouse, in the currency of the warehouse's company. Totals across companies are in {currency} at today's exchange rates.",
@@ -2507,7 +2519,8 @@
       "SUPPLIERS_TO_APPROVE": "{count, plural, one {# supplier waiting for approval} other {# suppliers waiting for approval}}",
       "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY": "{count, plural, one {# supplier bank account to verify} other {# supplier bank accounts to verify}}",
       "SUPPLIER_DOCUMENTS_EXPIRED": "{count, plural, one {# supplier document expired} other {# supplier documents expired}}",
-      "SUPPLIER_DOCUMENTS_EXPIRING": "{count, plural, one {# supplier document expiring within 30 days} other {# supplier documents expiring within 30 days}}"
+      "SUPPLIER_DOCUMENTS_EXPIRING": "{count, plural, one {# supplier document expiring within 30 days} other {# supplier documents expiring within 30 days}}",
+      "SUPPLIER_RETURNS_AWAITING_CREDIT": "{count, plural, one {# supplier return awaiting a credit note} other {# supplier returns awaiting a credit note}}"
     }
   },
   "production": {
@@ -4266,7 +4279,12 @@
     "respondBy": "Please quote by",
     "neededBy": "Needed by",
     "rfqNote": "Please give your unit price per the unit shown, your validity date and lead time.",
-    "revision": "Revision"
+    "revision": "Revision",
+    "returnNote": "Goods return note",
+    "returnFrom": "Returned from",
+    "returnReason": "Reason",
+    "expectedCredit": "Credit expected (excl. VAT)",
+    "returnNoteText": "Please issue a credit note for the goods above, quoting this return number."
   },
   "api": {
     "title": "API keys",
@@ -4363,5 +4381,64 @@
     "reasonNeeded": "Needs a reason",
     "ordersTitle": "Purchase orders created",
     "fromRfq": "From {number}"
+  },
+  "returns": {
+    "title": "Supplier returns",
+    "hint": "Goods sent back to a supplier after they were received. Posting takes them out of stock; link the supplier's credit note when it arrives.",
+    "new": "New return",
+    "newTitle": "New supplier return",
+    "empty": "No supplier returns yet.",
+    "noReceipts": "No posted receipts to return from.",
+    "fromReceipt": "From receipt",
+    "reason": "Reason",
+    "returnGoods": "Return goods",
+    "reasons": {
+      "QUALITY": "Quality",
+      "DAMAGED": "Damaged",
+      "EXPIRED": "Expired or short shelf life",
+      "WRONG_ITEM": "Wrong item",
+      "RECALL": "Recall",
+      "OVERSUPPLY": "Delivered too much",
+      "OTHER": "Other"
+    },
+    "statuses": {
+      "DRAFT": "Draft",
+      "POSTED": "Awaiting credit",
+      "CREDITED": "Credited",
+      "REVERSED": "Reversed",
+      "CANCELLED": "Cancelled"
+    },
+    "expectedCredit": "Expected credit (excl. VAT)",
+    "postedAt": "Sent back",
+    "stockDocument": "Stock document",
+    "reversedBy": "Reversed by",
+    "cancelReason": "Reason for cancelling",
+    "creditNote": "Credit note",
+    "linesTitle": "Goods returned",
+    "noLines": "No lines yet.",
+    "receipt": "Receipt",
+    "chargedPrice": "Price charged",
+    "addTitle": "Add goods from receipts",
+    "addHint": "Receipts of this supplier at this warehouse in the same currency. Each line keeps the receipt's lot, unit and price.",
+    "nothingToAdd": "Nothing more to return from this supplier's receipts.",
+    "left": "{quantity} left to return",
+    "addLine": "Add",
+    "takeFrom": "Take from",
+    "fromAvailable": "Available stock",
+    "fromQuarantine": "Quarantine",
+    "postHint": "Posting takes the goods out of stock at their stock value. The return then waits for the supplier's credit note.",
+    "post": "Post return",
+    "postConfirm": "Take these goods out of stock and send them back?",
+    "cancel": "Cancel return",
+    "creditTitle": "Supplier's credit note",
+    "creditHint": "Link the credit note the supplier issued for these goods (same supplier and currency). Record it under Payables first.",
+    "noCreditNotes": "No credit note from this supplier in this currency yet.",
+    "recordCredit": "Record one in Payables",
+    "linkCredit": "Link credit note",
+    "reverseTitle": "Goods came back",
+    "reverseHint": "If the supplier refused the goods, reverse the return: the stock is put back as it left.",
+    "reverseReason": "Why is the return reversed?",
+    "reverse": "Reverse return",
+    "pdf": "Return note (PDF)"
   }
 }

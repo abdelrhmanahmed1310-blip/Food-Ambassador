@@ -597,6 +597,24 @@ Purchase order revisions (C1c, ADR-093; migration `20261221090000_c1c_po_revisio
   trigger accepts only the order's current revision.
 - **purchase_order_lines**: a trigger refuses deleting a line with goods
   received, or changing its product, unit or price.
+
+Supplier returns (C1d, ADR-094; migration `20261222090000_c1d_supplier_returns`):
+
+- **supplier_returns**: `number` (RTS-YYYY-n), supplier, warehouse,
+  `currency`, `status` (`DRAFT` | `POSTED` | `CREDITED` | `REVERSED` |
+  `CANCELLED`), `reason`, note, `total_amount` (expected credit),
+  `inventory_document_id`, `reversal_document_id`, `credit_note_id` (a
+  posted credit note of the same supplier and currency — trigger), who/when
+  for creation, posting, credit and cancel/reverse (with a reason). A check
+  ties each status to its fields; a trigger refuses posting more than was
+  accepted on any receipt line.
+- **supplier_return_lines**: UQ (return, receipt line); `receipt_line_id`,
+  product, lot (FK to the product's lot), unit, `quantity`, `quantity_base`,
+  `unit_price` (charged on the receipt), `line_total`, `from_status`
+  (available or quarantine). A trigger keeps the line identical to a posted
+  receipt line of the return's supplier, warehouse and currency, and refuses
+  changes once the return is posted.
+- **inventory_documents.type** gains `SUPPLIER_RETURN` (number prefix SRT).
 - **approval_layers** (ADR-049, migration `20261112090000_approval_matrix`):
   PK (organization, `document` PURCHASE_ORDER | STOCK_COUNT, `position`
   1–4: 1–3 branch, 4 head office), `above_amount` ≥ 0 — the layer is

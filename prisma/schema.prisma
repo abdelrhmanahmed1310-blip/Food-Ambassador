@@ -171,6 +171,8 @@ model Organization {
   suppliers               Supplier[]
   supplierDocuments       SupplierDocument[]
   rfqs                    Rfq[]
+  supplierReturns         SupplierReturn[]
+  supplierReturnLines     SupplierReturnLine[]
   purchaseOrderRevisions  PurchaseOrderRevision[]
   rfqLines                RfqLine[]
   rfqSuppliers            RfqSupplier[]
@@ -541,10 +543,11 @@ model Warehouse {
   productionOrders ProductionOrder[]
   salesOrders      SalesOrder[]
 
-  posRegisters PosRegister[]
-  posFloors    PosFloor[]
-  posTabs      PosTab[]
-  rfqs         Rfq[]
+  posRegisters    PosRegister[]
+  posFloors       PosFloor[]
+  posTabs         PosTab[]
+  rfqs            Rfq[]
+  supplierReturns SupplierReturn[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -649,22 +652,23 @@ model UnitOfMeasure {
   archivedAt     DateTime?     @map("archived_at") @db.Timestamptz(3)
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  organization       Organization?             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  baseOf             Product[]
-  conversions        ProductUomConversion[]
-  barcodes           ProductBarcode[]
-  ledgerEntries      InventoryLedgerEntry[]
-  supplierProducts   SupplierProduct[]
-  purchaseOrderLines PurchaseOrderLine[]
-  goodsReceiptLines  GoodsReceiptLine[]
-  shipmentLines      StockShipmentLine[]
-  requisitionLines   PurchaseRequisitionLine[]
-  recipeIngredients  RecipeIngredient[]
-  recipeYields       RecipeVersion[]
-  invoiceLines       SupplierInvoiceLine[]
-  salesOrderLines    SalesOrderLine[]
-  productionOrders   ProductionOrder[]
-  rfqLines           RfqLine[]
+  organization        Organization?             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  baseOf              Product[]
+  conversions         ProductUomConversion[]
+  barcodes            ProductBarcode[]
+  ledgerEntries       InventoryLedgerEntry[]
+  supplierProducts    SupplierProduct[]
+  purchaseOrderLines  PurchaseOrderLine[]
+  goodsReceiptLines   GoodsReceiptLine[]
+  shipmentLines       StockShipmentLine[]
+  requisitionLines    PurchaseRequisitionLine[]
+  recipeIngredients   RecipeIngredient[]
+  recipeYields        RecipeVersion[]
+  invoiceLines        SupplierInvoiceLine[]
+  salesOrderLines     SalesOrderLine[]
+  productionOrders    ProductionOrder[]
+  rfqLines            RfqLine[]
+  supplierReturnLines SupplierReturnLine[]
 
   /// Recreated in SQL as NULLS NOT DISTINCT so system codes are unique too.
   @@unique([organizationId, code], map: "units_of_measure_code_key")
@@ -741,8 +745,9 @@ model Product {
   menuItems       MenuItem[]
   modifierOptions ModifierOption[]
 
-  posShortfalls PosConsumptionShortfall[]
-  rfqLines      RfqLine[]
+  posShortfalls       PosConsumptionShortfall[]
+  rfqLines            RfqLine[]
+  supplierReturnLines SupplierReturnLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -880,6 +885,7 @@ enum InventoryDocumentType {
   CONSUMPTION
   PRODUCTION
   CUSTOMER_DELIVERY
+  SUPPLIER_RETURN
 }
 
 /// How the unit cost of a ledger entry was determined (ADR-021).
@@ -932,6 +938,8 @@ model InventoryDocument {
   productionReversal       ProductionOrder?       @relation("ProductionReversal")
   customerDelivery         CustomerDelivery?      @relation("DeliveryDocument")
   customerDeliveryReversal CustomerDelivery?      @relation("DeliveryReversal")
+  supplierReturnPostings   SupplierReturn[]       @relation("SupplierReturnPosting")
+  supplierReturnReversals  SupplierReturn[]       @relation("SupplierReturnReversal")
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1339,6 +1347,7 @@ model Supplier {
   documents          SupplierDocument[]
   bankAccounts       SupplierBankAccount[]
   rfqInvitations     RfqSupplier[]
+  returns            SupplierReturn[]
   quotations         Quotation[]
   products           SupplierProduct[]
   purchaseOrders     PurchaseOrder[]
@@ -1758,11 +1767,108 @@ model GoodsReceiptLine {
   lot               InventoryLot?         @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
   landedCostLines   LandedCostLine[]
   invoiceLines      SupplierInvoiceLine[]
+  returnLines       SupplierReturnLine[]
 
   @@unique([organizationId, id])
   @@index([organizationId, receiptId])
   @@index([organizationId, purchaseOrderLineId])
   @@map("goods_receipt_lines")
+}
+
+enum SupplierReturnStatus {
+  DRAFT
+  POSTED
+  CREDITED
+  REVERSED
+  CANCELLED
+}
+
+enum SupplierReturnReason {
+  QUALITY
+  DAMAGED
+  EXPIRED
+  WRONG_ITEM
+  RECALL
+  OVERSUPPLY
+  OTHER
+}
+
+/// Goods sent back to a supplier after they were received (ADR-094). Lines come
+/// from posted receipt lines (product, lot, unit, charged price). Posting takes
+/// the stock out through the ledger (RETURN_TO_SUPPLIER); the supplier's credit
+/// note is then linked to close it.
+model SupplierReturn {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  organizationId      String               @map("organization_id") @db.Uuid
+  number              String
+  supplierId          String               @map("supplier_id") @db.Uuid
+  warehouseId         String               @map("warehouse_id") @db.Uuid
+  /// The receipts' currency: the expected credit is in it.
+  currency            String               @db.Char(3)
+  status              SupplierReturnStatus @default(DRAFT)
+  reason              SupplierReturnReason
+  note                String?
+  /// Expected credit: Σ quantity × charged price (excl. VAT).
+  totalAmount         Decimal              @default(0) @map("total_amount") @db.Decimal(19, 4)
+  inventoryDocumentId String?              @map("inventory_document_id") @db.Uuid
+  reversalDocumentId  String?              @map("reversal_document_id") @db.Uuid
+  creditNoteId        String?              @map("credit_note_id") @db.Uuid
+  createdByUserId     String               @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  postedAt            DateTime?            @map("posted_at") @db.Timestamptz(3)
+  postedByUserId      String?              @map("posted_by_user_id") @db.Uuid
+  creditedAt          DateTime?            @map("credited_at") @db.Timestamptz(3)
+  creditedByUserId    String?              @map("credited_by_user_id") @db.Uuid
+  /// Cancelled (draft) or reversed (posted): who, when, why.
+  decidedAt           DateTime?            @map("decided_at") @db.Timestamptz(3)
+  decidedByUserId     String?              @map("decided_by_user_id") @db.Uuid
+  decisionReason      String?              @map("decision_reason")
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier          Supplier             @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  warehouse         Warehouse            @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  inventoryDocument InventoryDocument?   @relation("SupplierReturnPosting", fields: [organizationId, inventoryDocumentId], references: [organizationId, id], onDelete: Restrict)
+  reversalDocument  InventoryDocument?   @relation("SupplierReturnReversal", fields: [organizationId, reversalDocumentId], references: [organizationId, id], onDelete: Restrict)
+  creditNote        SupplierSettlement?  @relation(fields: [organizationId, creditNoteId], references: [organizationId, id], onDelete: Restrict)
+  lines             SupplierReturnLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, supplierId])
+  @@map("supplier_returns")
+}
+
+model SupplierReturnLine {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  returnId       String      @map("return_id") @db.Uuid
+  lineNo         Int         @map("line_no")
+  receiptLineId  String      @map("receipt_line_id") @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  lotId          String?     @map("lot_id") @db.Uuid
+  /// The receipt line's unit; quantity_base in the product's base unit.
+  uomId          String      @map("uom_id") @db.Uuid
+  quantity       Decimal     @db.Decimal(20, 6)
+  quantityBase   Decimal     @map("quantity_base") @db.Decimal(20, 6)
+  /// The price charged on the receipt, per uom_id, in the return's currency.
+  unitPrice      Decimal     @map("unit_price") @db.Decimal(20, 6)
+  lineTotal      Decimal     @map("line_total") @db.Decimal(19, 4)
+  /// Taken from available stock or from quarantine.
+  fromStatus     StockStatus @map("from_status")
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplierReturn SupplierReturn   @relation(fields: [organizationId, returnId], references: [organizationId, id], onDelete: Cascade)
+  receiptLine    GoodsReceiptLine @relation(fields: [organizationId, receiptLineId], references: [organizationId, id], onDelete: Restrict)
+  product        Product          @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  uom            UnitOfMeasure    @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, returnId, lineNo])
+  @@unique([organizationId, returnId, receiptLineId])
+  @@index([organizationId, receiptLineId])
+  @@map("supplier_return_lines")
 }
 
 // ─── Catalog categories and reorder planning (Milestone 3c) ───
@@ -3093,11 +3199,12 @@ model SupplierSettlement {
   voidedByUserId     String?          @map("voided_by_user_id") @db.Uuid
   voidReason         String?          @map("void_reason")
 
-  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  supplier     Supplier               @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
-  company      Company?               @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
-  taxCode      TaxCode?               @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
-  allocations  SettlementAllocation[]
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier        Supplier               @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  company         Company?               @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+  taxCode         TaxCode?               @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+  allocations     SettlementAllocation[]
+  creditedReturns SupplierReturn[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])

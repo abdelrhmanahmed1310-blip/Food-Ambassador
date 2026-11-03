@@ -37,7 +37,8 @@ export type AttentionKey =
   | "SUPPLIERS_TO_APPROVE"
   | "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY"
   | "SUPPLIER_DOCUMENTS_EXPIRED"
-  | "SUPPLIER_DOCUMENTS_EXPIRING";
+  | "SUPPLIER_DOCUMENTS_EXPIRING"
+  | "SUPPLIER_RETURNS_AWAITING_CREDIT";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -492,6 +493,15 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         links: links(due.expiring),
       });
     }
+
+    // Goods sent back whose credit note has not been linked yet (ADR-094).
+    if (hasPermission(ctx.grants, "invoices.manage"))
+      push({
+        key: "SUPPLIER_RETURNS_AWAITING_CREDIT",
+        tone: "warning",
+        count: await tx.supplierReturn.count({ where: { organizationId: org, status: "POSTED" } }),
+        href: "/purchasing/returns?status=POSTED",
+      });
 
     const order = { danger: 0, warning: 1, info: 2 };
     return items.sort((a, b) => order[a.tone] - order[b.tone]);
