@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,23 @@ Last updated: 2026-11-03 (C1c purchase order revisions; C1b requests for quotati
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C1d — Supplier returns (built)
+
+Rules: DECISIONS.md ADR-094.
+
+| Area     | What works                                                                                                                                                                           | Where                              |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| Start    | "Return goods" on a posted receipt, with a reason (quality, damaged, expired, wrong item, recall, too much delivered, other)                                                         | receipt page, Purchasing → Returns |
+| Lines    | From any posted receipt of the same supplier, warehouse and currency; lot, unit and charged price kept; at most what was accepted less earlier returns; from available or quarantine | return page                        |
+| Post     | Goods leave stock through the ledger (`SUPPLIER_RETURN`, `RETURN_TO_SUPPLIER` at average cost); expected credit = quantity × charged price                                           | return page                        |
+| Credit   | Link the supplier's credit note (same supplier and currency); returns waiting for one are under Needs attention                                                                      | return page, Needs attention       |
+| Reverse  | Supplier refused the goods: stock put back as it left, quantity returnable again; the receipt cannot be reversed while returns stand                                                 | return page                        |
+| Document | Goods return note PDF on the company letterhead                                                                                                                                      | return page                        |
+
+Not yet: returns do not change the quantity that can be invoiced (the credit note settles the money); returning from a location other than the receipt's; collection and transport documents.
+
+Checks: `pnpm check` pass (unit 301); `pnpm test:integration` 432/432 pass (new: return from a receipt, one line per receipt line, no more than accepted, wrong stock status refused by the ledger, posting takes flour and a lot of beans out with `RETURN_TO_SUPPLIER` entries and balances reconcile, expected credit 650; lines fixed after posting (service and database); only the rest is returnable; receipt reversal and generic ledger reversal refused; cancel needs a reason; awaiting-credit item shown; credit note of another supplier refused, only invoice managers link it, then credited and no longer reversible; a refused return is reversed, stock restored and returnable again; other organizations see nothing); `pnpm test:e2e` 68/68 pass (new: receive 10 kg, return 4 kg from the receipt, post, awaiting credit, stock 6 kg, return note PDF served).
 
 ## C1c — Purchase order revisions (built)
 
