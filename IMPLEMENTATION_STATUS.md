@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-03 (C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-03 (C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,22 @@ Last updated: 2026-11-03 (C1b requests for quotation; C1a supplier compliance; F
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C1c — Purchase order revisions (built)
+
+Rules: DECISIONS.md ADR-093.
+
+| Area       | What works                                                                                                                                                                          | Where                    |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Revise     | "Start revision" with a reason on an approved or part-received order; the version is kept; the order returns to draft as revision n + 1; receiving waits                            | purchase order page      |
+| Edit       | Change quantity and price of lines, add lines, remove unreceived lines, change the expected date and note; supplier, warehouse and currency stay                                    | purchase order page      |
+| Protection | Received lines keep product, unit and price and cannot go below what arrived — in the service and by database triggers                                                              | service, database        |
+| Re-approve | Resubmission runs the approval matrix and supplier checks again; then the status follows receipts (approved, part-received, received); a stuck part-received revision can be closed | purchase order page      |
+| History    | Every revision with reason, who, when and what changed (added, removed, quantity, price, date, total); "Revision n" on the page, PDF and approval webhook                           | purchase order page, PDF |
+
+Not yet: e-mailing the revised PDF to the supplier (D2); changing the price of goods still to come on a line already part-received (close the line short and add the rest as a new order).
+
+Checks: `pnpm check` pass (unit 301; new: which changes a received line refuses, the list of changes between versions); `pnpm test:integration` 429/429 pass (new: revise needs a reason and `purchasing.manage`; receiving stops; removing, re-pricing, re-uniting or cutting below received refused, supplier change refused; allowed changes resubmit to part-received with the right total and history; the database refuses the same changes, revision jumps and versions out of turn; a revision goes through the approval matrix again and can be revised once more; cutting to what was received completes the order; a part-received revision can be closed; drafts cannot be revised; other organizations see nothing); `pnpm test:e2e` 67/67 pass (new: approve an order, revise it to 8 kg, resubmit, see "Revision 1", the reason and "quantity 10 → 8", PDF served).
 
 ## C1b — Requests for quotation (built)
 

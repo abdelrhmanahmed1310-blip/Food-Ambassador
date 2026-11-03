@@ -2232,8 +2232,9 @@ country for now, so no inter-company transfer is built.
   `purchasing.manage` at the warehouse.
 - **What happens.** The current version (header and lines, as approved) is
   kept in `purchase_order_revisions` with the reason, who and when; the
-  order goes back to draft as revision n + 1. Receiving and invoicing wait
-  until it is approved again: resubmission runs the approval matrix
+  order goes back to draft as revision n + 1. Receiving waits until it is
+  approved again (invoices for goods already received go on: their order
+  price cannot change): resubmission runs the approval matrix
   (ADR-049) and supplier checks (ADR-091) on the new total, as any order.
   Once approved, its status follows its receipts (approved, part-received
   or received — an order cut down to what arrived is complete).
