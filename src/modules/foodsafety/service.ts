@@ -1,4 +1,5 @@
 import "server-only";
+import { controlPointsAtCheckpoint } from "./haccp";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import {
@@ -76,6 +77,8 @@ export async function openNonConformanceInTx(
     description: string;
     severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
     source: "MANUAL" | "RECORD" | "CHECKLIST";
+    /** A deviation from a HACCP control point (ADR-096). */
+    controlPointId?: string;
   },
 ) {
   const year = Number(businessDate(input.timeZone ?? ctx.timeZone).slice(0, 4));
@@ -89,6 +92,7 @@ export async function openNonConformanceInTx(
       description: input.description,
       severity: input.severity,
       source: input.source,
+      controlPointId: input.controlPointId ?? null,
       raisedByUserId: ctx.userId,
     },
     select: { id: true, number: true },
@@ -245,18 +249,34 @@ export async function addRecord(ctx: TenantContext, rawInput: unknown) {
     });
     let nonConformance: { id: string; number: string } | null = null;
     if (!inSpec) {
+      // A checkpoint that monitors a control point of an approved HACCP plan: a deviation (ADR-096).
+      const [controlPoint] =
+        input.type === "TEMPERATURE"
+          ? await controlPointsAtCheckpoint(tx, ctx, input.checkpointId as string)
+          : [];
       nonConformance = await openNonConformanceInTx(tx, ctx, {
         branchId: branch.id,
         timeZone: branch.timeZone,
-        title:
-          input.type === "TEMPERATURE"
+        title: controlPoint
+          ? `${controlPoint.hazard.classification} deviation (${controlPoint.plan.code} v${controlPoint.plan.version}): ${checkpointName} ${input.valueCelsius} °C`
+          : input.type === "TEMPERATURE"
             ? `Temperature out of range: ${checkpointName} ${input.valueCelsius} °C`
             : `Failed ${input.type.toLowerCase().replace("_", " ")} check`,
-        description: [input.note, `Immediate action: ${input.correctiveNote}`]
+        description: [
+          input.note,
+          `Immediate action: ${input.correctiveNote}`,
+          ...(controlPoint
+            ? [
+                `Critical limit: ${controlPoint.criticalLimit}`,
+                `Planned corrective action: ${controlPoint.correctiveAction}`,
+              ]
+            : []),
+        ]
           .filter(Boolean)
           .join("\n"),
-        severity: automaticSeverity(1),
+        severity: controlPoint ? "HIGH" : automaticSeverity(1),
         source: "RECORD",
+        controlPointId: controlPoint?.id,
       });
       await tx.foodSafetyRecord.update({
         where: { id: record.id },

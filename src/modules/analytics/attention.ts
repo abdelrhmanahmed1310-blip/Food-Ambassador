@@ -5,6 +5,7 @@ import { accessibleScope, hasPermission, holdsAnyGrant } from "@/modules/access/
 import { approvalBlock, holdsApprovalLevel } from "@/modules/approvals/rules";
 import type { Permission } from "@/modules/access/permissions";
 import { EXPIRY_WARNING_DAYS } from "@/modules/inventory/queries";
+import { haccpReviewsDue } from "@/modules/foodsafety/haccp";
 import { supplierDocumentsDue } from "@/modules/procurement/compliance";
 import { addDays, businessDate } from "@/modules/inventory/rules";
 import type { TenantContext } from "@/modules/tenancy/context";
@@ -38,7 +39,8 @@ export type AttentionKey =
   | "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY"
   | "SUPPLIER_DOCUMENTS_EXPIRED"
   | "SUPPLIER_DOCUMENTS_EXPIRING"
-  | "SUPPLIER_RETURNS_AWAITING_CREDIT";
+  | "SUPPLIER_RETURNS_AWAITING_CREDIT"
+  | "HACCP_REVIEWS_DUE";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -493,6 +495,15 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         links: links(due.expiring),
       });
     }
+
+    // Approved HACCP plans whose review date has come (ADR-096).
+    if (holdsAnyGrant(ctx.grants, "foodsafety.manage"))
+      push({
+        key: "HACCP_REVIEWS_DUE",
+        tone: "warning",
+        count: await haccpReviewsDue(tx, ctx),
+        href: "/food-safety/haccp",
+      });
 
     // Goods sent back whose credit note has not been linked yet (ADR-094).
     if (hasPermission(ctx.grants, "invoices.manage"))

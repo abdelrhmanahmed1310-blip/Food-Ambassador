@@ -18,8 +18,11 @@
 > order revisions with kept versions and re-approval. **C1d built**
 > (ADR-094): supplier returns from receipts through the ledger, with credit
 > notes linked. **C1e built** (ADR-095): spend and purchase price variance
-> reports. C1 is complete; next by the roadmap: C2 food safety system, C4
-> analytics depth.
+> reports. C1 is complete. **C2a built** (ADR-096): HACCP plans with the
+> Codex decision tree, control points monitored by checkpoints, deviations
+> raising non-conformances, approval and versions. Next in C2: document
+> control, audits and complaints, calibration, compliance score, mock
+> recall.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

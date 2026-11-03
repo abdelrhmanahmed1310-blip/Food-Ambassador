@@ -882,6 +882,28 @@ VAT = gross; cost for margin; trigger: only cancelling changes it) /
 `inventory_document_type` and `movement_type` gain CUSTOMER_DELIVERY
 (`DN-`).
 
+HACCP plans (C2a, ADR-096; migration `20261223090000_c2a_haccp`):
+
+- **haccp_plans**: `code` + `version` (UQ), name, branch (null = all), scope,
+  intended use, team, `status` (`DRAFT` | `APPROVED` | `SUPERSEDED`),
+  created by/at, approved by/at (never the author), `review_due_on`,
+  `superseded_at`. Partial unique indexes: one approved and one draft per
+  code. A trigger fixes a plan once it leaves draft (only "superseded" may
+  follow).
+- **haccp_steps**: plan, `position` (UQ), name, description.
+- **haccp_hazards**: plan, step (same plan), `type`, description,
+  `likelihood` and `severity` (1–5), `significant`, control measures,
+  decision-tree answers `q1`–`q4`, `tree_result`, `classification` (`CCP` |
+  `OPRP` | `PRP`), `justification` (required when it differs from the tree).
+- **haccp_control_points**: one per CCP/OPRP hazard of the same plan;
+  critical limit (text, optional min/max with unit), monitoring, frequency,
+  responsible, corrective action, verification, records kept.
+- **haccp_control_point_checkpoints**: control point × safety checkpoint.
+- Steps, hazards, control points and their checkpoints change only while
+  the plan is a draft (trigger).
+- **non_conformances.control_point_id**: the control point a deviation
+  breached.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

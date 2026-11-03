@@ -159,7 +159,8 @@
     "rfqs": "Requests for quotation",
     "supplierReturns": "Supplier returns",
     "spendReport": "Spend",
-    "priceVarianceReport": "Price variance"
+    "priceVarianceReport": "Price variance",
+    "haccpPlans": "HACCP plans"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -283,7 +284,8 @@
     "expiryBeforeIssue": "The expiry date is before the issue date.",
     "requiredDocumentNeedsExpiry": "A document required to buy needs an expiry date.",
     "respondAfterNeeded": "Quotes must be wanted on or before the day the goods are needed.",
-    "invalidQuantity": "Enter a quantity greater than zero."
+    "invalidQuantity": "Enter a quantity greater than zero.",
+    "invalidRange": "The maximum is below the minimum."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -639,7 +641,17 @@
     "RECEIPT_NOT_POSTED": "The receipt was reversed.",
     "CREDIT_NOTE_MISMATCH": "Choose a posted credit note from this supplier in the return's currency.",
     "RECEIPT_HAS_RETURNS": "Goods from this receipt were returned to the supplier; reverse those returns first.",
-    "SUPPLIER_RETURN_REVERSE_IN_PURCHASING": "Reverse supplier returns from the return page."
+    "SUPPLIER_RETURN_REVERSE_IN_PURCHASING": "Reverse supplier returns from the return page.",
+    "HACCP_PLAN_NOT_DRAFT": "Only a draft plan can be edited; start a new version.",
+    "HACCP_PLAN_NOT_APPROVED": "Only the approved version can be revised.",
+    "HACCP_DRAFT_EXISTS": "A new version of this plan is already being prepared.",
+    "HACCP_PLAN_INCOMPLETE": "The plan is not complete; see what is missing above.",
+    "HACCP_SELF_APPROVAL": "You prepared this plan, so someone else must approve it.",
+    "REVIEW_DATE_PAST": "The review date must be in the future.",
+    "PRP_HAS_NO_CONTROL_POINT": "Prerequisite programmes have no critical limits.",
+    "CLASSIFICATION_JUSTIFICATION_REQUIRED": "The decision tree says {tree}: give a reason for a different classification.",
+    "CHECKPOINT_OUTSIDE_LIMITS": "Checkpoint {checkpoint} alarms outside the critical limits; tighten its limits first.",
+    "CHECKPOINT_UNIT_MISMATCH": "Temperature checkpoints can only monitor limits in °C."
   },
   "notFound": {
     "title": "Page not found",
@@ -2522,7 +2534,8 @@
       "SUPPLIER_BANK_ACCOUNTS_TO_VERIFY": "{count, plural, one {# supplier bank account to verify} other {# supplier bank accounts to verify}}",
       "SUPPLIER_DOCUMENTS_EXPIRED": "{count, plural, one {# supplier document expired} other {# supplier documents expired}}",
       "SUPPLIER_DOCUMENTS_EXPIRING": "{count, plural, one {# supplier document expiring within 30 days} other {# supplier documents expiring within 30 days}}",
-      "SUPPLIER_RETURNS_AWAITING_CREDIT": "{count, plural, one {# supplier return awaiting a credit note} other {# supplier returns awaiting a credit note}}"
+      "SUPPLIER_RETURNS_AWAITING_CREDIT": "{count, plural, one {# supplier return awaiting a credit note} other {# supplier returns awaiting a credit note}}",
+      "HACCP_REVIEWS_DUE": "{count, plural, one {# HACCP plan due for review} other {# HACCP plans due for review}}"
     }
   },
   "production": {
@@ -4491,5 +4504,111 @@
     "now": "Now",
     "change": "Change",
     "impact": "Impact"
+  },
+  "haccp": {
+    "title": "HACCP plans",
+    "hint": "Hazard analysis and critical control points for each product or process: steps, hazards, controls, limits, monitoring, correction and verification.",
+    "new": "New plan",
+    "newTitle": "New HACCP plan",
+    "empty": "No HACCP plans yet.",
+    "code": "Code",
+    "name": "Product or process",
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "branchOnlyHint": "You manage food safety at some branches only: the plan must be for one of them.",
+    "team": "HACCP team",
+    "scope": "Scope and description",
+    "scopeHint": "Products covered, ingredients, how they are processed and packed.",
+    "intendedUse": "Intended use and consumers",
+    "controlPoints": "Control points",
+    "reviewDueOn": "Review due",
+    "createdBy": "Prepared by",
+    "approvedBy": "Approved by",
+    "versions": "Versions",
+    "newVersion": "Start a new version",
+    "pdf": "Plan (PDF)",
+    "reviewOverdue": "The review date of this plan has passed: review it and approve a new version.",
+    "readiness": "Ready for approval?",
+    "ready": "The plan is complete and can be approved.",
+    "approverHint": "Someone other than the author approves the plan.",
+    "approve": "Approve plan",
+    "deviations": "Open deviations",
+    "flow": "Process steps and hazards",
+    "noSteps": "Add the process steps first, in order.",
+    "noHazards": "No hazards at this step.",
+    "removeStepConfirm": "Remove this step and its hazards?",
+    "addStep": "Add step",
+    "stepName": "Step",
+    "stepDescription": "Description",
+    "addHazardTitle": "Add a hazard",
+    "addHazardHint": "Score likelihood and severity 1–5 as your team assesses them. For a significant hazard, answer the decision tree; the classification follows from it unless you give a reason.",
+    "addHazard": "Add hazard",
+    "step": "Step",
+    "hazardType": "Type",
+    "hazard": "Hazard",
+    "likelihood": "Likelihood (1–5)",
+    "severity": "Severity (1–5)",
+    "controlMeasures": "Control measures",
+    "significant": "Significant hazard",
+    "tree": "Decision tree (Codex)",
+    "treeHint": "Answer from the top; the tree stops when it reaches a decision.",
+    "questions": {
+      "q1": "Q1 — Do control measures exist for this hazard?",
+      "q2": "Q2 — Is this step designed to eliminate the hazard or reduce it to an acceptable level?",
+      "q3": "Q3 — Could contamination occur at, or increase to, unacceptable levels?",
+      "q4": "Q4 — Will a later step eliminate it or reduce it to an acceptable level?"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "classification": "Classification",
+    "fromTree": "From the decision tree",
+    "justification": "Reason",
+    "justificationHint": "Needed when the classification differs from the tree.",
+    "classes": {
+      "CCP": "CCP — critical control point",
+      "OPRP": "OPRP — operational prerequisite",
+      "PRP": "PRP — prerequisite programme"
+    },
+    "hazardTypes": {
+      "BIOLOGICAL": "Biological",
+      "CHEMICAL": "Chemical",
+      "PHYSICAL": "Physical",
+      "ALLERGEN": "Allergen"
+    },
+    "riskScore": "risk {score} ({l} × {s})",
+    "treeSaid": "Decision tree: {result}",
+    "removeHazard": "Remove hazard",
+    "criticalLimit": "Critical limit",
+    "minValue": "Minimum",
+    "maxValue": "Maximum",
+    "unit": "Unit",
+    "unitHint": "°C to monitor with temperature checkpoints.",
+    "monitoring": "Monitoring",
+    "frequency": "Frequency",
+    "responsible": "Responsible",
+    "correctiveAction": "Corrective action",
+    "verification": "Verification",
+    "recordsKept": "Records kept",
+    "setControlPoint": "Set limits and monitoring",
+    "editControlPoint": "Change limits and monitoring",
+    "monitoredBy": "Monitored by",
+    "noCheckpoints": "No checkpoint linked; monitoring is recorded elsewhere.",
+    "link": "Link checkpoint",
+    "evidence": "{readings} readings in 30 days, {outOfSpec} out of limits, last {last}",
+    "problems": {
+      "NO_STEPS": "Add at least one process step.",
+      "NO_HAZARDS": "Analyse at least one hazard.",
+      "TREE_INCOMPLETE": "Finish the decision tree",
+      "STEP_NEEDS_CONTROL": "A significant hazard has no control measure: change the step or process",
+      "CONTROL_POINT_MISSING": "Set the critical limit and monitoring"
+    },
+    "statuses": {
+      "DRAFT": "Draft",
+      "APPROVED": "Approved",
+      "SUPERSEDED": "Superseded"
+    },
+    "statusLabel": "Status",
+    "pdfTitle": "HACCP plan",
+    "pdfDraftNote": "Draft — not approved."
   }
 }

@@ -145,166 +145,171 @@ model Organization {
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships             OrganizationMembership[]
-  roles                   Role[]
-  rolePermissions         RolePermission[]
-  membershipRoles         MembershipRole[]
-  invitations             Invitation[]
-  branches                Branch[]
-  warehouses              Warehouse[]
-  locations               StorageLocation[]
-  auditEvents             AuditEvent[]
-  idempotencyKeys         IdempotencyKey[]
-  units                   UnitOfMeasure[]
-  products                Product[]
-  barcodes                ProductBarcode[]
-  conversions             ProductUomConversion[]
-  lots                    InventoryLot[]
-  documents               InventoryDocument[]
-  ledgerEntries           InventoryLedgerEntry[]
-  balances                StockBalance[]
-  stockCounts             StockCount[]
-  stockCountLines         StockCountLine[]
-  sequences               DocumentSequence[]
-  valuations              StockValuation[]
-  revaluations            StockRevaluation[]
-  suppliers               Supplier[]
-  supplierDocuments       SupplierDocument[]
-  rfqs                    Rfq[]
-  supplierReturns         SupplierReturn[]
-  supplierReturnLines     SupplierReturnLine[]
-  purchaseOrderRevisions  PurchaseOrderRevision[]
-  rfqLines                RfqLine[]
-  rfqSuppliers            RfqSupplier[]
-  quotations              Quotation[]
-  quotationLines          QuotationLine[]
-  supplierBankAccounts    SupplierBankAccount[]
-  supplierProducts        SupplierProduct[]
-  procurementSettings     ProcurementSettings?
-  purchaseOrders          PurchaseOrder[]
-  purchaseOrderApprovals  PurchaseOrderApproval[]
-  approvalLayers          ApprovalLayer[]
-  exchangeRates           ExchangeRate[]
-  attachments             Attachment[]
-  fxRevaluations          FxRevaluation[]
-  fxRevaluationLines      FxRevaluationLine[]
-  menuCategories          MenuCategory[]
-  menuItems               MenuItem[]
-  menuItemPrices          MenuItemPrice[]
-  modifierGroups          ModifierGroup[]
-  modifierOptions         ModifierOption[]
-  menuItemModifierGroups  MenuItemModifierGroup[]
-  comboComponents         ComboComponent[]
-  menuItemUnavailable     MenuItemUnavailable[]
-  posRegisters            PosRegister[]
-  posFloors               PosFloor[]
-  posTables               PosTable[]
-  posTabs                 PosTab[]
-  posTabLines             PosTabLine[]
-  kitchenStations         KitchenStation[]
-  kitchenRoutes           KitchenRoute[]
-  kitchenTickets          KitchenTicket[]
-  kitchenTicketItems      KitchenTicketItem[]
-  zatcaSettings           ZatcaSettings[]
-  zatcaDevices            ZatcaDevice[]
-  zatcaDocuments          ZatcaDocument[]
-  cardSettlementBatches   CardSettlementBatch[]
-  cardSettlementLines     CardSettlementLine[]
-  paymentProviderSettings PaymentProviderSettings?
-  paymentLinks            PaymentLink[]
-  posPromotions           PosPromotion[]
-  posCoupons              PosCoupon[]
-  posCustomers            PosCustomer[]
-  loyaltySettings         LoyaltySettings?
-  loyaltyEntries          LoyaltyEntry[]
-  giftCards               GiftCard[]
-  giftCardEntries         GiftCardEntry[]
-  deliveryOrders          DeliveryOrder[]
-  deliveryItemMaps        DeliveryItemMap[]
-  deliveryPayouts         DeliveryPayout[]
-  deliveryPayoutLines     DeliveryPayoutLine[]
-  departments             Department[]
-  employees               Employee[]
-  employeeDocuments       EmployeeDocument[]
-  attendanceTerminals     AttendanceTerminal[]
-  branchGeofences         BranchGeofence[]
-  attendancePunches       AttendancePunch[]
-  leaveTypes              LeaveType[]
-  leaveAllocations        LeaveAllocation[]
-  leaveRequests           LeaveRequest[]
-  companies               Company[]
-  brands                  Brand[]
-  orderingChannels        OrderingChannel[]
-  posShifts               PosShift[]
-  posCashMovements        PosCashMovement[]
-  posOrders               PosOrder[]
-  posOrderLines           PosOrderLine[]
-  posPayments             PosPayment[]
-  posRefunds              PosRefund[]
-  posShortfalls           PosConsumptionShortfall[]
-  stockCountApprovals     StockCountApproval[]
-  purchaseOrderLines      PurchaseOrderLine[]
-  goodsReceipts           GoodsReceipt[]
-  goodsReceiptLines       GoodsReceiptLine[]
-  productCategories       ProductCategory[]
-  reorderRules            ReorderRule[]
-  stockShipments          StockShipment[]
-  stockShipmentLines      StockShipmentLine[]
-  landedCosts             LandedCost[]
-  landedCostLines         LandedCostLine[]
-  requisitions            PurchaseRequisition[]
-  requisitionLines        PurchaseRequisitionLine[]
-  recipes                 Recipe[]
-  recipeVersions          RecipeVersion[]
-  recipeIngredients       RecipeIngredient[]
-  standardCosts           ProductStandardCost[]
-  recipeSnapshots         RecipeCostSnapshot[]
-  recipePrices            RecipePrice[]
-  recipeSettings          RecipeSettings?
-  recalls                 Recall[]
-  recallLots              RecallLot[]
-  recallStock             RecallStock[]
-  recallDocuments         RecallDocument[]
-  safetyCheckpoints       SafetyCheckpoint[]
-  safetyRecords           FoodSafetyRecord[]
-  checklistTemplates      ChecklistTemplate[]
-  checklistItems          ChecklistItem[]
-  checklistRuns           ChecklistRun[]
-  checklistAnswers        ChecklistAnswer[]
-  nonConformances         NonConformance[]
-  correctiveActions       CorrectiveAction[]
-  salesImports            SalesImport[]
-  salesLines              SalesLine[]
-  taxCodes                TaxCode[]
-  taxRates                TaxRate[]
-  taxSettings             TaxSettings?
-  supplierInvoices        SupplierInvoice[]
-  supplierInvoiceLines    SupplierInvoiceLine[]
-  supplierSettlements     SupplierSettlement[]
-  settlementAllocations   SettlementAllocation[]
-  accountingSettings      AccountingSettings?
-  allergenDeclarations    AllergenDeclaration[]
-  nutritionProfiles       NutritionProfile[]
-  recipeLabels            RecipeLabel[]
-  referenceFoods          ReferenceFood[]
-  referenceImports        ReferenceImport[]
-  productionOrders        ProductionOrder[]
-  customers               Customer[]
-  salesOrders             SalesOrder[]
-  salesOrderLines         SalesOrderLine[]
-  customerDeliveries      CustomerDelivery[]
-  customerDeliveryLines   CustomerDeliveryLine[]
-  salesInvoices           SalesInvoice[]
-  salesInvoiceLines       SalesInvoiceLine[]
-  customerReceipts        CustomerReceipt[]
-  receiptAllocations      CustomerReceiptAllocation[]
-  connectors              Connector[]
-  integrationEvents       IntegrationEvent[]
-  outboundDeliveries      OutboundDelivery[]
-  jobs                    Job[]
-  notifications           Notification[]
-  notificationPreferences NotificationPreference[]
-  apiClients              ApiClient[]
+  memberships                  OrganizationMembership[]
+  roles                        Role[]
+  rolePermissions              RolePermission[]
+  membershipRoles              MembershipRole[]
+  invitations                  Invitation[]
+  branches                     Branch[]
+  warehouses                   Warehouse[]
+  locations                    StorageLocation[]
+  auditEvents                  AuditEvent[]
+  idempotencyKeys              IdempotencyKey[]
+  units                        UnitOfMeasure[]
+  products                     Product[]
+  barcodes                     ProductBarcode[]
+  conversions                  ProductUomConversion[]
+  lots                         InventoryLot[]
+  documents                    InventoryDocument[]
+  ledgerEntries                InventoryLedgerEntry[]
+  balances                     StockBalance[]
+  stockCounts                  StockCount[]
+  stockCountLines              StockCountLine[]
+  sequences                    DocumentSequence[]
+  valuations                   StockValuation[]
+  revaluations                 StockRevaluation[]
+  suppliers                    Supplier[]
+  supplierDocuments            SupplierDocument[]
+  rfqs                         Rfq[]
+  supplierReturns              SupplierReturn[]
+  supplierReturnLines          SupplierReturnLine[]
+  purchaseOrderRevisions       PurchaseOrderRevision[]
+  rfqLines                     RfqLine[]
+  rfqSuppliers                 RfqSupplier[]
+  quotations                   Quotation[]
+  quotationLines               QuotationLine[]
+  supplierBankAccounts         SupplierBankAccount[]
+  supplierProducts             SupplierProduct[]
+  procurementSettings          ProcurementSettings?
+  purchaseOrders               PurchaseOrder[]
+  purchaseOrderApprovals       PurchaseOrderApproval[]
+  approvalLayers               ApprovalLayer[]
+  exchangeRates                ExchangeRate[]
+  attachments                  Attachment[]
+  fxRevaluations               FxRevaluation[]
+  fxRevaluationLines           FxRevaluationLine[]
+  menuCategories               MenuCategory[]
+  menuItems                    MenuItem[]
+  menuItemPrices               MenuItemPrice[]
+  modifierGroups               ModifierGroup[]
+  modifierOptions              ModifierOption[]
+  menuItemModifierGroups       MenuItemModifierGroup[]
+  comboComponents              ComboComponent[]
+  menuItemUnavailable          MenuItemUnavailable[]
+  posRegisters                 PosRegister[]
+  posFloors                    PosFloor[]
+  posTables                    PosTable[]
+  posTabs                      PosTab[]
+  posTabLines                  PosTabLine[]
+  kitchenStations              KitchenStation[]
+  kitchenRoutes                KitchenRoute[]
+  kitchenTickets               KitchenTicket[]
+  kitchenTicketItems           KitchenTicketItem[]
+  zatcaSettings                ZatcaSettings[]
+  zatcaDevices                 ZatcaDevice[]
+  zatcaDocuments               ZatcaDocument[]
+  cardSettlementBatches        CardSettlementBatch[]
+  cardSettlementLines          CardSettlementLine[]
+  paymentProviderSettings      PaymentProviderSettings?
+  paymentLinks                 PaymentLink[]
+  posPromotions                PosPromotion[]
+  posCoupons                   PosCoupon[]
+  posCustomers                 PosCustomer[]
+  loyaltySettings              LoyaltySettings?
+  loyaltyEntries               LoyaltyEntry[]
+  giftCards                    GiftCard[]
+  giftCardEntries              GiftCardEntry[]
+  deliveryOrders               DeliveryOrder[]
+  deliveryItemMaps             DeliveryItemMap[]
+  deliveryPayouts              DeliveryPayout[]
+  deliveryPayoutLines          DeliveryPayoutLine[]
+  departments                  Department[]
+  employees                    Employee[]
+  employeeDocuments            EmployeeDocument[]
+  attendanceTerminals          AttendanceTerminal[]
+  branchGeofences              BranchGeofence[]
+  attendancePunches            AttendancePunch[]
+  leaveTypes                   LeaveType[]
+  leaveAllocations             LeaveAllocation[]
+  leaveRequests                LeaveRequest[]
+  companies                    Company[]
+  brands                       Brand[]
+  orderingChannels             OrderingChannel[]
+  posShifts                    PosShift[]
+  posCashMovements             PosCashMovement[]
+  posOrders                    PosOrder[]
+  posOrderLines                PosOrderLine[]
+  posPayments                  PosPayment[]
+  posRefunds                   PosRefund[]
+  posShortfalls                PosConsumptionShortfall[]
+  stockCountApprovals          StockCountApproval[]
+  purchaseOrderLines           PurchaseOrderLine[]
+  goodsReceipts                GoodsReceipt[]
+  goodsReceiptLines            GoodsReceiptLine[]
+  productCategories            ProductCategory[]
+  reorderRules                 ReorderRule[]
+  stockShipments               StockShipment[]
+  stockShipmentLines           StockShipmentLine[]
+  landedCosts                  LandedCost[]
+  landedCostLines              LandedCostLine[]
+  requisitions                 PurchaseRequisition[]
+  requisitionLines             PurchaseRequisitionLine[]
+  recipes                      Recipe[]
+  recipeVersions               RecipeVersion[]
+  recipeIngredients            RecipeIngredient[]
+  standardCosts                ProductStandardCost[]
+  recipeSnapshots              RecipeCostSnapshot[]
+  recipePrices                 RecipePrice[]
+  recipeSettings               RecipeSettings?
+  recalls                      Recall[]
+  recallLots                   RecallLot[]
+  recallStock                  RecallStock[]
+  recallDocuments              RecallDocument[]
+  safetyCheckpoints            SafetyCheckpoint[]
+  safetyRecords                FoodSafetyRecord[]
+  checklistTemplates           ChecklistTemplate[]
+  checklistItems               ChecklistItem[]
+  checklistRuns                ChecklistRun[]
+  checklistAnswers             ChecklistAnswer[]
+  nonConformances              NonConformance[]
+  correctiveActions            CorrectiveAction[]
+  salesImports                 SalesImport[]
+  salesLines                   SalesLine[]
+  taxCodes                     TaxCode[]
+  taxRates                     TaxRate[]
+  taxSettings                  TaxSettings?
+  supplierInvoices             SupplierInvoice[]
+  supplierInvoiceLines         SupplierInvoiceLine[]
+  supplierSettlements          SupplierSettlement[]
+  settlementAllocations        SettlementAllocation[]
+  accountingSettings           AccountingSettings?
+  allergenDeclarations         AllergenDeclaration[]
+  nutritionProfiles            NutritionProfile[]
+  recipeLabels                 RecipeLabel[]
+  referenceFoods               ReferenceFood[]
+  referenceImports             ReferenceImport[]
+  productionOrders             ProductionOrder[]
+  customers                    Customer[]
+  salesOrders                  SalesOrder[]
+  salesOrderLines              SalesOrderLine[]
+  customerDeliveries           CustomerDelivery[]
+  customerDeliveryLines        CustomerDeliveryLine[]
+  salesInvoices                SalesInvoice[]
+  salesInvoiceLines            SalesInvoiceLine[]
+  customerReceipts             CustomerReceipt[]
+  receiptAllocations           CustomerReceiptAllocation[]
+  connectors                   Connector[]
+  integrationEvents            IntegrationEvent[]
+  outboundDeliveries           OutboundDelivery[]
+  jobs                         Job[]
+  notifications                Notification[]
+  notificationPreferences      NotificationPreference[]
+  apiClients                   ApiClient[]
+  haccpPlans                   HaccpPlan[]
+  haccpSteps                   HaccpStep[]
+  haccpHazards                 HaccpHazard[]
+  haccpControlPoints           HaccpControlPoint[]
+  haccpControlPointCheckpoints HaccpControlPointCheckpoint[]
 
   @@map("organizations")
 }
@@ -490,6 +495,7 @@ model Branch {
   attendancePunches   AttendancePunch[]
   company             Company              @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
   brand               Brand?               @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  haccpPlans          HaccpPlan[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -2629,9 +2635,10 @@ model SafetyCheckpoint {
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
-  records      FoodSafetyRecord[]
+  organization  Organization                  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch        Branch                        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  records       FoodSafetyRecord[]
+  controlPoints HaccpControlPointCheckpoint[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, branchId, code])
@@ -2802,10 +2809,13 @@ model NonConformance {
   closedAt       DateTime?  @map("closed_at") @db.Timestamptz(3)
   closedByUserId String?    @map("closed_by_user_id") @db.Uuid
   closeNote      String?    @map("close_note")
+  /// Raised by a reading out of a HACCP control point's limits (ADR-096).
+  controlPointId String?    @map("control_point_id") @db.Uuid
   updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  controlPoint HaccpControlPoint? @relation(fields: [organizationId, controlPointId], references: [organizationId, id], onDelete: Restrict)
   actions      CorrectiveAction[]
   records      FoodSafetyRecord[]
   runs         ChecklistRun[]
@@ -2845,6 +2855,159 @@ model CorrectiveAction {
   @@unique([organizationId, id])
   @@index([organizationId, nonConformanceId])
   @@map("corrective_actions")
+}
+
+// ─── HACCP plans (C2a, ADR-096) ───
+
+enum HaccpPlanStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+}
+
+enum HazardType {
+  BIOLOGICAL
+  CHEMICAL
+  PHYSICAL
+  ALLERGEN
+}
+
+/// CCP: critical control point; OPRP: operational prerequisite programme; PRP: prerequisite programme.
+enum ControlClass {
+  CCP
+  OPRP
+  PRP
+}
+
+/// A HACCP plan for a product or process (ADR-096). Edited as a draft,
+/// approved by someone other than its author, then fixed; a change is a new
+/// version of the same code, which supersedes the old one when approved.
+model HaccpPlan {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  code             String
+  version          Int             @default(1)
+  name             String
+  /// Null = the whole organization.
+  branchId         String?         @map("branch_id") @db.Uuid
+  /// Products or process covered, and their description.
+  scope            String
+  intendedUse      String?         @map("intended_use")
+  team             String?
+  status           HaccpPlanStatus @default(DRAFT)
+  createdByUserId  String          @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  approvedAt       DateTime?       @map("approved_at") @db.Timestamptz(3)
+  approvedByUserId String?         @map("approved_by_user_id") @db.Uuid
+  reviewDueOn      DateTime?       @map("review_due_on") @db.Date
+  supersededAt     DateTime?       @map("superseded_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch        Branch?             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  steps         HaccpStep[]
+  hazards       HaccpHazard[]
+  controlPoints HaccpControlPoint[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code, version])
+  @@index([organizationId, status])
+  @@map("haccp_plans")
+}
+
+model HaccpStep {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  planId         String  @map("plan_id") @db.Uuid
+  position       Int
+  name           String
+  description    String?
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  plan         HaccpPlan     @relation(fields: [organizationId, planId], references: [organizationId, id], onDelete: Cascade)
+  hazards      HaccpHazard[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, planId, position])
+  @@map("haccp_steps")
+}
+
+/// A hazard at a step, its assessment and how it is controlled.
+model HaccpHazard {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  planId          String        @map("plan_id") @db.Uuid
+  stepId          String        @map("step_id") @db.Uuid
+  type            HazardType
+  description     String
+  /// 1–5 each, as assessed by the team; risk = likelihood × severity.
+  likelihood      Int
+  severity        Int
+  significant     Boolean
+  controlMeasures String?       @map("control_measures")
+  /// Codex decision tree answers (Q1–Q4); null = not asked (the tree stopped earlier).
+  q1              Boolean?
+  q2              Boolean?
+  q3              Boolean?
+  q4              Boolean?
+  /// What the tree concludes; null when the hazard is not significant.
+  treeResult      ControlClass? @map("tree_result")
+  classification  ControlClass
+  /// Required when the classification differs from the tree's result.
+  justification   String?
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  plan         HaccpPlan          @relation(fields: [organizationId, planId], references: [organizationId, id], onDelete: Cascade)
+  step         HaccpStep          @relation(fields: [organizationId, stepId], references: [organizationId, id], onDelete: Cascade)
+  controlPoint HaccpControlPoint?
+
+  @@unique([organizationId, id])
+  @@index([organizationId, planId])
+  @@map("haccp_hazards")
+}
+
+/// Limits, monitoring, correction and verification for a CCP or OPRP.
+model HaccpControlPoint {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  planId           String   @map("plan_id") @db.Uuid
+  hazardId         String   @map("hazard_id") @db.Uuid
+  criticalLimit    String   @map("critical_limit")
+  /// Measurable limit, when there is one (temperature limits in °C).
+  minValue         Decimal? @map("min_value") @db.Decimal(12, 3)
+  maxValue         Decimal? @map("max_value") @db.Decimal(12, 3)
+  unit             String?
+  monitoring       String
+  frequency        String
+  responsible      String?
+  correctiveAction String   @map("corrective_action")
+  verification     String
+  recordsKept      String?  @map("records_kept")
+
+  organization Organization                  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  plan         HaccpPlan                     @relation(fields: [organizationId, planId], references: [organizationId, id], onDelete: Cascade)
+  hazard       HaccpHazard                   @relation(fields: [organizationId, hazardId], references: [organizationId, id], onDelete: Cascade)
+  checkpoints  HaccpControlPointCheckpoint[]
+  deviations   NonConformance[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, hazardId])
+  @@map("haccp_control_points")
+}
+
+/// A monitoring point whose readings are the evidence for a control point.
+model HaccpControlPointCheckpoint {
+  organizationId String @map("organization_id") @db.Uuid
+  controlPointId String @map("control_point_id") @db.Uuid
+  checkpointId   String @map("checkpoint_id") @db.Uuid
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  controlPoint HaccpControlPoint @relation(fields: [organizationId, controlPointId], references: [organizationId, id], onDelete: Cascade)
+  checkpoint   SafetyCheckpoint  @relation(fields: [organizationId, checkpointId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, controlPointId, checkpointId])
+  @@index([organizationId, checkpointId])
+  @@map("haccp_control_point_checkpoints")
 }
 
 // ─── Sales import and recipe consumption (Milestone 7a, ADR-036) ───

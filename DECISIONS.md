@@ -2321,6 +2321,48 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** spend from invoices or payments, budgets per category,
   contract price compliance.
 
+### ADR-096 HACCP plans — Accepted (C2a built)
+
+- **Plan.** Per product or process (code, name, scope and description,
+  intended use, team), for one branch or the whole organization. Process
+  steps in order; hazards at each step — biological, chemical, physical,
+  allergen — with likelihood and severity scored 1–5 by the team (the
+  product is shown as the risk; no threshold is assumed) and whether the
+  team judges the hazard significant.
+- **Decision tree.** The Codex Alimentarius HACCP decision tree (Q1 control
+  measures exist? Q2 step designed to eliminate or reduce? Q3 could
+  contamination reach unacceptable levels? Q4 will a later step remove
+  it?). As in ISO 22000, a significant hazard not controlled at a CCP is an
+  OPRP, and one that is not significant is left to the prerequisite
+  programmes (PRP). A significant hazard with no control measure blocks
+  approval (the step must change). The team may classify differently from
+  the tree only with a written reason (service and database check).
+- **Control points.** Every CCP and OPRP needs a critical limit (text, and
+  optionally a measurable minimum / maximum with unit), monitoring (what,
+  frequency, who), the corrective action and verification, and records
+  kept. A control point can be monitored by the branches' temperature
+  checkpoints (ADR-035); a checkpoint is accepted only if its alarm limits
+  lie inside the critical limits (°C), so a breach is always flagged.
+- **Deviations → corrective action.** A reading out of spec at a checkpoint
+  that monitors a control point of an approved plan opens a **HIGH**
+  non-conformance, linked to that control point, titled as a CCP / OPRP
+  deviation and carrying the critical limit and the planned corrective
+  action; the corrective-action workflow is the existing one (ADR-035). The
+  plan page shows the open deviations and, per checkpoint, the readings of
+  the last 30 days and how many were out of limits.
+- **Approval and versions.** A plan is a draft until approved by someone
+  other than its author, with a future review date; approval is refused
+  while anything is missing (steps, hazards, tree answers, control
+  points). Approved plans are fixed (database trigger). A change is a new
+  version — a full copy, edited as a draft — and its approval supersedes
+  the old one; one approved and one draft version per code at a time.
+  Plans due for review appear under Needs attention. The plan prints as a
+  PDF table.
+- **Who.** `foodsafety.view` to see; `foodsafety.manage` at the branch (or
+  organization-wide for an organization plan) to edit and approve.
+- **Not yet:** monitoring by checklist items; document control, audits,
+  complaints, calibration and the compliance score (rest of C2).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
