@@ -461,10 +461,7 @@ export async function postCount(
         changes: { step, of: count.approvalChain.length, level: count.pendingApprovalLevel },
       });
       if (next) {
-        await notifyCountApprovers(tx, ctx, count, wh, next, [
-          ctx.userId,
-          count.submittedByUserId,
-        ]);
+        await notifyCountApprovers(tx, ctx, count, wh, next, [ctx.userId, count.submittedByUserId]);
         return { documentNumber: null, status: "SUBMITTED" as const };
       }
     }
