@@ -9,6 +9,7 @@ import { hasEmployeeRecord } from "@/modules/hr/attendance";
 import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { unreadCount } from "@/modules/notifications/service";
 import { listUserOrganizations } from "@/modules/organizations/service";
+import { canSeeSpend } from "@/modules/procurement/spend";
 import { canSeeReports } from "@/modules/analytics/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { getCurrentUser } from "@/server/auth/session";
@@ -217,6 +218,12 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   if (visible.foodCost)
     reports.items.push({ href: `${base}/reports/food-cost`, label: t("foodCostReport") });
   if (visible.waste) reports.items.push({ href: `${base}/reports/waste`, label: t("wasteReport") });
+  // Purchasing reports (ADR-095).
+  if (canSeeSpend(ctx))
+    reports.items.push(
+      { href: `${base}/reports/spend`, label: t("spendReport") },
+      { href: `${base}/reports/price-variance`, label: t("priceVarianceReport") },
+    );
   const sections = [
     main,
     pos,

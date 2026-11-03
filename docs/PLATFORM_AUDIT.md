@@ -17,7 +17,9 @@
 > currency and award to draft orders. **C1c built** (ADR-093): purchase
 > order revisions with kept versions and re-approval. **C1d built**
 > (ADR-094): supplier returns from receipts through the ledger, with credit
-> notes linked. Next in C1: price variance and spend reports.
+> notes linked. **C1e built** (ADR-095): spend and purchase price variance
+> reports. C1 is complete; next by the roadmap: C2 food safety system, C4
+> analytics depth.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

@@ -2290,6 +2290,37 @@ country for now, so no inter-company transfer is built.
   goods that were moved to another location (the return takes them from the
   receipt's location); supplier collection and transport documents.
 
+### ADR-095 Spend and purchase price variance — Accepted (C1e built)
+
+- **Source: what was received.** Both reports read posted receipts'
+  accepted lines (reversed receipts drop out), valued at the price charged
+  and the receipt's own exchange rate — the same value the stock took
+  (ADR-050/086) — less goods returned in the period (ADR-094, at the
+  receipt's price and rate, dated when posted). Supplier invoices are not
+  the source: they can lag, and the 3-way match already ties them to these
+  receipts (ADR-038). Amounts exclude VAT.
+- **Currency.** One company's report is in its currency; the group's is
+  converted at the period's average rates (as food cost, ADR-086).
+  Currencies without a rate are named and left out, never guessed.
+- **Spend** (Reports → Spend): received, returned and net by supplier (with
+  share and the amount paid over order prices), by product category (with
+  the number of suppliers; categories bought from one supplier are marked
+  single source), by branch and by month; the top five suppliers' share of
+  net spend.
+- **Price variance** (Reports → Price variance): per receipt line,
+  (charged − ordered price) × accepted quantity at the receipt's rate —
+  paid over and under order prices, net, by supplier and as a share of its
+  spend, and the lines off the order price (largest first, linked to the
+  receipt). And per product, the average price per base unit against the
+  previous period of the same length, for products bought in both, with
+  the impact on the quantity bought now. No standard cost is invented: the
+  baselines are the approved order price and the price actually paid
+  before.
+- **Who.** Anyone with `purchasing.view`, for the warehouses where they
+  hold it. CSV and Excel exports.
+- **Not yet:** spend from invoices or payments, budgets per category,
+  contract price compliance.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
