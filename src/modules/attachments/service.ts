@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { hasPermission } from "@/modules/access/authorize";
 import type { Permission } from "@/modules/access/permissions";
+import { fsDocumentVersionAccess } from "@/modules/foodsafety/documents";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { uuidSchema } from "@/modules/shared/schemas";
@@ -36,6 +37,7 @@ export const ATTACHMENT_ENTITIES = [
   "STOCK_COUNT",
   "SUPPLIER_DOCUMENT",
   "QUOTATION",
+  "FS_DOCUMENT_VERSION",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -108,6 +110,12 @@ async function accessTo(
         "invoices.view",
         "invoices.manage",
       );
+    case "FS_DOCUMENT_VERSION": {
+      // A controlled document's file; added only while the version is a draft (ADR-097).
+      const access = await fsDocumentVersionAccess(tx, ctx, entityId);
+      if (!access) throw notFound("Document");
+      return access;
+    }
     case "QUOTATION":
       // The supplier's quotation file, at the RFQ's warehouse (ADR-092).
       return onSite(

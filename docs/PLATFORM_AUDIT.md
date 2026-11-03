@@ -20,9 +20,10 @@
 > notes linked. **C1e built** (ADR-095): spend and purchase price variance
 > reports. C1 is complete. **C2a built** (ADR-096): HACCP plans with the
 > Codex decision tree, control points monitored by checkpoints, deviations
-> raising non-conformances, approval and versions. Next in C2: document
-> control, audits and complaints, calibration, compliance score, mock
-> recall.
+> raising non-conformances, approval and versions. **C2b built** (ADR-097):
+> document control with versions, approval, review dates and read
+> confirmation. Next in C2: audits and complaints, calibration, compliance
+> score, mock recall.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

@@ -160,7 +160,8 @@
     "supplierReturns": "Supplier returns",
     "spendReport": "Spend",
     "priceVarianceReport": "Price variance",
-    "haccpPlans": "HACCP plans"
+    "haccpPlans": "HACCP plans",
+    "fsDocuments": "Documents"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -651,7 +652,13 @@
     "PRP_HAS_NO_CONTROL_POINT": "Prerequisite programmes have no critical limits.",
     "CLASSIFICATION_JUSTIFICATION_REQUIRED": "The decision tree says {tree}: give a reason for a different classification.",
     "CHECKPOINT_OUTSIDE_LIMITS": "Checkpoint {checkpoint} alarms outside the critical limits; tighten its limits first.",
-    "CHECKPOINT_UNIT_MISMATCH": "Temperature checkpoints can only monitor limits in °C."
+    "CHECKPOINT_UNIT_MISMATCH": "Temperature checkpoints can only monitor limits in °C.",
+    "DOCUMENT_WITHDRAWN": "The document has been withdrawn.",
+    "DRAFT_EXISTS": "A new version is already being written.",
+    "EFFECTIVE_DATE_PAST": "A version cannot take effect in the past.",
+    "NO_APPROVED_VERSION": "No version is in force yet.",
+    "NO_DRAFT_VERSION": "There is no draft: start a new version first.",
+    "DOCUMENT_SELF_APPROVAL": "You wrote this version, so someone else must approve it."
   },
   "notFound": {
     "title": "Page not found",
@@ -2535,7 +2542,9 @@
       "SUPPLIER_DOCUMENTS_EXPIRED": "{count, plural, one {# supplier document expired} other {# supplier documents expired}}",
       "SUPPLIER_DOCUMENTS_EXPIRING": "{count, plural, one {# supplier document expiring within 30 days} other {# supplier documents expiring within 30 days}}",
       "SUPPLIER_RETURNS_AWAITING_CREDIT": "{count, plural, one {# supplier return awaiting a credit note} other {# supplier returns awaiting a credit note}}",
-      "HACCP_REVIEWS_DUE": "{count, plural, one {# HACCP plan due for review} other {# HACCP plans due for review}}"
+      "HACCP_REVIEWS_DUE": "{count, plural, one {# HACCP plan due for review} other {# HACCP plans due for review}}",
+      "FS_DOCUMENT_REVIEWS_DUE": "{count, plural, one {# document due for review} other {# documents due for review}}",
+      "FS_DOCUMENTS_UNREAD": "{count, plural, one {# document to read} other {# documents to read}}"
     }
   },
   "production": {
@@ -4610,5 +4619,56 @@
     "statusLabel": "Status",
     "pdfTitle": "HACCP plan",
     "pdfDraftNote": "Draft — not approved."
+  },
+  "fsDocs": {
+    "title": "Documents",
+    "hint": "Controlled SOPs, policies, work instructions, forms and manuals: written as drafts, approved by someone else, reviewed on time, read by the team.",
+    "new": "New document",
+    "newTitle": "New document",
+    "empty": "No documents here.",
+    "code": "Code",
+    "docTitle": "Title",
+    "type": "Type",
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "types": {
+      "POLICY": "Policy",
+      "SOP": "Standard operating procedure",
+      "WORK_INSTRUCTION": "Work instruction",
+      "FORM": "Form",
+      "MANUAL": "Manual",
+      "OTHER": "Other"
+    },
+    "content": "Text",
+    "changeSummary": "What changed",
+    "inUse": "In use",
+    "toRead": "To read",
+    "withdrawn": "Withdrawn",
+    "inForce": "In force",
+    "inForceV": "Version {version} in force",
+    "notApproved": "Not approved yet",
+    "draftV": "Draft version {version}",
+    "reviewDueOn": "Review due",
+    "read": "Read by me",
+    "readYes": "Read",
+    "readNo": "To read",
+    "effectiveFrom": "Takes effect",
+    "writtenBy": "Written by",
+    "approvedBy": "Approved by",
+    "approvedByShort": "approved by {name}",
+    "youRead": "You confirmed reading this version",
+    "confirmRead": "I have read this version",
+    "newVersion": "Start a new version",
+    "readers": "{count, plural, =0 {Nobody has confirmed reading it yet} one {# person confirmed reading it} other {# people confirmed reading it}}",
+    "draftBy": "By {name}, last saved {date}",
+    "approverHint": "Someone other than the author approves the version.",
+    "approve": "Approve version",
+    "history": "Earlier versions",
+    "withdrawTitle": "Withdraw",
+    "withdrawHint": "A document no longer used is withdrawn: kept for the record, no longer shown in use.",
+    "withdrawReason": "Why is it withdrawn?",
+    "withdraw": "Withdraw document",
+    "withdrawnNote": "Withdrawn on {date}: {reason}",
+    "reviewOverdue": "The review date has passed: review the document and approve a new version."
   }
 }

@@ -310,6 +310,9 @@ model Organization {
   haccpHazards                 HaccpHazard[]
   haccpControlPoints           HaccpControlPoint[]
   haccpControlPointCheckpoints HaccpControlPointCheckpoint[]
+  fsDocuments                  FsDocument[]
+  fsDocumentVersions           FsDocumentVersion[]
+  fsDocumentReads              FsDocumentRead[]
 
   @@map("organizations")
 }
@@ -496,6 +499,7 @@ model Branch {
   company             Company              @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
   brand               Brand?               @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
   haccpPlans          HaccpPlan[]
+  fsDocuments         FsDocument[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1216,6 +1220,7 @@ enum AttachmentEntity {
   STOCK_COUNT
   SUPPLIER_DOCUMENT
   QUOTATION
+  FS_DOCUMENT_VERSION
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -3008,6 +3013,90 @@ model HaccpControlPointCheckpoint {
   @@id([organizationId, controlPointId, checkpointId])
   @@index([organizationId, checkpointId])
   @@map("haccp_control_point_checkpoints")
+}
+
+// ─── Document control (C2b, ADR-097) ───
+
+enum FsDocumentType {
+  POLICY
+  SOP
+  WORK_INSTRUCTION
+  FORM
+  MANUAL
+  OTHER
+}
+
+enum FsDocumentStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+}
+
+/// A controlled food safety document (SOP, policy, work instruction, form, manual).
+/// Its text lives in versions; only an approved version is in force.
+model FsDocument {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  organizationId    String         @map("organization_id") @db.Uuid
+  code              String
+  title             String
+  type              FsDocumentType
+  /// Null = the whole organization.
+  branchId          String?        @map("branch_id") @db.Uuid
+  createdByUserId   String         @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Withdrawn: no longer in use (kept for the record).
+  withdrawnAt       DateTime?      @map("withdrawn_at") @db.Timestamptz(3)
+  withdrawnByUserId String?        @map("withdrawn_by_user_id") @db.Uuid
+  withdrawReason    String?        @map("withdraw_reason")
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch?             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  versions     FsDocumentVersion[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("fs_documents")
+}
+
+model FsDocumentVersion {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  documentId       String           @map("document_id") @db.Uuid
+  version          Int
+  status           FsDocumentStatus @default(DRAFT)
+  /// The document text; a file can be attached as well.
+  content          String
+  changeSummary    String?          @map("change_summary")
+  createdByUserId  String           @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  approvedAt       DateTime?        @map("approved_at") @db.Timestamptz(3)
+  approvedByUserId String?          @map("approved_by_user_id") @db.Uuid
+  effectiveFrom    DateTime?        @map("effective_from") @db.Date
+  reviewDueOn      DateTime?        @map("review_due_on") @db.Date
+  supersededAt     DateTime?        @map("superseded_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     FsDocument       @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  reads        FsDocumentRead[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, documentId, version])
+  @@map("fs_document_versions")
+}
+
+/// Someone confirmed they read an approved version.
+model FsDocumentRead {
+  organizationId String   @map("organization_id") @db.Uuid
+  versionId      String   @map("version_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  readAt         DateTime @default(now()) @map("read_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  version      FsDocumentVersion @relation(fields: [organizationId, versionId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, versionId, userId])
+  @@map("fs_document_reads")
 }
 
 // ─── Sales import and recipe consumption (Milestone 7a, ADR-036) ───

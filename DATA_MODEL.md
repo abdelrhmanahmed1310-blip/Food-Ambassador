@@ -904,6 +904,19 @@ HACCP plans (C2a, ADR-096; migration `20261223090000_c2a_haccp`):
 - **non_conformances.control_point_id**: the control point a deviation
   breached.
 
+Document control (C2b, ADR-097; migration `20261224090000_c2b_document_control`):
+
+- **fs_documents**: `code` (UQ), title, `type`, branch (null = all), created
+  by/at, `withdrawn_at/_by` with a reason.
+- **fs_document_versions**: UQ (document, version); `status` (`DRAFT` |
+  `APPROVED` | `SUPERSEDED`), `content`, change summary, author, approved
+  by/at (never the author), `effective_from`, `review_due_on` (after it),
+  `superseded_at`. Partial unique indexes: one approved and one draft per
+  document. A trigger fixes approved versions. Files: attachments with
+  entity `FS_DOCUMENT_VERSION`.
+- **fs_document_reads**: PK (version, user), read at; only for approved
+  versions (trigger). Insert-only.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

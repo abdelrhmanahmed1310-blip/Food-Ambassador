@@ -5,6 +5,7 @@ import { accessibleScope, hasPermission, holdsAnyGrant } from "@/modules/access/
 import { approvalBlock, holdsApprovalLevel } from "@/modules/approvals/rules";
 import type { Permission } from "@/modules/access/permissions";
 import { EXPIRY_WARNING_DAYS } from "@/modules/inventory/queries";
+import { fsDocumentReviewsDue, fsDocumentsUnread } from "@/modules/foodsafety/documents";
 import { haccpReviewsDue } from "@/modules/foodsafety/haccp";
 import { supplierDocumentsDue } from "@/modules/procurement/compliance";
 import { addDays, businessDate } from "@/modules/inventory/rules";
@@ -40,7 +41,9 @@ export type AttentionKey =
   | "SUPPLIER_DOCUMENTS_EXPIRED"
   | "SUPPLIER_DOCUMENTS_EXPIRING"
   | "SUPPLIER_RETURNS_AWAITING_CREDIT"
-  | "HACCP_REVIEWS_DUE";
+  | "HACCP_REVIEWS_DUE"
+  | "FS_DOCUMENT_REVIEWS_DUE"
+  | "FS_DOCUMENTS_UNREAD";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -503,6 +506,22 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         tone: "warning",
         count: await haccpReviewsDue(tx, ctx),
         href: "/food-safety/haccp",
+      });
+
+    // Controlled documents (ADR-097): reviews due for managers; unread for everyone in food safety.
+    if (holdsAnyGrant(ctx.grants, "foodsafety.manage"))
+      push({
+        key: "FS_DOCUMENT_REVIEWS_DUE",
+        tone: "warning",
+        count: await fsDocumentReviewsDue(tx, ctx),
+        href: "/food-safety/documents",
+      });
+    if (holdsAnyGrant(ctx.grants, "foodsafety.view"))
+      push({
+        key: "FS_DOCUMENTS_UNREAD",
+        tone: "info",
+        count: await fsDocumentsUnread(tx, ctx),
+        href: "/food-safety/documents?unread=1",
       });
 
     // Goods sent back whose credit note has not been linked yet (ADR-094).

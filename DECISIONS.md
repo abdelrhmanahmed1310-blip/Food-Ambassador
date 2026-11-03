@@ -2363,6 +2363,32 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** monitoring by checklist items; document control, audits,
   complaints, calibration and the compliance score (rest of C2).
 
+### ADR-097 Document control — Accepted (C2b built)
+
+- **Documents**: policies, standard operating procedures, work
+  instructions, forms, manuals, other — a code, a title, one branch or the
+  whole organization. The text is held in **versions**; a file (a scanned
+  form, a diagram) can be attached to a version while it is a draft
+  (ADR-051).
+- **Lifecycle.** A version is written as a draft and approved by someone
+  other than its author (service and database check), with the date it
+  takes effect (today or later) and a review date after it. Approved
+  versions never change (database trigger); a change is a new version,
+  copied from the one in force, which stays in force until the new one is
+  approved and supersedes it. One draft and one approved version per
+  document at a time. A document no longer used is **withdrawn** with a
+  reason — kept with all its versions, no longer listed as in use.
+- **Reading.** Anyone who may see a document confirms they have read the
+  version in force; each new version needs reading again. The page lists
+  who confirmed and when; the list "to read" and Needs attention show what
+  each person has not yet read; documents whose review date has come appear
+  for food safety managers.
+- **Who.** As HACCP plans (ADR-096): `foodsafety.view` to read (at the
+  branch, or anyone for an organization document), `foodsafety.manage` to
+  write, approve and withdraw.
+- **Not yet:** assigning documents to roles that must read them, links from
+  HACCP control points and checklists to their SOPs, rich text.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
