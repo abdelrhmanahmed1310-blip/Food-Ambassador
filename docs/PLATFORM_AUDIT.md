@@ -6,7 +6,9 @@
 > (ADR-084): VAT registration and rates per company. **Step 2b built**
 > (ADR-085): ZATCA seller and units per company. **Step 3 built**
 > (ADR-086): company currency for stock, purchasing, payables, POS, B2B and
-> reports, group figures converted. F1 is complete; next: F2.
+> reports, group figures converted. F1 is complete. **F2a built**
+> (ADR-087): job runner and in-app notification centre. Next: F2b global
+> search, F2c XLSX/PDF export, F2d REST API v1 + OpenAPI.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

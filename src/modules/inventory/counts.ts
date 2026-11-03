@@ -1,4 +1,5 @@
 import "server-only";
+import { notifyInTx, recipientsInTx } from "@/modules/notifications/service";
 import { currencyConverter, warehouseCurrencies } from "@/modules/fx/service";
 import { z } from "zod";
 import { Decimal, roundMoney } from "@/lib/decimal";
@@ -330,6 +331,48 @@ export async function submitCount(ctx: TenantContext, countId: string): Promise<
       entityId: countId,
       changes: { varianceValue: varianceValue?.toFixed() ?? null, chain },
     });
+    await notifyCountApprovers(tx, ctx, count, wh, chain[0] ?? "ANY", [ctx.userId]);
+  });
+}
+
+/** Tell the people who may sign or post the count at `level` (ADR-087). */
+async function notifyCountApprovers(
+  tx: Tx,
+  ctx: TenantContext,
+  count: { id: string; number: string },
+  wh: { id: string; branchId: string },
+  level: ApprovalLevel,
+  exclude: Array<string | null>,
+) {
+  const users = await recipientsInTx(
+    tx,
+    ctx,
+    (grants) => holdsApprovalLevel(grants, "inventory.count.approve", level, countSite(wh)),
+    exclude,
+  );
+  await notifyInTx(tx, ctx.organizationId, users, {
+    kind: "COUNT_APPROVAL_NEEDED",
+    params: { number: count.number },
+    entityType: "stock_count",
+    entityId: count.id,
+    link: `/inventory/counts/${count.id}`,
+  });
+}
+
+/** Tell whoever submitted the count how it ended (ADR-087). */
+async function notifyCountDecided(
+  tx: Tx,
+  ctx: TenantContext,
+  count: { id: string; number: string; submittedByUserId: string | null },
+  outcome: "POSTED" | "REJECTED",
+) {
+  if (!count.submittedByUserId || count.submittedByUserId === ctx.userId) return;
+  await notifyInTx(tx, ctx.organizationId, [count.submittedByUserId], {
+    kind: "COUNT_DECIDED",
+    params: { number: count.number, outcome },
+    entityType: "stock_count",
+    entityId: count.id,
+    link: `/inventory/counts/${count.id}`,
   });
 }
 
@@ -417,7 +460,13 @@ export async function postCount(
         entityId: countId,
         changes: { step, of: count.approvalChain.length, level: count.pendingApprovalLevel },
       });
-      if (next) return { documentNumber: null, status: "SUBMITTED" as const };
+      if (next) {
+        await notifyCountApprovers(tx, ctx, count, wh, next, [
+          ctx.userId,
+          count.submittedByUserId,
+        ]);
+        return { documentNumber: null, status: "SUBMITTED" as const };
+      }
     }
     const rows = await tx.stockCountLine.findMany({
       where: { organizationId: ctx.organizationId, countId },
@@ -485,6 +534,7 @@ export async function postCount(
       entityId: countId,
       changes: { adjustments: lines.length, document: documentNumber },
     });
+    await notifyCountDecided(tx, ctx, count, "POSTED");
     return { documentNumber, status: "POSTED" as const };
   });
 }
@@ -525,6 +575,7 @@ export async function rejectCount(ctx: TenantContext, countId: string, rawInput:
       entityId: countId,
       changes: { reason: parsed.data.reason, atStep: count.approvalsGiven + 1 },
     });
+    await notifyCountDecided(tx, ctx, count, "REJECTED");
   });
 }
 

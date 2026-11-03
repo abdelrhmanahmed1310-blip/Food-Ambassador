@@ -2034,6 +2034,39 @@ country for now, so no inter-company transfer is built.
   one, as entered. Per-branch prices for modifier options and loyalty in
   several currencies are not built.
 
+### ADR-087 Job runner and notification centre — Accepted (F2a built)
+
+- **Jobs live in PostgreSQL** (`jobs`): no new infrastructure. A worker
+  (`pnpm jobs:run`, every minute from a scheduler or `--watch`) first adds
+  the recurring jobs that are due — webhook delivery every minute, ZATCA
+  reporting every 10 minutes, the attachment purge daily, and each
+  organization's attention digest once a day after 06:00 local time — then
+  claims due jobs one at a time (`FOR UPDATE SKIP LOCKED`, so several
+  workers can run), runs each outside the claim and records counts only.
+  Dedupe keys make scheduling idempotent. Failures retry after 1 min, 5 min,
+  30 min, 2 h, 12 h; when the attempts are used up the job is FAILED and the
+  organization's administrators are notified. A job left RUNNING for 15
+  minutes (a crashed worker) is queued again. The existing scripts
+  (`integrations:deliver`, `zatca:report`, `attachments:purge`) still work
+  on their own.
+- **Notifications are written in the same transaction as the change**, so
+  one exists exactly when its change does (an invoice exception, which is a
+  refusal, is notified in its own transaction once per invoice).
+  Recipients come from the same grants that let them act: approvers at the
+  required level and site (the approval matrix), HR for the branch or the
+  direct manager for leave, invoice managers for exceptions, administrators
+  for failed jobs — never the person who acted. Kinds: purchase order
+  waiting / approved / sent back, stock count waiting / posted or sent
+  back, leave requested / decided, invoice exception, daily attention
+  digest, job failed.
+- **Each user chooses the kinds** they get (all on by default). The bell in
+  the header shows the unread count; opening a notification marks it read
+  (only the user's own) and goes to the record. Messages carry only values
+  the recipient may already see (document numbers, dates, counts; an
+  employee's name for their approvers).
+- **In-app only.** Email, SMS and WhatsApp adapters wait for the provider
+  decision (D2); nothing is sent outside the app.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

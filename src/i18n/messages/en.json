@@ -151,7 +151,9 @@
     "myLeave": "My leave",
     "leave": "Leave",
     "companies": "Companies",
-    "brands": "Brands"
+    "brands": "Brands",
+    "notifications": "Notifications",
+    "jobs": "Background jobs"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -3970,5 +3972,78 @@
     "currency": "Currency of its books",
     "currencyHint": "Fixed once the company has stock or documents. Purchasing, sales and the point of sale in another currency than the group's come in the next steps.",
     "company": "Company"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "intro": "What happened that concerns you: approvals waiting, decisions on your requests, and a daily summary.",
+    "all": "All",
+    "unreadOnly": "Unread ({count})",
+    "unread": "Unread",
+    "none": "Nothing here.",
+    "markAllRead": "Mark all as read",
+    "previous": "Previous",
+    "next": "Next",
+    "bell": "Notifications, {count} unread",
+    "preferences": "What to tell me",
+    "channelsNote": "Notifications are shown here in the app. Email, SMS and WhatsApp need a provider to be chosen first (decision D2); none is sent.",
+    "kinds": {
+      "PO_APPROVAL_NEEDED": "Purchase order {number} is waiting for your approval",
+      "PO_APPROVED": "Purchase order {number} was approved",
+      "PO_REJECTED": "Purchase order {number} was sent back to draft",
+      "COUNT_APPROVAL_NEEDED": "Stock count {number} is waiting for your approval",
+      "COUNT_DECIDED": "Stock count {number}: {outcome}",
+      "LEAVE_REQUESTED": "{employee} asks for leave from {from} to {to} ({days} days)",
+      "LEAVE_DECIDED": "Your leave from {from} to {to}: {outcome}",
+      "INVOICE_EXCEPTION": "Supplier invoice {number} does not match and needs another person's approval",
+      "ATTENTION_DIGEST": "Today: {items, plural, one {# kind of item} other {# kinds of item}} need attention ({total} in all)",
+      "JOB_FAILED": "A background job failed: {kind}"
+    },
+    "kindNames": {
+      "PO_APPROVAL_NEEDED": "Purchase orders waiting for my approval",
+      "PO_APPROVED": "My purchase orders approved",
+      "PO_REJECTED": "My purchase orders sent back",
+      "COUNT_APPROVAL_NEEDED": "Stock counts waiting for my approval",
+      "COUNT_DECIDED": "My stock counts posted or sent back",
+      "LEAVE_REQUESTED": "Leave requests I decide",
+      "LEAVE_DECIDED": "Decisions on my leave",
+      "INVOICE_EXCEPTION": "Supplier invoices that need an exception approved",
+      "ATTENTION_DIGEST": "Daily summary of what needs attention",
+      "JOB_FAILED": "Background jobs that failed"
+    },
+    "outcomes": {
+      "POSTED": "posted",
+      "REJECTED": "sent back",
+      "APPROVED": "approved"
+    },
+    "jobKinds": {
+      "webhooks_deliver": "Webhook delivery",
+      "zatca_report": "ZATCA reporting",
+      "attachments_purge": "Attachment clean-up",
+      "attention_digest": "Daily attention summary"
+    }
+  },
+  "jobs": {
+    "title": "Background jobs",
+    "intro": "Work the system does on its own for this organization, such as the daily attention summary.",
+    "workerNote": "Jobs run when the worker runs (pnpm jobs:run from a scheduler every minute, or with --watch). A job that keeps failing is marked failed and administrators are notified.",
+    "none": "No jobs yet.",
+    "kind": "Job",
+    "status": "Status",
+    "attempts": "Attempts",
+    "runAt": "Due",
+    "finished": "Finished",
+    "outcome": "Outcome",
+    "statuses": {
+      "QUEUED": "Queued",
+      "RUNNING": "Running",
+      "DONE": "Done",
+      "FAILED": "Failed"
+    },
+    "kinds": {
+      "webhooks_deliver": "Webhook delivery",
+      "zatca_report": "ZATCA reporting",
+      "attachments_purge": "Attachment clean-up",
+      "attention_digest": "Daily attention summary"
+    }
   }
 }

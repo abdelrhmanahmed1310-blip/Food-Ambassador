@@ -133,6 +133,7 @@ role `CREATEROLE` for the first run (ADR-013). A local superuser works as is.
 | `pnpm db:restore <dump> <url>` | Restore into an empty database, then verify                                              |
 | `pnpm db:verify`               | Integrity check: RLS, balances and values vs. ledger, migrations                         |
 | `pnpm library:import …`        | Import a full food-database download into one organization's ingredient library (below)  |
+| `pnpm jobs:run`                | Run the background job worker once (`--watch` to loop); see docs/OPERATIONS.md           |
 | `pnpm integrations:deliver`    | Send due outbound webhooks once (`--watch` to loop); see docs/INTEGRATIONS.md            |
 | `pnpm attachments:purge`       | Delete attachment contents past their 3-year retention (daily job)                       |
 

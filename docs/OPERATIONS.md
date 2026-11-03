@@ -122,3 +122,21 @@ current (`freshclam`, included in the official image). While it is set, an
 unreachable scanner blocks uploads (they fail with "virus scanner not
 available") — monitor it like the database. Refused infected uploads appear
 in the audit log as `attachment.refused_infected`.
+
+## Background jobs (ADR-087)
+
+Run the job worker every minute from the host's scheduler, or keep one
+running with `--watch`:
+
+```sh
+pnpm jobs:run           # schedule recurring jobs, run what is due, exit
+pnpm jobs:run --watch   # the same every 15 seconds until stopped
+```
+
+It covers webhook delivery, ZATCA reporting, the attachment purge and the
+daily attention digest, so separate cron entries for those are no longer
+needed (the individual scripts still work). Several workers may run at
+once. Failed jobs are listed under Settings → Background jobs and the
+organization's administrators are notified. On the Render demo (free plan)
+there is no background worker: run `pnpm jobs:run` from a machine with the
+database URL, or add a Render cron job on a paid plan.

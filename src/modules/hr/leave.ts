@@ -5,6 +5,7 @@ import { isCalendarDate } from "@/lib/dates";
 import { Decimal } from "@/lib/decimal";
 import { accessibleScope, assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
+import { notifyInTx, recipientsInTx } from "@/modules/notifications/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { optionalText, requiredText, uuidSchema } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
@@ -368,6 +369,36 @@ export async function requestLeave(
       entityId: e.id,
       changes: { leaveType: type.code, startDate: v.startDate, endDate: v.endDate, days },
     });
+    // The people who may decide it: HR for the branch and the direct manager (ADR-087).
+    const manager = e.managerId
+      ? await tx.employee.findFirst({
+          where: { organizationId: ctx.organizationId, id: e.managerId },
+          select: { userId: true },
+        })
+      : null;
+    const hr = await recipientsInTx(
+      tx,
+      ctx,
+      (grants) => hasPermission(grants, "hr.manage", { branchId: e.branchId }),
+      [ctx.userId, e.userId],
+    );
+    await notifyInTx(
+      tx,
+      ctx.organizationId,
+      [...hr, ...(manager?.userId && manager.userId !== e.userId ? [manager.userId] : [])],
+      {
+        kind: "LEAVE_REQUESTED",
+        params: {
+          employee: `${e.firstName} ${e.lastName}`,
+          from: v.startDate,
+          to: v.endDate,
+          days,
+        },
+        entityType: "leave_request",
+        entityId: r.id,
+        link: "/hr/leave",
+      },
+    );
     return r;
   });
 }
@@ -424,6 +455,14 @@ export async function decideLeave(ctx: TenantContext, requestId: string, rawInpu
         note: parsed.data.note,
       },
     });
+    if (r.employee.userId && r.employee.userId !== ctx.userId)
+      await notifyInTx(tx, ctx.organizationId, [r.employee.userId], {
+        kind: "LEAVE_DECIDED",
+        params: { outcome: parsed.data.decision, from: day(r.startDate), to: day(r.endDate) },
+        entityType: "leave_request",
+        entityId: r.id,
+        link: "/my/leave",
+      });
   });
 }
 

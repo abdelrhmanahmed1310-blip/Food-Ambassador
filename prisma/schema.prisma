@@ -39,11 +39,13 @@ model User {
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  sessions    Session[]
-  accounts    Account[]
-  twoFactors  TwoFactor[]
-  employees   Employee[]
-  memberships OrganizationMembership[] @relation("MembershipUser")
+  sessions                Session[]
+  accounts                Account[]
+  twoFactors              TwoFactor[]
+  employees               Employee[]
+  memberships             OrganizationMembership[] @relation("MembershipUser")
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@map("users")
 }
@@ -289,6 +291,9 @@ model Organization {
   connectors              Connector[]
   integrationEvents       IntegrationEvent[]
   outboundDeliveries      OutboundDelivery[]
+  jobs                    Job[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@map("organizations")
 }
@@ -5208,4 +5213,79 @@ model Brand {
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@map("brands")
+}
+
+// ─── Platform services (F2a, ADR-087) ───
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+/// A unit of background work (PostgreSQL-backed queue). System jobs have no organization.
+model Job {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  kind           String
+  payload        Json      @default("{}")
+  runAt          DateTime  @default(now()) @map("run_at") @db.Timestamptz(3)
+  status         JobStatus @default(QUEUED)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5) @map("max_attempts")
+  lockedAt       DateTime? @map("locked_at") @db.Timestamptz(3)
+  lockedBy       String?   @map("locked_by")
+  /// The error of the last failed attempt (message only; never secrets).
+  lastError      String?   @map("last_error")
+  /// What the job reported (counts only).
+  result         Json?
+  /// One job per key (e.g. a daily digest per organization and day).
+  dedupeKey      String?   @unique @map("dedupe_key")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  finishedAt     DateTime? @map("finished_at") @db.Timestamptz(3)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([status, runAt])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("jobs")
+}
+
+/// An in-app notification for one user of one organization.
+model Notification {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  kind           String
+  /// Values for the message (numbers, document numbers) — never secrets.
+  params         Json      @default("{}")
+  entityType     String?   @map("entity_type")
+  entityId       String?   @map("entity_id") @db.Uuid
+  /// Path below /o/<slug> to open.
+  link           String?
+  dedupeKey      String?   @map("dedupe_key")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  readAt         DateTime? @map("read_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId, dedupeKey])
+  @@index([organizationId, userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+/// A user's choice to receive a kind of notification (default: on).
+model NotificationPreference {
+  organizationId String  @map("organization_id") @db.Uuid
+  userId         String  @map("user_id") @db.Uuid
+  kind           String
+  inApp          Boolean @default(true) @map("in_app")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([organizationId, userId, kind])
+  @@map("notification_preferences")
 }

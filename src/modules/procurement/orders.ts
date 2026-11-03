@@ -7,6 +7,7 @@ import {
   type ApprovalLevel,
 } from "@/modules/approvals/rules";
 import { loadLayers } from "@/modules/approvals/service";
+import { notifyInTx, recipientsInTx } from "@/modules/notifications/service";
 import { assertDocumentCurrency, baseAmount, companyContext, rateFor } from "@/modules/fx/service";
 import { emitEvent } from "@/modules/integrations/service";
 import type { Prisma } from "@/generated/prisma/client";
@@ -109,6 +110,29 @@ export async function lockOrder(tx: Tx, ctx: TenantContext, orderId: string) {
 }
 
 type LockedOrder = Awaited<ReturnType<typeof lockOrder>>;
+
+/** Tell the people who may sign `level` for this order (ADR-087), never the submitter. */
+async function notifyApprovers(
+  tx: Tx,
+  ctx: TenantContext,
+  order: { id: string; number: string; warehouse: { id: string; branchId: string } },
+  level: ApprovalLevel,
+  exclude: Array<string | null>,
+) {
+  const users = await recipientsInTx(
+    tx,
+    ctx,
+    (grants) => holdsApprovalLevel(grants, "purchasing.approve", level, target(order.warehouse)),
+    exclude,
+  );
+  await notifyInTx(tx, ctx.organizationId, users, {
+    kind: "PO_APPROVAL_NEEDED",
+    params: { number: order.number },
+    entityType: "purchase_order",
+    entityId: order.id,
+    link: `/purchasing/orders/${order.id}`,
+  });
+}
 
 function requireOn(ctx: TenantContext, permission: Permission, order: LockedOrder) {
   assertPermission(ctx.grants, permission, target(order.warehouse));
@@ -625,6 +649,7 @@ export async function submitOrder(ctx: TenantContext, orderId: string) {
     });
     if (outcome === "AUTO_APPROVED")
       await emitEvent(tx, ctx, "purchase_order.approved", order.id, orderEvent(order, total));
+    else await notifyApprovers(tx, ctx, order, chain[0], [ctx.userId]);
     return { status: outcome === "AUTO_APPROVED" ? "APPROVED" : "PENDING_APPROVAL" };
   });
 }
@@ -761,7 +786,7 @@ export async function approveOrder(ctx: TenantContext, orderId: string) {
       level,
       total: dec(order.totalAmount).toFixed(),
     });
-    if (!next)
+    if (!next) {
       await emitEvent(
         tx,
         ctx,
@@ -769,6 +794,19 @@ export async function approveOrder(ctx: TenantContext, orderId: string) {
         order.id,
         orderEvent(order, dec(order.totalAmount)),
       );
+      await notifyInTx(
+        tx,
+        ctx.organizationId,
+        order.submittedByUserId ? [order.submittedByUserId] : [],
+        {
+          kind: "PO_APPROVED",
+          params: { number: order.number },
+          entityType: "purchase_order",
+          entityId: order.id,
+          link: `/purchasing/orders/${order.id}`,
+        },
+      );
+    } else await notifyApprovers(tx, ctx, order, next, [ctx.userId, order.submittedByUserId]);
     return { status: next ? "PENDING_APPROVAL" : "APPROVED", step, of: chain.length };
   });
 }
@@ -803,6 +841,20 @@ export async function rejectOrder(ctx: TenantContext, orderId: string, rawInput:
       atStep: order.approvalsGiven + 1,
       level,
     });
+    await notifyInTx(
+      tx,
+      ctx.organizationId,
+      order.submittedByUserId && order.submittedByUserId !== ctx.userId
+        ? [order.submittedByUserId]
+        : [],
+      {
+        kind: "PO_REJECTED",
+        params: { number: order.number },
+        entityType: "purchase_order",
+        entityId: order.id,
+        link: `/purchasing/orders/${order.id}`,
+      },
+    );
   });
 }
 

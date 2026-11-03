@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { ChevronDown, LogOut, ShieldCheck, Store } from "lucide-react";
+import { Bell, ChevronDown, LogOut, ShieldCheck, Store } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-links";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import { hasEmployeeRecord } from "@/modules/hr/attendance";
 import { canViewValuation } from "@/modules/inventory/valuation-queries";
+import { unreadCount } from "@/modules/notifications/service";
 import { listUserOrganizations } from "@/modules/organizations/service";
 import { canSeeReports } from "@/modules/analytics/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
@@ -21,11 +22,13 @@ import { signOutAction } from "../../(auth)/actions";
 export default async function TenantLayout({ children, params }: LayoutProps<"/o/[orgSlug]">) {
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
-  const [t, user, orgs, isEmployee] = await Promise.all([
+  const [t, tn, user, orgs, isEmployee, unread] = await Promise.all([
     getTranslations("nav"),
+    getTranslations("notifications"),
     getCurrentUser(),
     listUserOrganizations(ctx.userId),
     hasEmployeeRecord(ctx),
+    unreadCount(ctx),
   ]);
   const base = `/o/${ctx.organizationSlug}`;
 
@@ -175,6 +178,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/settings/zatca`, label: t("zatca") },
       { href: `${base}/settings/payments`, label: t("onlinePayments") },
       { href: `${base}/settings/approvals`, label: t("approvalSettings") },
+      { href: `${base}/settings/jobs`, label: t("jobs") },
     );
   if (hasPermission(ctx.grants, "members.view"))
     settings.items.push({ href: `${base}/settings/members`, label: t("members") });
@@ -267,6 +271,19 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
             </details>
           </div>
           <div className="flex items-center gap-1">
+            <Link
+              href={`${base}/notifications`}
+              className="hover:bg-surface-muted relative rounded-md p-2"
+              aria-label={tn("bell", { count: unread })}
+              data-testid="notification-bell"
+            >
+              <Bell aria-hidden="true" className="size-5" />
+              {unread > 0 ? (
+                <span className="bg-primary absolute -end-0.5 -top-0.5 min-w-5 rounded-full px-1 text-center text-[11px] leading-5 font-semibold text-white">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              ) : null}
+            </Link>
             <LocaleSwitcher />
             <span
               className="text-muted hidden max-w-40 items-center gap-2 truncate px-2 text-sm sm:flex"

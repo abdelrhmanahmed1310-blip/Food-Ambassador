@@ -1174,6 +1174,20 @@ Migration `20261203090000_pos5f_slot_capacity`.
   that many open guest orders per pick-up slot; full slots are not offered
   and a guest choosing one is refused (`PICKUP_SLOT_FULL`).
 
+### Jobs and notifications (F2a, ADR-087)
+
+Migration `20261216090000_f2a_jobs_notifications`.
+
+- **jobs**: `kind`, `payload`, `run_at`, `status` (QUEUED / RUNNING / DONE /
+  FAILED), `attempts`, `max_attempts`, `locked_at`, `locked_by`,
+  `last_error`, `result` (counts), unique `dedupe_key`; `organization_id`
+  optional (system jobs have none). Tenants read and add their own; the
+  worker runs as the owner role.
+- **notifications**: user, `kind`, `params`, entity, `link`, `read_at`,
+  unique (organization, user, dedupe key).
+- **notification_preferences**: (organization, user, kind) → `in_app`
+  (a row only when turned off).
+
 ### Currency per company (F1b step 3a, ADR-086)
 
 Migration `20261213090000_f1b3a_company_currency` (rules only; no columns).

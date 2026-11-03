@@ -3,6 +3,7 @@ import { assertDocumentCurrency, baseAmount, companyContext, rateFor } from "@/m
 import { Decimal, toDecimal } from "@/lib/decimal";
 import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
+import { notifyInTx, recipientsInTx } from "@/modules/notifications/service";
 import { nextDocumentNumber } from "@/modules/inventory/posting";
 import { loadRules } from "@/modules/procurement/settings";
 import { currencyDecimals, taxFromNet } from "@/modules/tax/rules";
@@ -517,17 +518,52 @@ export async function approveException(ctx: TenantContext, invoiceId: string, ra
 
 export async function postInvoice(ctx: TenantContext, invoiceId: string) {
   assertPermission(ctx.grants, "invoices.manage");
+  let needsApproval: { id: string; number: string; createdByUserId: string } | null = null;
+  try {
+    await postInvoiceInTx(ctx, invoiceId, (inv) => (needsApproval = inv));
+  } catch (error) {
+    // The refusal rolls the posting back; the people who may approve the
+    // differences are told in a transaction of its own (ADR-087), once per invoice.
+    const inv = needsApproval as { id: string; number: string; createdByUserId: string } | null;
+    if (inv)
+      await withTenantTx(ctx.organizationId, async (tx) => {
+        const users = await recipientsInTx(
+          tx,
+          ctx,
+          (grants) => hasPermission(grants, "invoices.manage"),
+          [ctx.userId, inv.createdByUserId],
+        );
+        await notifyInTx(tx, ctx.organizationId, users, {
+          kind: "INVOICE_EXCEPTION",
+          params: { number: inv.number },
+          entityType: "supplier_invoice",
+          entityId: inv.id,
+          link: `/purchasing/invoices/${inv.id}`,
+          dedupeKey: `invoice-exception:${inv.id}`,
+        });
+      });
+    throw error;
+  }
+}
+
+async function postInvoiceInTx(
+  ctx: TenantContext,
+  invoiceId: string,
+  onException: (inv: { id: string; number: string; createdByUserId: string }) => void,
+) {
   await withTenantTx(ctx.organizationId, async (tx) => {
     const inv = await lockInvoice(tx, ctx, invoiceId, { draft: true });
     if (inv.lines.length === 0)
       throw businessRuleViolation("INVOICE_HAS_NO_LINES", "Add at least one line first");
     const { matchStatus } = await recompute(tx, ctx, inv.id);
     const fresh = await tx.supplierInvoice.findFirstOrThrow({ where: { id: inv.id } });
-    if (matchStatus === "EXCEPTION" && !fresh.exceptionApprovedAt)
+    if (matchStatus === "EXCEPTION" && !fresh.exceptionApprovedAt) {
+      onException({ id: inv.id, number: inv.number, createdByUserId: inv.createdByUserId });
       throw businessRuleViolation(
         "INVOICE_EXCEPTION_NOT_APPROVED",
         "The invoice does not match; another person must approve the differences first",
       );
+    }
     // Base totals at the rate on the invoice date, fixed now (ADR-050), in the
     // billed company's currency (ADR-086).
     const company = await companyContext(tx, ctx, { companyId: fresh.companyId });
