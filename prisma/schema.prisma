@@ -326,6 +326,9 @@ model Organization {
   pickWaves                    PickWave[]
   pickLists                    PickList[]
   pickListLines                PickListLine[]
+  packUnits                    PackUnit[]
+  packUnitLines                PackUnitLine[]
+  loads                        Load[]
 
   @@map("organizations")
 }
@@ -580,6 +583,7 @@ model Warehouse {
   putawayRules       PutawayRule[]
   pickWaves          PickWave[]
   pickLists          PickList[]
+  loads              Load[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3533,6 +3537,8 @@ model PickList {
   pickDocumentId   String?        @map("pick_document_id") @db.Uuid
   returnDocumentId String?        @map("return_document_id") @db.Uuid
   deliveryId       String?        @map("delivery_id") @db.Uuid
+  /// The vehicle trip it ships on (ADR-103).
+  loadId           String?        @map("load_id") @db.Uuid
   cancelledAt      DateTime?      @map("cancelled_at") @db.Timestamptz(3)
   cancelReason     String?        @map("cancel_reason")
   updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -3545,6 +3551,8 @@ model PickList {
   returnDocument InventoryDocument? @relation("PickReturnDocument", fields: [organizationId, returnDocumentId], references: [organizationId, id], onDelete: Restrict)
   delivery       CustomerDelivery?  @relation(fields: [organizationId, deliveryId], references: [organizationId, id], onDelete: Restrict)
   lines          PickListLine[]
+  load           Load?              @relation(fields: [organizationId, loadId], references: [organizationId, id], onDelete: Restrict)
+  packUnits      PackUnit[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3577,11 +3585,100 @@ model PickListLine {
   lot          InventoryLot?    @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
   location     StorageLocation? @relation("PickFrom", fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict)
   staging      StorageLocation  @relation("PickTo", fields: [organizationId, stagingLocationId], references: [organizationId, id], onDelete: Restrict)
+  packLines    PackUnitLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, pickListId, sequence])
   @@index([organizationId, locationId, lotId])
   @@map("pick_list_lines")
+}
+
+// ─── Packing and loading (C3c, ADR-103) ───
+
+enum PackUnitType {
+  CARTON
+  CRATE
+  PALLET
+  BAG
+  OTHER
+}
+
+/// A carton, crate or pallet of picked stock for one pick list.
+model PackUnit {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  number          String
+  pickListId      String       @map("pick_list_id") @db.Uuid
+  type            PackUnitType
+  grossWeightKg   Decimal?     @map("gross_weight_kg") @db.Decimal(12, 3)
+  note            String?
+  loadedAt        DateTime?    @map("loaded_at") @db.Timestamptz(3)
+  loadedByUserId  String?      @map("loaded_by_user_id") @db.Uuid
+  createdByUserId String       @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  pickList     PickList       @relation(fields: [organizationId, pickListId], references: [organizationId, id], onDelete: Restrict)
+  lines        PackUnitLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, pickListId])
+  @@map("pack_units")
+}
+
+model PackUnitLine {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  packUnitId     String  @map("pack_unit_id") @db.Uuid
+  pickListLineId String  @map("pick_list_line_id") @db.Uuid
+  /// Base unit.
+  quantity       Decimal @db.Decimal(20, 6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  packUnit     PackUnit     @relation(fields: [organizationId, packUnitId], references: [organizationId, id], onDelete: Cascade)
+  pickListLine PickListLine @relation(fields: [organizationId, pickListLineId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, packUnitId, pickListLineId])
+  @@map("pack_unit_lines")
+}
+
+enum LoadStatus {
+  OPEN
+  DISPATCHED
+  CANCELLED
+}
+
+/// One vehicle trip from a warehouse, carrying packed pick lists.
+model Load {
+  id                        String     @id @default(uuid(7)) @db.Uuid
+  organizationId            String     @map("organization_id") @db.Uuid
+  number                    String
+  warehouseId               String     @map("warehouse_id") @db.Uuid
+  vehicleRef                String     @map("vehicle_ref")
+  driverName                String?    @map("driver_name")
+  plannedDepartureAt        DateTime?  @map("planned_departure_at") @db.Timestamptz(3)
+  status                    LoadStatus @default(OPEN)
+  vehicleTemperatureCelsius Decimal?   @map("vehicle_temperature_celsius") @db.Decimal(5, 1)
+  sealNumber                String?    @map("seal_number")
+  note                      String?
+  dispatchedAt              DateTime?  @map("dispatched_at") @db.Timestamptz(3)
+  dispatchedByUserId        String?    @map("dispatched_by_user_id") @db.Uuid
+  cancelledAt               DateTime?  @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason              String?    @map("cancel_reason")
+  createdByUserId           String     @map("created_by_user_id") @db.Uuid
+  createdAt                 DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  pickLists    PickList[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, warehouseId, status])
+  @@map("loads")
 }
 
 // ─── Mock recall exercises (C2e, ADR-100) ───

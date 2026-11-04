@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-04 (C3b pick lists and waves; C3a receiving inspection and
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C3c — Packing, loads and dispatch (built)
+
+Rules: DECISIONS.md ADR-103.
+
+| Area     | What works                                                                                                                                                       | Where             |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Packing  | Picked stock packed into numbered cartons, crates, pallets or bags with exact contents and weight; never more than picked; unpack until loaded; packing list PDF | pick list page    |
+| Loads    | Vehicle trip per warehouse; only fully packed lists go on; lists on a load ship or come off only with it                                                         | Inventory → Loads |
+| Loading  | Each unit confirmed on the vehicle by click or by its number (typed or scanned)                                                                                  | load page         |
+| Dispatch | Only when every unit is loaded; vehicle temperature required for chilled or frozen goods; seal; delivers every order at once; manifest PDF                       | load page         |
+
+Not yet: unit labels with barcodes (C3d), vehicle temperature limits and in-transit logging, routes and proof of delivery (C7), loads for branch shipments.
+
+Checks: `pnpm check` pass (unit 335); `pnpm test:integration` 466/466 pass (new: packing refuses more than picked, packs the rest with empty quantities, unpacks; an unpacked list cannot go on a load; a list on a load cannot be delivered, cancelled, repacked or unpacked on its own; loading by number in lower case, twice or from another load refused; dispatch refused until all units are loaded, for cashiers, and without the vehicle temperature for chilled yogurt; dispatch delivers both orders from the dispatch bay with seal and temperature recorded; load and units frozen in the database; taking a list off clears its loading, cancelling the load leaves it picked and packed, cancelling the list unpacks it and moves the stock back; other organizations refused); `pnpm test:e2e` 77/77 pass (new: pick, pack into a carton, packing list PDF, load for a van, add the order, scan the carton number, dispatch with a seal, manifest PDF).
 
 ## C3b — Pick lists, waves and delivery from picked stock (built)
 

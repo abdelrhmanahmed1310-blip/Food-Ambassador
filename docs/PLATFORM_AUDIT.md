@@ -29,8 +29,9 @@
 > one-click batch report PDF. C2 is complete. **C3a built** (ADR-101):
 > location zones, receiving inspection out of quarantine and directed
 > put-away. **C3b built** (ADR-102): FEFO pick lists with staging,
-> waves and delivery from picked stock. Next in C3: packing and loading,
-> handheld scanning.
+> waves and delivery from picked stock. **C3c built** (ADR-103): packing
+> units, loads with loading confirmation and dispatch. Next in C3:
+> handheld scanning (needs D5).
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

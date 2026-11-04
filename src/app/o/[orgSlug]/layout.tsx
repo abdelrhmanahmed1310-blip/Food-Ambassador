@@ -90,6 +90,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/inventory/shipments`, label: t("shipments") },
       { href: `${base}/inventory/counts`, label: t("counts") },
       { href: `${base}/inventory/picking`, label: t("picking") },
+      { href: `${base}/inventory/loads`, label: t("loads") },
     );
   }
   if (holdsAnyGrant(ctx.grants, "inventory.quarantine.release"))

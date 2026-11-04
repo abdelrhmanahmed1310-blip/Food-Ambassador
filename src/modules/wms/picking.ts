@@ -312,7 +312,7 @@ export async function createWave(ctx: TenantContext, rawInput: unknown) {
   });
 }
 
-async function lockList(tx: Tx, ctx: TenantContext, pickListId: string) {
+export async function lockList(tx: Tx, ctx: TenantContext, pickListId: string) {
   if (!isUuid(pickListId)) throw notFound("Pick list");
   const found = await tx.pickList.findFirst({
     where: { organizationId: ctx.organizationId, id: pickListId },
@@ -412,35 +412,49 @@ export async function deliverPickList(ctx: TenantContext, pickListId: string) {
   assertPermission(ctx.grants, "b2b.manage");
   return withTenantTx(ctx.organizationId, async (tx) => {
     const { list } = await lockList(tx, ctx, pickListId);
-    requireStatus(list.status, ["PICKED"]);
-    const delivery = await deliverSalesOrderInTx(
-      tx,
-      ctx,
-      list.salesOrderId,
-      [],
-      list.lines
-        .filter((l) => dec(l.pickedQuantity ?? 0).gt(0))
-        .map((l) => ({
-          orderLineId: l.orderLineId,
-          productId: l.productId,
-          lotId: l.lotId,
-          locationId: l.stagingLocationId,
-          baseUomId: l.product.baseUomId,
-          quantity: dec(l.pickedQuantity ?? 0),
-        })),
-    );
-    await tx.pickList.update({
-      where: { id: list.id },
-      data: { status: "DELIVERED", deliveryId: delivery.id },
-    });
-    await recordAudit(tx, actorOf(ctx), {
-      action: "pick_list.delivered",
-      entityType: "pick_list",
-      entityId: list.id,
-      changes: { number: list.number, delivery: delivery.number },
-    });
-    return delivery;
+    if (list.loadId)
+      throw businessRuleViolation(
+        "PICK_LIST_ON_LOAD",
+        "The list ships on a load; dispatch the load",
+      );
+    return deliverPickListInTx(tx, ctx, list);
   });
+}
+
+/** The delivery of a locked, picked list (also used when a load is dispatched, ADR-103). */
+export async function deliverPickListInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  list: Awaited<ReturnType<typeof lockList>>["list"],
+) {
+  requireStatus(list.status, ["PICKED"]);
+  const delivery = await deliverSalesOrderInTx(
+    tx,
+    ctx,
+    list.salesOrderId,
+    [],
+    list.lines
+      .filter((l) => dec(l.pickedQuantity ?? 0).gt(0))
+      .map((l) => ({
+        orderLineId: l.orderLineId,
+        productId: l.productId,
+        lotId: l.lotId,
+        locationId: l.stagingLocationId,
+        baseUomId: l.product.baseUomId,
+        quantity: dec(l.pickedQuantity ?? 0),
+      })),
+  );
+  await tx.pickList.update({
+    where: { id: list.id },
+    data: { status: "DELIVERED", deliveryId: delivery.id },
+  });
+  await recordAudit(tx, actorOf(ctx), {
+    action: "pick_list.delivered",
+    entityType: "pick_list",
+    entityId: list.id,
+    changes: { number: list.number, delivery: delivery.number },
+  });
+  return delivery;
 }
 
 /** Drop a list: a planned one releases its hold; a picked one moves the stock back. */
@@ -451,6 +465,15 @@ export async function cancelPickList(ctx: TenantContext, pickListId: string, raw
     const { list, wh } = await lockList(tx, ctx, pickListId);
     assertPermission(ctx.grants, "inventory.transfer", scopeOf(wh));
     requireStatus(list.status, ["PLANNED", "PICKED"]);
+    if (list.loadId)
+      throw businessRuleViolation(
+        "PICK_LIST_ON_LOAD",
+        "The list is on a load; take it off the load first",
+      );
+    // Its cartons are unpacked (ADR-103).
+    await tx.packUnit.deleteMany({
+      where: { organizationId: ctx.organizationId, pickListId: list.id },
+    });
     let returnDocumentId: string | null = null;
     if (list.status === "PICKED") {
       // Picked stock goes back where it was taken from.
@@ -543,13 +566,30 @@ export async function getPickList(ctx: TenantContext, pickListId: string) {
         pickDocument: { select: { id: true, number: true } },
         returnDocument: { select: { id: true, number: true } },
         delivery: { select: { id: true, number: true } },
+        load: { select: { id: true, number: true, status: true } },
+        packUnits: {
+          orderBy: { number: "asc" },
+          include: { lines: { select: { pickListLineId: true, quantity: true } } },
+        },
       },
     });
     if (!list) throw notFound("Pick list");
     const wh = await loadWarehouseFor(tx, ctx, list.warehouseId);
+    // Packed so far per line (ADR-103).
+    const packed = new Map<string, Decimal>();
+    for (const u of list.packUnits)
+      for (const l of u.lines)
+        packed.set(
+          l.pickListLineId,
+          (packed.get(l.pickListLineId) ?? new Decimal(0)).plus(dec(l.quantity)),
+        );
     return {
       ...list,
       branchId: wh.branchId,
+      packed,
+      packingComplete:
+        list.packUnits.length > 0 &&
+        list.lines.every((l) => dec(l.pickedQuantity ?? 0).lte(packed.get(l.id) ?? new Decimal(0))),
       walk: walkOrder(
         list.lines.map((l) => ({
           ...l,

@@ -997,6 +997,18 @@ Pick lists and waves (C3b, ADR-102; migration `20261229090000_c3b_pick_lists`):
   `short_reason` — check). The plan never changes; lines are fixed once
   the list leaves PLANNED (trigger).
 
+Packing and loading (C3c, ADR-103; migration `20261230090000_c3c_packing_loading`):
+
+- **pack_units**: `number` (PKU-YYYY-n), pick list, `type` (`CARTON` |
+  `CRATE` | `PALLET` | `BAG` | `OTHER`), gross weight (kg, > 0), note,
+  loaded by/at. Changeable only while the list is picked (trigger).
+- **pack_unit_lines**: unit, pick list line, `quantity` (base, > 0).
+- **loads**: `number` (LOD-YYYY-n), warehouse, vehicle, driver, planned
+  departure, `status` (`OPEN` | `DISPATCHED` | `CANCELLED`), vehicle
+  temperature, seal number, note, dispatched by/at, cancel reason. Frozen
+  once not open (trigger).
+- **pick_lists.load_id**: the load the list ships on.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

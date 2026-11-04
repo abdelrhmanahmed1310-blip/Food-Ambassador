@@ -2565,6 +2565,38 @@ country for now, so no inter-company transfer is built.
   reservations honoured by POS and production before picking, splitting a
   wave between pickers.
 
+### ADR-103 Packing, loads and dispatch — Accepted (C3c built)
+
+- **Packing**: a picked list's stock is packed into numbered units
+  (`PKU-`; carton, crate, pallet, bag, other) with their exact contents
+  (pick list line and base quantity, never more than picked) and an
+  optional gross weight. Packing with no quantities puts everything still
+  unpacked into the unit. Units can be unpacked until the list is on a
+  load; cancelling a picked list unpacks it. A packing list per order
+  prints as a PDF. Packing moves no stock: the goods are already in the
+  dispatch location (ADR-102).
+- **Load** (`LOD-`): one vehicle trip from a warehouse — vehicle, driver,
+  note. Only picked lists of that warehouse whose picked stock is fully
+  packed can be put on it; a list can be taken off again while the load
+  is open. On a load, a list is delivered or cancelled only through the
+  load.
+- **Loading confirmation**: each unit is confirmed on the vehicle by its
+  id (click) or its number (typed or scanned, case-insensitive); a unit not
+  on this load or already loaded is refused.
+- **Dispatch** (`b2b.manage` and `inventory.transfer`): only when every
+  unit is loaded. The vehicle temperature is required when any product on
+  the load is chilled or frozen; it is recorded, not judged, as no vehicle
+  limit has been set by the organization. Seal number and note are
+  optional. Every list on the load is delivered (ADR-102) in the same
+  transaction. A load manifest prints as a PDF.
+- **Cancelling** an open load takes its lists off (they stay picked and
+  packed) and clears the loading confirmations.
+- Dispatched and cancelled loads, and the units of delivered lists, are
+  frozen (triggers).
+- **Not yet:** printed unit labels with barcodes (C3d), vehicle
+  temperature limits and in-transit temperature logging, routes and
+  proof of delivery (C7), loads for branch shipments.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
