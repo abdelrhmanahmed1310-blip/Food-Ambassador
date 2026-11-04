@@ -52,6 +52,7 @@ export const PERMISSIONS = [
   "expenses.view",
   "expenses.manage",
   "budgets.view",
+  "pnl.view",
   "budgets.manage",
   "nutrition.view",
   "nutrition.manage",
@@ -120,6 +121,7 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "expenses.view",
   "expenses.manage",
   "budgets.view",
+  "pnl.view",
 ]);
 
 /**
@@ -191,6 +193,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     description: "Oversees branches and warehouses.",
     permissions: [
       "budgets.view",
+      "pnl.view",
       "expenses.view",
       "hr.view",
       "pos.sell",
@@ -319,6 +322,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     description: "Invoices, settlements and cost reporting.",
     permissions: [
       "budgets.view",
+      "pnl.view",
       "budgets.manage",
       "expenses.view",
       "expenses.manage",
@@ -353,6 +357,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
       "budgets.view",
+      "pnl.view",
       "expenses.view",
       "expenses.manage",
       "hr.view",
@@ -403,6 +408,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     description: "Read-only access to operational data.",
     permissions: [
       "budgets.view",
+      "pnl.view",
       "expenses.view",
       "pos.view",
       "menu.view",

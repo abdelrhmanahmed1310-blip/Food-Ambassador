@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C5b branch budgets and budget against actual; C5a operating expenses; C4d kitchen performance — C4 complete; C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C5c branch P&L; C5b branch budgets and budget against actual; C5a operating expenses; C4d kitchen performance — C4 complete; C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,24 @@ Last updated: 2026-11-04 (C5b branch budgets and budget against actual; C5a oper
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C5c — Branch profit and loss (built)
+
+Rules: DECISIONS.md ADR-111.
+
+| Area        | What works                                                                                                                                        | Where                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Statement   | Net sales by source (till, imports, B2B), cost of sales, gross profit, stock losses, expense groups, total expenses, operating result; % of sales | Purchasing → Branch P&L |
+| Columns     | Each branch in its company currency plus company totals; one branch by month with the same period last year                                       | Branch P&L              |
+| Shared data | Stock losses (waste, adjustments, count differences) added to branch actuals; imported sales and their cost counted on the day sold               | `finance/actuals.ts`    |
+| Budget link | Budget against actual shows stock losses as actual only, and the operating result includes them                                                   | Budgets                 |
+| Export      | CSV and Excel                                                                                                                                     | Branch P&L              |
+
+New permission `pnl.view` (branch-scopable): administrators, finance, operations managers, analysts, branch managers at their branch.
+
+Not yet: consolidation across companies and currencies (C5d), head-office cost allocation, depreciation, payroll staff costs, P&L by brand or cost centre, PDF.
+
+Checks: `pnpm check` pass (unit 360; new: stock losses after gross profit, zero-filled columns, shares of sales, sums of columns); `pnpm test:integration` 493/493 pass (new: Cairo imported 500 over two days, cost 40, write-off 16, rent 150 → operating result 294 at 58.8 %; Giza rent 90 → −90 and no margins; company total 204; CSV; one day shows 200 sales with 40 % of the import's cost; month columns over two months with last year; branch manager sees only Giza, a hidden branch shows nothing; cashiers refused; other organizations see nothing); `pnpm test:e2e` 85/85 pass (new: a 1 200 utilities expense on the branch P&L, operating result −1 200 without percentages, CSV download).
 
 ## C5b — Branch budgets and budget against actual (built)
 

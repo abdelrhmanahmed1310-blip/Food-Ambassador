@@ -1040,6 +1040,11 @@ Branch budgets (C5b, ADR-110; migration `20270102090000_c5b_budgets`):
   Permissions `budgets.view` and `budgets.manage` added to the system
   roles.
 
+Branch P&L (C5c, ADR-111; migration `20270103090000_c5c_branch_pnl`):
+no new tables — computed from POS orders, sales imports, B2B invoices,
+ledger entries and expenses. Permission `pnl.view` added to the system
+roles.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

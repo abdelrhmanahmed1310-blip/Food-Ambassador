@@ -2798,6 +2798,37 @@ country for now, so no inter-company transfer is built.
   spreading a yearly figure over months, prorating the open month,
   budgets per cost centre, foreign-currency budgets.
 
+### ADR-111 Branch profit and loss — Accepted (C5c built)
+
+- **Source**: the shared branch actuals of ADR-110, so the P&L, budget
+  against actual and (later) consolidation agree. Two additions to them:
+  - **stock losses** — write-offs, adjustments and count differences net
+    of their reversals, as in the waste report (ADR-041), on the day in
+    the branch's time zone; stock found reduces them. They come after
+    gross profit and before operating expenses, and have no budget line
+    (budget against actual shows them as actual only);
+  - **net sales by source** — the till, sales imports and B2B invoices.
+    Imported sales and their stock cost now count on the day sold (cost
+    shared by net amount, by line count without one), so any period is
+    exact, not only whole months.
+- **Rows**: net sales (by source), cost of sales, gross profit, stock
+  losses, each expense group, total expenses, operating result
+  = gross profit − stock losses − expenses. Every row shows its share of
+  net sales; nothing without sales. The operating result is before
+  depreciation, interest and tax unless those are recorded as expenses —
+  the system has no fixed assets or loans.
+- **Columns**: one per branch in its company's currency, and a total per
+  company with two or more branches shown. Branches in different
+  currencies are never added (consolidation into one currency is C5d).
+  With one branch chosen: its months (when the period spans several),
+  the period total and the same period last year.
+- **Permission** (new): `pnl.view`, branch-scopable — administrators,
+  finance, operations managers, analysts, and branch managers at their
+  branch. Periods up to three calendar years. CSV and Excel.
+- **Not yet:** consolidation across companies and currencies (C5d),
+  allocating head-office costs to branches, depreciation, staff costs
+  from payroll, a P&L by brand or cost centre, PDF.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

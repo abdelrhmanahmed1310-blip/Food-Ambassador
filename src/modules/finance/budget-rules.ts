@@ -10,6 +10,7 @@ export const BUDGET_ROWS = [
   "SALES",
   "COST_OF_SALES",
   "GROSS_PROFIT",
+  "STOCK_LOSSES",
   ...EXPENSE_GROUPS,
   "TOTAL_EXPENSES",
   "OPERATING_RESULT",
@@ -23,9 +24,19 @@ export const DERIVED_ROWS: readonly BudgetRow[] = [
 /** Rows where more than budget is good. */
 const INCOME_ROWS: readonly BudgetRow[] = ["SALES", "GROSS_PROFIT", "OPERATING_RESULT"];
 
-export type Figures = Partial<Record<"SALES" | "COST_OF_SALES" | ExpenseGroup, Decimal>>;
+/**
+ * Entered or actual figures. STOCK_LOSSES (waste, adjustments and count
+ * differences, ADR-111) is actual only: it has no budget line.
+ */
+export type Figures = Partial<
+  Record<"SALES" | "COST_OF_SALES" | "STOCK_LOSSES" | ExpenseGroup, Decimal>
+>;
 
-/** Every row from the entered lines: gross profit, total expenses and the operating result. */
+/**
+ * Every row from the entered lines: gross profit = sales − cost of sales;
+ * total expenses; operating result = gross profit − stock losses − total
+ * expenses.
+ */
 export function withDerived(f: Figures): Record<BudgetRow, Decimal | null> {
   const has = (k: keyof Figures) => f[k] !== undefined;
   const v = (k: keyof Figures) => f[k] ?? new Decimal(0);
@@ -38,14 +49,21 @@ export function withDerived(f: Figures): Record<BudgetRow, Decimal | null> {
   for (const row of BUDGET_ROWS) out[row] = null;
   if (has("SALES")) out.SALES = v("SALES");
   if (has("COST_OF_SALES")) out.COST_OF_SALES = v("COST_OF_SALES");
+  if (has("STOCK_LOSSES")) out.STOCK_LOSSES = v("STOCK_LOSSES");
   for (const g of EXPENSE_GROUPS) if (has(g)) out[g] = v(g);
   out.GROSS_PROFIT = gross;
   out.TOTAL_EXPENSES = totalExpenses;
   out.OPERATING_RESULT =
-    gross === null && totalExpenses === null
+    gross === null && totalExpenses === null && !has("STOCK_LOSSES")
       ? null
-      : (gross ?? new Decimal(0)).minus(totalExpenses ?? new Decimal(0));
+      : (gross ?? new Decimal(0)).minus(v("STOCK_LOSSES")).minus(totalExpenses ?? new Decimal(0));
   return out;
+}
+
+/** A row as a share of sales (margins); nothing without sales. */
+export function shareOfSales(value: Decimal | null, sales: Decimal | null): Decimal | null {
+  if (value === null || sales === null || sales.isZero()) return null;
+  return value.div(sales);
 }
 
 /**

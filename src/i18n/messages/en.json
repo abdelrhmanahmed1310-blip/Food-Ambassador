@@ -176,7 +176,8 @@
     "menuEngineering": "Menu engineering",
     "kitchenReport": "Kitchen performance",
     "expenses": "Operating expenses",
-    "budgets": "Budgets"
+    "budgets": "Budgets",
+    "branchPnl": "Branch P&L"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -964,7 +965,8 @@
       "expenses.view": "View operating expenses",
       "expenses.manage": "Record and reverse operating expenses",
       "budgets.view": "View branch budgets and budget against actual",
-      "budgets.manage": "Set branch budgets"
+      "budgets.manage": "Set branch budgets",
+      "pnl.view": "View branch profit and loss"
     }
   },
   "audit": {
@@ -5578,7 +5580,40 @@
       "DELIVERY": "Delivery",
       "OTHER": "Other",
       "TOTAL_EXPENSES": "Total expenses",
-      "OPERATING_RESULT": "Operating result"
+      "OPERATING_RESULT": "Operating result",
+      "STOCK_LOSSES": "Stock losses (waste and count differences)"
+    }
+  },
+  "pnl": {
+    "title": "Branch P&L",
+    "hint": "Profit and loss per branch from sales, the stock they used, stock losses and operating expenses, in each company's currency.",
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "empty": "No branches to show.",
+    "statement": "{from} to {to}",
+    "line": "Line",
+    "total": "Period total",
+    "lastYear": "Same period last year ({from} to {to})",
+    "companyTotal": "{company} total",
+    "note": "Percentages are of net sales. Net sales exclude VAT and refunds. Cost of sales is the stock value the sales used; stock losses are write-offs, adjustments and count differences (stock found reduces them). The operating result is before depreciation, interest and tax unless you record those as expenses. Branches in different currencies are not added together.",
+    "rows": {
+      "SALES_POS": "Point of sale",
+      "SALES_IMPORTED": "Imported sales",
+      "SALES_B2B": "Business customers",
+      "SALES": "Net sales",
+      "COST_OF_SALES": "Cost of sales",
+      "GROSS_PROFIT": "Gross profit",
+      "OCCUPANCY": "Occupancy",
+      "UTILITIES": "Utilities",
+      "STAFF": "Staff",
+      "MARKETING": "Marketing",
+      "REPAIRS": "Repairs and maintenance",
+      "ADMINISTRATION": "Administration",
+      "DELIVERY": "Delivery",
+      "OTHER": "Other",
+      "TOTAL_EXPENSES": "Total expenses",
+      "OPERATING_RESULT": "Operating result",
+      "STOCK_LOSSES": "Stock losses (waste and count differences)"
     }
   }
 }

@@ -195,6 +195,7 @@ export async function budgetVsActual(ctx: TenantContext, branchId: string, year:
       if (Number(mm) <= lastMonth) {
         f.SALES ??= new Decimal(0);
         f.COST_OF_SALES ??= new Decimal(0);
+        f.STOCK_LOSSES ??= new Decimal(0);
         for (const g of EXPENSE_GROUPS) f[g] ??= new Decimal(0);
       }
       return f;
