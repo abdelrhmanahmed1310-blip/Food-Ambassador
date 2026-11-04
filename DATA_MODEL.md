@@ -1009,6 +1009,13 @@ Packing and loading (C3c, ADR-103; migration `20261230090000_c3c_packing_loading
   once not open (trigger).
 - **pick_lists.load_id**: the load the list ships on.
 
+Sales targets (C4a, ADR-105; migration `20261231090000_c4a_sales_targets`):
+
+- **sales_targets**: branch, `month` (first day — check), `net_amount`
+  (≥ 0), `currency` (the branch's company currency when set), updated by.
+  UQ per branch and month. Permission `sales.targets.manage` added to the
+  administrator, operations manager and finance system roles.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

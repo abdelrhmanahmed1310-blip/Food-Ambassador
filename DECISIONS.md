@@ -2634,6 +2634,32 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** QR codes and GS1-128 data on our labels, label printers
   (ZPL), scanning at receiving and put-away, offline scanning.
 
+### ADR-105 Sales analytics and targets — Accepted (C4a built)
+
+- **Source**: paid POS orders only, net of VAT; refunds are deducted on
+  their order's business date (as the dashboard, ADR-078). Imported sales
+  files (ADR-036) and B2B invoices are not part of this report yet.
+- **Currency**: each branch sells in its company's currency (ADR-086);
+  figures are converted into the group's currency, or the chosen
+  company's, at the period's average rate. A currency without a rate is
+  left out and named on the page — never converted at a guessed rate.
+- **Figures**: net sales, orders, average ticket (net ÷ orders); by branch
+  (with share), channel, ISO weekday, hour of ordering in the branch's
+  time zone, and day.
+- **Comparisons**: the period of the same length just before, and the same
+  calendar dates one year earlier (29 February → 28 February). Growth is
+  (current − base) ÷ base and is shown only when the base is above zero.
+- **Targets** (`sales.targets.manage`, new; granted to administrators,
+  operations managers and finance): net sales per branch per calendar
+  month, set by the organization in the branch's company currency (none
+  assumed). For any period, a month's target is shared out evenly over its
+  days (amount × days of the period in the month ÷ days in the month).
+  Achievement = net ÷ target, shown only when a target exists. Targets are
+  listed for every visible branch, with or without a warehouse.
+- **Export**: CSV or Excel of branches and days.
+- **Not yet:** targets by channel or weekday, weighting targets by weekday
+  patterns, forecasts (I1), imported sales and B2B in the same view.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

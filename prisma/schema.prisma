@@ -329,6 +329,7 @@ model Organization {
   packUnits                    PackUnit[]
   packUnitLines                PackUnitLine[]
   loads                        Load[]
+  salesTargets                 SalesTarget[]
 
   @@map("organizations")
 }
@@ -520,6 +521,7 @@ model Branch {
   complaints          Complaint[]
   equipment           Equipment[]
   mockRecalls         MockRecall[]
+  salesTargets        SalesTarget[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3679,6 +3681,29 @@ model Load {
   @@unique([organizationId, number])
   @@index([organizationId, warehouseId, status])
   @@map("loads")
+}
+
+// ─── Sales targets (C4a, ADR-105) ───
+
+/// A branch's net sales target for one calendar month, in its company's currency.
+model SalesTarget {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  branchId        String   @map("branch_id") @db.Uuid
+  /// First day of the month.
+  month           DateTime @db.Date
+  netAmount       Decimal  @map("net_amount") @db.Decimal(19, 4)
+  currency        String   @db.Char(3)
+  updatedByUserId String   @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, month])
+  @@map("sales_targets")
 }
 
 // ─── Mock recall exercises (C2e, ADR-100) ───

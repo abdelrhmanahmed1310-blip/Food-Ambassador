@@ -226,6 +226,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );
   const reports: NavSection = { title: t("reportsSection"), icon: "reports", items: [] };
+  // Sales analytics and targets (ADR-105).
+  if (holdsAnyGrant(ctx.grants, "sales.view"))
+    reports.items.push({ href: `${base}/reports/sales`, label: t("salesReport") });
   const visible = canSeeReports(ctx);
   if (visible.foodCost)
     reports.items.push({ href: `${base}/reports/food-cost`, label: t("foodCostReport") });

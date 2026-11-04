@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,23 @@ Last updated: 2026-11-04 (C3d handheld scanning — C3 complete; C3c packing and
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C4a — Sales analytics and targets (built)
+
+Rules: DECISIONS.md ADR-105.
+
+| Area       | What works                                                                                                                                    | Where                     |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Totals     | Net sales (after VAT and refunds), orders, average ticket; against the previous period and the same dates last year; no growth without a base | Reports → Sales analytics |
+| Breakdowns | By branch (share, target, achievement), channel, day of the week, hour (branch time), day; CSV and Excel                                      | Sales analytics           |
+| Targets    | Monthly net target per branch in its company currency, set by you; shared out by day for any period                                           | Sales analytics → Targets |
+| Currency   | Branch figures converted at the period's average rate; currencies without a rate left out and named                                           | Sales analytics           |
+
+New permission `sales.targets.manage` (administrators, operations managers, finance).
+
+Not yet: targets by channel or weekday, forecasts (I1), imported sales files and B2B invoices in the same view.
+
+Checks: `pnpm check` pass (unit 345; new: growth only with a base, average ticket, same dates last year with 29 February, monthly targets shared out by day across months, weekdays, month list); `pnpm test:integration` 474/474 pass (new: zeros and no ratios before any sale; three orders less a refund give 175.00 over 3 with a 58.33 average; no growth without a previous figure; target 3 100 a month shared out to the day and achievement against it; channel shares 57.14 % / 42.86 %; weekday and hour totals; CSV in EGP; targets grid, clearing a month, negative refused, analysts may view but not set, cashiers refused, an invalid period refused; other organizations see nothing and cannot set targets); `pnpm test:e2e` 79/79 pass (new: empty report, set this month's target, the report shows the target and 0.0 % achieved).
 
 ## C3d — Handheld scanning and labels (built; D5: both scanners and phones)
 
