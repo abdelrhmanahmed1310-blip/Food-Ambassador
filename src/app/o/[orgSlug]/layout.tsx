@@ -87,6 +87,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     pos.items.push(
       { href: `${base}/pos/customers/segments`, label: t("segments") },
       { href: `${base}/pos/customers/feedback`, label: t("guestFeedback") },
+      { href: `${base}/pos/customers/campaigns`, label: t("campaigns") },
     );
   if (hasPermission(ctx.grants, "payments.manage"))
     pos.items.push({ href: `${base}/pos/gift-cards`, label: t("posGiftCards") });

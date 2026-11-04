@@ -59,6 +59,7 @@ export const PERMISSIONS = [
   "logistics.manage",
   "logistics.deliver",
   "pos.dispatch",
+  "campaigns.send",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -205,6 +206,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "campaigns.send",
       "pos.dispatch",
       "logistics.view",
       "logistics.manage",

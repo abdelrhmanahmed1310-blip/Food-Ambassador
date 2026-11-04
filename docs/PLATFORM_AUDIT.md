@@ -54,8 +54,10 @@
 > (ADR-117): own riders for delivery orders — dispatch board, rider phone
 > page, timings, contact details erased after 30 days. **C7c built**
 > (ADR-118): customer segments with RFM, guest feedback from the receipt
-> with review and escalation to complaints. Next in C7: campaigns (needs a
-> messaging provider).
+> with review and escalation to complaints. **C7d built** (ADR-119):
+> provider-neutral campaigns — audience, preview, launch, unsubscribe and
+> results; sending waits for a tested provider adapter. C7 is complete
+> apart from that adapter.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

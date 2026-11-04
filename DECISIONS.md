@@ -3085,6 +3085,47 @@ provider — Q to be asked before it is built).
   feedback for platform orders (no receipt from us), rating questions
   per aspect (food, service, delivery).
 
+### ADR-119 Campaigns, provider-neutral — Accepted (C7d built; sending waits for a provider)
+
+Decision (2026-11-05): build campaigns without choosing a messaging
+provider; no provider adapter is shipped until one is tested with the
+customer's own account and credentials.
+
+- **A campaign** is a message on one channel (SMS, WhatsApp or e-mail —
+  e-mail needs a subject) to a saved segment (ADR-118). The message may
+  use `{name}` (the guest's first name) and nothing else. Optional: leave
+  out guests messaged by another campaign within N days; count visits
+  within N days (default 7) as results. Drafts change freely.
+- **Audience**: the segment's guests who **agreed to receive offers**
+  (ADR-068), are not erased and have a contact for the channel (phone for
+  SMS and WhatsApp, e-mail for e-mail), less those messaged recently. The
+  draft shows each step's count, the message as a guest would read it
+  (unsubscribe link included) and, for SMS, its parts by the GSM-7
+  (160 / 153) and UCS-2 (70 / 67) rules.
+- **Launch** (new permission `campaigns.send`: administrators, operations
+  managers) fixes the recipients and schedules sending, now or at a time
+  in the organization's zone. It is **refused while no provider is
+  connected for the channel** — at present always, as no adapter exists.
+  Recipients hold **no phone or e-mail**: the contact is read at the
+  moment of sending, and a guest who withdrew consent or was erased in
+  between is skipped.
+- **Sending** is a job every minute (ADR-087): due campaigns, a batch of
+  recipients at a time, through `MessagingProvider.send`; failures are
+  kept per recipient with the provider's message. Cancelled before it
+  goes, pending recipients are left out.
+- **Unsubscribe**: every message ends with a link signed with the
+  integration key (HMAC-SHA256 of the recipient); the public page lets
+  the guest stop all offers from the organization — consent withdrawn,
+  marked on the recipient and audited without a person's details.
+- **Results**: recipients sent, failed, left out, waiting, stopped
+  offers; guests who came back within the window, their orders and spend.
+- **A provider adapter, when added**, comes with its connector kind and
+  sealed credentials (ADR-048), delivery receipts and the provider's own
+  opt-out keywords, and is only enabled after a real test.
+- **Not yet:** any provider adapter, WhatsApp template approval flow,
+  e-mail HTML and sender domain set-up, quiet hours and frequency caps
+  across all campaigns, A/B variants, coupon codes per recipient.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

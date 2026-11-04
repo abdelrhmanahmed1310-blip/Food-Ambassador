@@ -358,6 +358,9 @@ model Organization {
   customerSegments CustomerSegment[]
   guestFeedback    GuestFeedback[]
 
+  campaigns          Campaign[]
+  campaignRecipients CampaignRecipient[]
+
   @@map("organizations")
 }
 
@@ -6166,6 +6169,8 @@ model PosCustomer {
 
   feedback GuestFeedback[]
 
+  campaignRecipients CampaignRecipient[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, phone])
   /// Global search (ADR-088).
@@ -7368,6 +7373,8 @@ model CustomerSegment {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
+  campaigns Campaign[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, name])
   @@map("customer_segments")
@@ -7399,4 +7406,84 @@ model GuestFeedback {
   @@unique([organizationId, posOrderId])
   @@index([organizationId, branchId, submittedAt])
   @@map("guest_feedback")
+}
+
+// ─── C7d campaigns (ADR-119) ───
+
+enum CampaignChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+/// A message to a segment's consenting guests on one channel.
+model Campaign {
+  id                       String          @id @default(uuid(7)) @db.Uuid
+  organizationId           String          @map("organization_id") @db.Uuid
+  name                     String
+  channel                  CampaignChannel
+  segmentId                String          @map("segment_id") @db.Uuid
+  subject                  String?
+  body                     String
+  /// Leave out guests messaged by another campaign within this many days.
+  skipIfMessagedWithinDays Int?            @map("skip_if_messaged_within_days")
+  /// Visits within this many days after the message count as results.
+  attributionDays          Int             @default(7) @map("attribution_days")
+  status                   CampaignStatus  @default(DRAFT)
+  scheduledAt              DateTime?       @map("scheduled_at") @db.Timestamptz(3)
+  launchedAt               DateTime?       @map("launched_at") @db.Timestamptz(3)
+  launchedByUserId         String?         @map("launched_by_user_id") @db.Uuid
+  completedAt              DateTime?       @map("completed_at") @db.Timestamptz(3)
+  cancelledAt              DateTime?       @map("cancelled_at") @db.Timestamptz(3)
+  createdByUserId          String          @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  segment      CustomerSegment     @relation(fields: [organizationId, segmentId], references: [organizationId, id], onDelete: Restrict)
+  recipients   CampaignRecipient[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status, scheduledAt])
+  @@map("campaigns")
+}
+
+enum CampaignRecipientStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// One guest a campaign goes to. Holds no phone or e-mail: the contact is read when sending.
+model CampaignRecipient {
+  id                String                  @id @default(uuid(7)) @db.Uuid
+  organizationId    String                  @map("organization_id") @db.Uuid
+  campaignId        String                  @map("campaign_id") @db.Uuid
+  customerId        String                  @map("customer_id") @db.Uuid
+  status            CampaignRecipientStatus @default(PENDING)
+  skipReason        String?                 @map("skip_reason")
+  providerMessageId String?                 @map("provider_message_id")
+  error             String?
+  sentAt            DateTime?               @map("sent_at") @db.Timestamptz(3)
+  /// Unsubscribed through this message's link.
+  optedOutAt        DateTime?               @map("opted_out_at") @db.Timestamptz(3)
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  campaign     Campaign     @relation(fields: [organizationId, campaignId], references: [organizationId, id], onDelete: Restrict)
+  customer     PosCustomer  @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, campaignId, customerId])
+  @@index([organizationId, customerId, sentAt])
+  @@map("campaign_recipients")
 }

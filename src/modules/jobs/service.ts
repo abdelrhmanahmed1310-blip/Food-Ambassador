@@ -4,6 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { hasPermission } from "@/modules/access/authorize";
 import { attentionItems } from "@/modules/analytics/attention";
 import { purgeExpiredAttachments } from "@/modules/attachments/service";
+import { sendDueCampaigns } from "@/modules/crm/campaigns";
 import { purgeDeliveryContacts } from "@/modules/delivery/home";
 import { deliverDueWebhooks } from "@/modules/integrations/service";
 import { membersWithGrantsInTx, notifyInTx } from "@/modules/notifications/service";
@@ -116,6 +117,7 @@ const HANDLERS = {
   },
   "attention.digest": attentionDigest,
   "deliveries.purge-contacts": async () => purgeDeliveryContacts(),
+  "campaigns.send": async () => sendDueCampaigns(),
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -134,6 +136,12 @@ export async function scheduleRecurringJobs(now = new Date()) {
     added += await enqueueJobInTx(tx, {
       kind: "webhooks.deliver",
       dedupeKey: `webhooks.deliver:${slotKey(now, 1)}`,
+      maxAttempts: 1,
+    });
+    // Campaign messages that are due (ADR-119).
+    added += await enqueueJobInTx(tx, {
+      kind: "campaigns.send",
+      dedupeKey: `campaigns.send:${slotKey(now, 1)}`,
       maxAttempts: 1,
     });
     added += await enqueueJobInTx(tx, {

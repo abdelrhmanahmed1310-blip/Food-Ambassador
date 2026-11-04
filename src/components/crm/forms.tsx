@@ -181,3 +181,109 @@ export function GuestRatingForm({
     </form>
   );
 }
+
+/** A campaign draft (ADR-119): channel, segment, message with {name}. */
+export function CampaignForm({
+  action,
+  segments,
+  defaults = {},
+  submitLabel,
+}: {
+  action: Action;
+  segments: Option[];
+  defaults?: Record<string, string | undefined>;
+  submitLabel: string;
+}) {
+  const t = useTranslations();
+  const [channel, setChannel] = useState(defaults.channel ?? "SMS");
+  const optional = t("common.optional");
+  return (
+    <ActionForm action={action} submitLabel={submitLabel} pendingLabel={t("common.saving")}>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField name="name" label={t("campaigns.name")} defaultValue={defaults.name} required />
+        <label className="text-sm">
+          <span className="mb-1 block font-medium">{t("campaigns.channel")}</span>
+          <select
+            name="channel"
+            value={channel}
+            onChange={(e) => setChannel(e.target.value)}
+            className="border-border bg-surface w-full rounded-lg border px-3 py-2"
+          >
+            {["SMS", "WHATSAPP", "EMAIL"].map((c) => (
+              <option key={c} value={c}>
+                {t(`campaigns.channels.${c}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <SelectField
+          name="segmentId"
+          label={t("campaigns.segment")}
+          options={segments}
+          defaultValue={defaults.segmentId}
+          placeholder="—"
+          required
+        />
+      </div>
+      {channel === "EMAIL" ? (
+        <TextField
+          name="subject"
+          label={t("campaigns.subject")}
+          defaultValue={defaults.subject}
+          required
+        />
+      ) : null}
+      <label className="block text-sm">
+        <span className="mb-1 block font-medium">{t("campaigns.body")}</span>
+        <textarea
+          name="body"
+          rows={4}
+          maxLength={2000}
+          defaultValue={defaults.body}
+          required
+          className="border-border bg-surface w-full rounded-lg border p-2"
+        />
+        <span className="text-muted mt-1 block text-xs">{t("campaigns.bodyHint")}</span>
+      </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          name="skipIfMessagedWithinDays"
+          label={t("campaigns.skipRecent")}
+          defaultValue={defaults.skipIfMessagedWithinDays}
+          inputMode="numeric"
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField
+          name="attributionDays"
+          label={t("campaigns.attributionDays")}
+          hint={t("campaigns.attributionHint")}
+          defaultValue={defaults.attributionDays ?? "7"}
+          inputMode="numeric"
+          dir="ltr"
+        />
+      </div>
+    </ActionForm>
+  );
+}
+
+export function LaunchForm({ action }: { action: Action }) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("campaigns.launch")}
+      pendingLabel={t("common.saving")}
+    >
+      <label className="block text-sm">
+        <span className="mb-1 block font-medium">{t("campaigns.sendAt")}</span>
+        <input
+          type="datetime-local"
+          name="scheduledAt"
+          className="border-border bg-surface rounded-lg border px-3 py-2"
+        />
+        <span className="text-muted mt-1 block text-xs">{t("campaigns.sendAtHint")}</span>
+      </label>
+    </ActionForm>
+  );
+}

@@ -1134,6 +1134,19 @@ Segments and feedback (C7c, ADR-118; migration `20270110090000_c7c_segments_feed
   check), `comment` (≤ 1 000), submitted at, reviewed at/by, review note,
   complaint. Rating and comment never change (trigger).
 
+Campaigns (C7d, ADR-119; migration `20270111090000_c7d_campaigns`):
+
+- **campaigns**: name, `channel` (`SMS` | `WHATSAPP` | `EMAIL`), segment,
+  subject (required for e-mail — check), `body` (≤ 2 000), skip if
+  messaged within (1–365), attribution days (1–60), `status` (`DRAFT` |
+  `SCHEDULED` | `SENDING` | `SENT` | `CANCELLED`), scheduled, launched,
+  completed and cancelled at.
+- **campaign_recipients**: campaign × customer (UQ), `status` (`PENDING`
+  | `SENT` | `FAILED` | `SKIPPED` with a reason), provider message id,
+  error, sent at, opted out at. No contact details.
+- Permission `campaigns.send` added to administrators and operations
+  managers.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

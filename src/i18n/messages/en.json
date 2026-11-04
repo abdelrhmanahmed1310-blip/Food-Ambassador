@@ -186,7 +186,8 @@
     "posDispatch": "Delivery dispatch",
     "myDeliveries": "My deliveries",
     "segments": "Segments",
-    "guestFeedback": "Guest feedback"
+    "guestFeedback": "Guest feedback",
+    "campaigns": "Campaigns"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -321,7 +322,9 @@
     "refrigeratedNeedsRange": "A refrigerated vehicle needs its lowest and highest temperature.",
     "rangeReversed": "The highest temperature is below the lowest.",
     "invalidSignature": "The signature could not be read; clear it and sign again.",
-    "invalidRating": "Choose 1 to 5 stars."
+    "invalidRating": "Choose 1 to 5 stars.",
+    "subjectRequired": "An e-mail needs a subject.",
+    "unknownPlaceholder": "Only '{name}' can be filled in."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -784,7 +787,11 @@
     "DELIVERY_NOT_ASSIGNED": "The delivery is not assigned to you.",
     "DELIVERY_NOT_OUT": "The delivery is not on the way.",
     "FEEDBACK_CLOSED": "This feedback link has closed.",
-    "FEEDBACK_REVIEWED": "This feedback was already reviewed."
+    "FEEDBACK_REVIEWED": "This feedback was already reviewed.",
+    "CAMPAIGN_NOT_DRAFT": "Only a draft campaign can change or be launched.",
+    "CHANNEL_NOT_CONNECTED": "No provider is connected for this channel yet, so nothing can be sent.",
+    "CAMPAIGN_NO_AUDIENCE": "Nobody in the segment can be reached on this channel.",
+    "CAMPAIGN_ALREADY_SENDING": "The campaign is already being sent."
   },
   "notFound": {
     "title": "Page not found",
@@ -1033,7 +1040,8 @@
       "logistics.view": "View trips and vehicles",
       "logistics.manage": "Plan trips and manage vehicles",
       "logistics.deliver": "Drive trips: proof of delivery and temperatures",
-      "pos.dispatch": "Dispatch own deliveries for delivery orders"
+      "pos.dispatch": "Dispatch own deliveries for delivery orders",
+      "campaigns.send": "Launch campaigns to customer segments"
     }
   },
   "audit": {
@@ -6133,5 +6141,66 @@
     "already": "Thank you — this order has already been rated.",
     "closed": "This link has closed.",
     "privacy": "We do not ask for or keep any details about you."
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "hint": "Messages to a segment's guests who agreed to receive offers. Every message carries a link to stop them.",
+    "empty": "No campaigns yet.",
+    "new": "New campaign",
+    "needSegment": "Save a customer segment first.",
+    "saveDraft": "Save draft",
+    "name": "Name",
+    "channel": "Channel",
+    "segment": "Segment",
+    "recipients": "Recipients",
+    "status": "Status",
+    "subject": "Subject",
+    "body": "Message",
+    "bodyHint": "Use '{name}' for the guest's first name. A link to stop offers is added at the end.",
+    "skipRecent": "Leave out guests messaged within (days)",
+    "attributionDays": "Count visits within (days)",
+    "attributionHint": "Orders by recipients this many days after the message count as results.",
+    "detailHint": "{channel} to the segment {segment}.",
+    "noProvider": "No {channel} provider is connected yet, so this campaign can be drafted and checked but not sent. A provider is added once it has been tested with your account.",
+    "audience": "Who it reaches now",
+    "inSegment": "In the segment",
+    "consenting": "Agreed to offers",
+    "reachable": "With a contact for {channel}",
+    "recentlyMessaged": "Messaged recently (left out)",
+    "willReceive": "Will receive it",
+    "preview": "What a guest called Sara reads",
+    "smsParts": "{parts, plural, one {# SMS} other {# SMS parts}} · {length} characters · {encoding}",
+    "results": "Results",
+    "sent": "Sent",
+    "failed": "Failed",
+    "skipped": "Left out",
+    "pending": "Waiting to send",
+    "optedOut": "Stopped offers",
+    "returned": "Came back within {days} days",
+    "orders": "Their orders",
+    "revenue": "Their spend",
+    "edit": "Edit draft",
+    "launch": "Launch",
+    "sendAt": "Send at (optional)",
+    "sendAtHint": "In the organization's time zone; now when left empty.",
+    "cancel": "Cancel campaign",
+    "channels": {
+      "SMS": "SMS",
+      "WHATSAPP": "WhatsApp",
+      "EMAIL": "E-mail"
+    },
+    "statuses": {
+      "DRAFT": "Draft",
+      "SCHEDULED": "Scheduled",
+      "SENDING": "Sending",
+      "SENT": "Sent",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "unsubscribe": {
+    "title": "Offers from {organization}",
+    "question": "Stop receiving offers by message from us?",
+    "confirm": "Stop offers",
+    "done": "Done — you will not receive offers from us any more."
   }
 }
