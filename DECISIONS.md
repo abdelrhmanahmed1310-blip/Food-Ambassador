@@ -2737,6 +2737,34 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** per-item preparation times, staff on shift against
   tickets, target history.
 
+### ADR-109 Cost centres, expense categories and operating expenses — Accepted (C5a built)
+
+- **Categories** are the organization's own (none are created for it); each
+  has a code, names and a P&L group: occupancy, utilities, staff,
+  marketing, repairs and maintenance, administration, delivery, other.
+  **Cost centres** belong to one branch or are shared (head office).
+  Both can be archived; archived ones take no new expenses.
+- **An expense** belongs to a branch and is in that branch's company's
+  currency (ADR-086): date (not in the future), category, optional cost
+  centre (of that branch, or shared) and supplier, description, the
+  supplier's document number, net and VAT as on the document, gross =
+  net + VAT (check). Receipts and invoices are attached (ADR-051, entity
+  EXPENSE). Numbered `EXP-`.
+- **Never edited**: a trigger refuses any change except the one reversal,
+  which needs a reason; reversed expenses stay on record and leave the
+  totals.
+- **Permissions** (new): `expenses.view` and `expenses.manage`, both
+  branch-scopable. Administrators and finance have both, branch managers
+  both at their branch, operations managers and analysts view. Categories
+  and cost centres need `expenses.manage` organization-wide.
+- Lists filter by period, branch and category, with posted totals per
+  currency and P&L group; CSV and Excel.
+- **Not yet:** VAT on expenses in the VAT summary and accounting export
+  (the VAT is recorded, not yet reclaimed through the system), expenses
+  in foreign currencies, approval of large expenses, recurring expenses,
+  spreading one bill over several months, expenses from supplier invoice
+  charge lines.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

@@ -1016,6 +1016,20 @@ Sales targets (C4a, ADR-105; migration `20261231090000_c4a_sales_targets`):
   UQ per branch and month. Permission `sales.targets.manage` added to the
   administrator, operations manager and finance system roles.
 
+Operating expenses (C5a, ADR-109; migration `20270101090000_c5a_expenses`):
+
+- **expense_categories**: `code` (UQ), names, `group` (`OCCUPANCY` |
+  `UTILITIES` | `STAFF` | `MARKETING` | `REPAIRS` | `ADMINISTRATION` |
+  `DELIVERY` | `OTHER`), archived at.
+- **cost_centres**: `code` (UQ), name, optional branch, archived at.
+- **expenses**: `number` (EXP-YYYY-n), branch, category, cost centre,
+  supplier, `expense_date`, description, reference, `net_amount` (> 0),
+  `tax_amount` (≥ 0), `gross_amount` (= net + tax — check), `currency`,
+  `status` (`POSTED` | `REVERSED`), reversed by/at and reason. Only the
+  reversal may change a row (trigger).
+- **attachments.entity_type** gains `EXPENSE`; permissions
+  `expenses.view` and `expenses.manage` added to the system roles.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

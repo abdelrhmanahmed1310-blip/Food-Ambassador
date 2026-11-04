@@ -123,6 +123,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/purchasing/invoices`, label: t("supplierInvoices") },
       { href: `${base}/purchasing/payables`, label: t("payables") },
     );
+  // Operating expenses (ADR-109).
+  if (holdsAnyGrant(ctx.grants, "expenses.view"))
+    purchasing.items.push({ href: `${base}/finance/expenses`, label: t("expenses") });
   if (hasPermission(ctx.grants, "fx.manage"))
     purchasing.items.push({ href: `${base}/purchasing/exchange-rates`, label: t("exchangeRates") });
   const kitchen: NavSection = { title: t("recipesSection"), icon: "kitchen", items: [] };

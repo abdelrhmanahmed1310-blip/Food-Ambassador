@@ -330,6 +330,9 @@ model Organization {
   packUnitLines                PackUnitLine[]
   loads                        Load[]
   salesTargets                 SalesTarget[]
+  costCentres                  CostCentre[]
+  expenseCategories            ExpenseCategory[]
+  expenses                     Expense[]
 
   @@map("organizations")
 }
@@ -522,6 +525,8 @@ model Branch {
   equipment           Equipment[]
   mockRecalls         MockRecall[]
   salesTargets        SalesTarget[]
+  costCentres         CostCentre[]
+  expenses            Expense[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1273,6 +1278,7 @@ enum AttachmentEntity {
   QUOTATION
   FS_DOCUMENT_VERSION
   CALIBRATION
+  EXPENSE
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -1418,6 +1424,7 @@ model Supplier {
   invoices           SupplierInvoice[]
   settlements        SupplierSettlement[]
   fxRevaluationLines FxRevaluationLine[]
+  expenses           Expense[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3704,6 +3711,101 @@ model SalesTarget {
   @@unique([organizationId, id])
   @@unique([organizationId, branchId, month])
   @@map("sales_targets")
+}
+
+// ─── Operating expenses (C5a, ADR-109) ───
+
+/// Where an expense is shown in the branch P&L.
+enum ExpenseGroup {
+  OCCUPANCY
+  UTILITIES
+  STAFF
+  MARKETING
+  REPAIRS
+  ADMINISTRATION
+  DELIVERY
+  OTHER
+}
+
+model CostCentre {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  code            String
+  name            String
+  /// A branch's cost centre, or null for one shared by the organization (e.g. head office).
+  branchId        String?   @map("branch_id") @db.Uuid
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch?      @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  expenses     Expense[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("cost_centres")
+}
+
+model ExpenseCategory {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  code            String
+  name            String
+  nameAr          String?      @map("name_ar")
+  group           ExpenseGroup
+  archivedAt      DateTime?    @map("archived_at") @db.Timestamptz(3)
+  createdByUserId String       @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  expenses     Expense[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("expense_categories")
+}
+
+enum ExpenseStatus {
+  POSTED
+  REVERSED
+}
+
+/// An operating expense of a branch, in its company's currency. Never edited; reversed with a reason.
+model Expense {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  organizationId   String        @map("organization_id") @db.Uuid
+  number           String
+  branchId         String        @map("branch_id") @db.Uuid
+  costCentreId     String?       @map("cost_centre_id") @db.Uuid
+  categoryId       String        @map("category_id") @db.Uuid
+  supplierId       String?       @map("supplier_id") @db.Uuid
+  expenseDate      DateTime      @map("expense_date") @db.Date
+  description      String
+  /// The supplier's invoice or receipt number.
+  reference        String?
+  netAmount        Decimal       @map("net_amount") @db.Decimal(19, 4)
+  taxAmount        Decimal       @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount      Decimal       @map("gross_amount") @db.Decimal(19, 4)
+  currency         String        @db.Char(3)
+  status           ExpenseStatus @default(POSTED)
+  createdByUserId  String        @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  reversedAt       DateTime?     @map("reversed_at") @db.Timestamptz(3)
+  reversedByUserId String?       @map("reversed_by_user_id") @db.Uuid
+  reverseReason    String?       @map("reverse_reason")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch          @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  costCentre   CostCentre?     @relation(fields: [organizationId, costCentreId], references: [organizationId, id], onDelete: Restrict)
+  category     ExpenseCategory @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  supplier     Supplier?       @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, branchId, expenseDate])
+  @@index([organizationId, categoryId, expenseDate])
+  @@map("expenses")
 }
 
 // ─── Mock recall exercises (C2e, ADR-100) ───

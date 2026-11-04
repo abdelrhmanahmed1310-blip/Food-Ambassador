@@ -174,7 +174,8 @@
     "salesReport": "Sales analytics",
     "stockHealth": "Stock ageing and turnover",
     "menuEngineering": "Menu engineering",
-    "kitchenReport": "Kitchen performance"
+    "kitchenReport": "Kitchen performance",
+    "expenses": "Operating expenses"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -720,7 +721,9 @@
     "ALREADY_LOADED": "Unit {unit} is already loaded.",
     "LOAD_EMPTY": "The load is empty.",
     "LOAD_NOT_FULLY_LOADED": "{missing} unit(s) not loaded yet: {units}.",
-    "VEHICLE_TEMPERATURE_REQUIRED": "Record the vehicle temperature: the load carries chilled or frozen goods."
+    "VEHICLE_TEMPERATURE_REQUIRED": "Record the vehicle temperature: the load carries chilled or frozen goods.",
+    "COST_CENTRE_OTHER_BRANCH": "The cost centre belongs to another branch.",
+    "EXPENSE_REVERSED": "The expense was already reversed."
   },
   "notFound": {
     "title": "Page not found",
@@ -956,7 +959,9 @@
       "customers.manage": "Add, edit and erase customers; adjust points",
       "hr.view": "See employees, departments and document expiry dates",
       "hr.manage": "Add and edit employees, departments and documents; see ID numbers",
-      "sales.targets.manage": "Set sales targets"
+      "sales.targets.manage": "Set sales targets",
+      "expenses.view": "View operating expenses",
+      "expenses.manage": "Record and reverse operating expenses"
     }
   },
   "audit": {
@@ -5472,5 +5477,63 @@
     "day": "Date",
     "empty": "No tickets in this period.",
     "minutes": "{m} min"
+  },
+  "expenses": {
+    "title": "Operating expenses",
+    "hint": "Rent, utilities, marketing and other running costs per branch, in the branch's company currency. A recorded expense is never edited: reverse it with a reason and record it again.",
+    "new": "Record expense",
+    "newTitle": "Record an expense",
+    "newHint": "Enter the amounts from the supplier's invoice or receipt. Attach the document on the next page.",
+    "record": "Record expense",
+    "setup": "Categories and cost centres",
+    "setupTitle": "Expense categories and cost centres",
+    "setupHint": "Categories are yours to define; each sits in a P&L group. A cost centre can belong to one branch or be shared (e.g. head office).",
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "category": "Category",
+    "allCategories": "All categories",
+    "date": "Date",
+    "description": "Description",
+    "reference": "Supplier invoice or receipt no.",
+    "net": "Net",
+    "tax": "VAT",
+    "taxHint": "As on the supplier's document; leave empty if none.",
+    "gross": "Gross",
+    "costCentre": "Cost centre",
+    "supplier": "Supplier",
+    "number": "Number",
+    "empty": "No expenses in this period.",
+    "totals": "Totals ({currency})",
+    "totalNet": "Total net",
+    "groups": {
+      "OCCUPANCY": "Occupancy (rent)",
+      "UTILITIES": "Utilities",
+      "STAFF": "Staff",
+      "MARKETING": "Marketing",
+      "REPAIRS": "Repairs and maintenance",
+      "ADMINISTRATION": "Administration",
+      "DELIVERY": "Delivery",
+      "OTHER": "Other"
+    },
+    "posted": "Posted",
+    "reversed": "Reversed",
+    "recordedBy": "Recorded",
+    "reversedBy": "Reversed",
+    "reverseReason": "Reason for reversing",
+    "reverse": "Reverse expense",
+    "reverseHint": "The expense stays on record, marked reversed, and leaves the totals.",
+    "categories": "Categories",
+    "costCentres": "Cost centres",
+    "code": "Code",
+    "name": "Name",
+    "nameAr": "Name (Arabic)",
+    "group": "P&L group",
+    "groupHint": "Where it shows in the branch P&L.",
+    "addCategory": "Add category",
+    "addCentre": "Add cost centre",
+    "centreBranchHint": "Leave empty for a cost centre shared across branches.",
+    "shared": "Shared",
+    "noCategories": "No expense categories yet.",
+    "noCentres": "No cost centres yet."
   }
 }

@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C4d kitchen performance — C4 complete; C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C5a operating expenses; C4d kitchen performance — C4 complete; C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,23 @@ Last updated: 2026-11-04 (C4d kitchen performance — C4 complete; C4c menu engi
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C5a — Cost centres, expense categories and operating expenses (built)
+
+Rules: DECISIONS.md ADR-109.
+
+| Area        | What works                                                                                                               | Where                                            |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| Set-up      | Your own expense categories, each in a P&L group; cost centres for one branch or shared; archive and restore             | Operating expenses → Categories and cost centres |
+| Expenses    | Per branch in its company currency: date, category, cost centre, supplier, reference, net, VAT, gross; receipts attached | Purchasing → Operating expenses                  |
+| Corrections | Never edited (database trigger); reversed with a reason, kept on record and out of the totals                            | expense page                                     |
+| Lists       | Filter by period, branch and category; totals per currency and P&L group; CSV and Excel                                  | Operating expenses                               |
+
+New permissions `expenses.view` and `expenses.manage` (branch-scopable): administrators and finance both, branch managers both at their branch, operations managers and analysts view.
+
+Not yet: expense VAT in the VAT summary and accounting export, foreign-currency expenses, approval of large expenses, recurring expenses, spreading one bill over months, expenses from supplier invoice charge lines.
+
+Checks: `pnpm check` pass (unit 355; new: gross = net + VAT, totals per P&L group without reversals); `pnpm test:integration` 485/485 pass (new: electricity 1 200 + 168 VAT and rent 15 000 at Cairo in EGP — totals 16 200 split occupancy 15 000 / utilities 1 200; duplicate category code refused; a Cairo cost centre refused for Giza; future dates and zero amounts refused; the database refuses an edit; reversal needs a reason, happens once and leaves the totals; archived categories refused; a Giza branch manager records only at Giza and sees only Giza; analysts view but cannot record; cashiers refused; other organizations refused); `pnpm test:e2e` 83/83 pass (new: add a utilities category, record electricity with VAT, see 1 368.00 gross and the utilities total, reverse it).
 
 ## C4d — Kitchen display performance (built)
 

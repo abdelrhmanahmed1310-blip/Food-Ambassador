@@ -39,6 +39,7 @@ export const ATTACHMENT_ENTITIES = [
   "QUOTATION",
   "FS_DOCUMENT_VERSION",
   "CALIBRATION",
+  "EXPENSE",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -111,6 +112,21 @@ async function accessTo(
         "invoices.view",
         "invoices.manage",
       );
+    case "EXPENSE": {
+      // A receipt or invoice for an operating expense (ADR-109), at its branch; not after reversal.
+      const e = await tx.expense.findFirst({
+        where: { organizationId: org, id: entityId },
+        select: { branchId: true, status: true },
+      });
+      if (!e || !hasPermission(ctx.grants, "expenses.view", { branchId: e.branchId }))
+        throw notFound("Document");
+      return {
+        view: true,
+        upload:
+          e.status === "POSTED" &&
+          hasPermission(ctx.grants, "expenses.manage", { branchId: e.branchId }),
+      };
+    }
     case "CALIBRATION": {
       // A calibration certificate (ADR-099), at the equipment's branch.
       const c = await tx.calibration.findFirst({
