@@ -40,7 +40,8 @@
 > **C5a built** (ADR-109): cost centres, expense categories and operating
 > expenses. **C5b built** (ADR-110): monthly branch budgets and budget
 > against actual. **C5c built** (ADR-111): branch P&L with stock losses,
-> margins and company totals. Next in C5: consolidation.
+> margins and company totals. **C5d built** (ADR-112): consolidated group
+> P&L in the group currency with intercompany elimination. C5 is complete.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

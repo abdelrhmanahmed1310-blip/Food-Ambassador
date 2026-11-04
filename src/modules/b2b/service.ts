@@ -159,6 +159,38 @@ export async function updateCustomerEInvoiceDetails(
   });
 }
 
+/**
+ * Mark a customer as one of the group's own companies, or clear it
+ * (ADR-112). Its invoices are then eliminated on consolidation.
+ */
+export async function setCustomerGroupCompany(
+  ctx: TenantContext,
+  customerId: string,
+  rawInput: unknown,
+) {
+  assertPermission(ctx.grants, "b2b.manage");
+  const parsed = z
+    .object({ companyId: z.union([z.literal(""), uuidSchema]).optional() })
+    .safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const companyId = parsed.data.companyId || null;
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    const c = await tx.customer.findFirst({
+      where: { organizationId: ctx.organizationId, id: customerId },
+    });
+    if (!c) throw notFound("Customer");
+    if (companyId) {
+      const company = await tx.company.findFirst({
+        where: { organizationId: ctx.organizationId, id: companyId },
+        select: { id: true },
+      });
+      if (!company) throw notFound("Company");
+    }
+    await tx.customer.update({ where: { id: c.id }, data: { groupCompanyId: companyId } });
+    await audit(tx, ctx, "customer", c, "group_company", { companyId });
+  });
+}
+
 export async function createCustomer(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "b2b.manage");
   const parsed = customerSchema.safeParse(rawInput);

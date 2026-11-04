@@ -1045,6 +1045,13 @@ no new tables — computed from POS orders, sales imports, B2B invoices,
 ledger entries and expenses. Permission `pnl.view` added to the system
 roles.
 
+Consolidation (C5d, ADR-112; migration `20270104090000_c5d_consolidation`):
+
+- **customers.group_company_id** (optional FK to companies): this customer
+  is one of the group's own companies; its invoices are eliminated on
+  consolidation. Permission `pnl.consolidated.view` added to the system
+  roles.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

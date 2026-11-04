@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C5c branch P&L; C5b branch budgets and budget against actual; C5a operating expenses; C4d kitchen performance — C4 complete; C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C5d consolidated P&L — C5 complete; C5c branch P&L; C5b branch budgets and budget against actual; C5a operating expenses; C4d kitchen performance — C4 complete; C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,24 @@ Last updated: 2026-11-04 (C5c branch P&L; C5b branch budgets and budget against 
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C5d — Consolidated group P&L (built)
+
+Rules: DECISIONS.md ADR-112.
+
+| Area          | What works                                                                                                               | Where                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| Consolidation | Each company's P&L converted into the group currency at the period's average rate; eliminations; group total and margins | Purchasing → Consolidated P&L     |
+| Missing rates | A company without a usable rate is left out of the total and named                                                       | Consolidated P&L                  |
+| Intercompany  | Mark a customer as one of the group's companies; its invoices come off sales and cost of sales                           | B2B customer page → Group company |
+| Local view    | Each company's sales, intercompany sales and operating result in its own currency                                        | Consolidated P&L                  |
+| Export        | CSV and Excel                                                                                                            | Consolidated P&L                  |
+
+New permission `pnl.consolidated.view` (organization-wide): administrators, finance, operations managers, analysts.
+
+Not yet: unrealized profit in stock, matching intercompany purchases, minority interests, closing-rate translation, consolidated balance sheet (no general ledger), consolidation by brand.
+
+Checks: `pnpm check` pass (unit 361; new: elimination against cost of sales leaves the result unchanged); `pnpm test:integration` 496/496 pass (new: SAR group — kitchen sells 10 kg at 50 to its sister company and 4 kg to a hotel, the sister sells the 10 kg for 800; Egypt rent 1 000 EGP at 0.075 = −75 SAR; a USD company without a rate left out and named; eliminations −500 sales and −500 cost; group sales 1 000, cost 420, gross profit 580 (58 %), operating result 505; CSV; unmarking the customer keeps 1 500 sales; analysts see it, branch-scoped managers refused; only managers of B2B can mark; other organizations' customers and companies refused); `pnpm test:e2e` 86/86 pass (new: an expense on the consolidated P&L; a customer marked as a group company).
 
 ## C5c — Branch profit and loss (built)
 

@@ -2829,6 +2829,35 @@ country for now, so no inter-company transfer is built.
   allocating head-office costs to branches, depreciation, staff costs
   from payroll, a P&L by brand or cost centre, PDF.
 
+### ADR-112 Consolidated group P&L — Accepted (C5d built)
+
+- **Each company's P&L** is the sum of its branches' figures from the
+  shared branch actuals (ADR-110, ADR-111), in the company's currency.
+- **Conversion** into the group currency (the organization's, ADR-086) at
+  the average of the period's rates for that currency, or the latest
+  earlier rate when the period has none — the rule every group report
+  uses. Each figure is converted, then the derived rows are recomputed. A
+  company whose currency has no usable rate is **left out of the group
+  total and named** on the report; no rate is assumed.
+- **Intercompany**: a customer can be marked as one of the group's own
+  companies (`customers.group_company_id`, set on the customer page with
+  `b2b.manage`). On consolidation, net sales invoiced to such customers
+  come off B2B and total net sales and, by the same amount, off cost of
+  sales — the buying company's cost of that stock. This is right when
+  the buyer has used or sold the stock in the period (usual for food);
+  **profit still held in the buyer's unsold stock is not eliminated**,
+  and the report says so. Transfers of stock between companies do not
+  exist (ADR-086), so there is nothing else to eliminate.
+- **Report**: one column per company (converted), eliminations, group
+  total with shares of sales; a table of each company in its own
+  currency with its intercompany sales. CSV and Excel.
+- **Permission** (new): `pnl.consolidated.view`, organization-wide only —
+  administrators, finance, operations managers and analysts.
+- **Not yet:** eliminating unrealized profit in stock, intercompany
+  purchases matched against the seller's invoices, minority interests,
+  closing-rate translation and translation differences, a consolidated
+  balance sheet (there is no general ledger), consolidation by brand.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

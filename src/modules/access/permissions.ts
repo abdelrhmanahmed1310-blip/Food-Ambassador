@@ -53,6 +53,7 @@ export const PERMISSIONS = [
   "expenses.manage",
   "budgets.view",
   "pnl.view",
+  "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
   "nutrition.manage",
@@ -194,6 +195,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     permissions: [
       "budgets.view",
       "pnl.view",
+      "pnl.consolidated.view",
       "expenses.view",
       "hr.view",
       "pos.sell",
@@ -323,6 +325,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     permissions: [
       "budgets.view",
       "pnl.view",
+      "pnl.consolidated.view",
       "budgets.manage",
       "expenses.view",
       "expenses.manage",
@@ -409,6 +412,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     permissions: [
       "budgets.view",
       "pnl.view",
+      "pnl.consolidated.view",
       "expenses.view",
       "pos.view",
       "menu.view",

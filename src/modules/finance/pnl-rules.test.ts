@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
-import { pnlColumn, sumFigures } from "./pnl-rules";
+import { eliminations, pnlColumn, sumFigures } from "./pnl-rules";
 
 describe("branch P&L rules (ADR-111)", () => {
   it("fills what did not happen with zero and gives each row as a share of sales", () => {
@@ -42,5 +42,21 @@ describe("branch P&L rules (ADR-111)", () => {
       "-2",
       "1",
     ]);
+  });
+
+  it("eliminates intercompany sales against cost of sales, leaving the result (ADR-112)", () => {
+    // A sells to B for 100 (cost 60); B uses it all, so B's cost of sales has the 100.
+    const group = sumFigures([
+      { SALES: new Decimal(100), SALES_B2B: new Decimal(100), COST_OF_SALES: new Decimal(60) },
+      { SALES: new Decimal(300), SALES_POS: new Decimal(300), COST_OF_SALES: new Decimal(100) },
+      eliminations(new Decimal(100)),
+    ]);
+    const c = pnlColumn(group);
+    expect(
+      [c.values.SALES, c.values.SALES_B2B, c.values.COST_OF_SALES, c.values.GROSS_PROFIT].map((v) =>
+        v.toFixed(),
+      ),
+    ).toEqual(["300", "0", "60", "240"]);
+    expect(pnlColumn(eliminations(new Decimal(100))).values.OPERATING_RESULT.toFixed()).toBe("0");
   });
 });

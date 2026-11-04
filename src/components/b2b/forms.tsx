@@ -373,3 +373,28 @@ export function EInvoiceDetailsForm({
     </ActionForm>
   );
 }
+
+/** Whether this customer is one of the group's own companies (ADR-112). */
+export function GroupCompanyForm({
+  action,
+  companies,
+  value,
+}: {
+  action: Action;
+  companies: Option[];
+  value: string;
+}) {
+  const t = useTranslations();
+  return (
+    <ActionForm action={action} submitLabel={t("common.save")} pendingLabel={t("common.saving")}>
+      <SelectField
+        name="companyId"
+        label={t("b2b.groupCompany")}
+        hint={t("b2b.groupCompanyHint")}
+        defaultValue={value}
+        placeholder={t("b2b.notGroupCompany")}
+        options={companies}
+      />
+    </ActionForm>
+  );
+}

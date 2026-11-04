@@ -19,7 +19,8 @@ import type { ExpenseGroup } from "./expense-rules";
  *   net of their reversals (as the waste report, ADR-041), on the day in
  *   the branch's time zone; stock found reduces it.
  * - Expense groups: posted operating expenses' net (expense date).
- * Sales are also given by source (SALES_POS, SALES_IMPORTED, SALES_B2B).
+ * Sales are also given by source (SALES_POS, SALES_IMPORTED, SALES_B2B),
+ * and INTERCOMPANY_SALES is the B2B net invoiced to group companies.
  * Months are "YYYY-MM". Callers check permissions.
  */
 
@@ -51,6 +52,7 @@ export async function branchActualsInTx(
     m: string;
     net: Prisma.Decimal | null;
     cost: Prisma.Decimal | null;
+    ic?: Prisma.Decimal | null;
   };
   const [pos, imports, b2b, expenses, losses] = await Promise.all([
     tx.$queryRaw<Row[]>`
@@ -86,8 +88,10 @@ export async function branchActualsInTx(
       GROUP BY 1, 2`,
     tx.$queryRaw<Row[]>`
       SELECT w.branch_id, to_char(si.invoice_date, 'YYYY-MM') AS m,
-             SUM(si.net_amount_base) AS net, SUM(si.cost) AS cost
+             SUM(si.net_amount_base) AS net, SUM(si.cost) AS cost,
+             SUM(CASE WHEN c.group_company_id IS NOT NULL THEN si.net_amount_base ELSE 0 END) AS ic
       FROM sales_invoices si
+      JOIN customers c ON c.id = si.customer_id
       JOIN customer_deliveries d ON d.id = si.delivery_id
       JOIN sales_orders so ON so.id = d.order_id
       JOIN warehouses w ON w.id = so.warehouse_id
@@ -131,6 +135,7 @@ export async function branchActualsInTx(
   sales(pos, "SALES_POS");
   sales(imports, "SALES_IMPORTED");
   sales(b2b, "SALES_B2B");
+  for (const r of b2b) add(r.branch_id, r.m, "INTERCOMPANY_SALES", dec(r.ic));
   for (const r of expenses) add(r.branch_id, r.m, r.grp, dec(r.net));
   for (const r of losses) add(r.branch_id, r.m, "STOCK_LOSSES", dec(r.value));
   return out;

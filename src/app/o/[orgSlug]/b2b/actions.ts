@@ -1,5 +1,7 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
+
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/forms/action-state";
 import { recordCustomerReceipt, voidCustomerReceipt } from "@/modules/b2b/receivables";
@@ -15,6 +17,7 @@ import {
   removeSalesOrderLine,
   reverseDelivery,
   updateCustomerEInvoiceDetails,
+  setCustomerGroupCompany,
 } from "@/modules/b2b/service";
 import { clearSalesInvoice } from "@/modules/zatca/service";
 import { formValues } from "@/server/actions/handle";
@@ -187,4 +190,17 @@ export async function updateEInvoiceDetailsAction(
   return tenantMutation(orgSlug, previous, formData, (ctx) =>
     updateCustomerEInvoiceDetails(ctx, customerId, formValues(formData)),
   );
+}
+
+export async function setGroupCompanyAction(
+  orgSlug: string,
+  customerId: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("common");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await setCustomerGroupCompany(ctx, customerId, formValues(formData));
+    return { message: t("savedSuccessfully") };
+  });
 }

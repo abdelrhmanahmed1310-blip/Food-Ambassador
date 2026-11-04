@@ -4635,11 +4635,14 @@ model Customer {
   paymentTermsDays Int?      @map("payment_terms_days")
   /// Default currency of this customer's orders, invoices and receipts (ADR-054); null = base.
   currency         String?   @db.Char(3)
+  /// This customer is one of the group's own companies (ADR-112): its invoices are eliminated on consolidation.
+  groupCompanyId   String?   @map("group_company_id") @db.Uuid
   archivedAt       DateTime? @map("archived_at") @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  groupCompany       Company?            @relation("CustomerGroupCompany", fields: [organizationId, groupCompanyId], references: [organizationId, id], onDelete: Restrict)
   orders             SalesOrder[]
   invoices           SalesInvoice[]
   receipts           CustomerReceipt[]
@@ -6686,6 +6689,7 @@ model Company {
   settlements      SupplierSettlement[]
   fxRevaluations   FxRevaluation[]
   customerReceipts CustomerReceipt[]
+  asGroupCustomers Customer[]           @relation("CustomerGroupCompany")
   apiClients       ApiClient[]
 
   @@unique([organizationId, id])

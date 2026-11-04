@@ -177,7 +177,8 @@
     "kitchenReport": "Kitchen performance",
     "expenses": "Operating expenses",
     "budgets": "Budgets",
-    "branchPnl": "Branch P&L"
+    "branchPnl": "Branch P&L",
+    "consolidatedPnl": "Consolidated P&L"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -966,7 +967,8 @@
       "expenses.manage": "Record and reverse operating expenses",
       "budgets.view": "View branch budgets and budget against actual",
       "budgets.manage": "Set branch budgets",
-      "pnl.view": "View branch profit and loss"
+      "pnl.view": "View branch profit and loss",
+      "pnl.consolidated.view": "View the consolidated group profit and loss"
     }
   },
   "audit": {
@@ -2807,7 +2809,11 @@
     "buildingNumberHint": "4 digits.",
     "district": "District",
     "city": "City",
-    "postalCode": "Postal code"
+    "postalCode": "Postal code",
+    "groupCompanyTitle": "Group company",
+    "groupCompany": "This customer is our company",
+    "groupCompanyHint": "Sales to the group's own companies are taken out of the consolidated P&L.",
+    "notGroupCompany": "Not a group company"
   },
   "integrations": {
     "title": "Integrations",
@@ -5615,5 +5621,19 @@
       "OPERATING_RESULT": "Operating result",
       "STOCK_LOSSES": "Stock losses (waste and count differences)"
     }
+  },
+  "consolidated": {
+    "title": "Consolidated P&L",
+    "hint": "The group's profit and loss across companies, converted into {currency} at each period's average rate, with sales between group companies taken out.",
+    "statement": "{from} to {to} ({currency})",
+    "eliminations": "Eliminations",
+    "group": "Group",
+    "missingRates": "No exchange rate for {currencies}: {companies} left out of the group total. Add rates under exchange rates.",
+    "note": "Each company's figures are converted at the average of the period's rates (the latest earlier rate when there is none). Sales invoiced to customers marked as group companies are taken off net sales and off cost of sales — the buying company's cost of that stock. Profit still held in the buyer's unsold stock is not taken out.",
+    "localTitle": "Companies in their own currency",
+    "company": "Company",
+    "intercompany": "Sales to group companies",
+    "inGroup": "Operating result ({currency})",
+    "noRate": "No rate"
   }
 }
