@@ -51,7 +51,8 @@ export type AttentionKey =
   | "EQUIPMENT_OVERDUE"
   | "EQUIPMENT_DUE_SOON"
   | "EQUIPMENT_OUT_OF_SERVICE"
-  | "INSPECTIONS_WAITING";
+  | "INSPECTIONS_WAITING"
+  | "IMPORT_SHIPMENTS_LATE";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -597,6 +598,28 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         }),
         href: "/inventory/inspections",
       });
+
+    // Import shipments past their ETA and not yet arrived (ADR-113).
+    const trade = warehouseWhere(ctx, "trade.view");
+    if (trade) {
+      const late = await tx.importShipment.findMany({
+        where: {
+          organizationId: org,
+          status: { in: ["PLANNED", "IN_TRANSIT"] },
+          eta: { lt: todayDate },
+          warehouse: trade,
+        },
+        select: { id: true, number: true },
+        orderBy: { eta: "asc" },
+      });
+      push({
+        key: "IMPORT_SHIPMENTS_LATE",
+        tone: "warning",
+        count: late.length,
+        href: "/trade/shipments?status=OPEN",
+        links: late.slice(0, 5).map((x) => ({ label: x.number, href: `/trade/shipments/${x.id}` })),
+      });
+    }
 
     const order = { danger: 0, warning: 1, info: 2 };
     return items.sort((a, b) => order[a.tone] - order[b.tone]);

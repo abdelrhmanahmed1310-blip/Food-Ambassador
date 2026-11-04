@@ -1052,6 +1052,24 @@ Consolidation (C5d, ADR-112; migration `20270104090000_c5d_consolidation`):
   consolidation. Permission `pnl.consolidated.view` added to the system
   roles.
 
+Import shipments (C6a, ADR-113; migration `20270105090000_c6a_import_shipments`):
+
+- **products** gain `hs_code` (6–12 digits — check) and `origin_country`
+  (ISO alpha-2).
+- **import_shipments**: `number` (IMP-YYYY-n), supplier, destination
+  warehouse, company, `status` (`PLANNED` | `IN_TRANSIT` | `ARRIVED` |
+  `CLEARED` | `CLOSED` | `CANCELLED`), `mode` (`SEA` | `AIR` | `ROAD` |
+  `RAIL` | `COURIER`), `incoterm` (Incoterms 2020), origin, ports,
+  carrier, transport document, vessel or flight, `etd`/`eta`,
+  `departed_on`/`arrived_on`/`cleared_on` (in order — check), closed and
+  cancelled at, cancel reason (required when cancelled — check), note.
+- **import_shipment_orders**: shipment × purchase order (UQ).
+- **import_shipment_containers**: ISO 6346 `number` (UQ per shipment),
+  `type`, seal, `temperature_c` (−60 to 40).
+- **goods_receipts.import_shipment_id**: the shipment a receipt came on.
+- **attachments.entity_type** gains `IMPORT_SHIPMENT`; permissions
+  `trade.view` and `trade.manage` added to the system roles.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

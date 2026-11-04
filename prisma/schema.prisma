@@ -335,6 +335,10 @@ model Organization {
   expenses                     Expense[]
   branchBudgets                BranchBudget[]
 
+  importShipments          ImportShipment[]
+  importShipmentOrders     ImportShipmentOrder[]
+  importShipmentContainers ImportShipmentContainer[]
+
   @@map("organizations")
 }
 
@@ -594,6 +598,8 @@ model Warehouse {
   pickLists          PickList[]
   loads              Load[]
 
+  importShipments ImportShipment[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@index([organizationId, branchId])
@@ -760,6 +766,10 @@ model Product {
   storageRequirement TemperatureZone @default(AMBIENT) @map("storage_requirement")
   /// Receipts go to quarantine until a receiving inspection releases them (ADR-101).
   inspectOnReceipt   Boolean         @default(false) @map("inspect_on_receipt")
+  /// Customs tariff code as the user's broker uses it (ADR-113): 6–12 digits; no tariff data is shipped.
+  hsCode             String?         @map("hs_code")
+  /// Country of origin, ISO 3166-1 alpha-2 (ADR-113).
+  originCountry      String?         @map("origin_country") @db.Char(2)
   /// Optional grouping for lists, reports and reorder planning (flat list, Q-13 default).
   categoryId         String?         @map("category_id") @db.Uuid
   archivedAt         DateTime?       @map("archived_at") @db.Timestamptz(3)
@@ -1281,6 +1291,7 @@ enum AttachmentEntity {
   FS_DOCUMENT_VERSION
   CALIBRATION
   EXPENSE
+  IMPORT_SHIPMENT
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -1427,6 +1438,8 @@ model Supplier {
   settlements        SupplierSettlement[]
   fxRevaluationLines FxRevaluationLine[]
   expenses           Expense[]
+
+  importShipments ImportShipment[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1624,6 +1637,8 @@ model PurchaseOrder {
 
   company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
 
+  importShipmentOrders ImportShipmentOrder[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, status])
@@ -1770,6 +1785,8 @@ model GoodsReceipt {
   supplierId          String             @map("supplier_id") @db.Uuid
   warehouseId         String             @map("warehouse_id") @db.Uuid
   locationId          String?            @map("location_id") @db.Uuid
+  /// The import shipment this delivery came on (ADR-113).
+  importShipmentId    String?            @map("import_shipment_id") @db.Uuid
   status              GoodsReceiptStatus @default(POSTED)
   /// Stock posting; null when every line was rejected.
   inventoryDocumentId String?            @map("inventory_document_id") @db.Uuid
@@ -1798,6 +1815,8 @@ model GoodsReceipt {
   landedCosts   LandedCost[]
 
   company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+
+  importShipment ImportShipment? @relation(fields: [organizationId, importShipmentId], references: [organizationId, id], onDelete: Restrict)
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -6692,6 +6711,8 @@ model Company {
   asGroupCustomers Customer[]           @relation("CustomerGroupCompany")
   apiClients       ApiClient[]
 
+  importShipments ImportShipment[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@map("companies")
@@ -6812,4 +6833,131 @@ model ApiClient {
 
   @@unique([organizationId, id])
   @@map("api_clients")
+}
+
+// ─── C6a import shipments (ADR-113) ───
+
+enum ImportShipmentStatus {
+  PLANNED
+  IN_TRANSIT
+  ARRIVED
+  CLEARED
+  CLOSED
+  CANCELLED
+}
+
+enum TransportMode {
+  SEA
+  AIR
+  ROAD
+  RAIL
+  COURIER
+}
+
+/// Incoterms 2020.
+enum Incoterm {
+  EXW
+  FCA
+  FAS
+  FOB
+  CFR
+  CIF
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+}
+
+enum ContainerType {
+  DRY_20
+  DRY_40
+  HIGH_CUBE_40
+  REEFER_20
+  REEFER_40
+  OTHER
+}
+
+/// Goods bought abroad travelling to one warehouse, from order to receipt (ADR-113).
+model ImportShipment {
+  id                String               @id @default(uuid(7)) @db.Uuid
+  organizationId    String               @map("organization_id") @db.Uuid
+  number            String
+  supplierId        String               @map("supplier_id") @db.Uuid
+  /// Destination warehouse; the shipment belongs to its branch's company.
+  warehouseId       String               @map("warehouse_id") @db.Uuid
+  companyId         String               @map("company_id") @db.Uuid
+  status            ImportShipmentStatus @default(PLANNED)
+  mode              TransportMode
+  incoterm          Incoterm?
+  originCountry     String?              @map("origin_country") @db.Char(2)
+  portOfLoading     String?              @map("port_of_loading")
+  portOfDischarge   String?              @map("port_of_discharge")
+  carrier           String?
+  /// Bill of lading, air waybill or consignment note number.
+  transportDocument String?              @map("transport_document")
+  vesselOrFlight    String?              @map("vessel_or_flight")
+  etd               DateTime?            @db.Date
+  eta               DateTime?            @db.Date
+  departedOn        DateTime?            @map("departed_on") @db.Date
+  arrivedOn         DateTime?            @map("arrived_on") @db.Date
+  clearedOn         DateTime?            @map("cleared_on") @db.Date
+  closedAt          DateTime?            @map("closed_at") @db.Timestamptz(3)
+  cancelledAt       DateTime?            @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason      String?              @map("cancel_reason")
+  note              String?
+  createdByUserId   String               @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier                  @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse                 @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  company      Company                   @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+  orders       ImportShipmentOrder[]
+  containers   ImportShipmentContainer[]
+  receipts     GoodsReceipt[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, status, eta])
+  @@map("import_shipments")
+}
+
+/// A purchase order (or part of one) travelling on the shipment.
+model ImportShipmentOrder {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  shipmentId      String   @map("shipment_id") @db.Uuid
+  purchaseOrderId String   @map("purchase_order_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shipment      ImportShipment @relation(fields: [organizationId, shipmentId], references: [organizationId, id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder  @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, shipmentId, purchaseOrderId])
+  @@index([organizationId, purchaseOrderId])
+  @@map("import_shipment_orders")
+}
+
+model ImportShipmentContainer {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  shipmentId     String        @map("shipment_id") @db.Uuid
+  /// ISO 6346 container number, check digit verified.
+  number         String
+  type           ContainerType
+  sealNumber     String?       @map("seal_number")
+  /// Set point of a reefer, °C.
+  temperatureC   Decimal?      @map("temperature_c") @db.Decimal(5, 1)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shipment     ImportShipment @relation(fields: [organizationId, shipmentId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, shipmentId, number])
+  @@map("import_shipment_containers")
 }

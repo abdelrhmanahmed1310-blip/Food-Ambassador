@@ -123,6 +123,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/purchasing/invoices`, label: t("supplierInvoices") },
       { href: `${base}/purchasing/payables`, label: t("payables") },
     );
+  // Import shipments (ADR-113).
+  if (holdsAnyGrant(ctx.grants, "trade.view"))
+    purchasing.items.push({ href: `${base}/trade/shipments`, label: t("importShipments") });
   // Operating expenses (ADR-109).
   if (holdsAnyGrant(ctx.grants, "expenses.view"))
     purchasing.items.push({ href: `${base}/finance/expenses`, label: t("expenses") });

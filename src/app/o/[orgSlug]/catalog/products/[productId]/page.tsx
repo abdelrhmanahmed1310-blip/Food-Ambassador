@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { formatHsCode } from "@/modules/trade/rules";
+import { countryOptions } from "@/lib/countries";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
@@ -97,6 +99,7 @@ export default async function ProductPage({
         {canManage ? (
           <Card title={t("catalog.editProduct")}>
             <ProductForm
+              countries={countryOptions(locale)}
               action={updateProductAction.bind(null, orgSlug, productId)}
               units={unitOptions(units, locale)}
               categories={categoryOptions(
@@ -118,6 +121,8 @@ export default async function ProductPage({
                 shelfLifeDays: product.shelfLifeDays?.toString() ?? "",
                 storageRequirement: product.storageRequirement,
                 inspectOnReceipt: String(product.inspectOnReceipt),
+                hsCode: product.hsCode ? formatHsCode(product.hsCode) : "",
+                originCountry: product.originCountry ?? "",
                 categoryId: product.categoryId ?? "",
               }}
             />
@@ -144,6 +149,15 @@ export default async function ProductPage({
                   label: t("catalog.inspectOnReceipt"),
                   value: product.inspectOnReceipt ? t("common.yes") : t("common.no"),
                 },
+                {
+                  label: t("catalog.hsCode"),
+                  value: product.hsCode ? (
+                    <span className="ltr-value font-mono">{formatHsCode(product.hsCode)}</span>
+                  ) : (
+                    "—"
+                  ),
+                },
+                { label: t("catalog.originCountry"), value: product.originCountry ?? "—" },
               ]}
             />
           </Card>

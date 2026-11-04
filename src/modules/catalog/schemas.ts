@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { isCountryCode } from "@/lib/countries";
+import { isValidHsCode, normalizeHsCode } from "@/modules/trade/rules";
 import { decimalString } from "@/lib/decimal";
 import {
   codeSchema,
@@ -47,6 +49,18 @@ export const productSchema = z.object({
   shelfLifeDays: optionalPositiveInt,
   storageRequirement: z.enum(STORAGE_ZONES, { error: "invalidOption" }).default("AMBIENT"),
   categoryId: optionalUuidSchema,
+  /** Customs tariff code (ADR-113): dots and spaces dropped; empty clears; left out = unchanged. */
+  hsCode: z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : normalizeHsCode(v) || null))
+    .refine((v) => v == null || isValidHsCode(v), { error: "invalidHsCode" }),
+  /** Country of origin, ISO 3166-1 alpha-2 (ADR-113). */
+  originCountry: z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v.trim().toUpperCase() || null))
+    .refine((v) => v == null || isCountryCode(v), { error: "invalidOption" }),
   /** Receipts go to quarantine for inspection (ADR-101). Left out = unchanged (new: no). */
   inspectOnReceipt: z
     .union([z.boolean(), z.enum(["on", "true", "false"], { error: "invalidOption" })])

@@ -178,6 +178,8 @@ export async function findProduct(tx: Tx, ctx: TenantContext, productId: string)
       categoryId: true,
       shelfLifeDays: true,
       baseUomId: true,
+      hsCode: true,
+      originCountry: true,
       baseUom: { select: unitSelect },
       barcodes: {
         select: { id: true, barcode: true, symbology: true, uom: { select: { code: true } } },
@@ -334,6 +336,8 @@ export async function updateProduct(
           storageRequirement: before.storageRequirement,
           categoryId: before.categoryId,
           inspectOnReceipt: before.inspectOnReceipt,
+          hsCode: before.hsCode,
+          originCountry: before.originCountry,
         },
         input,
       );

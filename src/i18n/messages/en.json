@@ -178,7 +178,8 @@
     "expenses": "Operating expenses",
     "budgets": "Budgets",
     "branchPnl": "Branch P&L",
-    "consolidatedPnl": "Consolidated P&L"
+    "consolidatedPnl": "Consolidated P&L",
+    "importShipments": "Import shipments"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -304,7 +305,11 @@
     "respondAfterNeeded": "Quotes must be wanted on or before the day the goods are needed.",
     "invalidQuantity": "Enter a quantity greater than zero.",
     "invalidRange": "The maximum is below the minimum.",
-    "invalidMinutes": "Enter a whole number of minutes (1–10080)."
+    "invalidMinutes": "Enter a whole number of minutes (1–10080).",
+    "invalidHsCode": "Use 6 to 12 digits; dots and spaces are allowed.",
+    "invalidContainerNumber": "Not a valid ISO 6346 container number (check the check digit).",
+    "temperatureReeferOnly": "Only reefer containers have a set point.",
+    "etaBeforeEtd": "The expected arrival is before the departure."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -335,7 +340,9 @@
     "phoneTaken": "A customer already has this phone number.",
     "productOnRfq": "This product is already on the request.",
     "supplierOnRfq": "This supplier is already asked.",
-    "lineOnReturn": "This receipt line is already on the return."
+    "lineOnReturn": "This receipt line is already on the return.",
+    "containerTaken": "This container is already on the shipment.",
+    "orderTaken": "This order is already on the shipment."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -726,7 +733,19 @@
     "LOAD_NOT_FULLY_LOADED": "{missing} unit(s) not loaded yet: {units}.",
     "VEHICLE_TEMPERATURE_REQUIRED": "Record the vehicle temperature: the load carries chilled or frozen goods.",
     "COST_CENTRE_OTHER_BRANCH": "The cost centre belongs to another branch.",
-    "EXPENSE_REVERSED": "The expense was already reversed."
+    "EXPENSE_REVERSED": "The expense was already reversed.",
+    "SHIPMENT_NOT_EDITABLE": "The shipment has been cleared or closed and can no longer change.",
+    "SHIPMENT_NOT_CANCELLABLE": "Only shipments that have not arrived can be cancelled.",
+    "SHIPMENT_NOT_ADVANCEABLE": "There is no next step for this shipment.",
+    "SHIPMENT_HAS_NO_ORDERS": "Add the purchase orders on this shipment first.",
+    "SHIPMENT_NOT_ARRIVED": "Receipts can be linked once the shipment has arrived.",
+    "ORDER_OTHER_SUPPLIER_OR_WAREHOUSE": "The order is for another supplier or warehouse.",
+    "ORDER_NOT_OPEN": "Only approved orders still to be received can travel.",
+    "ORDER_HAS_SHIPMENT_RECEIPTS": "Receipts of this order are linked to the shipment.",
+    "RECEIPT_ORDER_NOT_ON_SHIPMENT": "The receipt is for an order that is not on this shipment.",
+    "RECEIPT_REVERSED": "The receipt was reversed.",
+    "RECEIPT_ON_OTHER_SHIPMENT": "The receipt is linked to another shipment.",
+    "DATE_BEFORE_PREVIOUS_STEP": "The date is before the previous step."
   },
   "notFound": {
     "title": "Page not found",
@@ -968,7 +987,9 @@
       "budgets.view": "View branch budgets and budget against actual",
       "budgets.manage": "Set branch budgets",
       "pnl.view": "View branch profit and loss",
-      "pnl.consolidated.view": "View the consolidated group profit and loss"
+      "pnl.consolidated.view": "View the consolidated group profit and loss",
+      "trade.view": "View import shipments",
+      "trade.manage": "Create and track import shipments"
     }
   },
   "audit": {
@@ -1110,7 +1131,10 @@
     "categoryCode": "Code",
     "categoryName": "Name",
     "categoryArchiveHint": "Archived categories cannot be assigned to products; products keep them until changed.",
-    "inspectOnReceipt": "Inspect on receipt (received goods wait in quarantine)"
+    "inspectOnReceipt": "Inspect on receipt (received goods wait in quarantine)",
+    "hsCode": "HS code",
+    "hsCodeHint": "The tariff code your customs broker uses, 6 to 12 digits.",
+    "originCountry": "Country of origin"
   },
   "import": {
     "title": "Import",
@@ -2666,7 +2690,8 @@
       "EQUIPMENT_OVERDUE": "{count, plural, one {# piece of equipment overdue for calibration or maintenance} other {# pieces of equipment overdue for calibration or maintenance}}",
       "EQUIPMENT_DUE_SOON": "{count, plural, one {# piece of equipment due for calibration or maintenance within 30 days} other {# pieces of equipment due within 30 days}}",
       "EQUIPMENT_OUT_OF_SERVICE": "{count, plural, one {# piece of equipment out of service} other {# pieces of equipment out of service}}",
-      "INSPECTIONS_WAITING": "{count, plural, one {# receipt line waiting for inspection} other {# receipt lines waiting for inspection}}"
+      "INSPECTIONS_WAITING": "{count, plural, one {# receipt line waiting for inspection} other {# receipt lines waiting for inspection}}",
+      "IMPORT_SHIPMENTS_LATE": "{count, plural, one {# import shipment late} other {# import shipments late}}"
     }
   },
   "production": {
@@ -5635,5 +5660,93 @@
     "intercompany": "Sales to group companies",
     "inGroup": "Operating result ({currency})",
     "noRate": "No rate"
+  },
+  "trade": {
+    "title": "Import shipments",
+    "hint": "Goods bought abroad on their way to a warehouse: orders, containers, transport documents and dates, until received.",
+    "new": "New import shipment",
+    "newHint": "Choose the supplier and the warehouse the goods go to; add orders and containers next.",
+    "create": "Create shipment",
+    "detailHint": "Track the shipment step by step and link the receipts that took the goods in.",
+    "status": "Status",
+    "open": "Open",
+    "all": "All",
+    "show": "Show",
+    "empty": "No import shipments.",
+    "number": "Number",
+    "supplier": "Supplier",
+    "warehouse": "Destination warehouse",
+    "company": "Company",
+    "mode": "Transport",
+    "incoterm": "Incoterm",
+    "originCountry": "Country of origin",
+    "portOfLoading": "Port of loading",
+    "portOfDischarge": "Port of discharge",
+    "route": "Route",
+    "carrier": "Carrier",
+    "transportDocument": "Bill of lading / air waybill",
+    "vesselOrFlight": "Vessel or flight",
+    "etd": "Expected departure",
+    "eta": "Expected arrival",
+    "departedOn": "Departed",
+    "arrivedOn": "Arrived",
+    "clearedOn": "Cleared",
+    "note": "Note",
+    "daysLate": "{days, plural, one {# day late} other {# days late}}",
+    "cancelReason": "Reason for cancelling",
+    "cancel": "Cancel shipment",
+    "editTitle": "Transport details",
+    "orders": "Purchase orders",
+    "noOrders": "No orders on this shipment yet.",
+    "order": "Order",
+    "orderStatus": "Order status",
+    "received": "Received",
+    "addOrder": "Approved order from this supplier to this warehouse",
+    "link": "Link",
+    "unlink": "Remove",
+    "containers": "Containers",
+    "noContainers": "No containers.",
+    "containerNumber": "Container number",
+    "containerNumberHint": "ISO 6346, e.g. CSQU3054383 — the check digit is verified.",
+    "containerType": "Type",
+    "sealNumber": "Seal number",
+    "temperature": "Set point (°C)",
+    "temperatureHint": "Reefer containers only.",
+    "addContainer": "Add container",
+    "remove": "Remove",
+    "receipts": "Receipts",
+    "noReceipts": "No receipts linked.",
+    "addReceipt": "Posted receipt of one of these orders",
+    "stepDate": "Date",
+    "stepDateHint": "Today when left empty.",
+    "steps": {
+      "IN_TRANSIT": "Mark as departed",
+      "ARRIVED": "Mark as arrived",
+      "CLEARED": "Mark as cleared by customs",
+      "CLOSED": "Close shipment"
+    },
+    "statuses": {
+      "PLANNED": "Planned",
+      "IN_TRANSIT": "In transit",
+      "ARRIVED": "Arrived",
+      "CLEARED": "Cleared",
+      "CLOSED": "Closed",
+      "CANCELLED": "Cancelled"
+    },
+    "modes": {
+      "SEA": "Sea",
+      "AIR": "Air",
+      "ROAD": "Road",
+      "RAIL": "Rail",
+      "COURIER": "Courier"
+    },
+    "containerTypes": {
+      "DRY_20": "20′ dry",
+      "DRY_40": "40′ dry",
+      "HIGH_CUBE_40": "40′ high cube",
+      "REEFER_20": "20′ reefer",
+      "REEFER_40": "40′ reefer",
+      "OTHER": "Other"
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { countryOptions } from "@/lib/countries";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ProductForm } from "@/components/inventory/forms";
 import { Card, PageHeader } from "@/components/ui/primitives";
@@ -26,6 +27,7 @@ export default async function NewProductPage({
       <PageHeader title={t("catalog.newProductTitle")} />
       <Card>
         <ProductForm
+          countries={countryOptions(locale)}
           action={createProductAction.bind(null, orgSlug)}
           units={unitOptions(units, locale)}
           categories={categoryOptions(categories, locale)}

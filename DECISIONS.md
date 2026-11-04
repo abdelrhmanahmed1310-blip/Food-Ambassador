@@ -2858,6 +2858,47 @@ country for now, so no inter-company transfer is built.
   closing-rate translation and translation differences, a consolidated
   balance sheet (there is no general ledger), consolidation by brand.
 
+### ADR-113 Import shipments — Accepted (C6a built)
+
+C6 (trade) is built in parts: **C6a** import shipments, HS codes and
+origin; C6b trade documents and certificates with expiry and
+requirements per country; C6c customs entries (duty, freight, insurance)
+feeding landed cost over the shipment's receipts.
+
+- **Products** carry an optional **HS code** (the tariff code the user's
+  customs broker uses: 6–12 digits, typed with dots or spaces, stored as
+  digits) and **country of origin** (ISO 3166-1 alpha-2). No tariff
+  schedule or duty rate is shipped or assumed. The country list comes
+  from the runtime's CLDR data, not a list kept in the code.
+- **An import shipment** (`IMP-`) is goods from one supplier travelling to
+  one warehouse, and belongs to that warehouse's company: transport mode,
+  Incoterm (2020), origin, ports, carrier, bill of lading / air waybill,
+  vessel or flight, expected departure and arrival.
+- **Orders**: approved purchase orders from the same supplier to the same
+  warehouse, not fully received; one order may travel on several
+  shipments (split deliveries).
+- **Containers**: ISO 6346 numbers with the **check digit verified**,
+  type, seal, and a set point for reefers only (−60 to 40 °C).
+- **Steps**: planned → in transit (needs at least one order) → arrived →
+  cleared → closed, each dated (not in the future, not before the
+  previous step; the database checks the order of dates). Cancelling
+  needs a reason and is possible before arrival only. Details, orders
+  and containers change until cleared.
+- **Receipts**: after arrival, posted receipts of the shipment's orders
+  are linked to it (one shipment per receipt) — the set C6c spreads
+  duty and freight over. An order with linked receipts stays on the
+  shipment.
+- **Late**: past its expected arrival and not yet arrived — shown on the
+  list and in Needs attention.
+- Files (B/L scans, invoices) attach to the shipment (ADR-051).
+- **Permissions** (new): `trade.view` and `trade.manage`, scopable to
+  the destination warehouse or branch. Administrators and procurement
+  both; operations managers, warehouse, finance and analysts view.
+- **Not yet:** documents and certificates with expiry (C6b), customs
+  entries and landed cost from the shipment (C6c), carrier tracking
+  feeds, demurrage and detention, packing lists per container,
+  shipment-level quantities different from the orders.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

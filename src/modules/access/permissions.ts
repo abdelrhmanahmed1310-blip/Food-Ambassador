@@ -53,6 +53,8 @@ export const PERMISSIONS = [
   "expenses.manage",
   "budgets.view",
   "pnl.view",
+  "trade.view",
+  "trade.manage",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -123,6 +125,8 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "expenses.manage",
   "budgets.view",
   "pnl.view",
+  "trade.view",
+  "trade.manage",
 ]);
 
 /**
@@ -193,6 +197,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "trade.view",
       "budgets.view",
       "pnl.view",
       "pnl.consolidated.view",
@@ -250,6 +255,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Procurement",
     description: "Purchasing and supplier management.",
     permissions: [
+      "trade.view",
+      "trade.manage",
       ...VIEW_SITES,
       ...VIEW_STOCK,
       "catalog.manage",
@@ -276,6 +283,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Warehouse",
     description: "Receiving, storage and stock movements.",
     permissions: [
+      "trade.view",
       ...VIEW_SITES,
       ...VIEW_STOCK,
       "inventory.transfer",
@@ -323,6 +331,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
     permissions: [
+      "trade.view",
       "budgets.view",
       "pnl.view",
       "pnl.consolidated.view",
@@ -410,6 +419,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Read-only Analyst",
     description: "Read-only access to operational data.",
     permissions: [
+      "trade.view",
       "budgets.view",
       "pnl.view",
       "pnl.consolidated.view",

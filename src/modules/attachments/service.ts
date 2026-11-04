@@ -40,6 +40,7 @@ export const ATTACHMENT_ENTITIES = [
   "FS_DOCUMENT_VERSION",
   "CALIBRATION",
   "EXPENSE",
+  "IMPORT_SHIPMENT",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -125,6 +126,19 @@ async function accessTo(
         upload:
           e.status === "POSTED" &&
           hasPermission(ctx.grants, "expenses.manage", { branchId: e.branchId }),
+      };
+    }
+    case "IMPORT_SHIPMENT": {
+      // Transport and trade documents of an import shipment (ADR-113), at its warehouse.
+      const s = await tx.importShipment.findFirst({
+        where: { organizationId: org, id: entityId },
+        select: { warehouseId: true, status: true, warehouse: { select: { branchId: true } } },
+      });
+      const where = s ? { warehouseId: s.warehouseId, branchId: s.warehouse.branchId } : undefined;
+      if (!s || !hasPermission(ctx.grants, "trade.view", where)) throw notFound("Document");
+      return {
+        view: true,
+        upload: s.status !== "CANCELLED" && hasPermission(ctx.grants, "trade.manage", where),
       };
     }
     case "CALIBRATION": {

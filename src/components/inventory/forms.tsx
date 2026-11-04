@@ -78,10 +78,13 @@ export function ProductForm({
   locked = false,
   submitLabel,
   idempotent = false,
+  countries,
 }: {
   action: Action;
   units: Option[];
   categories?: Option[];
+  /** Shows HS code and country of origin (ADR-113). */
+  countries?: Option[];
   defaults?: Record<string, string | undefined>;
   /** Base unit and lot tracking are frozen once the product has stock history. */
   locked?: boolean;
@@ -175,6 +178,26 @@ export function ProductForm({
           optionalLabel={t("common.optional")}
         />
       </div>
+      {countries ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            name="hsCode"
+            label={t("catalog.hsCode")}
+            hint={t("catalog.hsCodeHint")}
+            defaultValue={defaults.hsCode}
+            dir="ltr"
+            optionalLabel={t("common.optional")}
+          />
+          <SelectField
+            name="originCountry"
+            label={t("catalog.originCountry")}
+            options={countries}
+            defaultValue={defaults.originCountry}
+            placeholder="—"
+            optionalLabel={t("common.optional")}
+          />
+        </div>
+      ) : null}
       {/* Unchecked boxes send nothing: the hidden "false" comes first, a ticked box overrides it. */}
       <input type="hidden" name="inspectOnReceipt" value="false" />
       <CheckboxField
