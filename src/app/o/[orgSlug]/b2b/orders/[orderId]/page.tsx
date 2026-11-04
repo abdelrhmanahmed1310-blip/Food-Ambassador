@@ -18,6 +18,7 @@ import {
 import { Decimal } from "@/lib/decimal";
 import { isUuid } from "@/lib/uuid";
 import { getSalesOrder } from "@/modules/b2b/service";
+import { createPickListAction } from "@/app/o/[orgSlug]/inventory/picking/actions";
 import { listProductOptions, listUnits } from "@/modules/catalog/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { invoiceFormOptions } from "@/modules/invoices/service";
@@ -171,7 +172,34 @@ export default async function SalesOrderPage({
             />
           </Card>
         ) : null}
-        {o.can.deliver && openLines.length > 0 ? (
+        {o.activePickList ? (
+          <Card title={t("picking.beingPicked")}>
+            <p className="text-sm">
+              <Link
+                href={`/o/${orgSlug}/inventory/picking/${o.activePickList.id}`}
+                className="ltr-value text-primary font-mono hover:underline"
+              >
+                {o.activePickList.number}
+              </Link>
+              {` · ${t(`picking.statuses.${o.activePickList.status}`)}`}
+            </p>
+          </Card>
+        ) : o.can.deliver &&
+          openLines.length > 0 &&
+          hasPermission(ctx.grants, "inventory.transfer", {
+            warehouseId: o.warehouse.id,
+            branchId: o.warehouse.branchId,
+          }) ? (
+          <Card title={t("picking.planTitle")}>
+            <p className="text-muted mb-3 text-sm">{t("picking.planHint")}</p>
+            <ConfirmActionButton
+              action={createPickListAction.bind(null, orgSlug, o.id)}
+              label={t("picking.plan")}
+              variant="secondary"
+            />
+          </Card>
+        ) : null}
+        {o.can.deliver && openLines.length > 0 && !o.activePickList ? (
           <Card title={t("b2b.deliver")}>
             <p className="text-muted mb-3 text-sm">{t("b2b.deliverHint")}</p>
             <DeliverForm

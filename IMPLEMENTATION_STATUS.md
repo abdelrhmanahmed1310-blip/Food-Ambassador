@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,22 @@ Last updated: 2026-11-04 (C3a receiving inspection and put-away; C2e compliance 
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C3b — Pick lists, waves and delivery from picked stock (built)
+
+Rules: DECISIONS.md ADR-102.
+
+| Area    | What works                                                                                                                                                   | Where               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| Plan    | Pick list per confirmed sales order: first-expiring first, picking before storage, never quarantine or dispatch, net of other open lists; shortages reported | sales order → Plan  |
+| Pick    | Picked quantity per line (short needs a reason); confirming moves the stock to the dispatch location at the product's temperature through the ledger         | Inventory → Picking |
+| Deliver | Delivers exactly the staged lots; plain delivery and order cancel refused while a list is open; dispatch stock no longer used by automatic consumption       | pick list page      |
+| Cancel  | Planned list releases its hold; picked list moves the stock back                                                                                             | pick list page      |
+| Waves   | Several orders of a warehouse planned together; consolidated sheet by place in walk order; pick sheets as PDF                                                | Inventory → Picking |
+
+Not yet: pick lists for branch shipments, packing and loading (C3c), scanning (C3d), reservations honoured by POS and production before picking, splitting a wave between pickers.
+
+Checks: `pnpm check` pass (unit 335; new: FEFO then picking-area order, quarantine/dispatch/expired/recalled/held stock skipped, walk order); `pnpm test:integration` 463/463 pass (new: an order for 15 kg plans 10 kg of the older lot from storage and 5 kg of the newer from the pick face, staged in the chilled dispatch bay; a second list, a plain delivery and cancelling the order are refused; an ambient product without an ambient dispatch area is refused; a wave for 20 kg plans the 15 kg left and reports 5 short; cancelling the planned list; picking needs a reason when short and every line; picked stock moves to dispatch and the plan is fixed in the database; a plain delivery of another order cannot use the staged stock; cashiers cannot deliver; delivery takes exactly the staged lots; cancelling a picked list moves the stock back; other organizations refused; existing B2B tests unchanged); `pnpm test:e2e` 76/76 pass (new: pick face and dispatch bay, sales order, plan pick list, pick sheet PDF, confirm pick, deliver, order delivered).
 
 ## C3a — Location zones, receiving inspection and directed put-away (built)
 

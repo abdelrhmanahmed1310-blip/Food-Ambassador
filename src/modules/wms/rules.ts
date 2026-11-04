@@ -110,3 +110,77 @@ export function inspectionOutcome(f: InspectionFacts):
   const decision = rejected.isZero() ? "ACCEPTED" : accepted.isZero() ? "REJECTED" : "PARTIAL";
   return { ok: true, accepted, rejected, decision };
 }
+
+// ─── Picking (ADR-102) ───
+
+/** Stock a pick may come from: never quarantine or dispatch areas. */
+export const PICK_SOURCE_ZONES: readonly (LocationZone | null)[] = [
+  "PICKING",
+  "STORAGE",
+  "RECEIVING",
+  null,
+];
+
+export interface PickCandidate {
+  key: string;
+  locationId: string | null;
+  locationCode: string | null;
+  zone: LocationZone | null;
+  lotId: string | null;
+  expiresOn: string | null;
+  bestBeforeOn: string | null;
+  firstReceivedAt: Date;
+  recallHold: boolean;
+  /** On hand minus what open pick lists already hold here. */
+  available: Decimal;
+}
+
+const nullsLast = (a: string | null, b: string | null) =>
+  a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? -1 : 1;
+
+/**
+ * Plan a pick: first-expiring stock first (expiry, best-before, oldest
+ * receipt), then picking before storage before receiving areas, then by
+ * location code. Expired, recalled, empty and non-source places are
+ * skipped. What cannot be planned is the shortfall.
+ */
+export function allocatePick(
+  candidates: readonly PickCandidate[],
+  requested: DecimalInput,
+  today: string,
+): { picks: Array<{ candidate: PickCandidate; quantity: Decimal }>; shortfall: Decimal } {
+  const rank = (z: LocationZone | null) => PICK_SOURCE_ZONES.indexOf(z);
+  const usable = candidates.filter(
+    (c) =>
+      rank(c.zone) >= 0 &&
+      !c.recallHold &&
+      c.available.gt(0) &&
+      !(c.expiresOn !== null && c.expiresOn < today),
+  );
+  usable.sort(
+    (a, b) =>
+      nullsLast(a.expiresOn, b.expiresOn) ||
+      nullsLast(a.bestBeforeOn, b.bestBeforeOn) ||
+      a.firstReceivedAt.getTime() - b.firstReceivedAt.getTime() ||
+      rank(a.zone) - rank(b.zone) ||
+      nullsLast(a.locationCode, b.locationCode),
+  );
+  let remaining = new Decimal(requested);
+  const picks: Array<{ candidate: PickCandidate; quantity: Decimal }> = [];
+  for (const c of usable) {
+    if (remaining.lte(0)) break;
+    const take = Decimal.min(c.available, remaining);
+    picks.push({ candidate: c, quantity: take });
+    remaining = remaining.minus(take);
+  }
+  return { picks, shortfall: Decimal.max(remaining, 0) };
+}
+
+/** Walk order for a pick sheet: by location code, stock without a location last. */
+export function walkOrder<T extends { locationCode: string | null; sku: string }>(
+  rows: readonly T[],
+): T[] {
+  return [...rows].sort(
+    (a, b) => nullsLast(a.locationCode, b.locationCode) || a.sku.localeCompare(b.sku),
+  );
+}

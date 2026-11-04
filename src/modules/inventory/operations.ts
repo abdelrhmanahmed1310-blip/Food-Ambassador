@@ -477,6 +477,79 @@ export async function postStatusChange(
   );
 }
 
+// ─── Picking moves (ADR-102) ───
+
+/**
+ * Move picked stock between locations of one warehouse in one TRANSFER
+ * document, inside the caller's transaction (to the dispatch location when
+ * picked, back when a picked list is cancelled). Base units, available
+ * stock; the lots must be usable.
+ */
+export async function postPickMovesInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  input: {
+    warehouseId: string;
+    moves: Array<{
+      productId: string;
+      lotId: string | null;
+      fromLocationId: string | null;
+      toLocationId: string | null;
+      quantity: Decimal;
+    }>;
+    note: string;
+  },
+): Promise<{ documentId: string; number: string }> {
+  const wh = await loadWarehouse(tx, ctx, input.warehouseId);
+  assertWarehousePermission(ctx, "inventory.transfer", wh);
+  assertActive(wh);
+  const today = todayFor(wh);
+  const documentId = uuidv7();
+  const lines: PostingLine[] = [];
+  for (const [i, m] of input.moves.entries()) {
+    const product = await loadProductForPosting(tx, ctx, m.productId);
+    const lot = await resolveExistingLot(tx, ctx, product, m.lotId ?? undefined);
+    assertUsable(lot, today);
+    const from = await loadLocation(tx, ctx, wh.id, m.fromLocationId ?? undefined, false);
+    const to = await loadLocation(tx, ctx, wh.id, m.toLocationId ?? undefined, true);
+    const common = {
+      productId: product.id,
+      lotId: lot?.id ?? null,
+      stockStatus: "AVAILABLE" as StockStatus,
+      quantity: m.quantity,
+      entered: m.quantity,
+      enteredUomId: product.baseUomId,
+      note: input.note,
+      warehouseId: wh.id,
+    };
+    const out = lines.length;
+    lines.push(
+      line(
+        { ...common, movementType: "TRANSFER_OUT", locationId: from, sign: -1 },
+        `pick:${documentId}:${i + 1}:out`,
+      ),
+      line(
+        { ...common, movementType: "TRANSFER_IN", locationId: to, sign: 1, costFromLine: out },
+        `pick:${documentId}:${i + 1}:in`,
+      ),
+    );
+  }
+  const result = await postDocument(
+    tx,
+    ctx,
+    {
+      id: documentId,
+      type: "TRANSFER",
+      warehouseId: wh.id,
+      destinationWarehouseId: wh.id,
+      note: input.note,
+    },
+    lines,
+    { year: yearOf(today), auditChanges: { picking: input.note } },
+  );
+  return { documentId: result.documentId, number: result.number };
+}
+
 // ─── Receiving inspection (ADR-101) ───
 
 /**

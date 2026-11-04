@@ -382,12 +382,40 @@ export async function cancelSalesOrder(ctx: TenantContext, orderId: string, rawI
         "Orders with deliveries cannot be cancelled",
         { status: order.status },
       );
+    await assertNoActivePickList(tx, ctx, order.id);
     await tx.salesOrder.update({
       where: { id: order.id },
       data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: parsed.data.reason },
     });
     await audit(tx, ctx, "sales_order", order, "cancelled", { reason: parsed.data.reason });
   });
+}
+
+/** An order being picked is delivered or cancelled through its pick list (ADR-102). */
+async function assertNoActivePickList(tx: Tx, ctx: TenantContext, orderId: string) {
+  const active = await tx.pickList.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      salesOrderId: orderId,
+      status: { in: ["PLANNED", "PICKED"] },
+    },
+    select: { number: true },
+  });
+  if (active)
+    throw businessRuleViolation("PICK_LIST_OPEN", "The order has an open pick list", {
+      number: active.number,
+    });
+}
+
+/** Stock already picked for an order: exact lots and places to deliver from (ADR-102). */
+export interface FixedPick {
+  orderLineId: string;
+  productId: string;
+  lotId: string | null;
+  locationId: string;
+  /** Base unit of the product (the quantity is in it). */
+  baseUomId: string;
+  quantity: Decimal;
 }
 
 function statusFromLines(lines: Array<{ quantityBase: Decimal; deliveredQuantityBase: Decimal }>) {
@@ -429,137 +457,165 @@ export async function deliverSalesOrder(ctx: TenantContext, orderId: string, raw
   return runIdempotent(
     ctx,
     { key: idempotencyKey, operation: `sales_order.deliver:${orderId}`, input },
-    async (tx) => {
-      const order = await lockOrder(tx, ctx, orderId);
-      if (!["CONFIRMED", "PARTIALLY_DELIVERED"].includes(order.status))
-        throw businessRuleViolation(
-          "SALES_ORDER_NOT_OPEN",
-          "Only confirmed orders can be delivered",
-          { status: order.status },
-        );
-      const wh = await loadWarehouse(tx, ctx, order.warehouseId);
-      assertActive(wh);
-      const wanted = order.lines
-        .map((l) => {
-          const open = dec(l.quantityBase).minus(dec(l.deliveredQuantityBase));
-          const given = input.lines.find((x) => x.lineId === l.id)?.quantity;
-          const quantity = given === undefined ? open : toDecimal(given);
-          if (quantity.gt(open))
-            throw businessRuleViolation("DELIVERY_EXCEEDS_ORDER", "More than is open on the line", {
-              lineNo: l.lineNo,
-              open: open.toFixed(),
-            });
-          return { line: l, quantity };
-        })
-        .filter((w) => w.quantity.gt(0));
-      if (wanted.length === 0)
-        throw businessRuleViolation("NOTHING_TO_DELIVER", "Nothing is open to deliver");
-      // Pick per order line so each line's cost of goods is known.
-      const lines: PostingLine[] = [];
-      const lineOf: number[] = [];
-      const id = uuidv7();
-      for (const [index, w] of wanted.entries()) {
-        const plan = await planConsumptionInTx(
-          tx,
-          ctx,
-          wh,
-          new Map([[w.line.productId, w.quantity]]),
-        );
-        if (plan.shortages.length > 0) {
-          const p = await tx.product.findFirst({
-            where: { id: w.line.productId },
-            select: { sku: true },
-          });
-          throw businessRuleViolation(
-            "INSUFFICIENT_STOCK_FOR_DELIVERY",
-            "Not enough usable stock",
-            {
-              products: `${p?.sku}: ${plan.shortages[0].available.toFixed()} / ${w.quantity.toFixed()}`,
-            },
-          );
-        }
-        for (const pick of plan.picks) {
-          lines.push({
-            movementType: "CUSTOMER_DELIVERY",
-            warehouseId: wh.id,
-            locationId: pick.locationId,
-            productId: pick.productId,
-            lotId: pick.lotId,
-            stockStatus: "AVAILABLE",
-            quantityDelta: pick.quantity.negated(),
-            enteredQuantity: pick.quantity.negated(),
-            enteredUomId: pick.uomId,
-            reasonCode: "B2B",
-            note: order.number,
-            postingKey: `delivery:${id}:${index + 1}:${lines.length + 1}`,
-          });
-          lineOf.push(index);
-        }
-      }
-      const posted = await postDocument(
-        tx,
-        ctx,
-        {
-          id,
-          type: "CUSTOMER_DELIVERY",
+    (tx) => deliverSalesOrderInTx(tx, ctx, orderId, input.lines),
+  );
+}
+
+/**
+ * The delivery itself, in the caller's transaction. With `fixedPicks` the
+ * stock comes from exactly those lots and places (a picked list) instead of
+ * FEFO, and the quantities per line are what was picked.
+ */
+export async function deliverSalesOrderInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  orderId: string,
+  inputLines: Array<{ lineId: string; quantity?: string }>,
+  fixedPicks?: FixedPick[],
+) {
+  assertPermission(ctx.grants, "b2b.manage");
+  const order = await lockOrder(tx, ctx, orderId);
+  if (!["CONFIRMED", "PARTIALLY_DELIVERED"].includes(order.status))
+    throw businessRuleViolation("SALES_ORDER_NOT_OPEN", "Only confirmed orders can be delivered", {
+      status: order.status,
+    });
+  const wh = await loadWarehouse(tx, ctx, order.warehouseId);
+  assertActive(wh);
+  if (!fixedPicks) await assertNoActivePickList(tx, ctx, order.id);
+  const pickedOf = (lineId: string) =>
+    (fixedPicks ?? [])
+      .filter((p) => p.orderLineId === lineId)
+      .reduce((a, p) => a.plus(p.quantity), new Decimal(0));
+  const wanted = order.lines
+    .map((l) => {
+      const open = dec(l.quantityBase).minus(dec(l.deliveredQuantityBase));
+      const given = inputLines.find((x) => x.lineId === l.id)?.quantity;
+      const quantity = fixedPicks ? pickedOf(l.id) : given === undefined ? open : toDecimal(given);
+      if (quantity.gt(open))
+        throw businessRuleViolation("DELIVERY_EXCEEDS_ORDER", "More than is open on the line", {
+          lineNo: l.lineNo,
+          open: open.toFixed(),
+        });
+      return { line: l, quantity };
+    })
+    .filter((w) => w.quantity.gt(0));
+  if (wanted.length === 0)
+    throw businessRuleViolation("NOTHING_TO_DELIVER", "Nothing is open to deliver");
+  // Pick per order line so each line's cost of goods is known.
+  const lines: PostingLine[] = [];
+  const lineOf: number[] = [];
+  const id = uuidv7();
+  for (const [index, w] of wanted.entries()) {
+    if (fixedPicks) {
+      for (const pick of fixedPicks.filter((p) => p.orderLineId === w.line.id)) {
+        lines.push({
+          movementType: "CUSTOMER_DELIVERY",
           warehouseId: wh.id,
+          locationId: pick.locationId,
+          productId: pick.productId,
+          lotId: pick.lotId,
+          stockStatus: "AVAILABLE",
+          quantityDelta: pick.quantity.negated(),
+          enteredQuantity: pick.quantity.negated(),
+          enteredUomId: pick.baseUomId,
           reasonCode: "B2B",
           note: order.number,
-        },
-        lines,
-        { year: Number(todayFor(wh).slice(0, 4)), auditChanges: { salesOrder: order.number } },
-      );
-      const entries = await tx.inventoryLedgerEntry.findMany({
-        where: { organizationId: ctx.organizationId, documentId: posted.documentId },
-        select: { postingKey: true, valueDelta: true },
-      });
-      const costByLine = wanted.map(() => new Decimal(0));
-      for (const [i, l] of lines.entries()) {
-        const e = entries.find((x) => x.postingKey === l.postingKey)!;
-        costByLine[lineOf[i]] = costByLine[lineOf[i]].plus(dec(e.valueDelta).negated());
-      }
-      const cost = costByLine.reduce((a, c) => a.plus(c), new Decimal(0));
-      const delivery = await tx.customerDelivery.create({
-        data: {
-          organizationId: ctx.organizationId,
-          // The delivery note carries its stock document's number.
-          number: posted.number,
-          orderId: order.id,
-          documentId: posted.documentId,
-          cost: cost.toFixed(),
-          deliveredByUserId: ctx.userId,
-        },
-        select: { id: true, number: true },
-      });
-      await tx.customerDeliveryLine.createMany({
-        data: wanted.map((w, i) => ({
-          organizationId: ctx.organizationId,
-          deliveryId: delivery.id,
-          orderLineId: w.line.id,
-          quantityBase: w.quantity.toFixed(),
-          cost: costByLine[i].toFixed(),
-        })),
-      });
-      for (const w of wanted)
-        await tx.salesOrderLine.update({
-          where: { id: w.line.id },
-          data: {
-            deliveredQuantityBase: dec(w.line.deliveredQuantityBase).plus(w.quantity).toFixed(),
-          },
+          postingKey: `delivery:${id}:${index + 1}:${lines.length + 1}`,
         });
-      const fresh = await tx.salesOrderLine.findMany({ where: { orderId: order.id } });
-      await tx.salesOrder.update({
-        where: { id: order.id },
-        data: { status: statusFromLines(fresh) },
+        lineOf.push(index);
+      }
+      continue;
+    }
+    const plan = await planConsumptionInTx(tx, ctx, wh, new Map([[w.line.productId, w.quantity]]));
+    if (plan.shortages.length > 0) {
+      const p = await tx.product.findFirst({
+        where: { id: w.line.productId },
+        select: { sku: true },
       });
-      await audit(tx, ctx, "customer_delivery", delivery, "posted", {
-        order: order.number,
-        cost: cost.toFixed(),
-        document: posted.number,
+      throw businessRuleViolation("INSUFFICIENT_STOCK_FOR_DELIVERY", "Not enough usable stock", {
+        products: `${p?.sku}: ${plan.shortages[0].available.toFixed()} / ${w.quantity.toFixed()}`,
       });
-      return delivery;
+    }
+    for (const pick of plan.picks) {
+      lines.push({
+        movementType: "CUSTOMER_DELIVERY",
+        warehouseId: wh.id,
+        locationId: pick.locationId,
+        productId: pick.productId,
+        lotId: pick.lotId,
+        stockStatus: "AVAILABLE",
+        quantityDelta: pick.quantity.negated(),
+        enteredQuantity: pick.quantity.negated(),
+        enteredUomId: pick.uomId,
+        reasonCode: "B2B",
+        note: order.number,
+        postingKey: `delivery:${id}:${index + 1}:${lines.length + 1}`,
+      });
+      lineOf.push(index);
+    }
+  }
+  const posted = await postDocument(
+    tx,
+    ctx,
+    {
+      id,
+      type: "CUSTOMER_DELIVERY",
+      warehouseId: wh.id,
+      reasonCode: "B2B",
+      note: order.number,
     },
+    lines,
+    { year: Number(todayFor(wh).slice(0, 4)), auditChanges: { salesOrder: order.number } },
   );
+  const entries = await tx.inventoryLedgerEntry.findMany({
+    where: { organizationId: ctx.organizationId, documentId: posted.documentId },
+    select: { postingKey: true, valueDelta: true },
+  });
+  const costByLine = wanted.map(() => new Decimal(0));
+  for (const [i, l] of lines.entries()) {
+    const e = entries.find((x) => x.postingKey === l.postingKey)!;
+    costByLine[lineOf[i]] = costByLine[lineOf[i]].plus(dec(e.valueDelta).negated());
+  }
+  const cost = costByLine.reduce((a, c) => a.plus(c), new Decimal(0));
+  const delivery = await tx.customerDelivery.create({
+    data: {
+      organizationId: ctx.organizationId,
+      // The delivery note carries its stock document's number.
+      number: posted.number,
+      orderId: order.id,
+      documentId: posted.documentId,
+      cost: cost.toFixed(),
+      deliveredByUserId: ctx.userId,
+    },
+    select: { id: true, number: true },
+  });
+  await tx.customerDeliveryLine.createMany({
+    data: wanted.map((w, i) => ({
+      organizationId: ctx.organizationId,
+      deliveryId: delivery.id,
+      orderLineId: w.line.id,
+      quantityBase: w.quantity.toFixed(),
+      cost: costByLine[i].toFixed(),
+    })),
+  });
+  for (const w of wanted)
+    await tx.salesOrderLine.update({
+      where: { id: w.line.id },
+      data: {
+        deliveredQuantityBase: dec(w.line.deliveredQuantityBase).plus(w.quantity).toFixed(),
+      },
+    });
+  const fresh = await tx.salesOrderLine.findMany({ where: { orderId: order.id } });
+  await tx.salesOrder.update({
+    where: { id: order.id },
+    data: { status: statusFromLines(fresh) },
+  });
+  await audit(tx, ctx, "customer_delivery", delivery, "posted", {
+    order: order.number,
+    cost: cost.toFixed(),
+    document: posted.number,
+  });
+  return delivery;
 }
 
 /** Undo a delivery that has no invoice (or only cancelled ones): stock back, order open again. */
@@ -823,7 +879,7 @@ export async function getSalesOrder(ctx: TenantContext, orderId: string) {
       where: { organizationId: ctx.organizationId, id: orderId },
       include: {
         customer: true,
-        warehouse: { select: { id: true, code: true, name: true } },
+        warehouse: { select: { id: true, code: true, name: true, branchId: true } },
         lines: {
           orderBy: { lineNo: "asc" },
           include: {
@@ -847,6 +903,11 @@ export async function getSalesOrder(ctx: TenantContext, orderId: string) {
             document: { select: { id: true, number: true } },
           },
         },
+        pickLists: {
+          where: { status: { in: ["PLANNED", "PICKED"] } },
+          select: { id: true, number: true, status: true },
+          take: 1,
+        },
       },
     });
     if (!order) throw notFound("Sales order");
@@ -857,6 +918,8 @@ export async function getSalesOrder(ctx: TenantContext, orderId: string) {
     );
     return {
       ...order,
+      /** Being picked (ADR-102): delivered or cancelled through the pick list. */
+      activePickList: order.pickLists[0] ?? null,
       net,
       can: {
         edit: manage && order.status === "DRAFT",

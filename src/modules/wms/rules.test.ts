@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { inspectionOutcome, locationFits, suggestLocation, type RuleCandidate } from "./rules";
+import { Decimal } from "@/lib/decimal";
+import {
+  allocatePick,
+  inspectionOutcome,
+  locationFits,
+  suggestLocation,
+  walkOrder,
+  type PickCandidate,
+  type RuleCandidate,
+} from "./rules";
 
 const chilledShelf = {
   id: "L1",
@@ -87,5 +96,70 @@ describe("receiving inspection outcome (ADR-101)", () => {
     expect(
       inspectionOutcome({ ...base, accepted: "10", checksPassed: false, hasNote: true }),
     ).toMatchObject({ ok: true });
+  });
+});
+
+describe("pick allocation (ADR-102)", () => {
+  const c = (over: Partial<PickCandidate>) => ({
+    key: "k",
+    locationId: "L",
+    locationCode: "A-01",
+    zone: "STORAGE" as const,
+    lotId: null,
+    expiresOn: null,
+    bestBeforeOn: null,
+    firstReceivedAt: new Date("2026-01-01"),
+    recallHold: false,
+    available: new Decimal(10),
+    ...over,
+  });
+  it("picks the first-expiring lot first, then picking areas before storage", () => {
+    const plan = allocatePick(
+      [
+        c({ key: "late", expiresOn: "2026-12-30", zone: "PICKING" }),
+        c({ key: "soon-store", expiresOn: "2026-11-20", zone: "STORAGE", locationCode: "B" }),
+        c({ key: "soon-pick", expiresOn: "2026-11-20", zone: "PICKING", locationCode: "Z" }),
+      ],
+      "15",
+      "2026-11-04",
+    );
+    expect(plan.picks.map((p) => [p.candidate.key, p.quantity.toFixed()])).toEqual([
+      ["soon-pick", "10"],
+      ["soon-store", "5"],
+    ]);
+    expect(plan.shortfall.toFixed()).toBe("0");
+  });
+
+  it("never picks from quarantine or dispatch, expired, recalled or reserved stock", () => {
+    const plan = allocatePick(
+      [
+        c({ key: "q", zone: "QUARANTINE" }),
+        c({ key: "d", zone: "DISPATCH" }),
+        c({ key: "x", expiresOn: "2026-11-03" }),
+        c({ key: "r", recallHold: true }),
+        c({ key: "held", available: new Decimal(0) }),
+        c({
+          key: "ok",
+          zone: null,
+          locationId: null,
+          locationCode: null,
+          available: new Decimal(4),
+        }),
+      ],
+      "6",
+      "2026-11-04",
+    );
+    expect(plan.picks.map((p) => p.candidate.key)).toEqual(["ok"]);
+    expect(plan.shortfall.toFixed()).toBe("2");
+  });
+
+  it("sorts a pick sheet by location", () => {
+    expect(
+      walkOrder([
+        { locationCode: null, sku: "A" },
+        { locationCode: "B-2", sku: "B" },
+        { locationCode: "A-9", sku: "C" },
+      ]).map((r) => r.sku),
+    ).toEqual(["C", "B", "A"]);
   });
 });

@@ -983,6 +983,20 @@ Warehouse operations (C3a, ADR-101; migration `20261228090000_c3a_inspection_put
   category and storage requirement, target location (FK through the
   warehouse), archived at.
 
+Pick lists and waves (C3b, ADR-102; migration `20261229090000_c3b_pick_lists`):
+
+- **pick_waves**: `number` (WAV-YYYY-n), warehouse, note, created by/at.
+- **pick_lists**: `number` (PCK-YYYY-n), warehouse, sales order, wave,
+  `status` (`PLANNED` | `PICKED` | `DELIVERED` | `CANCELLED`), picked by/at,
+  `pick_document_id` and `return_document_id` (TRANSFER documents),
+  `delivery_id`, cancel reason. Finished lists are frozen; a picked list
+  can only be delivered or cancelled (trigger).
+- **pick_list_lines**: sequence, order line, product, lot, `location_id`
+  (from), `staging_location_id` (dispatch, same temperature),
+  `planned_quantity` (> 0), `picked_quantity` (≤ planned; less needs
+  `short_reason` — check). The plan never changes; lines are fixed once
+  the list leaves PLANNED (trigger).
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

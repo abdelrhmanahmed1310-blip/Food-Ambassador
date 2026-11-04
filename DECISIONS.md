@@ -2528,6 +2528,43 @@ country for now, so no inter-company transfer is built.
   automatically, capacity limits per location, inspection checklists set
   by the organization, an NC raised on rejection, scanning (C3d).
 
+### ADR-102 Pick lists, waves and delivery from picked stock — Accepted (C3b built)
+
+- **Pick list** (`PCK-`) for one confirmed sales order: for each open line,
+  which lot to take from which place. Stock is planned first-expiring first
+  (expiry, best-before, oldest receipt), then picking before storage before
+  receiving areas, then by location code. Quarantine and dispatch areas,
+  expired and recall-held lots are never planned. Quantities held by other
+  planned lists in the same warehouse are not offered again (planning is
+  serialized per warehouse). What cannot be planned is reported as a
+  shortage; nothing at all refuses the list. One open list per order.
+- **Staging**: each line goes to the warehouse's active dispatch location
+  at the product's storage temperature (the first by code); without one
+  the list is refused — chilled goods are never staged ambient.
+- **Picking**: the picker records what was picked per line (never more
+  than planned; less needs a reason). Confirming moves the picked stock to
+  the dispatch locations in one TRANSFER document. Lines are then fixed
+  (trigger).
+- **Delivery**: a picked list delivers exactly its staged lots and places
+  in the existing CUSTOMER_DELIVERY flow (ADR-047) with cost of goods per
+  line; the order line gets the picked quantity. While an order has an
+  open list, a plain delivery or cancelling the order is refused.
+- **Cancelling**: a planned list releases its hold; a picked list moves the
+  stock back where it was taken from, in a TRANSFER document.
+- **Dispatch areas are reserved**: automatic FEFO consumption (POS sales,
+  production, plain deliveries) no longer takes stock from dispatch
+  locations.
+- **Wave** (`WAV-`): several confirmed orders of one warehouse planned
+  together (all or nothing), with one pick sheet summing the planned lists
+  by place, product and lot in walk order (by location code). Pick sheets
+  for lists and waves print as PDFs.
+- Planning, picking and cancelling need `inventory.transfer` at the
+  warehouse; delivering needs `b2b.manage`.
+- **Not yet:** pick lists for branch shipments (they are still built by
+  hand), packing and loading confirmation (C3c), scanning (C3d),
+  reservations honoured by POS and production before picking, splitting a
+  wave between pickers.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

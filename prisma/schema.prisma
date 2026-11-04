@@ -323,6 +323,9 @@ model Organization {
   mockRecallCounts             MockRecallCount[]
   receiptInspections           ReceiptInspection[]
   putawayRules                 PutawayRule[]
+  pickWaves                    PickWave[]
+  pickLists                    PickList[]
+  pickListLines                PickListLine[]
 
   @@map("organizations")
 }
@@ -575,6 +578,8 @@ model Warehouse {
   mockRecallCounts   MockRecallCount[]
   receiptInspections ReceiptInspection[]
   putawayRules       PutawayRule[]
+  pickWaves          PickWave[]
+  pickLists          PickList[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -621,6 +626,8 @@ model StorageLocation {
   stockCounts   StockCount[]
   countLines    StockCountLine[]
   putawayRules  PutawayRule[]
+  pickFrom      PickListLine[]         @relation("PickFrom")
+  pickTo        PickListLine[]         @relation("PickTo")
 
   @@unique([organizationId, id])
   /// Lets ledger rows prove their location belongs to their warehouse.
@@ -790,6 +797,7 @@ model Product {
   supplierReturnLines SupplierReturnLine[]
   complaints          Complaint[]
   putawayRules        PutawayRule[]
+  pickLines           PickListLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -875,6 +883,7 @@ model InventoryLot {
   recallStock   RecallStock[]
   producedBy    ProductionOrder[]
   mockRecalls   MockRecall[]
+  pickLines     PickListLine[]
 
   @@unique([organizationId, id])
   /// Lets ledger rows prove their lot belongs to their product.
@@ -984,6 +993,8 @@ model InventoryDocument {
   supplierReturnPostings   SupplierReturn[]       @relation("SupplierReturnPosting")
   supplierReturnReversals  SupplierReturn[]       @relation("SupplierReturnReversal")
   receiptInspections       ReceiptInspection[]
+  pickLists                PickList[]             @relation("PickDocument")
+  pickReturns              PickList[]             @relation("PickReturnDocument")
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3474,6 +3485,105 @@ model PutawayRule {
   @@map("putaway_rules")
 }
 
+// ─── Pick lists and waves (C3b, ADR-102) ───
+
+enum PickListStatus {
+  /// Planned: quantities reserved against the planned places.
+  PLANNED
+  /// Picked: stock moved to the dispatch location, waiting for delivery.
+  PICKED
+  DELIVERED
+  CANCELLED
+}
+
+/// Several pick lists of one warehouse planned and picked together.
+model PickWave {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  number          String
+  warehouseId     String   @map("warehouse_id") @db.Uuid
+  note            String?
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  pickLists    PickList[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, warehouseId, createdAt(sort: Desc)])
+  @@map("pick_waves")
+}
+
+/// What to pick for one sales order, first-expiring stock first.
+model PickList {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  organizationId   String         @map("organization_id") @db.Uuid
+  number           String
+  warehouseId      String         @map("warehouse_id") @db.Uuid
+  salesOrderId     String         @map("sales_order_id") @db.Uuid
+  waveId           String?        @map("wave_id") @db.Uuid
+  status           PickListStatus @default(PLANNED)
+  createdByUserId  String         @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  pickedAt         DateTime?      @map("picked_at") @db.Timestamptz(3)
+  pickedByUserId   String?        @map("picked_by_user_id") @db.Uuid
+  /// Transfer to the dispatch locations, and back when a picked list is cancelled.
+  pickDocumentId   String?        @map("pick_document_id") @db.Uuid
+  returnDocumentId String?        @map("return_document_id") @db.Uuid
+  deliveryId       String?        @map("delivery_id") @db.Uuid
+  cancelledAt      DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason     String?        @map("cancel_reason")
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse      Warehouse          @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  salesOrder     SalesOrder         @relation(fields: [organizationId, salesOrderId], references: [organizationId, id], onDelete: Restrict)
+  wave           PickWave?          @relation(fields: [organizationId, waveId], references: [organizationId, id], onDelete: Restrict)
+  pickDocument   InventoryDocument? @relation("PickDocument", fields: [organizationId, pickDocumentId], references: [organizationId, id], onDelete: Restrict)
+  returnDocument InventoryDocument? @relation("PickReturnDocument", fields: [organizationId, returnDocumentId], references: [organizationId, id], onDelete: Restrict)
+  delivery       CustomerDelivery?  @relation(fields: [organizationId, deliveryId], references: [organizationId, id], onDelete: Restrict)
+  lines          PickListLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, warehouseId, status])
+  @@index([organizationId, salesOrderId])
+  @@map("pick_lists")
+}
+
+model PickListLine {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  pickListId        String   @map("pick_list_id") @db.Uuid
+  sequence          Int
+  orderLineId       String   @map("order_line_id") @db.Uuid
+  productId         String   @map("product_id") @db.Uuid
+  lotId             String?  @map("lot_id") @db.Uuid
+  /// Where to pick from (null = stock without a location).
+  locationId        String?  @map("location_id") @db.Uuid
+  /// The dispatch location picked stock goes to (same temperature as the product).
+  stagingLocationId String   @map("staging_location_id") @db.Uuid
+  /// Base unit.
+  plannedQuantity   Decimal  @map("planned_quantity") @db.Decimal(20, 6)
+  pickedQuantity    Decimal? @map("picked_quantity") @db.Decimal(20, 6)
+  shortReason       String?  @map("short_reason")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  pickList     PickList         @relation(fields: [organizationId, pickListId], references: [organizationId, id], onDelete: Restrict)
+  orderLine    SalesOrderLine   @relation(fields: [organizationId, orderLineId], references: [organizationId, id], onDelete: Restrict)
+  product      Product          @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  lot          InventoryLot?    @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  location     StorageLocation? @relation("PickFrom", fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict)
+  staging      StorageLocation  @relation("PickTo", fields: [organizationId, stagingLocationId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, pickListId, sequence])
+  @@index([organizationId, locationId, lotId])
+  @@map("pick_list_lines")
+}
+
 // ─── Mock recall exercises (C2e, ADR-100) ───
 
 enum MockRecallStatus {
@@ -4307,7 +4417,8 @@ model SalesOrder {
   lines        SalesOrderLine[]
   deliveries   CustomerDelivery[]
 
-  company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+  company   Company?   @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+  pickLists PickList[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -4338,6 +4449,7 @@ model SalesOrderLine {
   uom           UnitOfMeasure          @relation(fields: [uomId], references: [id], onDelete: Restrict)
   taxCode       TaxCode?               @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
   deliveryLines CustomerDeliveryLine[]
+  pickLines     PickListLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, orderId, lineNo])
@@ -4366,6 +4478,7 @@ model CustomerDelivery {
   reversal     InventoryDocument?     @relation("DeliveryReversal", fields: [organizationId, reversalDocumentId], references: [organizationId, id], onDelete: Restrict)
   lines        CustomerDeliveryLine[]
   invoices     SalesInvoice[]
+  pickLists    PickList[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])

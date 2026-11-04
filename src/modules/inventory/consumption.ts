@@ -39,6 +39,8 @@ export async function planConsumptionInTx(
       productId: { in: ids },
       stockStatus: "AVAILABLE",
       onHandQuantity: { gt: 0 },
+      // Stock staged in a dispatch location belongs to a pick list (ADR-102).
+      NOT: { location: { zone: "DISPATCH" } },
     },
     select: {
       id: true,
