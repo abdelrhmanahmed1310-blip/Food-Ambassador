@@ -10,6 +10,7 @@ import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { unreadCount } from "@/modules/notifications/service";
 import { listUserOrganizations } from "@/modules/organizations/service";
 import { canSeeSpend } from "@/modules/procurement/spend";
+import { canSeeStockHealth } from "@/modules/analytics/stock";
 import { canSeeReports } from "@/modules/analytics/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { getCurrentUser } from "@/server/auth/session";
@@ -229,6 +230,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   // Sales analytics and targets (ADR-105).
   if (holdsAnyGrant(ctx.grants, "sales.view"))
     reports.items.push({ href: `${base}/reports/sales`, label: t("salesReport") });
+  // Stock ageing and turnover (ADR-106).
+  if (canSeeStockHealth(ctx))
+    reports.items.push({ href: `${base}/reports/stock`, label: t("stockHealth") });
   const visible = canSeeReports(ctx);
   if (visible.foodCost)
     reports.items.push({ href: `${base}/reports/food-cost`, label: t("foodCostReport") });

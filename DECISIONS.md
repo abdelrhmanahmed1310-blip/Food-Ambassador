@@ -2660,6 +2660,35 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** targets by channel or weekday, weighting targets by weekday
   patterns, forecasts (I1), imported sales and B2B in the same view.
 
+### ADR-106 Stock ageing, turnover and days on hand — Accepted (C4b built)
+
+- **Source**: the stock ledger (quantities and values) and the moving
+  average valuation (ADR-021) only; nothing is stored.
+- **Ageing** is of stock on hand today, at moving average cost. A lot's age
+  is counted from its first receipt (wherever it is now); stock without
+  lots is aged first in first out from its recorded arrivals in that
+  warehouse (opening balances, receipts, transfers in, production output,
+  customer returns, positive adjustments) — what is on hand is taken to be
+  the most recent arrivals. On-hand quantity not covered by recorded
+  arrivals is shown as "age unknown". Buckets 0–30, 31–60, 61–90, 91–180
+  and over 180 days are a display convention of this product. Expired lots
+  still on hand are valued separately.
+- **Usage** over a period: consumption (recipe use, production, POS) and
+  customer deliveries, net of their reversals. Write-offs are reported on
+  their own and are not usage. Transfers between warehouses are not usage.
+- **Turnover** = usage value ÷ ((opening value + closing value) ÷ 2);
+  **days on hand** = closing value ÷ (usage value ÷ days in the period).
+  Opening and closing values come from the ledger at the start and end of
+  the period (each branch's calendar). Neither is shown without stock or
+  without usage.
+- **Slow movers**: products with stock on hand and no usage in the period.
+  Products whose cost is incomplete (ADR-021) are marked.
+- Values are converted into the report currency at the period's average
+  rate; currencies without a rate are left out and named. Needs
+  `inventory.valuation.view`. CSV and Excel.
+- **Not yet:** ageing at a past date, quantity-based turnover, service
+  level and stock-out days, ABC classification.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

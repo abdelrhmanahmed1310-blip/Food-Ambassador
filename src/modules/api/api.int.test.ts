@@ -66,7 +66,10 @@ describe("REST API v1 (ADR-090)", () => {
     const created = await createApiClient(ctx, { name: "BI", scopes: ["products:read"] });
     expect(created.key).toMatch(/^fa_[A-Za-z0-9]{12}_[A-Za-z0-9_-]{43}$/);
     const row = await getDb().apiClient.findUniqueOrThrow({ where: { id: created.id } });
-    expect(row.keyHash).not.toContain(created.key.split("_")[2]);
+    // The secret is everything after "fa_<12 characters>_"; it may itself contain "_".
+    const secret = created.key.slice("fa_".length + 12 + 1);
+    expect(secret).toHaveLength(43);
+    expect(row.keyHash).not.toContain(secret);
     expect(JSON.stringify(await listApiClients(ctx))).not.toContain(created.key);
     // Only people who manage integrations handle keys.
     const buyer = (await addMember(ctx, "procurement")).ctx;

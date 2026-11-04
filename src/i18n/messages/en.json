@@ -171,7 +171,8 @@
     "picking": "Picking",
     "loads": "Loads",
     "scanner": "Scanner",
-    "salesReport": "Sales analytics"
+    "salesReport": "Sales analytics",
+    "stockHealth": "Stock ageing and turnover"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -5371,5 +5372,37 @@
       "11": "November",
       "12": "December"
     }
+  },
+  "stockHealth": {
+    "title": "Stock ageing and turnover",
+    "hint": "Ageing is of stock on hand now: lots by their first receipt, stock without lots first in first out from its arrivals. Turnover and days on hand are over the period: stock used (consumed or delivered to customers) against the average of opening and closing value. Write-offs are shown apart.",
+    "valueNow": "Value now",
+    "expired": "Expired, on hand",
+    "used": "Used",
+    "writtenOff": "Written off",
+    "turnover": "Turnover",
+    "daysOnHand": "Days on hand",
+    "closing": "Value at period end",
+    "slowMovers": "Slow movers",
+    "basis": "In {currency}, at moving average cost. Ageing as of {today}; turnover over {days} days. No ratio is shown where nothing was held or used.",
+    "ageing": "Ageing by warehouse",
+    "warehouse": "Warehouse",
+    "buckets": {
+      "D0_30": "0–30 days",
+      "D31_60": "31–60 days",
+      "D61_90": "61–90 days",
+      "D91_180": "91–180 days",
+      "D181_PLUS": "Over 180 days",
+      "UNKNOWN": "Age unknown"
+    },
+    "products": "By product",
+    "product": "Product",
+    "onHand": "On hand",
+    "oldest": "Oldest",
+    "daysValue": "{days} days",
+    "slow": "No use in period",
+    "hasExpired": "Expired stock",
+    "costMissing": "Cost incomplete",
+    "empty": "No stock or movements."
   }
 }

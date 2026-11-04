@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,23 @@ Last updated: 2026-11-04 (C4a sales analytics and targets; C3d handheld scanning
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C4b — Stock ageing, turnover and days on hand (built)
+
+Rules: DECISIONS.md ADR-106.
+
+| Area        | What works                                                                                                                                                    | Where                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Ageing      | Stock on hand now in 0–30 / 31–60 / 61–90 / 91–180 / over 180 days, at average cost; lots by first receipt, other stock first in first out; age unknown shown | Reports → Stock ageing and turnover |
+| Expired     | Value of expired lots still on hand                                                                                                                           | same                                |
+| Turnover    | Used (consumed or delivered) ÷ average of opening and closing value; days on hand at the period's usage; write-offs apart                                     | same                                |
+| Slow movers | Stock on hand with no use in the period; incomplete cost marked; CSV and Excel                                                                                | same                                |
+
+Not yet: ageing at a past date, quantity-based turnover, stock-out days, ABC classification.
+
+Also fixed: the REST API key test read the key's secret with `split("_")`, which breaks when the random secret contains "_" (it failed once in this run); it now takes the whole secret after the prefix.
+
+Checks: `pnpm check` pass (unit 348; new: age buckets, first-in-first-out ages with uncovered stock as unknown, turnover and days on hand only with stock and usage); `pnpm test:integration` 477/477 pass (new: a saffron lot received 100 days ago, expired, 2 kg written off — 40.00 in 91–180 days, expired, slow mover; rice without lots aged today; 10.00 used by a customer delivery and 10.00 written off kept apart; turnover 0.2857 and 7.0 days on hand for the warehouse, 3.0 for rice; the next day opens at 70.00 with no ratio; CSV; cashiers refused; other organizations see nothing); `pnpm test:e2e` 80/80 pass (new: opening balance of 12 kg at 25, the report shows 300.00 now and at period end, no use in the period, and the CSV line).
 
 ## C4a — Sales analytics and targets (built)
 
