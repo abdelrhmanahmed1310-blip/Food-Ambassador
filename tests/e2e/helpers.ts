@@ -48,3 +48,17 @@ export async function signUp(
   await expect(page).toHaveURL(/\/o\/[a-z0-9-]+$/);
   return new URL(page.url()).pathname.split("/")[2];
 }
+
+/**
+ * A calendar date in the organization's time zone (sign-up defaults to
+ * Cairo), `days` from today. Never the UTC date: between 22:00 and 24:00
+ * UTC, Cairo is already on the next day.
+ */
+export function orgDate(days = 0, timeZone = "Africa/Cairo"): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(Date.now() + days * 86_400_000));
+}

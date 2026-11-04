@@ -52,8 +52,10 @@
 > with stops for B2B deliveries and transfers, proof of delivery with a
 > drawn signature, cold-chain readings and excursions. **C7b built**
 > (ADR-117): own riders for delivery orders — dispatch board, rider phone
-> page, timings, contact details erased after 30 days. Next in C7:
-> segments and feedback, campaigns.
+> page, timings, contact details erased after 30 days. **C7c built**
+> (ADR-118): customer segments with RFM, guest feedback from the receipt
+> with review and escalation to complaints. Next in C7: campaigns (needs a
+> messaging provider).
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { newClient, signUp, uniqueEmail } from "./helpers";
+import { newClient, orgDate, signUp, uniqueEmail } from "./helpers";
 
 test("VAT: Saudi preset, registration, VAT on imported sales and the VAT summary", async ({
   browser,
@@ -63,7 +63,7 @@ test("VAT: Saudi preset, registration, VAT on imported sales and the VAT summary
   await expect(page.getByRole("heading", { name: /^OB-/ })).toBeVisible();
 
   const file = join(tmpdir(), `vat-${Date.now()}.csv`);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = orgDate();
   writeFileSync(
     file,
     `date,external_id,item_code,quantity,gross_amount\n${today},W-1,WATER,2,23.00\n`,

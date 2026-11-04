@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { newClient, signUp, uniqueEmail } from "./helpers";
+import { newClient, orgDate, signUp, uniqueEmail } from "./helpers";
 
 test("customs declaration, duty and freight spread over the shipment's receipt (ADR-115)", async ({
   browser,
@@ -104,7 +104,7 @@ test("customs declaration, duty and freight spread over the shipment's receipt (
     .locator("form")
     .filter({ has: page.getByRole("button", { name: "Record declaration" }) });
   await decl.getByLabel(/^Declaration number/).fill("DCL-2026-77");
-  await decl.getByLabel("Declared on").fill(new Date().toISOString().slice(0, 10));
+  await decl.getByLabel("Declared on").fill(orgDate());
   await decl.getByLabel(/^Duty assessed/).fill("50");
   await decl.getByLabel(/^Import VAT/).fill("157.5");
   await decl.getByRole("button", { name: "Record declaration" }).click();

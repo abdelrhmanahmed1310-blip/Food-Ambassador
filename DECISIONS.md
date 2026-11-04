@@ -3048,6 +3048,43 @@ provider — Q to be asked before it is built).
   customer tracking links and notifications, address book for repeat
   customers, rider shifts and pay, live location.
 
+### ADR-118 Customer segments and guest feedback — Accepted (C7c built)
+
+- **Segments** are saved conditions, not stored lists: worked out from
+  paid POS orders (gross less refunds) each time they are looked at.
+  Conditions (all optional, all must hold): look-back window (1–1 095
+  days, default 365) for orders and spend; visited within / not visited
+  for N days (last visit ever, business date); at least / at most orders;
+  at least spend; visited any of chosen branches; agreed to receive offers
+  (ADR-068 consent); at least points. Names are unique ignoring case.
+  Erased customers are never included.
+- **RFM**: guests who bought in the window are scored 1–5 by quintile on
+  recency, frequency and spend against each other, then grouped —
+  champions (R ≥ 4, F ≥ 4), loyal (F ≥ 4), new (R ≥ 4, one order), at
+  risk (R ≤ 2, F ≥ 3), lost (R = 1, F ≤ 2), others. The usual reading,
+  shown as a guide, not used to decide anything.
+- **Export** of a segment's members (CSV/Excel) needs `customers.manage`;
+  phone and e-mail are included **only for guests who agreed to receive
+  offers**; each export is audited by count only, never by person.
+- **Guest feedback**: every paid order's receipt carries a QR and a link
+  signed with the integration key (HMAC-SHA256 of the order id, so it
+  cannot be guessed or forged). The public page asks for a 1–5 rating and
+  an optional comment — nothing about the guest — once per order
+  (unique), within 14 days of the order. The rating and comment never
+  change (database trigger).
+- **Follow-up**: ratings of 2 or less appear in Needs attention for those
+  with `customers.manage` until marked reviewed (with what was done) or
+  **turned into a customer complaint** (ADR-098) at the order's branch,
+  which also needs `foodsafety.record` there; the complaint is linked.
+- **Feedback page**: count, average, share of 4–5 stars and low ratings
+  for a period, by branch, with each comment.
+- Permissions: the existing `customers.view` / `customers.manage`
+  (organization-wide).
+- **Not yet:** campaigns to a segment (C7d, needs a messaging provider),
+  segments by items bought or channel, NPS, replying to the guest,
+  feedback for platform orders (no receipt from us), rating questions
+  per aspect (food, service, delivery).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

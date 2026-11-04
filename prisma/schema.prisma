@@ -355,6 +355,9 @@ model Organization {
 
   homeDeliveries HomeDelivery[]
 
+  customerSegments CustomerSegment[]
+  guestFeedback    GuestFeedback[]
+
   @@map("organizations")
 }
 
@@ -551,6 +554,8 @@ model Branch {
   budgets             BranchBudget[]
 
   homeDeliveries HomeDelivery[]
+
+  guestFeedback GuestFeedback[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3359,6 +3364,8 @@ model Complaint {
   product        Product?        @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
   nonConformance NonConformance? @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
 
+  guestFeedback GuestFeedback[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, branchId, receivedAt(sort: Desc)])
@@ -5378,6 +5385,7 @@ model PosOrder {
   shortfalls    PosConsumptionShortfall[]
   deliveryOrder DeliveryOrder?
   homeDelivery  HomeDelivery?
+  feedback      GuestFeedback?
   tab           PosTab?                   @relation(fields: [organizationId, tabId], references: [organizationId, id], onDelete: Restrict)
 
   company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
@@ -6155,6 +6163,8 @@ model PosCustomer {
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   orders         PosOrder[]
   loyaltyEntries LoyaltyEntry[]
+
+  feedback GuestFeedback[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, phone])
@@ -7339,4 +7349,54 @@ model HomeDelivery {
   @@index([organizationId, branchId, status])
   @@index([organizationId, riderUserId, status])
   @@map("home_deliveries")
+}
+
+// ─── C7c customer segments and guest feedback (ADR-118) ───
+
+/// A saved group of guests by their visits and spend; worked out when used.
+model CustomerSegment {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  name            String
+  description     String?
+  /// The conditions (validated by the service): window, recency, orders, spend, branches, consent, points.
+  rules           Json
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, name])
+  @@map("customer_segments")
+}
+
+/// A guest's rating of one order, given through the link on its receipt.
+model GuestFeedback {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  posOrderId       String    @map("pos_order_id") @db.Uuid
+  branchId         String    @map("branch_id") @db.Uuid
+  customerId       String?   @map("customer_id") @db.Uuid
+  rating           Int
+  comment          String?
+  submittedAt      DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  reviewedAt       DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  reviewedByUserId String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewNote       String?   @map("review_note")
+  /// Escalated to a customer complaint (ADR-098).
+  complaintId      String?   @map("complaint_id") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  posOrder     PosOrder     @relation(fields: [organizationId, posOrderId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  customer     PosCustomer? @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict)
+  complaint    Complaint?   @relation(fields: [organizationId, complaintId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, posOrderId])
+  @@index([organizationId, branchId, submittedAt])
+  @@map("guest_feedback")
 }

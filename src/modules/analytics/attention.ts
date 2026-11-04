@@ -56,7 +56,8 @@ export type AttentionKey =
   | "IMPORT_SHIPMENTS_LATE"
   | "TRADE_DOCUMENTS_EXPIRED"
   | "TRADE_DOCUMENTS_EXPIRING"
-  | "COLD_CHAIN_EXCURSIONS";
+  | "COLD_CHAIN_EXCURSIONS"
+  | "LOW_RATINGS_TO_REVIEW";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -682,6 +683,24 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         links: trips
           .slice(0, 5)
           .map((x) => ({ label: x.number, href: `/logistics/trips/${x.id}` })),
+      });
+    }
+
+    // Guest ratings of 2 or less not yet reviewed (ADR-118).
+    if (hasPermission(ctx.grants, "customers.manage")) {
+      const low = await tx.guestFeedback.findMany({
+        where: { organizationId: org, rating: { lte: 2 }, reviewedAt: null },
+        select: { id: true, posOrder: { select: { number: true } } },
+        orderBy: { submittedAt: "asc" },
+      });
+      push({
+        key: "LOW_RATINGS_TO_REVIEW",
+        tone: "warning",
+        count: low.length,
+        href: "/pos/customers/feedback?low=1",
+        links: low
+          .slice(0, 5)
+          .map((x) => ({ label: x.posOrder.number, href: "/pos/customers/feedback?low=1" })),
       });
     }
 

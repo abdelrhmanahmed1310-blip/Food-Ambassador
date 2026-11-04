@@ -82,6 +82,12 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     pos.items.push({ href: `${base}/pos/promotions`, label: t("posPromotions") });
   if (hasPermission(ctx.grants, "customers.view"))
     pos.items.push({ href: `${base}/pos/customers`, label: t("posCustomers") });
+  // Segments and guest feedback (ADR-118).
+  if (hasPermission(ctx.grants, "customers.view"))
+    pos.items.push(
+      { href: `${base}/pos/customers/segments`, label: t("segments") },
+      { href: `${base}/pos/customers/feedback`, label: t("guestFeedback") },
+    );
   if (hasPermission(ctx.grants, "payments.manage"))
     pos.items.push({ href: `${base}/pos/gift-cards`, label: t("posGiftCards") });
   if (holdsAnyGrant(ctx.grants, "inventory.adjust"))

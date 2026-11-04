@@ -30,6 +30,9 @@ export default defineConfig({
           // Database-backed tests share one database; run files sequentially.
           fileParallelism: false,
           testTimeout: 20_000,
+          // Set-up hooks build whole tenants (branches, stock, tills); 10 s is too tight once
+          // the shared database holds the earlier files' data.
+          hookTimeout: 60_000,
         },
       },
     ],

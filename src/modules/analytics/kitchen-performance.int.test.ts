@@ -17,6 +17,7 @@ import { exportKitchenCsv, kitchenPerformance } from "./kitchen-performance";
 
 let ctx: TenantContext;
 let today: string;
+let ticketDay: string;
 let grill: string;
 
 beforeAll(async () => {
@@ -79,8 +80,12 @@ beforeAll(async () => {
     where: { organizationId: ctx.organizationId, stationId: grill },
     orderBy: { createdAt: "asc" },
   });
-  const base = Date.now() - 30 * 60_000;
+  // Half an hour ago — moved back if that would straddle local midnight, so all tickets share one day.
+  let base = Date.now() - 30 * 60_000;
   const at = (min: number) => new Date(base + min * 60_000);
+  while (businessDate(ctx.timeZone, at(0)) !== businessDate(ctx.timeZone, at(16)))
+    base -= 20 * 60_000;
+  ticketDay = businessDate(ctx.timeZone, at(0));
   await getDb().kitchenTicket.update({
     where: { id: tickets[0].id },
     data: { createdAt: at(0), status: "DONE", bumpedAt: at(5) },
@@ -94,7 +99,7 @@ beforeAll(async () => {
 
 describe("kitchen performance (ADR-108)", () => {
   it("measures sent-to-bumped times against the station target", async () => {
-    const r = await kitchenPerformance(ctx, { from: today, to: today });
+    const r = await kitchenPerformance(ctx, { from: ticketDay, to: ticketDay });
     const s = r.stations.find((x) => x.station.id === grill)!;
     expect([s.sent, s.tickets, s.stillOpen]).toEqual([3, 2, 1]);
     // 5 and 15 minutes: median 10, 90th percentile 14, average 10; one of two within 10 minutes.
@@ -104,8 +109,8 @@ describe("kitchen performance (ADR-108)", () => {
     expect([s.openNow, s.lateNow, s.items, s.voidedItems]).toEqual([1, 1, 3, 0]);
     expect(r.total.sent).toBe(3);
     expect(r.hours.reduce((a, h) => a + h.sent, 0)).toBe(3);
-    expect(r.days).toEqual([expect.objectContaining({ day: today, sent: 3 })]);
-    const csv = await exportKitchenCsv(ctx, { from: today, to: today });
+    expect(r.days).toEqual([expect.objectContaining({ day: ticketDay, sent: 3 })]);
+    const csv = await exportKitchenCsv(ctx, { from: ticketDay, to: ticketDay });
     expect(csv).toContain("CAI,GRILL,10,3,10.0,14.0,10.0,50.0,1,3,0");
   });
 

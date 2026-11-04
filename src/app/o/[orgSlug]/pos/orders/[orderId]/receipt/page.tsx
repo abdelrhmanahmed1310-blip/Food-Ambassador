@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PrintButton } from "@/components/ui/print-button";
 import { isUuid } from "@/lib/uuid";
+import { feedbackUrl } from "@/modules/crm/feedback";
 import { getOrder } from "@/modules/pos/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -33,6 +34,11 @@ export default async function ReceiptPage({
   const m = (v: { toString(): string }) => (
     <span className="ltr-value tabular-nums">{money.money(v)}</span>
   );
+  // A signed link for the guest to rate this order (ADR-118).
+  const feedbackLink = o.status === "PAID" ? feedbackUrl(o.id) : null;
+  const feedbackQr = feedbackLink
+    ? await QRCode.toString(feedbackLink, { type: "svg", margin: 1, errorCorrectionLevel: "M" })
+    : null;
   const qrSvg = o.eInvoice
     ? await QRCode.toString(o.eInvoice.qr, { type: "svg", margin: 1, errorCorrectionLevel: "M" })
     : null;
@@ -178,6 +184,16 @@ export default async function ReceiptPage({
         >
           {/* SVG drawn by the qrcode library from the ZATCA fields (no user HTML). */}
           <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
+        </div>
+      ) : null}
+      {feedbackQr ? (
+        <div className="mx-auto w-28 text-center" data-testid="feedback-qr">
+          <p className="text-xs">{t("pos.rateUs")}</p>
+          {/* SVG drawn by the qrcode library from our own signed link (no user HTML). */}
+          <div dangerouslySetInnerHTML={{ __html: feedbackQr }} />
+          <a href={feedbackLink!} className="block text-[9px] break-all print:hidden">
+            {t("pos.rateUsLink")}
+          </a>
         </div>
       ) : null}
       <p className="text-center">{t("pos.thanks")}</p>

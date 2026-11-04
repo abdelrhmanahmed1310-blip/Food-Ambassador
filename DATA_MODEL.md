@@ -1126,6 +1126,14 @@ Own riders (C7b, ADR-117; migration `20270109090000_c7b_home_delivery`):
   for their status — check).
 - Permission `pos.dispatch`; branch managers gain `logistics.deliver`.
 
+Segments and feedback (C7c, ADR-118; migration `20270110090000_c7c_segments_feedback`):
+
+- **customer_segments**: `name` (UQ, also ignoring case in the service),
+  description, `rules` (JSON, validated), archived at.
+- **guest_feedback**: POS order (UQ), branch, customer, `rating` (1–5 —
+  check), `comment` (≤ 1 000), submitted at, reviewed at/by, review note,
+  complaint. Rating and comment never change (trigger).
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

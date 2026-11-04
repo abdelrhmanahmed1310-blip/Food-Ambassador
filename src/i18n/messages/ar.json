@@ -184,7 +184,9 @@
     "trips": "الرحلات",
     "vehicles": "المركبات",
     "posDispatch": "توزيع التوصيل",
-    "myDeliveries": "توصيلاتي"
+    "myDeliveries": "توصيلاتي",
+    "segments": "الشرائح",
+    "guestFeedback": "آراء الضيوف"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -318,7 +320,8 @@
     "invalidHsPrefix": "استخدم من ٢ إلى ١٢ رقمًا.",
     "refrigeratedNeedsRange": "المركبة المبردة تحتاج إلى أدنى وأعلى درجة حرارة.",
     "rangeReversed": "أعلى درجة أقل من أدناها.",
-    "invalidSignature": "تعذّرت قراءة التوقيع؛ امسحه ووقّع مجددًا."
+    "invalidSignature": "تعذّرت قراءة التوقيع؛ امسحه ووقّع مجددًا.",
+    "invalidRating": "اختر من ١ إلى ٥ نجوم."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -354,7 +357,9 @@
     "orderTaken": "هذا الطلب موجود على الشحنة.",
     "declarationTaken": "هذا البيان مسجل للشحنة بالفعل.",
     "consignmentOnTrip": "هذا موجود على رحلة بالفعل.",
-    "deliveryExists": "هذا الطلب مُرسل للتوصيل بالفعل."
+    "deliveryExists": "هذا الطلب مُرسل للتوصيل بالفعل.",
+    "feedbackGiven": "تم تقييم هذا الطلب بالفعل.",
+    "nameTaken": "هذا الاسم مستخدم بالفعل."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "قم بأرشفة مستودعات هذا الفرع أولًا.",
@@ -777,7 +782,9 @@
     "RIDER_NOT_ALLOWED": "هذا الشخص لا يوصّل لهذا الفرع.",
     "DELIVERY_ALREADY_LEFT": "غادر التوصيل الفرع بالفعل.",
     "DELIVERY_NOT_ASSIGNED": "التوصيل غير معيّن لك.",
-    "DELIVERY_NOT_OUT": "التوصيل ليس في الطريق."
+    "DELIVERY_NOT_OUT": "التوصيل ليس في الطريق.",
+    "FEEDBACK_CLOSED": "انتهت صلاحية رابط التقييم.",
+    "FEEDBACK_REVIEWED": "تمت مراجعة هذا الرأي بالفعل."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -2731,7 +2738,8 @@
       "IMPORT_SHIPMENTS_LATE": "{count, plural, one {شحنة استيراد متأخرة} two {شحنتا استيراد متأخرتان} few {# شحنات استيراد متأخرة} other {# شحنة استيراد متأخرة}}",
       "TRADE_DOCUMENTS_EXPIRED": "{count, plural, one {مستند تجاري منتهٍ} two {مستندان تجاريان منتهيان} few {# مستندات تجارية منتهية} other {# مستندًا تجاريًا منتهيًا}}",
       "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {مستند تجاري ينتهي قريبًا} two {مستندان تجاريان ينتهيان قريبًا} few {# مستندات تجارية تنتهي قريبًا} other {# مستندًا تجاريًا ينتهي قريبًا}}",
-      "COLD_CHAIN_EXCURSIONS": "{count, plural, one {رحلة بخروج في الحرارة} two {رحلتان بخروج في الحرارة} few {# رحلات بخروج في الحرارة} other {# رحلة بخروج في الحرارة}}"
+      "COLD_CHAIN_EXCURSIONS": "{count, plural, one {رحلة بخروج في الحرارة} two {رحلتان بخروج في الحرارة} few {# رحلات بخروج في الحرارة} other {# رحلة بخروج في الحرارة}}",
+      "LOW_RATINGS_TO_REVIEW": "{count, plural, one {تقييم منخفض للمراجعة} two {تقييمان منخفضان للمراجعة} few {# تقييمات منخفضة للمراجعة} other {# تقييمًا منخفضًا للمراجعة}}"
     }
   },
   "production": {
@@ -3495,7 +3503,9 @@
     "giftCardsSoldCard": "بطاقات هدية مبيعة (بطاقة)",
     "giftCardPayments": "مدفوع ببطاقات الهدية",
     "platformPayments": "مدفوع لمنصات التوصيل",
-    "payWithGiftCard": "الدفع ببطاقة هدية"
+    "payWithGiftCard": "الدفع ببطاقة هدية",
+    "rateUs": "قيّم طلبك:",
+    "rateUsLink": "امسح أو اضغط لتقييم هذا الطلب"
   },
   "zatca": {
     "title": "الفوترة الإلكترونية (هيئة الزكاة)",
@@ -6040,5 +6050,88 @@
       "FAILED": "لم يُسلَّم",
       "CANCELLED": "ملغى"
     }
+  },
+  "crm": {
+    "segmentsTitle": "شرائح العملاء",
+    "segmentsHint": "مجموعات من الضيوف حسب زياراتهم وإنفاقهم، تُحسب من الطلبات المدفوعة عند العرض. لا يُدرج العملاء الممحوّة بياناتهم.",
+    "rfmTitle": "الحداثة والتكرار والإنفاق — آخر {days} يومًا",
+    "rfmHint": "يُقيَّم كل ضيف اشترى من ١ إلى ٥ في حداثة الشراء وتكراره وقيمته مقارنة بالآخرين؛ دليل للاطلاع لا قاعدة.",
+    "group": "المجموعة",
+    "customers": "العملاء",
+    "spend": "الإنفاق",
+    "withConsent": "وافقوا على العروض",
+    "saved": "الشرائح المحفوظة",
+    "noSegments": "لا توجد شرائح بعد.",
+    "name": "الاسم",
+    "description": "الوصف",
+    "conditions": "الشروط",
+    "newSegment": "شريحة جديدة",
+    "saveSegment": "حفظ الشريحة",
+    "windowDays": "المدة (أيام)",
+    "windowDaysHint": "تُحسب الطلبات والإنفاق على هذا العدد من الأيام.",
+    "visitedWithinDays": "زار خلال (أيام)",
+    "notVisitedForDays": "لم يزر منذ (أيام)",
+    "minOrders": "طلبات على الأقل",
+    "maxOrders": "طلبات على الأكثر",
+    "minSpend": "إنفاق على الأقل",
+    "minPoints": "نقاط على الأقل",
+    "branches": "زار أيًّا من هذه الفروع",
+    "consentOnly": "فقط من وافقوا على تلقي العروض",
+    "membersHint": "الضيوف في هذه الشريحة اليوم.",
+    "memberCount": "{count} عميلًا، وافق {consent} على العروض",
+    "noMembers": "لا أحد في هذه الشريحة اليوم.",
+    "phone": "الهاتف",
+    "orders": "الطلبات",
+    "lastVisit": "آخر زيارة",
+    "consent": "وافق على العروض",
+    "archive": "أرشفة الشريحة",
+    "r": {
+      "window": "{days} يومًا",
+      "visitedWithin": "زار خلال {days} يومًا",
+      "notVisitedFor": "لم يزر منذ {days} يومًا",
+      "minOrders": "≥ {n} طلبات",
+      "maxOrders": "≤ {n} طلبات",
+      "minSpend": "إنفاق ≥ {amount}",
+      "minPoints": "≥ {n} نقطة",
+      "branches": "{n} فروع",
+      "consent": "وافق على العروض"
+    },
+    "groups": {
+      "CHAMPIONS": "الأبطال",
+      "LOYAL": "الأوفياء",
+      "NEW": "الجدد",
+      "AT_RISK": "معرّضون للفقد",
+      "LOST": "مفقودون",
+      "OTHERS": "آخرون"
+    },
+    "feedbackTitle": "آراء الضيوف",
+    "feedbackHint": "تقييمات الضيوف عبر الرابط على الإيصال. التقييمات ٢ فأقل تنتظر المراجعة.",
+    "lowOnly": "نجمتان فأقل فقط",
+    "ratings": "التقييمات",
+    "average": "المتوسط",
+    "happyShare": "٤ أو ٥ نجوم",
+    "lowCount": "نجمتان فأقل",
+    "byBranch": "حسب الفرع",
+    "branch": "الفرع",
+    "noFeedback": "لا توجد آراء في هذه الفترة.",
+    "escalated": "الشكوى {number}",
+    "reviewed": "تمت المراجعة",
+    "toReview": "للمراجعة",
+    "markReviewed": "تمت المراجعة",
+    "reviewNote": "ما تم",
+    "escalate": "فتح شكوى",
+    "complaintCategory": "نوع الشكوى"
+  },
+  "feedback": {
+    "title": "كيف كان طلبك في {branch}؟",
+    "question": "تقييمك",
+    "stars": "{count, plural, one {نجمة واحدة} two {نجمتان} few {# نجوم} other {# نجمة}}",
+    "comment": "هل لديك ما تقوله لنا؟ (اختياري)",
+    "send": "إرسال",
+    "thanks": "شكرًا لك — نقرأ كل تقييم.",
+    "failed": "تعذّر الإرسال. حاول مرة أخرى.",
+    "already": "شكرًا لك — تم تقييم هذا الطلب بالفعل.",
+    "closed": "انتهت صلاحية هذا الرابط.",
+    "privacy": "لا نطلب أي بيانات عنك ولا نحتفظ بها."
   }
 }

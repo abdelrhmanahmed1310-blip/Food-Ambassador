@@ -184,7 +184,9 @@
     "trips": "Trips",
     "vehicles": "Vehicles",
     "posDispatch": "Delivery dispatch",
-    "myDeliveries": "My deliveries"
+    "myDeliveries": "My deliveries",
+    "segments": "Segments",
+    "guestFeedback": "Guest feedback"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -318,7 +320,8 @@
     "invalidHsPrefix": "Use 2 to 12 digits.",
     "refrigeratedNeedsRange": "A refrigerated vehicle needs its lowest and highest temperature.",
     "rangeReversed": "The highest temperature is below the lowest.",
-    "invalidSignature": "The signature could not be read; clear it and sign again."
+    "invalidSignature": "The signature could not be read; clear it and sign again.",
+    "invalidRating": "Choose 1 to 5 stars."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -354,7 +357,9 @@
     "orderTaken": "This order is already on the shipment.",
     "declarationTaken": "This declaration is already recorded for the shipment.",
     "consignmentOnTrip": "This is already on a trip.",
-    "deliveryExists": "This order is already sent for delivery."
+    "deliveryExists": "This order is already sent for delivery.",
+    "feedbackGiven": "This order has already been rated.",
+    "nameTaken": "This name is already used."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -777,7 +782,9 @@
     "RIDER_NOT_ALLOWED": "This person does not ride for this branch.",
     "DELIVERY_ALREADY_LEFT": "The delivery has already left the branch.",
     "DELIVERY_NOT_ASSIGNED": "The delivery is not assigned to you.",
-    "DELIVERY_NOT_OUT": "The delivery is not on the way."
+    "DELIVERY_NOT_OUT": "The delivery is not on the way.",
+    "FEEDBACK_CLOSED": "This feedback link has closed.",
+    "FEEDBACK_REVIEWED": "This feedback was already reviewed."
   },
   "notFound": {
     "title": "Page not found",
@@ -2731,7 +2738,8 @@
       "IMPORT_SHIPMENTS_LATE": "{count, plural, one {# import shipment late} other {# import shipments late}}",
       "TRADE_DOCUMENTS_EXPIRED": "{count, plural, one {# trade document expired} other {# trade documents expired}}",
       "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {# trade document expiring soon} other {# trade documents expiring soon}}",
-      "COLD_CHAIN_EXCURSIONS": "{count, plural, one {# trip with a temperature excursion} other {# trips with temperature excursions}}"
+      "COLD_CHAIN_EXCURSIONS": "{count, plural, one {# trip with a temperature excursion} other {# trips with temperature excursions}}",
+      "LOW_RATINGS_TO_REVIEW": "{count, plural, one {# low rating to review} other {# low ratings to review}}"
     }
   },
   "production": {
@@ -3495,7 +3503,9 @@
     "giftCardsSoldCard": "Gift cards sold (card)",
     "giftCardPayments": "Paid by gift card",
     "platformPayments": "Paid to delivery platforms",
-    "payWithGiftCard": "Pay with a gift card"
+    "payWithGiftCard": "Pay with a gift card",
+    "rateUs": "Rate your order:",
+    "rateUsLink": "Scan or tap to rate this order"
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
@@ -6040,5 +6050,88 @@
       "FAILED": "Not delivered",
       "CANCELLED": "Cancelled"
     }
+  },
+  "crm": {
+    "segmentsTitle": "Customer segments",
+    "segmentsHint": "Groups of guests by their visits and spend, worked out from paid orders whenever you look. Erased customers are never included.",
+    "rfmTitle": "Recency, frequency and spend — last {days} days",
+    "rfmHint": "Each guest who bought is scored 1–5 on how recently, how often and how much, against the others; a guide to look at, not a rule.",
+    "group": "Group",
+    "customers": "Customers",
+    "spend": "Spend",
+    "withConsent": "Agreed to offers",
+    "saved": "Saved segments",
+    "noSegments": "No segments yet.",
+    "name": "Name",
+    "description": "Description",
+    "conditions": "Conditions",
+    "newSegment": "New segment",
+    "saveSegment": "Save segment",
+    "windowDays": "Look back (days)",
+    "windowDaysHint": "Orders and spend are counted over this many days.",
+    "visitedWithinDays": "Visited within (days)",
+    "notVisitedForDays": "Not visited for (days)",
+    "minOrders": "At least orders",
+    "maxOrders": "At most orders",
+    "minSpend": "At least spend",
+    "minPoints": "At least points",
+    "branches": "Visited any of these branches",
+    "consentOnly": "Only guests who agreed to receive offers",
+    "membersHint": "The guests in this segment today.",
+    "memberCount": "{count} customers, {consent} agreed to offers",
+    "noMembers": "Nobody is in this segment today.",
+    "phone": "Phone",
+    "orders": "Orders",
+    "lastVisit": "Last visit",
+    "consent": "Agreed to offers",
+    "archive": "Archive segment",
+    "r": {
+      "window": "{days} days",
+      "visitedWithin": "visited within {days} days",
+      "notVisitedFor": "not visited for {days} days",
+      "minOrders": "≥ {n} orders",
+      "maxOrders": "≤ {n} orders",
+      "minSpend": "spend ≥ {amount}",
+      "minPoints": "≥ {n} points",
+      "branches": "{n} branches",
+      "consent": "agreed to offers"
+    },
+    "groups": {
+      "CHAMPIONS": "Champions",
+      "LOYAL": "Loyal",
+      "NEW": "New",
+      "AT_RISK": "At risk",
+      "LOST": "Lost",
+      "OTHERS": "Others"
+    },
+    "feedbackTitle": "Guest feedback",
+    "feedbackHint": "Ratings guests gave through the link on their receipt. Ratings of 2 or less wait for a review.",
+    "lowOnly": "2 stars or less only",
+    "ratings": "Ratings",
+    "average": "Average",
+    "happyShare": "4 or 5 stars",
+    "lowCount": "2 stars or less",
+    "byBranch": "By branch",
+    "branch": "Branch",
+    "noFeedback": "No feedback in this period.",
+    "escalated": "Complaint {number}",
+    "reviewed": "Reviewed",
+    "toReview": "To review",
+    "markReviewed": "Mark reviewed",
+    "reviewNote": "What was done",
+    "escalate": "Open a complaint",
+    "complaintCategory": "Complaint type"
+  },
+  "feedback": {
+    "title": "How was your order at {branch}?",
+    "question": "Your rating",
+    "stars": "{count, plural, one {# star} other {# stars}}",
+    "comment": "Anything to tell us? (optional)",
+    "send": "Send",
+    "thanks": "Thank you — we read every rating.",
+    "failed": "It could not be sent. Please try again.",
+    "already": "Thank you — this order has already been rated.",
+    "closed": "This link has closed.",
+    "privacy": "We do not ask for or keep any details about you."
   }
 }

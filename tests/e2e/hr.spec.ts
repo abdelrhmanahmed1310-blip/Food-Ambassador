@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { newClient, signUp, uniqueEmail } from "./helpers";
+import { newClient, orgDate, signUp, uniqueEmail } from "./helpers";
 
 test("HR: department, employees with a reporting line, documents, overview and org chart (ADR-079)", async ({
   browser,
@@ -52,7 +52,7 @@ test("HR: department, employees with a reporting line, documents, overview and o
   await expect(page.getByText("2123456789")).toBeVisible();
 
   // A health certificate that expires today is flagged on the profile and the overview.
-  const today = new Date().toISOString().slice(0, 10);
+  const today = orgDate();
   await page.getByLabel("Document", { exact: true }).selectOption("HEALTH_CERTIFICATE");
   await page.getByLabel(/^Expires on/).fill(today);
   await page.getByRole("button", { name: "Add document" }).click();

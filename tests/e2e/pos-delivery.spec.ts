@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { newClient } from "./helpers";
+import { newClient, orgDate } from "./helpers";
 import { openTill } from "./pos-setup";
 
 test("delivery: a platform order is mapped, accepted and recorded (ADR-069)", async ({
@@ -69,9 +69,9 @@ test("delivery: a platform order is mapped, accepted and recorded (ADR-069)", as
   // Finance imports the platform's statement and reconciles it (ADR-075).
   await page.goto(`/o/${slug}/pos/delivery`);
   await page.getByRole("link", { name: "Payouts" }).click();
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const today = orgDate();
+  const yesterday = orgDate(-1);
+  const tomorrow = orgDate(1);
   await page.getByLabel("Statement reference").fill("HS-W44");
   await page.getByLabel("Orders from").fill(yesterday);
   await page.getByLabel("Orders until").fill(tomorrow);

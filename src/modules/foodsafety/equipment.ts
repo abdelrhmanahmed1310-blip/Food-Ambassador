@@ -464,7 +464,10 @@ function branchWhere(ctx: TenantContext) {
   return s.all ? {} : { branchId: { in: s.branchIds } };
 }
 
-/** When calibration and maintenance are next due: the latest record's date, else (with an interval) now. */
+/**
+ * When calibration and maintenance are next due: the latest record's date,
+ * else (with an interval) today in the branch's time zone — due now.
+ */
 export function equipmentDues(
   eq: {
     calibrationIntervalDays: number | null;
@@ -480,14 +483,14 @@ export function equipmentDues(
       ? day(lastCal.nextDueOn)
       : null
     : eq.calibrationIntervalDays
-      ? day(eq.createdAt)
+      ? today
       : null;
   const maint = lastMaint
     ? lastMaint.nextDueOn
       ? day(lastMaint.nextDueOn)
       : null
     : eq.maintenanceIntervalDays
-      ? day(eq.createdAt)
+      ? today
       : null;
   return {
     calibrationDue: cal,
