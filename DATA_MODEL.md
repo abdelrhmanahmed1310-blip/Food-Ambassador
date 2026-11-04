@@ -1082,6 +1082,19 @@ Trade documents (C6b, ADR-114; migration `20270106090000_c6b_trade_documents`):
   check), note, archived at/by and reason (required — check).
 - **attachments.entity_type** gains `TRADE_DOCUMENT`.
 
+Customs and shipment charges (C6c, ADR-115; migration `20270107090000_c6c_customs_charges`):
+
+- **import_customs_entries**: shipment, declaration `number` (UQ per
+  shipment), `declared_on`, broker, `currency`, `customs_value`,
+  `duty_amount`, `import_vat` (≥ 0 — check). Append-only (trigger).
+- **import_shipment_charges**: shipment, optional customs entry,
+  `charge_type`, `method`, entered currency/amount/rate, `amount` in the
+  company currency, capitalized + expensed = amount (check), reference,
+  note, posted by/at. Append-only (trigger).
+- **landed_costs.shipment_charge_id**: the charge a per-receipt landed
+  cost came from (FK deferred to commit: the charge is written with the
+  totals of its landed costs).
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

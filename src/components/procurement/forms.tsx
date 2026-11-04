@@ -627,6 +627,7 @@ export function LandedCostForm({
   currency,
   currencies,
   quantityAllowed,
+  customsEntries,
 }: {
   action: Action;
   currency: string;
@@ -634,6 +635,8 @@ export function LandedCostForm({
   currencies: string[];
   /** Allocation by quantity is offered only when all lines share a base unit. */
   quantityAllowed: boolean;
+  /** Import shipments (ADR-115): the declaration a duty charge belongs to. */
+  customsEntries?: Option[];
 }) {
   const t = useTranslations();
   return (
@@ -685,6 +688,15 @@ export function LandedCostForm({
           label={t("landedCost.reference")}
           optionalLabel={t("common.optional")}
         />
+        {customsEntries && customsEntries.length > 0 ? (
+          <SelectField
+            name="customsEntryId"
+            label={t("customs.declaration")}
+            options={customsEntries}
+            placeholder="—"
+            optionalLabel={t("common.optional")}
+          />
+        ) : null}
         <div className="sm:col-span-2">
           <TextField name="note" label={t("common.note")} optionalLabel={t("common.optional")} />
         </div>

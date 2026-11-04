@@ -46,7 +46,9 @@
 > containers, steps and receipts; HS code and origin on products.
 > **C6b built** (ADR-114): trade document types, requirements per
 > country/origin/HS code, documents with expiry, shipment checklist that
-> holds back clearance. Next in C6: customs entries and landed cost.
+> holds back clearance. **C6c built** (ADR-115): customs declarations and
+> shipment charges spread over the shipment's receipts as landed cost.
+> C6 is complete.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

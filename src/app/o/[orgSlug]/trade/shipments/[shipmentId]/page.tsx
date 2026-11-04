@@ -8,8 +8,12 @@ import {
   ContainerForm,
   PickOneForm,
   ShipmentForm,
+  CustomsEntryForm,
   TradeDocumentForm,
 } from "@/components/trade/forms";
+import { LandedCostForm } from "@/components/procurement/forms";
+import { currencyChoices } from "@/modules/fx/rules";
+import { moneyFormatter } from "@/server/inventory-view";
 import {
   Badge,
   Card,
@@ -31,6 +35,8 @@ import {
   cancelShipmentAction,
   linkOrderAction,
   linkReceiptAction,
+  postShipmentChargeAction,
+  recordCustomsEntryAction,
   removeContainerAction,
   unlinkOrderAction,
   updateShipmentAction,
@@ -49,6 +55,10 @@ export default async function ImportShipmentPage({
     getLocale(),
     tradeDocumentOptions(ctx),
   ]);
+  const fmt = await moneyFormatter(s.costs.currency);
+  const money = (v: { toString(): string }) => (
+    <span className="ltr-value whitespace-nowrap">{fmt.money(v)}</span>
+  );
   const shipmentTypes = docOptions.types
     .filter((x) => x.scope === "SHIPMENT")
     .map((x) => ({ value: x.id, label: `${x.code} — ${(locale === "ar" && x.nameAr) || x.name}` }));
@@ -270,6 +280,130 @@ export default async function ImportShipmentPage({
             />
           </Card>
         ) : null}
+
+        <Card title={t("customs.costsTitle", { currency: s.costs.currency })}>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="shipment-costs">
+            {[
+              [t("customs.goods"), money(s.costs.goods)],
+              [t("customs.charges"), money(s.costs.totalCharges)],
+              [t("customs.landedTotal"), money(s.costs.landedTotal)],
+              [
+                t("customs.uplift"),
+                s.costs.uplift === null ? (
+                  "—"
+                ) : (
+                  <span className="ltr-value">{`${s.costs.uplift.times(100).toFixed(1)}%`}</span>
+                ),
+              ],
+            ].map(([label, value], i) => (
+              <div key={i} className="border-border bg-surface rounded-xl border p-4 shadow-sm">
+                <p className="text-muted text-xs font-medium">{label}</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">{value}</p>
+              </div>
+            ))}
+          </div>
+          {s.costs.charges.length > 0 ? (
+            <div className="mt-4">
+              <Table label={t("customs.charges")}>
+                <thead>
+                  <tr>
+                    <Th>{t("landedCost.charge")}</Th>
+                    <Th>{t("customs.entered")}</Th>
+                    <Th>{t("customs.amount", { currency: s.costs.currency })}</Th>
+                    <Th>{t("customs.capitalized")}</Th>
+                    <Th>{t("customs.expensed")}</Th>
+                    <Th>{t("customs.documents")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {s.costs.charges.map((c) => (
+                    <tr key={c.id} data-testid={`charge-${c.chargeType}`}>
+                      <Td>{t(`landedCost.charges.${c.chargeType}`)}</Td>
+                      <Td>
+                        <span className="ltr-value whitespace-nowrap">{`${c.enteredAmount.toFixed(2)} ${c.currency}`}</span>
+                      </Td>
+                      <Td>{money(c.amount)}</Td>
+                      <Td>{money(c.capitalized)}</Td>
+                      <Td>{money(c.expensed)}</Td>
+                      <Td>
+                        <span className="ltr-value font-mono text-xs">
+                          {c.documents.join(", ")}
+                        </span>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+              <p className="text-muted mt-2 text-xs">{t("customs.chargesNote")}</p>
+            </div>
+          ) : null}
+          {s.costs.customsEntries.length > 0 ? (
+            <div className="mt-4">
+              <Table label={t("customs.entries")}>
+                <thead>
+                  <tr>
+                    <Th>{t("customs.number")}</Th>
+                    <Th>{t("customs.declaredOn")}</Th>
+                    <Th>{t("customs.broker")}</Th>
+                    <Th>{t("customs.customsValue")}</Th>
+                    <Th>{t("customs.duty")}</Th>
+                    <Th>{t("customs.dutyPosted")}</Th>
+                    <Th>{t("customs.importVat")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {s.costs.customsEntries.map((e) => (
+                    <tr key={e.id} data-testid={`customs-${e.number}`}>
+                      <Td>
+                        <span className="ltr-value font-mono text-xs">{e.number}</span>
+                      </Td>
+                      <Td>
+                        <span className="ltr-value">{e.declaredOn}</span>
+                      </Td>
+                      <Td>{e.broker ?? "—"}</Td>
+                      <Td>{e.customsValue === null ? "—" : money(e.customsValue)}</Td>
+                      <Td>{money(e.dutyAmount)}</Td>
+                      <Td>
+                        {money(e.dutyPosted)}
+                        {!e.dutyPosted.eq(e.dutyAmount) ? (
+                          <span className="block">
+                            <Badge tone="warning">{t("customs.dutyNotPosted")}</Badge>
+                          </span>
+                        ) : null}
+                      </Td>
+                      <Td>{money(e.importVat)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          ) : null}
+          {s.canRecordCustoms ? (
+            <div className="mt-6">
+              <h3 className="mb-2 text-sm font-medium">{t("customs.recordTitle")}</h3>
+              <CustomsEntryForm
+                action={recordCustomsEntryAction.bind(null, orgSlug, s.id)}
+                currency={s.costs.currency}
+              />
+            </div>
+          ) : null}
+          {s.canPostCharges ? (
+            <div className="mt-6">
+              <h3 className="mb-2 text-sm font-medium">{t("customs.postTitle")}</h3>
+              <p className="text-muted mb-3 text-sm">{t("customs.postHint")}</p>
+              <LandedCostForm
+                action={postShipmentChargeAction.bind(null, orgSlug, s.id)}
+                currency={s.costs.currency}
+                currencies={currencyChoices(s.costs.currency)}
+                quantityAllowed
+                customsEntries={s.costs.customsEntries.map((e) => ({
+                  value: e.id,
+                  label: e.number,
+                }))}
+              />
+            </div>
+          ) : null}
+        </Card>
 
         <Card title={t("tradeDocs.checklist")}>
           {!s.checklist.destinationKnown ? (

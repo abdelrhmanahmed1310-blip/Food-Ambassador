@@ -343,6 +343,9 @@ model Organization {
   tradeRequirements  TradeRequirement[]
   tradeDocuments     TradeDocument[]
 
+  importCustomsEntries  ImportCustomsEntry[]
+  importShipmentCharges ImportShipmentCharge[]
+
   @@map("organizations")
 }
 
@@ -2131,14 +2134,17 @@ model LandedCost {
   expensedAmount    Decimal          @map("expensed_amount") @db.Decimal(19, 4)
   reference         String?
   note              String?
+  /// The import shipment charge this share came from (ADR-115).
+  shipmentChargeId  String?          @map("shipment_charge_id") @db.Uuid
   postedByUserId    String           @map("posted_by_user_id") @db.Uuid
   postedAt          DateTime         @default(now()) @map("posted_at") @db.Timestamptz(3)
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  receipt      GoodsReceipt      @relation(fields: [organizationId, receiptId], references: [organizationId, id], onDelete: Restrict)
-  document     InventoryDocument @relation("LandedCostDocument", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
-  warehouse    Warehouse         @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
-  lines        LandedCostLine[]
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shipmentCharge ImportShipmentCharge? @relation(fields: [organizationId, shipmentChargeId], references: [organizationId, id], onDelete: Restrict)
+  receipt        GoodsReceipt          @relation(fields: [organizationId, receiptId], references: [organizationId, id], onDelete: Restrict)
+  document       InventoryDocument     @relation("LandedCostDocument", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  warehouse      Warehouse             @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  lines          LandedCostLine[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, documentId])
@@ -6927,6 +6933,9 @@ model ImportShipment {
 
   tradeDocuments TradeDocument[]
 
+  customsEntries ImportCustomsEntry[]
+  charges        ImportShipmentCharge[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, status, eta])
@@ -7054,4 +7063,67 @@ model TradeDocument {
   @@index([organizationId, productId])
   @@index([organizationId, expiresOn])
   @@map("trade_documents")
+}
+
+// ─── C6c customs entries and shipment charges (ADR-115) ───
+
+/// A customs declaration for an import shipment, as the authority assessed it. Amounts in the company's currency.
+model ImportCustomsEntry {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  shipmentId      String   @map("shipment_id") @db.Uuid
+  /// The declaration number given by customs.
+  number          String
+  declaredOn      DateTime @map("declared_on") @db.Date
+  broker          String?
+  currency        String   @db.Char(3)
+  /// Customs value of the goods as declared.
+  customsValue    Decimal? @map("customs_value") @db.Decimal(19, 4)
+  /// Duty assessed; posted as a landed cost through a shipment charge.
+  dutyAmount      Decimal  @default(0) @map("duty_amount") @db.Decimal(19, 4)
+  /// VAT paid on import: recorded, not a cost of the goods.
+  importVat       Decimal  @default(0) @map("import_vat") @db.Decimal(19, 4)
+  note            String?
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shipment     ImportShipment         @relation(fields: [organizationId, shipmentId], references: [organizationId, id], onDelete: Restrict)
+  charges      ImportShipmentCharge[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, shipmentId, number])
+  @@map("import_customs_entries")
+}
+
+/// Freight, duty, insurance, handling or other cost of a shipment, spread over its receipts. Append-only.
+model ImportShipmentCharge {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  shipmentId        String           @map("shipment_id") @db.Uuid
+  customsEntryId    String?          @map("customs_entry_id") @db.Uuid
+  chargeType        LandedCostCharge @map("charge_type")
+  method            LandedCostMethod
+  /// As entered: currency, amount and the rate on the posting date (ADR-053).
+  currency          String           @db.Char(3)
+  enteredAmount     Decimal          @map("entered_amount") @db.Decimal(19, 4)
+  exchangeRate      Decimal          @default(1) @map("exchange_rate") @db.Decimal(20, 10)
+  rateDate          DateTime?        @map("rate_date") @db.Date
+  /// In the company's currency, spread over the receipts.
+  amount            Decimal          @db.Decimal(19, 4)
+  capitalizedAmount Decimal          @map("capitalized_amount") @db.Decimal(19, 4)
+  expensedAmount    Decimal          @map("expensed_amount") @db.Decimal(19, 4)
+  reference         String?
+  note              String?
+  postedByUserId    String           @map("posted_by_user_id") @db.Uuid
+  postedAt          DateTime         @default(now()) @map("posted_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shipment     ImportShipment      @relation(fields: [organizationId, shipmentId], references: [organizationId, id], onDelete: Restrict)
+  customsEntry ImportCustomsEntry? @relation(fields: [organizationId, customsEntryId], references: [organizationId, id], onDelete: Restrict)
+  landedCosts  LandedCost[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, shipmentId])
+  @@map("import_shipment_charges")
 }

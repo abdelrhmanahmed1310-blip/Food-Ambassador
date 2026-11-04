@@ -14,6 +14,7 @@ import {
   unlinkOrder,
   updateShipment,
 } from "@/modules/trade/shipments";
+import { postShipmentCharge, recordCustomsEntry } from "@/modules/trade/charges";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
@@ -109,4 +110,24 @@ export async function cancelShipmentAction(
   formData: FormData,
 ) {
   return saved(orgSlug, previous, formData, (ctx) => cancelShipment(ctx, id, formValues(formData)));
+}
+export async function recordCustomsEntryAction(
+  orgSlug: string,
+  id: string,
+  previous: S,
+  formData: FormData,
+) {
+  return saved(orgSlug, previous, formData, (ctx) =>
+    recordCustomsEntry(ctx, id, formValues(formData)),
+  );
+}
+export async function postShipmentChargeAction(
+  orgSlug: string,
+  id: string,
+  previous: S,
+  formData: FormData,
+) {
+  return saved(orgSlug, previous, formData, (ctx) =>
+    postShipmentCharge(ctx, id, formValues(formData)),
+  );
 }

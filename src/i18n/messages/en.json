@@ -344,7 +344,8 @@
     "supplierOnRfq": "This supplier is already asked.",
     "lineOnReturn": "This receipt line is already on the return.",
     "containerTaken": "This container is already on the shipment.",
-    "orderTaken": "This order is already on the shipment."
+    "orderTaken": "This order is already on the shipment.",
+    "declarationTaken": "This declaration is already recorded for the shipment."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -750,7 +751,8 @@
     "DATE_BEFORE_PREVIOUS_STEP": "The date is before the previous step.",
     "SHIPMENT_DOCUMENTS_MISSING": "Required documents are missing or expired: see the shipment's required documents.",
     "DOCUMENT_TYPE_OTHER_SCOPE": "This kind of document is held elsewhere (per shipment or per product).",
-    "DOCUMENT_NEEDS_EXPIRY": "This document has an expiry date: enter it."
+    "DOCUMENT_NEEDS_EXPIRY": "This document has an expiry date: enter it.",
+    "SHIPMENT_HAS_NO_RECEIPTS": "Link the receipts that took the goods in first."
   },
   "notFound": {
     "title": "Page not found",
@@ -5833,5 +5835,33 @@
       "EXPIRING": "Expiring soon",
       "OK": "Held"
     }
+  },
+  "customs": {
+    "costsTitle": "Customs and landed cost ({currency})",
+    "goods": "Goods received",
+    "charges": "Charges",
+    "landedTotal": "Landed cost",
+    "uplift": "Charges on goods",
+    "entered": "As entered",
+    "amount": "Amount ({currency})",
+    "capitalized": "Added to stock",
+    "expensed": "On stock already used",
+    "documents": "Landed cost documents",
+    "chargesNote": "Each charge is spread over every line of the linked receipts and posted per receipt as a landed cost; the share of stock already used is not added to stock.",
+    "entries": "Customs declarations",
+    "number": "Declaration number",
+    "declaredOn": "Declared on",
+    "broker": "Customs broker",
+    "customsValue": "Customs value",
+    "duty": "Duty assessed",
+    "dutyPosted": "Duty posted",
+    "dutyNotPosted": "Not all posted",
+    "importVat": "Import VAT",
+    "importVatHint": "Recorded only: import VAT is not a cost of the goods.",
+    "declaration": "Customs declaration",
+    "record": "Record declaration",
+    "recordTitle": "Record a customs declaration",
+    "postTitle": "Post a charge over the shipment's receipts",
+    "postHint": "Enter amounts as invoiced or assessed; no duty rate is assumed. Post the duty against its declaration."
   }
 }

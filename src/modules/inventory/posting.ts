@@ -566,6 +566,8 @@ export interface LandedCostInput {
   entered?: { currency: string; amount: Decimal; rate: Decimal; rateDate: string };
   reference?: string;
   note?: string;
+  /** Part of an import shipment charge (ADR-115). */
+  shipmentChargeId?: string;
   /** One per receipt line (one per product); shares add up to `amount`. */
   lines: Array<{
     receiptLineId: string;
@@ -654,6 +656,7 @@ export async function postLandedCost(
       expensedAmount: expensed.toFixed(),
       reference: input.reference,
       note: input.note,
+      shipmentChargeId: input.shipmentChargeId ?? null,
       postedByUserId: ctx.userId,
     },
     select: { id: true },

@@ -2937,6 +2937,43 @@ feeding landed cost over the shipment's receipts.
   ahead of expiry, document templates or generation, links to
   authorities' systems (e.g. SFDA, FASAH).
 
+### ADR-115 Customs entries and shipment charges — Accepted (C6c built)
+
+- **Customs entry**: a declaration on an arrived shipment as customs
+  assessed it — declaration number (UQ per shipment), date (not in the
+  future), broker, customs value, **duty assessed** and **import VAT**,
+  all in the shipment company's currency (ADR-086). No duty rate or
+  tariff is assumed: the figures come from the declaration. Import VAT
+  is recorded, not added to stock (it is not a cost of the goods;
+  reclaiming it through the VAT return is not built yet).
+- **Shipment charge**: freight, duty, insurance, handling or other,
+  entered in any document currency (converted at the rate on the posting
+  date, ADR-053), optionally against a customs entry (for duty), on an
+  arrived, cleared or closed shipment with at least one linked receipt.
+  It is **spread over every line of all the shipment's posted receipts**
+  (ADR-113) — by value in the company's currency (each receipt's prices
+  × its own rate, so receipts in different currencies weigh fairly) or
+  by quantity when all lines share a base unit — with the largest
+  remainder rounding of ADR-028, then **posted per receipt as landed
+  costs** through the inventory module: only the share for stock still
+  on hand is added to its value, the rest is recorded as relating to
+  stock already used. One charge makes one `LCA-` document per receipt,
+  linked to it. The orders are locked in id order, as for receipts.
+- Needs `inventory.valuation.revalue` at the warehouse (as any landed
+  cost); recording customs entries needs `trade.manage`.
+- **Append-only**: customs entries and charges are never changed or
+  removed (trigger; no UPDATE/DELETE grant). A mistake is corrected by a
+  revaluation (ADR-028).
+- **Shipment costs**: goods received (company currency), charges by
+  type, landed total and charges as a share of the goods; each
+  declaration with its duty assessed against the duty posted (flagged
+  when they differ).
+- **Not yet:** allocation by weight or volume (needs product weights),
+  duty per HS line of the declaration, linking a charge to the
+  forwarder's or broker's supplier invoice for payment, import VAT in
+  the VAT return, demurrage and detention, estimated charges before the
+  invoices arrive.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

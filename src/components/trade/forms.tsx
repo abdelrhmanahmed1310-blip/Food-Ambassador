@@ -384,3 +384,41 @@ export function RequirementForm({
     </ActionForm>
   );
 }
+
+/** A customs declaration as customs assessed it (ADR-115); amounts in the company's currency. */
+export function CustomsEntryForm({ action, currency }: { action: Action; currency: string }) {
+  const t = useTranslations();
+  const optional = t("common.optional");
+  return (
+    <ActionForm action={action} submitLabel={t("customs.record")} pendingLabel={t("common.saving")}>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField name="number" label={t("customs.number")} dir="ltr" required />
+        <TextField name="declaredOn" type="date" label={t("customs.declaredOn")} required />
+        <TextField name="broker" label={t("customs.broker")} optionalLabel={optional} />
+        <TextField
+          name="customsValue"
+          label={`${t("customs.customsValue")} (${currency})`}
+          inputMode="decimal"
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField
+          name="dutyAmount"
+          label={`${t("customs.duty")} (${currency})`}
+          inputMode="decimal"
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField
+          name="importVat"
+          label={`${t("customs.importVat")} (${currency})`}
+          hint={t("customs.importVatHint")}
+          inputMode="decimal"
+          dir="ltr"
+          optionalLabel={optional}
+        />
+      </div>
+      <TextField name="note" label={t("trade.note")} optionalLabel={optional} />
+    </ActionForm>
+  );
+}

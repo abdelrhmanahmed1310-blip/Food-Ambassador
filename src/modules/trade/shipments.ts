@@ -40,6 +40,7 @@ import {
   type ShipmentStatus,
 } from "./rules";
 import { blocksClearance, expiryState } from "./document-rules";
+import { shipmentCostsInTx } from "./charges";
 import { shipmentChecklistInTx } from "./documents";
 
 /**
@@ -610,8 +611,16 @@ export async function getShipment(ctx: TenantContext, shipmentId: string) {
       include: { documentType: { select: { code: true, name: true, nameAr: true } } },
       orderBy: { createdAt: "asc" },
     });
+    const costs = await shipmentCostsInTx(tx, ctx, s.id, s.warehouseId);
+    const afterArrival = s.status === "ARRIVED" || s.status === "CLEARED" || s.status === "CLOSED";
     return {
       ...s,
+      costs,
+      canRecordCustoms: manage && afterArrival,
+      canPostCharges:
+        afterArrival &&
+        s.receipts.some((r) => r.status === "POSTED") &&
+        hasPermission(ctx.grants, "inventory.valuation.revalue", target(s)),
       checklist: check,
       documents: documents.map((d) => ({
         ...d,
