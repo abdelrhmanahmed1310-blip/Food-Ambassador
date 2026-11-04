@@ -125,7 +125,10 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     );
   // Import shipments (ADR-113).
   if (holdsAnyGrant(ctx.grants, "trade.view"))
-    purchasing.items.push({ href: `${base}/trade/shipments`, label: t("importShipments") });
+    purchasing.items.push(
+      { href: `${base}/trade/shipments`, label: t("importShipments") },
+      { href: `${base}/trade/documents`, label: t("tradeDocuments") },
+    );
   // Operating expenses (ADR-109).
   if (holdsAnyGrant(ctx.grants, "expenses.view"))
     purchasing.items.push({ href: `${base}/finance/expenses`, label: t("expenses") });

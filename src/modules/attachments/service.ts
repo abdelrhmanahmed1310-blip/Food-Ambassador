@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { hasPermission } from "@/modules/access/authorize";
+import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import type { Permission } from "@/modules/access/permissions";
 import { fsDocumentVersionAccess } from "@/modules/foodsafety/documents";
 import { actorOf, recordAudit } from "@/modules/audit/service";
@@ -41,6 +41,7 @@ export const ATTACHMENT_ENTITIES = [
   "CALIBRATION",
   "EXPENSE",
   "IMPORT_SHIPMENT",
+  "TRADE_DOCUMENT",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -126,6 +127,30 @@ async function accessTo(
         upload:
           e.status === "POSTED" &&
           hasPermission(ctx.grants, "expenses.manage", { branchId: e.branchId }),
+      };
+    }
+    case "TRADE_DOCUMENT": {
+      // The scan of a trade document (ADR-114): its shipment's scope, or organization-wide for products.
+      const d = await tx.tradeDocument.findFirst({
+        where: { organizationId: org, id: entityId },
+        select: {
+          archivedAt: true,
+          shipment: { select: { warehouseId: true, warehouse: { select: { branchId: true } } } },
+        },
+      });
+      const where = d?.shipment
+        ? { warehouseId: d.shipment.warehouseId, branchId: d.shipment.warehouse.branchId }
+        : undefined;
+      if (
+        !d ||
+        (where
+          ? !hasPermission(ctx.grants, "trade.view", where)
+          : !holdsAnyGrant(ctx.grants, "trade.view"))
+      )
+        throw notFound("Document");
+      return {
+        view: true,
+        upload: !d.archivedAt && hasPermission(ctx.grants, "trade.manage", where),
       };
     }
     case "IMPORT_SHIPMENT": {

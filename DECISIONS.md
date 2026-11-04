@@ -2899,6 +2899,44 @@ feeding landed cost over the shipment's receipts.
   feeds, demurrage and detention, packing lists per container,
   shipment-level quantities different from the orders.
 
+### ADR-114 Trade documents and requirements — Accepted (C6b built)
+
+- **Document types are the organization's own** (code, names, held for
+  each shipment or each product, with or without an expiry date). None
+  are created for it and no authority's rules are shipped: what SFDA,
+  customs or a halal body asks for is entered by the user.
+- **Requirements** say when a type is needed: into a country (the
+  importing company's country, ADR-083), from an origin, for products
+  whose HS code starts with a prefix (2–12 digits); an empty condition
+  matches everything. They are never edited — a change is a new one and
+  the old one archived.
+- **Matching** (pure, `document-rules.ts`): a product's origin is its
+  own, else the shipment's. Unknown facts never match a condition, and
+  the checklist names the products without an HS code or origin and says
+  when the company has no country, rather than guessing. A shipment-wide
+  requirement with no product condition applies to every shipment that
+  matches its countries.
+- **Documents** are held for one shipment or one product (product
+  registrations and permits serve every shipment of that product):
+  number, issuer, issue and expiry dates (required when the type has an
+  expiry; not before issue), note, scan (ADR-051). Renewal edits the
+  number and dates (audited); removal archives with a reason.
+- **Checklist** on each shipment: one line per shipment document needed,
+  one per product for product documents, with the best document held
+  (latest expiry) and its state — held, expiring within 30 days (the
+  window of ADR-079/091), expired or missing. **Marking a shipment
+  cleared is refused** while any line is missing or expired
+  (`SHIPMENT_DOCUMENTS_MISSING`, naming them).
+- **Needs attention**: trade documents expired or expiring within 30
+  days — product documents, and those of shipments not yet closed.
+- **Permissions**: `trade.view` / `trade.manage` (ADR-113). Shipment
+  documents follow the shipment's warehouse scope; types, requirements
+  and product documents need `trade.manage` for the whole organization.
+- **Not yet:** export documents and requirements of destination
+  countries for sales, per-container documents, reminders by e-mail
+  ahead of expiry, document templates or generation, links to
+  authorities' systems (e.g. SFDA, FASAH).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

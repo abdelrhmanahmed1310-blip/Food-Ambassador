@@ -11,6 +11,7 @@ import { haccpReviewsDue } from "@/modules/foodsafety/haccp";
 import { qualityAttention } from "@/modules/foodsafety/quality";
 import { supplierDocumentsDue } from "@/modules/procurement/compliance";
 import { addDays, businessDate } from "@/modules/inventory/rules";
+import { EXPIRY_WARNING_DAYS as TRADE_DOC_WARNING_DAYS } from "@/modules/trade/document-rules";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
 
@@ -52,7 +53,9 @@ export type AttentionKey =
   | "EQUIPMENT_DUE_SOON"
   | "EQUIPMENT_OUT_OF_SERVICE"
   | "INSPECTIONS_WAITING"
-  | "IMPORT_SHIPMENTS_LATE";
+  | "IMPORT_SHIPMENTS_LATE"
+  | "TRADE_DOCUMENTS_EXPIRED"
+  | "TRADE_DOCUMENTS_EXPIRING";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -618,6 +621,41 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         count: late.length,
         href: "/trade/shipments?status=OPEN",
         links: late.slice(0, 5).map((x) => ({ label: x.number, href: `/trade/shipments/${x.id}` })),
+      });
+      // Trade documents (ADR-114): product documents, and those of shipments not yet closed.
+      const docs = await tx.tradeDocument.findMany({
+        where: {
+          organizationId: org,
+          archivedAt: null,
+          expiresOn: { lte: new Date(`${addDays(today, TRADE_DOC_WARNING_DAYS)}T00:00:00Z`) },
+          OR: [
+            { productId: { not: null } },
+            { shipment: { status: { notIn: ["CLOSED", "CANCELLED"] }, warehouse: trade } },
+          ],
+        },
+        select: { id: true, expiresOn: true },
+        orderBy: { expiresOn: "asc" },
+      });
+      const expired = docs.filter((d) => d.expiresOn! < todayDate);
+      const expiring = docs.filter((d) => d.expiresOn! >= todayDate);
+      const docLinks = (rows: typeof docs) =>
+        rows.slice(0, 5).map((d) => ({
+          label: d.expiresOn!.toISOString().slice(0, 10),
+          href: `/trade/documents/${d.id}`,
+        }));
+      push({
+        key: "TRADE_DOCUMENTS_EXPIRED",
+        tone: "danger",
+        count: expired.length,
+        href: "/trade/documents?state=EXPIRED",
+        links: docLinks(expired),
+      });
+      push({
+        key: "TRADE_DOCUMENTS_EXPIRING",
+        tone: "warning",
+        count: expiring.length,
+        href: "/trade/documents?state=EXPIRING",
+        links: docLinks(expiring),
       });
     }
 

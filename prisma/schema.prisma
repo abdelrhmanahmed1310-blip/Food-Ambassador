@@ -339,6 +339,10 @@ model Organization {
   importShipmentOrders     ImportShipmentOrder[]
   importShipmentContainers ImportShipmentContainer[]
 
+  tradeDocumentTypes TradeDocumentType[]
+  tradeRequirements  TradeRequirement[]
+  tradeDocuments     TradeDocument[]
+
   @@map("organizations")
 }
 
@@ -822,6 +826,8 @@ model Product {
   putawayRules        PutawayRule[]
   pickLines           PickListLine[]
 
+  tradeDocuments TradeDocument[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
   @@index([organizationId, categoryId])
@@ -1292,6 +1298,7 @@ enum AttachmentEntity {
   CALIBRATION
   EXPENSE
   IMPORT_SHIPMENT
+  TRADE_DOCUMENT
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -6918,6 +6925,8 @@ model ImportShipment {
   containers   ImportShipmentContainer[]
   receipts     GoodsReceipt[]
 
+  tradeDocuments TradeDocument[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@index([organizationId, status, eta])
@@ -6960,4 +6969,89 @@ model ImportShipmentContainer {
   @@unique([organizationId, id])
   @@unique([organizationId, shipmentId, number])
   @@map("import_shipment_containers")
+}
+
+// ─── C6b trade documents and requirements (ADR-114) ───
+
+enum TradeDocumentScope {
+  /// One per shipment: commercial invoice, certificate of origin, health certificate.
+  SHIPMENT
+  /// Held per product: product registration, import permit.
+  PRODUCT
+}
+
+/// The organization's own kinds of trade document; none are created for it.
+model TradeDocumentType {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?            @map("name_ar")
+  scope          TradeDocumentScope
+  hasExpiry      Boolean            @default(false) @map("has_expiry")
+  archivedAt     DateTime?          @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requirements TradeRequirement[]
+  documents    TradeDocument[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("trade_document_types")
+}
+
+/// When a document type is needed: into a country, from an origin, for HS codes starting with a prefix.
+model TradeRequirement {
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  documentTypeId     String    @map("document_type_id") @db.Uuid
+  /// The importing company's country; null = any.
+  destinationCountry String?   @map("destination_country") @db.Char(2)
+  originCountry      String?   @map("origin_country") @db.Char(2)
+  /// 2–12 digits; null = every product.
+  hsPrefix           String?   @map("hs_prefix")
+  /// Who asks for it, e.g. the food authority.
+  authority          String?
+  note               String?
+  createdByUserId    String    @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  archivedAt         DateTime? @map("archived_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  documentType TradeDocumentType @relation(fields: [organizationId, documentTypeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@map("trade_requirements")
+}
+
+/// A trade document held for one shipment or one product.
+model TradeDocument {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  documentTypeId   String    @map("document_type_id") @db.Uuid
+  shipmentId       String?   @map("shipment_id") @db.Uuid
+  productId        String?   @map("product_id") @db.Uuid
+  number           String?
+  issuedBy         String?   @map("issued_by")
+  issuedOn         DateTime? @map("issued_on") @db.Date
+  expiresOn        DateTime? @map("expires_on") @db.Date
+  note             String?
+  createdByUserId  String    @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(3)
+  archivedByUserId String?   @map("archived_by_user_id") @db.Uuid
+  archiveReason    String?   @map("archive_reason")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  documentType TradeDocumentType @relation(fields: [organizationId, documentTypeId], references: [organizationId, id], onDelete: Restrict)
+  shipment     ImportShipment?   @relation(fields: [organizationId, shipmentId], references: [organizationId, id], onDelete: Restrict)
+  product      Product?          @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, shipmentId])
+  @@index([organizationId, productId])
+  @@index([organizationId, expiresOn])
+  @@map("trade_documents")
 }

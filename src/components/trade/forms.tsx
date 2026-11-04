@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ActionState } from "@/components/forms/action-state";
-import { ActionForm, SelectField, TextField } from "@/components/forms/fields";
+import { ActionForm, CheckboxField, SelectField, TextField } from "@/components/forms/fields";
 
 type Option = { value: string; label: string };
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -215,6 +215,172 @@ export function AdvanceForm({
           optionalLabel={t("common.optional")}
         />
       ) : null}
+    </ActionForm>
+  );
+}
+
+/** A trade document: added (with its type, and product when held per product) or renewed (ADR-114). */
+export function TradeDocumentForm({
+  action,
+  submitLabel,
+  types,
+  products,
+  defaults = {},
+}: {
+  action: Action;
+  submitLabel: string;
+  types?: Option[];
+  products?: Option[];
+  defaults?: Record<string, string | undefined>;
+}) {
+  const t = useTranslations();
+  const optional = t("common.optional");
+  return (
+    <ActionForm action={action} submitLabel={submitLabel} pendingLabel={t("common.saving")}>
+      {types || products ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {types ? (
+            <SelectField
+              name="documentTypeId"
+              label={t("tradeDocs.type")}
+              options={types}
+              placeholder="—"
+              required
+            />
+          ) : null}
+          {products ? (
+            <SelectField
+              name="productId"
+              label={t("tradeDocs.product")}
+              options={products}
+              placeholder="—"
+              required
+            />
+          ) : null}
+        </div>
+      ) : null}
+      <div className="grid gap-4 sm:grid-cols-4">
+        <TextField
+          name="number"
+          label={t("tradeDocs.number")}
+          defaultValue={defaults.number}
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField
+          name="issuedBy"
+          label={t("tradeDocs.issuedBy")}
+          defaultValue={defaults.issuedBy}
+          optionalLabel={optional}
+        />
+        <TextField
+          name="issuedOn"
+          type="date"
+          label={t("tradeDocs.issuedOn")}
+          defaultValue={defaults.issuedOn}
+          optionalLabel={optional}
+        />
+        <TextField
+          name="expiresOn"
+          type="date"
+          label={t("tradeDocs.expiresOn")}
+          hint={t("tradeDocs.expiresOnHint")}
+          defaultValue={defaults.expiresOn}
+          optionalLabel={optional}
+        />
+      </div>
+      <TextField
+        name="note"
+        label={t("tradeDocs.note")}
+        defaultValue={defaults.note}
+        optionalLabel={optional}
+      />
+    </ActionForm>
+  );
+}
+
+export function DocumentTypeForm({ action }: { action: Action }) {
+  const t = useTranslations();
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("tradeDocs.addType")}
+      pendingLabel={t("common.saving")}
+    >
+      <div className="grid gap-4 sm:grid-cols-4">
+        <TextField name="code" label={t("tradeDocs.code")} dir="ltr" required />
+        <TextField name="name" label={t("tradeDocs.name")} required />
+        <TextField
+          name="nameAr"
+          label={t("tradeDocs.nameAr")}
+          optionalLabel={t("common.optional")}
+        />
+        <SelectField
+          name="scope"
+          label={t("tradeDocs.scope")}
+          options={["SHIPMENT", "PRODUCT"].map((s) => ({
+            value: s,
+            label: t(`tradeDocs.scopes.${s}`),
+          }))}
+          defaultValue="SHIPMENT"
+        />
+      </div>
+      <input type="hidden" name="hasExpiry" value="false" />
+      <CheckboxField name="hasExpiry" label={t("tradeDocs.hasExpiry")} />
+    </ActionForm>
+  );
+}
+
+export function RequirementForm({
+  action,
+  types,
+  countries,
+}: {
+  action: Action;
+  types: Option[];
+  countries: Option[];
+}) {
+  const t = useTranslations();
+  const optional = t("common.optional");
+  return (
+    <ActionForm
+      action={action}
+      submitLabel={t("tradeDocs.addRequirement")}
+      pendingLabel={t("common.saving")}
+    >
+      <div className="grid gap-4 sm:grid-cols-3">
+        <SelectField
+          name="documentTypeId"
+          label={t("tradeDocs.type")}
+          options={types}
+          placeholder="—"
+          required
+        />
+        <SelectField
+          name="destinationCountry"
+          label={t("tradeDocs.destinationCountry")}
+          hint={t("tradeDocs.destinationHint")}
+          options={countries}
+          placeholder={t("tradeDocs.anyCountry")}
+          optionalLabel={optional}
+        />
+        <SelectField
+          name="originCountry"
+          label={t("tradeDocs.originCountry")}
+          options={countries}
+          placeholder={t("tradeDocs.anyCountry")}
+          optionalLabel={optional}
+        />
+        <TextField
+          name="hsPrefix"
+          label={t("tradeDocs.hsPrefix")}
+          hint={t("tradeDocs.hsPrefixHint")}
+          dir="ltr"
+          optionalLabel={optional}
+        />
+        <TextField name="authority" label={t("tradeDocs.authority")} optionalLabel={optional} />
+        <TextField name="note" label={t("tradeDocs.note")} optionalLabel={optional} />
+      </div>
     </ActionForm>
   );
 }

@@ -39,6 +39,8 @@ import {
   TRANSPORT_MODES,
   type ShipmentStatus,
 } from "./rules";
+import { blocksClearance, expiryState } from "./document-rules";
+import { shipmentChecklistInTx } from "./documents";
 
 /**
  * Import shipments (DECISIONS.md ADR-113): goods bought abroad travelling
@@ -411,6 +413,19 @@ export async function advanceShipment(
           : next === "CLEARED"
             ? { clearedOn: toDate(date) }
             : { closedAt: new Date() };
+    if (next === "CLEARED") {
+      // Required documents present and in date (ADR-114).
+      const check = await shipmentChecklistInTx(tx, ctx, s.id);
+      const open = check.lines.filter((l) => l.state === "MISSING" || l.state === "EXPIRED");
+      if (blocksClearance(check.lines))
+        throw businessRuleViolation(
+          "SHIPMENT_DOCUMENTS_MISSING",
+          "Required documents are missing or expired",
+          {
+            documents: open.map((l) => [l.documentType.code, l.product?.sku ?? null, l.state]),
+          },
+        );
+    }
     if (next === "IN_TRANSIT") {
       const orders = await tx.importShipmentOrder.count({
         where: { organizationId: ctx.organizationId, shipmentId: s.id },
@@ -589,8 +604,21 @@ export async function getShipment(ctx: TenantContext, shipmentId: string) {
         })
       : [];
     const manage = hasPermission(ctx.grants, "trade.manage", target(s));
+    const check = await shipmentChecklistInTx(tx, ctx, s.id);
+    const documents = await tx.tradeDocument.findMany({
+      where: { organizationId: ctx.organizationId, shipmentId: s.id, archivedAt: null },
+      include: { documentType: { select: { code: true, name: true, nameAr: true } } },
+      orderBy: { createdAt: "asc" },
+    });
     return {
       ...s,
+      checklist: check,
+      documents: documents.map((d) => ({
+        ...d,
+        expiresOn: day(d.expiresOn),
+        state: expiryState(day(d.expiresOn), today),
+      })),
+      canAddDocuments: manage && s.status !== "CLOSED" && s.status !== "CANCELLED",
       etd: day(s.etd),
       eta: day(s.eta),
       departedOn: day(s.departedOn),

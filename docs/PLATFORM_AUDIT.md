@@ -43,8 +43,10 @@
 > margins and company totals. **C5d built** (ADR-112): consolidated group
 > P&L in the group currency with intercompany elimination. C5 is complete.
 > **C6a built** (ADR-113): import shipments with orders, ISO 6346
-> containers, steps and receipts; HS code and origin on products. Next in
-> C6: trade documents and certificates, customs and landed cost.
+> containers, steps and receipts; HS code and origin on products.
+> **C6b built** (ADR-114): trade document types, requirements per
+> country/origin/HS code, documents with expiry, shipment checklist that
+> holds back clearance. Next in C6: customs entries and landed cost.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

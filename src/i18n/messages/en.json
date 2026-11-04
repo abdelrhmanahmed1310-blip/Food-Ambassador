@@ -179,7 +179,8 @@
     "budgets": "Budgets",
     "branchPnl": "Branch P&L",
     "consolidatedPnl": "Consolidated P&L",
-    "importShipments": "Import shipments"
+    "importShipments": "Import shipments",
+    "tradeDocuments": "Trade documents"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -309,7 +310,8 @@
     "invalidHsCode": "Use 6 to 12 digits; dots and spaces are allowed.",
     "invalidContainerNumber": "Not a valid ISO 6346 container number (check the check digit).",
     "temperatureReeferOnly": "Only reefer containers have a set point.",
-    "etaBeforeEtd": "The expected arrival is before the departure."
+    "etaBeforeEtd": "The expected arrival is before the departure.",
+    "invalidHsPrefix": "Use 2 to 12 digits."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -745,7 +747,10 @@
     "RECEIPT_ORDER_NOT_ON_SHIPMENT": "The receipt is for an order that is not on this shipment.",
     "RECEIPT_REVERSED": "The receipt was reversed.",
     "RECEIPT_ON_OTHER_SHIPMENT": "The receipt is linked to another shipment.",
-    "DATE_BEFORE_PREVIOUS_STEP": "The date is before the previous step."
+    "DATE_BEFORE_PREVIOUS_STEP": "The date is before the previous step.",
+    "SHIPMENT_DOCUMENTS_MISSING": "Required documents are missing or expired: see the shipment's required documents.",
+    "DOCUMENT_TYPE_OTHER_SCOPE": "This kind of document is held elsewhere (per shipment or per product).",
+    "DOCUMENT_NEEDS_EXPIRY": "This document has an expiry date: enter it."
   },
   "notFound": {
     "title": "Page not found",
@@ -2691,7 +2696,9 @@
       "EQUIPMENT_DUE_SOON": "{count, plural, one {# piece of equipment due for calibration or maintenance within 30 days} other {# pieces of equipment due within 30 days}}",
       "EQUIPMENT_OUT_OF_SERVICE": "{count, plural, one {# piece of equipment out of service} other {# pieces of equipment out of service}}",
       "INSPECTIONS_WAITING": "{count, plural, one {# receipt line waiting for inspection} other {# receipt lines waiting for inspection}}",
-      "IMPORT_SHIPMENTS_LATE": "{count, plural, one {# import shipment late} other {# import shipments late}}"
+      "IMPORT_SHIPMENTS_LATE": "{count, plural, one {# import shipment late} other {# import shipments late}}",
+      "TRADE_DOCUMENTS_EXPIRED": "{count, plural, one {# trade document expired} other {# trade documents expired}}",
+      "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {# trade document expiring soon} other {# trade documents expiring soon}}"
     }
   },
   "production": {
@@ -5747,6 +5754,84 @@
       "REEFER_20": "20′ reefer",
       "REEFER_40": "40′ reefer",
       "OTHER": "Other"
+    }
+  },
+  "tradeDocs": {
+    "title": "Trade documents",
+    "hint": "Certificates, permits and registrations held for shipments and products, with their expiry.",
+    "setup": "Document types and requirements",
+    "setupTitle": "Trade document set-up",
+    "setupHint": "Your own kinds of trade document and when each is required. None are added for you: enter what your customs broker and authorities ask for.",
+    "types": "Document types",
+    "noTypes": "No document types yet.",
+    "requirements": "Requirements",
+    "requirementsHint": "A requirement applies to a shipment into the importing company's country, from an origin, for products whose HS code starts with a prefix. Empty conditions apply to every shipment.",
+    "noRequirements": "No requirements yet.",
+    "addType": "Add document type",
+    "addRequirement": "Add requirement",
+    "code": "Code",
+    "name": "Name",
+    "nameAr": "Name (Arabic)",
+    "scope": "Held for",
+    "hasExpiry": "Has an expiry date",
+    "archived": "Archived",
+    "archive": "Archive",
+    "restore": "Restore",
+    "type": "Document type",
+    "product": "Product",
+    "number": "Number",
+    "issuedBy": "Issued by",
+    "issuedOn": "Issued on",
+    "expiresOn": "Expires on",
+    "expiresOnHint": "Flagged 30 days before.",
+    "note": "Note",
+    "destinationCountry": "Into",
+    "destinationHint": "The importing company's country.",
+    "originCountry": "From",
+    "anyCountry": "Any country",
+    "hsPrefix": "HS code starts with",
+    "hsPrefixHint": "2 to 12 digits; empty for every product.",
+    "allProducts": "All products",
+    "authority": "Authority",
+    "expiry": "Expiry",
+    "allCurrent": "All current",
+    "allTypes": "All types",
+    "empty": "No trade documents.",
+    "heldFor": "Held for",
+    "addProductDocument": "Add a product document",
+    "add": "Add document",
+    "renew": "Renew",
+    "remove": "Remove document",
+    "removeReason": "Reason for removing",
+    "removed": "Removed",
+    "checklist": "Required documents",
+    "nothingRequired": "No requirement applies to this shipment.",
+    "destinationUnknown": "The importing company has no country set, so requirements for a country cannot be checked.",
+    "withoutHsCode": "No HS code on {products}: requirements by HS code cannot be checked for them.",
+    "withoutOrigin": "No country of origin for {products} or the shipment: requirements by origin cannot be checked for them.",
+    "thisShipment": "This shipment",
+    "document": "Document",
+    "check": "Check",
+    "onShipment": "Documents on this shipment",
+    "scopes": {
+      "SHIPMENT": "Each shipment",
+      "PRODUCT": "Each product"
+    },
+    "scopeHints": {
+      "SHIPMENT": "A document for one shipment.",
+      "PRODUCT": "A document held for a product, used by every shipment of it."
+    },
+    "states": {
+      "NO_EXPIRY": "No expiry",
+      "VALID": "Valid",
+      "EXPIRING": "Expiring soon",
+      "EXPIRED": "Expired"
+    },
+    "checks": {
+      "MISSING": "Missing",
+      "EXPIRED": "Expired",
+      "EXPIRING": "Expiring soon",
+      "OK": "Held"
     }
   }
 }

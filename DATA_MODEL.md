@@ -1070,6 +1070,18 @@ Import shipments (C6a, ADR-113; migration `20270105090000_c6a_import_shipments`)
 - **attachments.entity_type** gains `IMPORT_SHIPMENT`; permissions
   `trade.view` and `trade.manage` added to the system roles.
 
+Trade documents (C6b, ADR-114; migration `20270106090000_c6b_trade_documents`):
+
+- **trade_document_types**: `code` (UQ), names, `scope` (`SHIPMENT` |
+  `PRODUCT`), `has_expiry`, archived at.
+- **trade_requirements**: document type, `destination_country`,
+  `origin_country`, `hs_prefix` (2–12 digits — check), authority, note,
+  archived at.
+- **trade_documents**: document type, shipment **or** product (exactly
+  one — check), number, issued by/on, `expires_on` (not before issue —
+  check), note, archived at/by and reason (required — check).
+- **attachments.entity_type** gains `TRADE_DOCUMENT`.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

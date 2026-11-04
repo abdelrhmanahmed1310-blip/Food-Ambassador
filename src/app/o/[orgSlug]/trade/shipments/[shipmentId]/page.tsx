@@ -3,7 +3,13 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { AttachmentsCard } from "@/components/attachments/attachments-card";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { TextReasonForm } from "@/components/invoices/forms";
-import { AdvanceForm, ContainerForm, PickOneForm, ShipmentForm } from "@/components/trade/forms";
+import {
+  AdvanceForm,
+  ContainerForm,
+  PickOneForm,
+  ShipmentForm,
+  TradeDocumentForm,
+} from "@/components/trade/forms";
 import {
   Badge,
   Card,
@@ -15,6 +21,7 @@ import {
   Th,
 } from "@/components/ui/primitives";
 import { countryOptions } from "@/lib/countries";
+import { tradeDocumentOptions } from "@/modules/trade/documents";
 import { getShipment } from "@/modules/trade/shipments";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -28,6 +35,7 @@ import {
   unlinkOrderAction,
   updateShipmentAction,
 } from "../actions";
+import { addShipmentDocumentAction } from "../../documents/actions";
 
 /** One import shipment: transport, orders, containers, receipts and its steps (ADR-113). */
 export default async function ImportShipmentPage({
@@ -36,7 +44,14 @@ export default async function ImportShipmentPage({
   const { orgSlug, shipmentId } = await params;
   const ctx = await requireTenant(orgSlug);
   const s = await notFoundOnAppError(getShipment(ctx, shipmentId));
-  const [t, locale] = await Promise.all([getTranslations(), getLocale()]);
+  const [t, locale, docOptions] = await Promise.all([
+    getTranslations(),
+    getLocale(),
+    tradeDocumentOptions(ctx),
+  ]);
+  const shipmentTypes = docOptions.types
+    .filter((x) => x.scope === "SHIPMENT")
+    .map((x) => ({ value: x.id, label: `${x.code} — ${(locale === "ar" && x.nameAr) || x.name}` }));
   const dash = (v: string | null | undefined) => v ?? "—";
   const ltr = (v: string | null | undefined) => <span className="ltr-value">{dash(v)}</span>;
   return (
@@ -255,6 +270,107 @@ export default async function ImportShipmentPage({
             />
           </Card>
         ) : null}
+
+        <Card title={t("tradeDocs.checklist")}>
+          {!s.checklist.destinationKnown ? (
+            <p className="text-muted mb-3 text-sm">{t("tradeDocs.destinationUnknown")}</p>
+          ) : null}
+          {s.checklist.withoutHsCode.length > 0 ? (
+            <p className="text-muted mb-3 text-sm">
+              {t("tradeDocs.withoutHsCode", { products: s.checklist.withoutHsCode.join(", ") })}
+            </p>
+          ) : null}
+          {s.checklist.withoutOrigin.length > 0 ? (
+            <p className="text-muted mb-3 text-sm">
+              {t("tradeDocs.withoutOrigin", { products: s.checklist.withoutOrigin.join(", ") })}
+            </p>
+          ) : null}
+          {s.checklist.lines.length === 0 ? (
+            <EmptyState title={t("tradeDocs.nothingRequired")} />
+          ) : (
+            <Table label={t("tradeDocs.checklist")}>
+              <thead>
+                <tr>
+                  <Th>{t("tradeDocs.type")}</Th>
+                  <Th>{t("tradeDocs.heldFor")}</Th>
+                  <Th>{t("tradeDocs.authority")}</Th>
+                  <Th>{t("tradeDocs.document")}</Th>
+                  <Th>{t("tradeDocs.check")}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.checklist.lines.map((l) => (
+                  <tr
+                    key={`${l.documentTypeId}|${l.productId ?? ""}`}
+                    data-testid={`check-${l.documentType.code}${l.product ? `-${l.product.sku}` : ""}`}
+                  >
+                    <Td>
+                      {l.documentType.code} —{" "}
+                      {(locale === "ar" && l.documentType.nameAr) || l.documentType.name}
+                    </Td>
+                    <Td>{l.product ? l.product.sku : t("tradeDocs.thisShipment")}</Td>
+                    <Td>{l.authority ?? "—"}</Td>
+                    <Td>
+                      {l.document ? (
+                        <Link
+                          href={`/o/${orgSlug}/trade/documents/${l.document.id}`}
+                          className="ltr-value text-primary hover:underline"
+                        >
+                          {l.document.number ?? l.document.expiresOn ?? "✓"}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </Td>
+                    <Td>
+                      <Badge
+                        tone={
+                          l.state === "OK"
+                            ? "success"
+                            : l.state === "EXPIRING"
+                              ? "warning"
+                              : "danger"
+                        }
+                      >
+                        {t(`tradeDocs.checks.${l.state}`)}
+                      </Badge>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+          {s.documents.length > 0 ? (
+            <div className="mt-4">
+              <h3 className="mb-2 text-sm font-medium">{t("tradeDocs.onShipment")}</h3>
+              <ul className="space-y-1 text-sm">
+                {s.documents.map((d) => (
+                  <li key={d.id}>
+                    <Link
+                      href={`/o/${orgSlug}/trade/documents/${d.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {d.documentType.code}{" "}
+                      {d.number ? <span className="ltr-value">{d.number}</span> : null}
+                    </Link>{" "}
+                    {d.expiresOn ? (
+                      <span className="ltr-value text-muted">{d.expiresOn}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {s.canAddDocuments && shipmentTypes.length > 0 ? (
+            <div className="mt-4">
+              <TradeDocumentForm
+                action={addShipmentDocumentAction.bind(null, orgSlug, s.id)}
+                submitLabel={t("tradeDocs.add")}
+                types={shipmentTypes}
+              />
+            </div>
+          ) : null}
+        </Card>
 
         <AttachmentsCard ctx={ctx} orgSlug={orgSlug} entityType="IMPORT_SHIPMENT" entityId={s.id} />
 
