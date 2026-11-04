@@ -1030,6 +1030,16 @@ Operating expenses (C5a, ADR-109; migration `20270101090000_c5a_expenses`):
 - **attachments.entity_type** gains `EXPENSE`; permissions
   `expenses.view` and `expenses.manage` added to the system roles.
 
+Branch budgets (C5b, ADR-110; migration `20270102090000_c5b_budgets`):
+
+- **branch_budgets**: branch, `month` (first day of the month — check),
+  `line` (`COST_OF_SALES` | `OCCUPANCY` | `UTILITIES` | `STAFF` |
+  `MARKETING` | `REPAIRS` | `ADMINISTRATION` | `DELIVERY` | `OTHER`),
+  `amount` (≥ 0), `currency` (the branch's company currency), updated by.
+  UQ per branch, month and line. The sales line is `sales_targets`.
+  Permissions `budgets.view` and `budgets.manage` added to the system
+  roles.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

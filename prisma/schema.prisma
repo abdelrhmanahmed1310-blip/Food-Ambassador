@@ -333,6 +333,7 @@ model Organization {
   costCentres                  CostCentre[]
   expenseCategories            ExpenseCategory[]
   expenses                     Expense[]
+  branchBudgets                BranchBudget[]
 
   @@map("organizations")
 }
@@ -527,6 +528,7 @@ model Branch {
   salesTargets        SalesTarget[]
   costCentres         CostCentre[]
   expenses            Expense[]
+  budgets             BranchBudget[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3806,6 +3808,43 @@ model Expense {
   @@index([organizationId, branchId, expenseDate])
   @@index([organizationId, categoryId, expenseDate])
   @@map("expenses")
+}
+
+// ─── Budgets (C5b, ADR-110) ───
+
+/// Lines of a branch budget besides sales (sales budgets are the sales targets, ADR-105).
+enum BudgetLine {
+  COST_OF_SALES
+  OCCUPANCY
+  UTILITIES
+  STAFF
+  MARKETING
+  REPAIRS
+  ADMINISTRATION
+  DELIVERY
+  OTHER
+}
+
+/// One budget amount for a branch, month and line, in the branch's company currency.
+model BranchBudget {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  organizationId  String     @map("organization_id") @db.Uuid
+  branchId        String     @map("branch_id") @db.Uuid
+  /// First day of the month.
+  month           DateTime   @db.Date
+  line            BudgetLine
+  amount          Decimal    @db.Decimal(19, 4)
+  currency        String     @db.Char(3)
+  updatedByUserId String     @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, month, line])
+  @@map("branch_budgets")
 }
 
 // ─── Mock recall exercises (C2e, ADR-100) ───

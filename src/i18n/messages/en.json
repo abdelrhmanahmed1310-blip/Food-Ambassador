@@ -175,7 +175,8 @@
     "stockHealth": "Stock ageing and turnover",
     "menuEngineering": "Menu engineering",
     "kitchenReport": "Kitchen performance",
-    "expenses": "Operating expenses"
+    "expenses": "Operating expenses",
+    "budgets": "Budgets"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -961,7 +962,9 @@
       "hr.manage": "Add and edit employees, departments and documents; see ID numbers",
       "sales.targets.manage": "Set sales targets",
       "expenses.view": "View operating expenses",
-      "expenses.manage": "Record and reverse operating expenses"
+      "expenses.manage": "Record and reverse operating expenses",
+      "budgets.view": "View branch budgets and budget against actual",
+      "budgets.manage": "Set branch budgets"
     }
   },
   "audit": {
@@ -5535,5 +5538,47 @@
     "shared": "Shared",
     "noCategories": "No expense categories yet.",
     "noCentres": "No cost centres yet."
+  },
+  "budgets": {
+    "title": "Budgets",
+    "hint": "Monthly budget per branch in its company currency, compared with actual results. The sales line is the branch's sales target.",
+    "noBranches": "No branches to budget.",
+    "salesTargets": "Sales targets",
+    "branch": "Branch",
+    "month": "Month",
+    "year": "Year",
+    "show": "Show",
+    "comparison": "{branch} — budget against actual ({currency})",
+    "comparisonLabel": "Budget against actual",
+    "notStarted": "This year has not started; there are no actuals yet.",
+    "ytdThrough": "Year to date is January to {month} {year}; the current month is still open.",
+    "line": "Line",
+    "monthBudget": "{month} budget",
+    "monthActual": "{month} actual",
+    "variance": "Variance",
+    "ytdBudget": "Budget to date",
+    "ytdActual": "Actual to date",
+    "yearBudget": "Year budget",
+    "favourable": "Favourable",
+    "unfavourable": "Unfavourable",
+    "actualsNote": "Actuals: paid POS orders net of VAT and refunds, posted sales imports and B2B invoices; cost of sales is the stock value they used; expenses are posted operating expenses by group. Lines with no budget show no variance.",
+    "setTitle": "Set the {year} budget",
+    "setHint": "Enter amounts net of VAT. Leave a month empty to remove its budget.",
+    "saveLine": "Save line",
+    "rows": {
+      "SALES": "Net sales",
+      "COST_OF_SALES": "Cost of sales",
+      "GROSS_PROFIT": "Gross profit",
+      "OCCUPANCY": "Occupancy",
+      "UTILITIES": "Utilities",
+      "STAFF": "Staff",
+      "MARKETING": "Marketing",
+      "REPAIRS": "Repairs and maintenance",
+      "ADMINISTRATION": "Administration",
+      "DELIVERY": "Delivery",
+      "OTHER": "Other",
+      "TOTAL_EXPENSES": "Total expenses",
+      "OPERATING_RESULT": "Operating result"
+    }
   }
 }

@@ -2765,6 +2765,39 @@ country for now, so no inter-company transfer is built.
   spreading one bill over several months, expenses from supplier invoice
   charge lines.
 
+### ADR-110 Branch budgets and budget against actual — Accepted (C5b built)
+
+- **A budget** is set per branch, calendar month and line, in the branch's
+  company currency (ADR-086), net of VAT; nothing is assumed and an empty
+  month has no budget. Lines: cost of sales and the expense P&L groups
+  (ADR-109). The **sales line is the branch's sales target** (ADR-105) —
+  one figure, set on the targets page, not entered twice.
+- **Derived rows**: gross profit = sales − cost of sales; total expenses =
+  the sum of the groups; operating result = gross profit − total
+  expenses. A derived row exists only when one of its parts does.
+- **Actuals** (one definition, `branchActualsInTx`, to be reused by the
+  branch P&L):
+  - sales — paid POS orders net of VAT less refunds (business date),
+    active lines of posted sales imports (sale date) and posted B2B sales
+    invoices' net in the company currency (invoice date), each to the
+    branch of its warehouse;
+  - cost of sales — the stock value POS orders used, the stock value of
+    an import shared over its months by net amount (by line count when it
+    has none), and the cost of goods of B2B invoices;
+  - expenses — posted operating expenses' net by P&L group (expense date).
+- **Variance** = actual − budget, with its share of the budget; above
+  budget is favourable for sales, gross profit and the operating result,
+  below budget for cost rows. A line with no budget has no variance.
+- **Year to date** runs from January to the current month in the
+  branch's time zone (the current month is still open and compared with
+  its full budget); past years in full, future years have no actuals.
+- **Permissions** (new): `budgets.view` (branch-scopable) and
+  `budgets.manage`. Administrators and finance have both; operations
+  managers, branch managers (at their branch) and analysts view.
+- **Not yet:** budget versions and approval, copying last year or
+  spreading a yearly figure over months, prorating the open month,
+  budgets per cost centre, foreign-currency budgets.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

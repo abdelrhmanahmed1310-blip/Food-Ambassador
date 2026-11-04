@@ -38,7 +38,8 @@
 > days on hand. **C4c built** (ADR-107): menu engineering. **C4d built**
 > (ADR-108): kitchen display performance. C4 is complete.
 > **C5a built** (ADR-109): cost centres, expense categories and operating
-> expenses. Next in C5: budgets, branch P&L, consolidation.
+> expenses. **C5b built** (ADR-110): monthly branch budgets and budget
+> against actual. Next in C5: branch P&L, consolidation.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development
