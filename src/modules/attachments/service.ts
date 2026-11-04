@@ -42,6 +42,7 @@ export const ATTACHMENT_ENTITIES = [
   "EXPENSE",
   "IMPORT_SHIPMENT",
   "TRADE_DOCUMENT",
+  "TRIP_STOP",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -128,6 +129,31 @@ async function accessTo(
           e.status === "POSTED" &&
           hasPermission(ctx.grants, "expenses.manage", { branchId: e.branchId }),
       };
+    }
+    case "TRIP_STOP": {
+      // Photos at a delivery stop (ADR-116): the trip's warehouse; added by its driver or planners while on the road.
+      const st = await tx.tripStop.findFirst({
+        where: { organizationId: org, id: entityId },
+        select: {
+          trip: {
+            select: {
+              status: true,
+              driverUserId: true,
+              warehouseId: true,
+              warehouse: { select: { branchId: true } },
+            },
+          },
+        },
+      });
+      const where = st
+        ? { warehouseId: st.trip.warehouseId, branchId: st.trip.warehouse.branchId }
+        : undefined;
+      if (!st || !hasPermission(ctx.grants, "logistics.view", where)) throw notFound("Document");
+      const mayRecord =
+        hasPermission(ctx.grants, "logistics.deliver", where) &&
+        (st.trip.driverUserId === ctx.userId ||
+          hasPermission(ctx.grants, "logistics.manage", where));
+      return { view: true, upload: st.trip.status === "IN_PROGRESS" && mayRecord };
     }
     case "TRADE_DOCUMENT": {
       // The scan of a trade document (ADR-114): its shipment's scope, or organization-wide for products.

@@ -180,7 +180,9 @@
     "branchPnl": "الأرباح والخسائر للفروع",
     "consolidatedPnl": "الأرباح والخسائر الموحدة",
     "importShipments": "شحنات الاستيراد",
-    "tradeDocuments": "المستندات التجارية"
+    "tradeDocuments": "المستندات التجارية",
+    "trips": "الرحلات",
+    "vehicles": "المركبات"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -311,7 +313,10 @@
     "invalidContainerNumber": "ليس رقم حاوية صالحًا وفق ISO 6346 (تحقق من رقم التحقق).",
     "temperatureReeferOnly": "للحاويات المبردة فقط درجة ضبط.",
     "etaBeforeEtd": "الوصول المتوقع قبل المغادرة.",
-    "invalidHsPrefix": "استخدم من ٢ إلى ١٢ رقمًا."
+    "invalidHsPrefix": "استخدم من ٢ إلى ١٢ رقمًا.",
+    "refrigeratedNeedsRange": "المركبة المبردة تحتاج إلى أدنى وأعلى درجة حرارة.",
+    "rangeReversed": "أعلى درجة أقل من أدناها.",
+    "invalidSignature": "تعذّرت قراءة التوقيع؛ امسحه ووقّع مجددًا."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -345,7 +350,8 @@
     "lineOnReturn": "بند الاستلام هذا موجود في المرتجع بالفعل.",
     "containerTaken": "هذه الحاوية موجودة على الشحنة.",
     "orderTaken": "هذا الطلب موجود على الشحنة.",
-    "declarationTaken": "هذا البيان مسجل للشحنة بالفعل."
+    "declarationTaken": "هذا البيان مسجل للشحنة بالفعل.",
+    "consignmentOnTrip": "هذا موجود على رحلة بالفعل."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "قم بأرشفة مستودعات هذا الفرع أولًا.",
@@ -752,7 +758,17 @@
     "SHIPMENT_DOCUMENTS_MISSING": "مستندات مطلوبة ناقصة أو منتهية: راجع المستندات المطلوبة للشحنة.",
     "DOCUMENT_TYPE_OTHER_SCOPE": "هذا النوع من المستندات يُحفظ في مكان آخر (لكل شحنة أو لكل منتج).",
     "DOCUMENT_NEEDS_EXPIRY": "لهذا المستند تاريخ انتهاء: أدخله.",
-    "SHIPMENT_HAS_NO_RECEIPTS": "اربط أولًا الإيصالات التي أدخلت البضائع."
+    "SHIPMENT_HAS_NO_RECEIPTS": "اربط أولًا الإيصالات التي أدخلت البضائع.",
+    "VEHICLE_OTHER_WAREHOUSE": "المركبة في مستودع آخر.",
+    "DRIVER_NOT_ALLOWED": "لا يحق لهذا الشخص القيادة من هذا المستودع.",
+    "TRIP_NOT_PLANNED": "لا يمكن تغيير إلا الرحلة المخططة بهذا الشكل.",
+    "TRIP_NOT_IN_PROGRESS": "الرحلة ليست في الطريق.",
+    "TRIP_HAS_NO_STOPS": "أضف المحطات أولًا.",
+    "CONSIGNMENT_NOT_AVAILABLE": "ليس تسليمًا مرحّلًا ولا تحويلًا في الطريق من هذا المستودع.",
+    "HANDOVER_TEMPERATURE_REQUIRED": "سجّل الحرارة عند التسليم.",
+    "STOP_ALREADY_RECORDED": "هذه المحطة مسجلة بالفعل.",
+    "TRIP_STOPS_OPEN": "سجّل كل المحطات أولًا.",
+    "ODOMETER_BACKWARDS": "قراءة العداد أقل من قراءة البداية."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -919,7 +935,8 @@
       "analyst": "محلل (قراءة فقط)",
       "cashier": "كاشير",
       "waiter": "نادل",
-      "kitchen": "المطبخ"
+      "kitchen": "المطبخ",
+      "driver": "السائق"
     },
     "permissionLabels": {
       "org.settings.manage": "إدارة إعدادات المؤسسة",
@@ -996,7 +1013,10 @@
       "pnl.view": "عرض أرباح وخسائر الفروع",
       "pnl.consolidated.view": "عرض الأرباح والخسائر الموحدة للمجموعة",
       "trade.view": "عرض شحنات الاستيراد",
-      "trade.manage": "إنشاء شحنات الاستيراد ومتابعتها"
+      "trade.manage": "إنشاء شحنات الاستيراد ومتابعتها",
+      "logistics.view": "عرض الرحلات والمركبات",
+      "logistics.manage": "تخطيط الرحلات وإدارة المركبات",
+      "logistics.deliver": "قيادة الرحلات: إثبات التسليم ودرجات الحرارة"
     }
   },
   "audit": {
@@ -2700,7 +2720,8 @@
       "INSPECTIONS_WAITING": "{count, plural, one {سطر استلام واحد بانتظار الفحص} other {# سطور استلام بانتظار الفحص}}",
       "IMPORT_SHIPMENTS_LATE": "{count, plural, one {شحنة استيراد متأخرة} two {شحنتا استيراد متأخرتان} few {# شحنات استيراد متأخرة} other {# شحنة استيراد متأخرة}}",
       "TRADE_DOCUMENTS_EXPIRED": "{count, plural, one {مستند تجاري منتهٍ} two {مستندان تجاريان منتهيان} few {# مستندات تجارية منتهية} other {# مستندًا تجاريًا منتهيًا}}",
-      "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {مستند تجاري ينتهي قريبًا} two {مستندان تجاريان ينتهيان قريبًا} few {# مستندات تجارية تنتهي قريبًا} other {# مستندًا تجاريًا ينتهي قريبًا}}"
+      "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {مستند تجاري ينتهي قريبًا} two {مستندان تجاريان ينتهيان قريبًا} few {# مستندات تجارية تنتهي قريبًا} other {# مستندًا تجاريًا ينتهي قريبًا}}",
+      "COLD_CHAIN_EXCURSIONS": "{count, plural, one {رحلة بخروج في الحرارة} two {رحلتان بخروج في الحرارة} few {# رحلات بخروج في الحرارة} other {# رحلة بخروج في الحرارة}}"
     }
   },
   "production": {
@@ -5863,5 +5884,95 @@
     "recordTitle": "تسجيل بيان جمركي",
     "postTitle": "ترحيل مصروف على إيصالات الشحنة",
     "postHint": "أدخل المبالغ كما في الفاتورة أو التقدير؛ لا يُفترض أي سعر للرسوم. رحّل الرسوم مقابل بيانها."
+  },
+  "logistics": {
+    "vehiclesTitle": "المركبات",
+    "vehiclesHint": "أسطولك الخاص. المركبات المبردة تحفظ نطاق الحرارة الذي يجب أن تبقى فيه حمولتها.",
+    "noVehicles": "لا توجد مركبات بعد.",
+    "addVehicle": "إضافة مركبة",
+    "code": "الرمز",
+    "plate": "رقم اللوحة",
+    "type": "النوع",
+    "base": "مقرها",
+    "range": "نطاق الحرارة",
+    "ambient": "غير مبردة",
+    "minTemp": "أدنى °م",
+    "maxTemp": "أعلى °م",
+    "capacity": "السعة (كغ)",
+    "refrigerated": "مبردة",
+    "archive": "أرشفة",
+    "restore": "استعادة",
+    "types": {
+      "VAN": "فان",
+      "TRUCK": "شاحنة",
+      "CAR": "سيارة",
+      "MOTORBIKE": "دراجة نارية",
+      "OTHER": "أخرى"
+    },
+    "tripsTitle": "الرحلات",
+    "tripsHint": "رحلات التوصيل بمركباتك: المحطات وإثبات التسليم ودرجات الحرارة.",
+    "newTrip": "تخطيط رحلة",
+    "newTripHint": "اختر المستودع الذي تنطلق منه الرحلة، ثم المركبة والسائق واليوم؛ أضف المحطات في الرحلة.",
+    "fromWarehouse": "من المستودع",
+    "choose": "اختيار",
+    "noVehiclesHere": "لا توجد مركبات في هذا المستودع.",
+    "noDriversHere": "لا يوجد من يقود من هذا المستودع بعد: امنح أحدهم دور السائق فيه.",
+    "planTrip": "تخطيط الرحلة",
+    "vehicle": "المركبة",
+    "driver": "السائق",
+    "plannedOn": "اليوم",
+    "note": "ملاحظة",
+    "mine": "رحلاتي",
+    "noTrips": "لا توجد رحلات.",
+    "number": "الرقم",
+    "stops": "المحطات",
+    "status": "الحالة",
+    "stopCounts": "{delivered} مسلّمة، {failed} لم تُسلَّم من {total}",
+    "excursions": "{count, plural, one {خروج حرارة واحد} two {خروجا حرارة} few {# خروجات حرارة} other {# خروج حرارة}}",
+    "tripHint": "المحطات بالترتيب، مع مستلم البضاعة ودرجات الحرارة في الطريق.",
+    "started": "بدأت",
+    "completed": "اكتملت",
+    "distance": "المسافة",
+    "cancelReason": "سبب الإلغاء",
+    "start": "بدء الرحلة",
+    "odometer": "عداد المسافة (كم)",
+    "noStops": "لا توجد محطات بعد.",
+    "transferTo": "تحويل إلى",
+    "receivedBy": "استلمها {name}",
+    "failedBecause": "لم تُسلَّم: {reason}",
+    "removeStop": "إزالة المحطة",
+    "proofOfDelivery": "إثبات التسليم",
+    "notDelivered": "لم تُسلَّم",
+    "failureReason": "السبب",
+    "markFailed": "تسجيل عدم التسليم",
+    "addDelivery": "تسليم عميل من هذا المستودع",
+    "addTransfer": "تحويل في الطريق من هذا المستودع",
+    "addStop": "إضافة محطة",
+    "temperatures": "درجات الحرارة",
+    "noReadings": "لا توجد قراءات بعد.",
+    "readAt": "وقت القراءة",
+    "temperature": "الحرارة (°م)",
+    "excursion": "خارج النطاق",
+    "recordReading": "تسجيل قراءة",
+    "complete": "إكمال الرحلة",
+    "cancel": "إلغاء الرحلة",
+    "allTrips": "كل الرحلات",
+    "recipient": "المستلم",
+    "handoverTemp": "الحرارة عند التسليم (°م)",
+    "confirmDelivery": "تأكيد التسليم",
+    "signature": "التوقيع",
+    "signatureArea": "لوحة التوقيع: ارسم بإصبعك أو بالفأرة",
+    "clearSignature": "مسح",
+    "statuses": {
+      "PLANNED": "مخططة",
+      "IN_PROGRESS": "في الطريق",
+      "COMPLETED": "مكتملة",
+      "CANCELLED": "ملغاة"
+    },
+    "stopStatuses": {
+      "PENDING": "للتسليم",
+      "DELIVERED": "سُلّمت",
+      "FAILED": "لم تُسلَّم"
+    }
   }
 }

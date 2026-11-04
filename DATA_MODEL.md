@@ -1095,6 +1095,27 @@ Customs and shipment charges (C6c, ADR-115; migration `20270107090000_c6c_custom
   cost came from (FK deferred to commit: the charge is written with the
   totals of its landed costs).
 
+Own fleet (C7a, ADR-116; migration `20270108090000_c7a_fleet_trips`):
+
+- **vehicles**: `code` (UQ), plate, `type`, home warehouse,
+  `refrigerated` with `min/max_temperature_c` (required together —
+  check), capacity, archived at.
+- **trips**: `number` (TRP-YYYY-n), warehouse, vehicle, driver (user),
+  `planned_on`, `status` (`PLANNED` | `IN_PROGRESS` | `COMPLETED` |
+  `CANCELLED`), odometer start/end (end ≥ start — check), started,
+  completed and cancelled at, cancel reason.
+- **trip_stops**: trip, `sequence` (UQ per trip), `kind`
+  (`CUSTOMER_DELIVERY` | `TRANSFER`) with its consignment (exactly one —
+  check; one open stop per consignment — partial UQ), `status`
+  (`PENDING` | `DELIVERED` | `FAILED`), arrived/delivered at, recipient,
+  handover temperature, `signature_svg` (path data ≤ 20 000 chars),
+  failure reason, note. Final once not pending (trigger).
+- **temperature_readings**: trip, `temperature_c`, `read_at`,
+  `excursion`, note, recorded by. Append-only.
+- **attachments.entity_type** gains `TRIP_STOP`; permissions
+  `logistics.view`, `logistics.manage`, `logistics.deliver`; new system
+  role `driver`.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

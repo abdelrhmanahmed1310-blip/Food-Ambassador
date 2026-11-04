@@ -48,7 +48,10 @@
 > country/origin/HS code, documents with expiry, shipment checklist that
 > holds back clearance. **C6c built** (ADR-115): customs declarations and
 > shipment charges spread over the shipment's receipts as landed cost.
-> C6 is complete.
+> C6 is complete. **C7a built** (ADR-116): own fleet — vehicles, trips
+> with stops for B2B deliveries and transfers, proof of delivery with a
+> drawn signature, cold-chain readings and excursions. Next in C7: riders
+> for POS delivery, segments and feedback, campaigns.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

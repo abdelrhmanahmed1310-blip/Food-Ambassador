@@ -97,6 +97,12 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/scan`, label: t("scanner") },
     );
   }
+  // Own fleet (ADR-116).
+  if (holdsAnyGrant(ctx.grants, "logistics.view"))
+    inventory.items.push(
+      { href: `${base}/logistics/trips`, label: t("trips") },
+      { href: `${base}/logistics/vehicles`, label: t("vehicles") },
+    );
   if (holdsAnyGrant(ctx.grants, "inventory.quarantine.release"))
     inventory.items.push({ href: `${base}/inventory/inspections`, label: t("inspections") });
   if (canViewValuation(ctx))

@@ -46,6 +46,7 @@ model User {
   memberships             OrganizationMembership[] @relation("MembershipUser")
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  drivenTrips             Trip[]                   @relation("TripDriver")
 
   @@map("users")
 }
@@ -346,6 +347,11 @@ model Organization {
   importCustomsEntries  ImportCustomsEntry[]
   importShipmentCharges ImportShipmentCharge[]
 
+  vehicles            Vehicle[]
+  trips               Trip[]
+  tripStops           TripStop[]
+  temperatureReadings TemperatureReading[]
+
   @@map("organizations")
 }
 
@@ -606,6 +612,9 @@ model Warehouse {
   loads              Load[]
 
   importShipments ImportShipment[]
+
+  vehicles Vehicle[]
+  trips    Trip[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1302,6 +1311,7 @@ enum AttachmentEntity {
   EXPENSE
   IMPORT_SHIPMENT
   TRADE_DOCUMENT
+  TRIP_STOP
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -2059,6 +2069,8 @@ model StockShipment {
   cancelDoc        InventoryDocument?        @relation("ShipmentCancel", fields: [organizationId, cancelDocumentId], references: [organizationId, id], onDelete: Restrict)
   lines            StockShipmentLine[]
   requisitionLines PurchaseRequisitionLine[]
+
+  tripStops TripStop[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -4778,6 +4790,8 @@ model CustomerDelivery {
   invoices     SalesInvoice[]
   pickLists    PickList[]
 
+  tripStops TripStop[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@unique([organizationId, documentId])
@@ -7126,4 +7140,148 @@ model ImportShipmentCharge {
   @@unique([organizationId, id])
   @@index([organizationId, shipmentId])
   @@map("import_shipment_charges")
+}
+
+// ─── C7a own fleet: vehicles, trips, proof of delivery, cold chain (ADR-116) ───
+
+enum VehicleType {
+  VAN
+  TRUCK
+  CAR
+  MOTORBIKE
+  OTHER
+}
+
+/// A vehicle of the organization's own fleet, based at a warehouse.
+model Vehicle {
+  id              String      @id @default(uuid(7)) @db.Uuid
+  organizationId  String      @map("organization_id") @db.Uuid
+  code            String
+  plateNumber     String      @map("plate_number")
+  type            VehicleType
+  warehouseId     String      @map("warehouse_id") @db.Uuid
+  refrigerated    Boolean     @default(false)
+  /// The range the load compartment must stay in, °C (refrigerated only).
+  minTemperatureC Decimal?    @map("min_temperature_c") @db.Decimal(5, 1)
+  maxTemperatureC Decimal?    @map("max_temperature_c") @db.Decimal(5, 1)
+  capacityKg      Decimal?    @map("capacity_kg") @db.Decimal(10, 1)
+  archivedAt      DateTime?   @map("archived_at") @db.Timestamptz(3)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  trips        Trip[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("vehicles")
+}
+
+enum TripStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// A run of one vehicle and driver from a warehouse to its stops.
+model Trip {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  organizationId  String     @map("organization_id") @db.Uuid
+  number          String
+  warehouseId     String     @map("warehouse_id") @db.Uuid
+  vehicleId       String     @map("vehicle_id") @db.Uuid
+  driverUserId    String     @map("driver_user_id") @db.Uuid
+  plannedOn       DateTime   @map("planned_on") @db.Date
+  status          TripStatus @default(PLANNED)
+  startOdometerKm Int?       @map("start_odometer_km")
+  endOdometerKm   Int?       @map("end_odometer_km")
+  startedAt       DateTime?  @map("started_at") @db.Timestamptz(3)
+  completedAt     DateTime?  @map("completed_at") @db.Timestamptz(3)
+  cancelledAt     DateTime?  @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason    String?    @map("cancel_reason")
+  note            String?
+  createdByUserId String     @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse            @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  vehicle      Vehicle              @relation(fields: [organizationId, vehicleId], references: [organizationId, id], onDelete: Restrict)
+  driver       User                 @relation("TripDriver", fields: [driverUserId], references: [id], onDelete: Restrict)
+  stops        TripStop[]
+  readings     TemperatureReading[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, warehouseId, plannedOn])
+  @@index([organizationId, driverUserId, status])
+  @@map("trips")
+}
+
+enum TripStopKind {
+  /// A posted B2B customer delivery (ADR-046).
+  CUSTOMER_DELIVERY
+  /// A transfer in transit to another warehouse (ADR-026).
+  TRANSFER
+}
+
+enum TripStopStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+/// One drop on a trip, and its proof of delivery.
+model TripStop {
+  id                   String         @id @default(uuid(7)) @db.Uuid
+  organizationId       String         @map("organization_id") @db.Uuid
+  tripId               String         @map("trip_id") @db.Uuid
+  sequence             Int
+  kind                 TripStopKind
+  customerDeliveryId   String?        @map("customer_delivery_id") @db.Uuid
+  stockShipmentId      String?        @map("stock_shipment_id") @db.Uuid
+  status               TripStopStatus @default(PENDING)
+  arrivedAt            DateTime?      @map("arrived_at") @db.Timestamptz(3)
+  /// Proof of delivery: who took it, when, the temperature at handover and their signature (SVG path data).
+  recipientName        String?        @map("recipient_name")
+  deliveredAt          DateTime?      @map("delivered_at") @db.Timestamptz(3)
+  handoverTemperatureC Decimal?       @map("handover_temperature_c") @db.Decimal(5, 1)
+  signatureSvg         String?        @map("signature_svg")
+  failureReason        String?        @map("failure_reason")
+  note                 String?
+  recordedByUserId     String?        @map("recorded_by_user_id") @db.Uuid
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  trip             Trip              @relation(fields: [organizationId, tripId], references: [organizationId, id], onDelete: Cascade)
+  customerDelivery CustomerDelivery? @relation(fields: [organizationId, customerDeliveryId], references: [organizationId, id], onDelete: Restrict)
+  stockShipment    StockShipment?    @relation(fields: [organizationId, stockShipmentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, tripId, sequence])
+  @@index([organizationId, customerDeliveryId])
+  @@index([organizationId, stockShipmentId])
+  @@map("trip_stops")
+}
+
+/// A load-compartment temperature during a trip. Append-only.
+model TemperatureReading {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  tripId           String   @map("trip_id") @db.Uuid
+  temperatureC     Decimal  @map("temperature_c") @db.Decimal(5, 1)
+  readAt           DateTime @map("read_at") @db.Timestamptz(3)
+  /// Outside the vehicle's range when taken.
+  excursion        Boolean  @default(false)
+  note             String?
+  recordedByUserId String   @map("recorded_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  trip         Trip         @relation(fields: [organizationId, tripId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, tripId, readAt])
+  @@map("temperature_readings")
 }

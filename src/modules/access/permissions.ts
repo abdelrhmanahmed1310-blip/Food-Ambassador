@@ -55,6 +55,9 @@ export const PERMISSIONS = [
   "pnl.view",
   "trade.view",
   "trade.manage",
+  "logistics.view",
+  "logistics.manage",
+  "logistics.deliver",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -127,6 +130,9 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "pnl.view",
   "trade.view",
   "trade.manage",
+  "logistics.view",
+  "logistics.manage",
+  "logistics.deliver",
 ]);
 
 /**
@@ -197,6 +203,9 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "logistics.view",
+      "logistics.manage",
+      "logistics.deliver",
       "trade.view",
       "budgets.view",
       "pnl.view",
@@ -283,6 +292,9 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Warehouse",
     description: "Receiving, storage and stock movements.",
     permissions: [
+      "logistics.view",
+      "logistics.manage",
+      "logistics.deliver",
       "trade.view",
       ...VIEW_SITES,
       ...VIEW_STOCK,
@@ -307,6 +319,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Food Safety / Quality",
     description: "Quality control, food safety records and traceability.",
     permissions: [
+      "logistics.view",
       ...VIEW_SITES,
       ...VIEW_STOCK,
       "inventory.quarantine",
@@ -368,6 +381,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "logistics.view",
       "budgets.view",
       "pnl.view",
       "expenses.view",
@@ -419,6 +433,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Read-only Analyst",
     description: "Read-only access to operational data.",
     permissions: [
+      "logistics.view",
       "trade.view",
       "budgets.view",
       "pnl.view",
@@ -465,6 +480,14 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     description:
       "Works the kitchen screens: sees tickets and bumps them when ready (usually granted at branch scope).",
     permissions: ["pos.kitchen"],
+    organizationScopeOnly: false,
+  },
+  {
+    key: "driver",
+    name: "Driver",
+    description:
+      "Drives delivery trips: records arrivals, proof of delivery and temperatures on their own trips (usually granted at warehouse scope).",
+    permissions: ["logistics.view", "logistics.deliver"],
     organizationScopeOnly: false,
   },
 ];

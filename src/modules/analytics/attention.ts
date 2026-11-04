@@ -55,7 +55,8 @@ export type AttentionKey =
   | "INSPECTIONS_WAITING"
   | "IMPORT_SHIPMENTS_LATE"
   | "TRADE_DOCUMENTS_EXPIRED"
-  | "TRADE_DOCUMENTS_EXPIRING";
+  | "TRADE_DOCUMENTS_EXPIRING"
+  | "COLD_CHAIN_EXCURSIONS";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -656,6 +657,31 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         count: expiring.length,
         href: "/trade/documents?state=EXPIRING",
         links: docLinks(expiring),
+      });
+    }
+
+    // Cold-chain excursions on trips in the last 7 days (ADR-116).
+    const fleet = warehouseWhere(ctx, "logistics.view");
+    if (fleet) {
+      const trips = await tx.trip.findMany({
+        where: {
+          organizationId: org,
+          warehouse: fleet,
+          readings: {
+            some: { excursion: true, readAt: { gte: new Date(`${addDays(today, -7)}T00:00:00Z`) } },
+          },
+        },
+        select: { id: true, number: true },
+        orderBy: { plannedOn: "desc" },
+      });
+      push({
+        key: "COLD_CHAIN_EXCURSIONS",
+        tone: "danger",
+        count: trips.length,
+        href: "/logistics/trips",
+        links: trips
+          .slice(0, 5)
+          .map((x) => ({ label: x.number, href: `/logistics/trips/${x.id}` })),
       });
     }
 

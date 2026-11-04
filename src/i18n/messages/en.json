@@ -180,7 +180,9 @@
     "branchPnl": "Branch P&L",
     "consolidatedPnl": "Consolidated P&L",
     "importShipments": "Import shipments",
-    "tradeDocuments": "Trade documents"
+    "tradeDocuments": "Trade documents",
+    "trips": "Trips",
+    "vehicles": "Vehicles"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -311,7 +313,10 @@
     "invalidContainerNumber": "Not a valid ISO 6346 container number (check the check digit).",
     "temperatureReeferOnly": "Only reefer containers have a set point.",
     "etaBeforeEtd": "The expected arrival is before the departure.",
-    "invalidHsPrefix": "Use 2 to 12 digits."
+    "invalidHsPrefix": "Use 2 to 12 digits.",
+    "refrigeratedNeedsRange": "A refrigerated vehicle needs its lowest and highest temperature.",
+    "rangeReversed": "The highest temperature is below the lowest.",
+    "invalidSignature": "The signature could not be read; clear it and sign again."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -345,7 +350,8 @@
     "lineOnReturn": "This receipt line is already on the return.",
     "containerTaken": "This container is already on the shipment.",
     "orderTaken": "This order is already on the shipment.",
-    "declarationTaken": "This declaration is already recorded for the shipment."
+    "declarationTaken": "This declaration is already recorded for the shipment.",
+    "consignmentOnTrip": "This is already on a trip."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -752,7 +758,17 @@
     "SHIPMENT_DOCUMENTS_MISSING": "Required documents are missing or expired: see the shipment's required documents.",
     "DOCUMENT_TYPE_OTHER_SCOPE": "This kind of document is held elsewhere (per shipment or per product).",
     "DOCUMENT_NEEDS_EXPIRY": "This document has an expiry date: enter it.",
-    "SHIPMENT_HAS_NO_RECEIPTS": "Link the receipts that took the goods in first."
+    "SHIPMENT_HAS_NO_RECEIPTS": "Link the receipts that took the goods in first.",
+    "VEHICLE_OTHER_WAREHOUSE": "The vehicle is based at another warehouse.",
+    "DRIVER_NOT_ALLOWED": "This person may not drive from this warehouse.",
+    "TRIP_NOT_PLANNED": "Only a planned trip can be changed like this.",
+    "TRIP_NOT_IN_PROGRESS": "The trip is not on the road.",
+    "TRIP_HAS_NO_STOPS": "Add the stops first.",
+    "CONSIGNMENT_NOT_AVAILABLE": "Not a posted delivery or a transfer in transit from this warehouse.",
+    "HANDOVER_TEMPERATURE_REQUIRED": "Record the temperature at handover.",
+    "STOP_ALREADY_RECORDED": "This stop is already recorded.",
+    "TRIP_STOPS_OPEN": "Record every stop first.",
+    "ODOMETER_BACKWARDS": "The odometer is below its reading at the start."
   },
   "notFound": {
     "title": "Page not found",
@@ -919,7 +935,8 @@
       "analyst": "Read-only Analyst",
       "cashier": "Cashier",
       "waiter": "Waiter",
-      "kitchen": "Kitchen"
+      "kitchen": "Kitchen",
+      "driver": "Driver"
     },
     "permissionLabels": {
       "org.settings.manage": "Manage organization settings",
@@ -996,7 +1013,10 @@
       "pnl.view": "View branch profit and loss",
       "pnl.consolidated.view": "View the consolidated group profit and loss",
       "trade.view": "View import shipments",
-      "trade.manage": "Create and track import shipments"
+      "trade.manage": "Create and track import shipments",
+      "logistics.view": "View trips and vehicles",
+      "logistics.manage": "Plan trips and manage vehicles",
+      "logistics.deliver": "Drive trips: proof of delivery and temperatures"
     }
   },
   "audit": {
@@ -2700,7 +2720,8 @@
       "INSPECTIONS_WAITING": "{count, plural, one {# receipt line waiting for inspection} other {# receipt lines waiting for inspection}}",
       "IMPORT_SHIPMENTS_LATE": "{count, plural, one {# import shipment late} other {# import shipments late}}",
       "TRADE_DOCUMENTS_EXPIRED": "{count, plural, one {# trade document expired} other {# trade documents expired}}",
-      "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {# trade document expiring soon} other {# trade documents expiring soon}}"
+      "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {# trade document expiring soon} other {# trade documents expiring soon}}",
+      "COLD_CHAIN_EXCURSIONS": "{count, plural, one {# trip with a temperature excursion} other {# trips with temperature excursions}}"
     }
   },
   "production": {
@@ -5863,5 +5884,95 @@
     "recordTitle": "Record a customs declaration",
     "postTitle": "Post a charge over the shipment's receipts",
     "postHint": "Enter amounts as invoiced or assessed; no duty rate is assumed. Post the duty against its declaration."
+  },
+  "logistics": {
+    "vehiclesTitle": "Vehicles",
+    "vehiclesHint": "Your own fleet. Refrigerated vehicles keep the temperature range their loads must stay in.",
+    "noVehicles": "No vehicles yet.",
+    "addVehicle": "Add vehicle",
+    "code": "Code",
+    "plate": "Plate number",
+    "type": "Type",
+    "base": "Based at",
+    "range": "Temperature range",
+    "ambient": "Not refrigerated",
+    "minTemp": "Lowest °C",
+    "maxTemp": "Highest °C",
+    "capacity": "Capacity (kg)",
+    "refrigerated": "Refrigerated",
+    "archive": "Archive",
+    "restore": "Restore",
+    "types": {
+      "VAN": "Van",
+      "TRUCK": "Truck",
+      "CAR": "Car",
+      "MOTORBIKE": "Motorbike",
+      "OTHER": "Other"
+    },
+    "tripsTitle": "Trips",
+    "tripsHint": "Delivery runs of your own vehicles: stops, proof of delivery and temperatures.",
+    "newTrip": "Plan a trip",
+    "newTripHint": "Choose the warehouse the trip leaves from, then the vehicle, driver and day; add the stops on the trip.",
+    "fromWarehouse": "From warehouse",
+    "choose": "Choose",
+    "noVehiclesHere": "No vehicles are based at this warehouse.",
+    "noDriversHere": "Nobody may drive from this warehouse yet: give someone the Driver role there.",
+    "planTrip": "Plan trip",
+    "vehicle": "Vehicle",
+    "driver": "Driver",
+    "plannedOn": "Day",
+    "note": "Note",
+    "mine": "My trips",
+    "noTrips": "No trips.",
+    "number": "Number",
+    "stops": "Stops",
+    "status": "Status",
+    "stopCounts": "{delivered} delivered, {failed} failed of {total}",
+    "excursions": "{count, plural, one {# temperature excursion} other {# temperature excursions}}",
+    "tripHint": "Stops in order, with who took the goods and the temperatures on the way.",
+    "started": "Started",
+    "completed": "Completed",
+    "distance": "Distance",
+    "cancelReason": "Reason for cancelling",
+    "start": "Start trip",
+    "odometer": "Odometer (km)",
+    "noStops": "No stops yet.",
+    "transferTo": "Transfer to",
+    "receivedBy": "Received by {name}",
+    "failedBecause": "Not delivered: {reason}",
+    "removeStop": "Remove stop",
+    "proofOfDelivery": "Proof of delivery",
+    "notDelivered": "Not delivered",
+    "failureReason": "Why not",
+    "markFailed": "Mark not delivered",
+    "addDelivery": "Customer delivery from this warehouse",
+    "addTransfer": "Transfer in transit from this warehouse",
+    "addStop": "Add stop",
+    "temperatures": "Temperatures",
+    "noReadings": "No readings yet.",
+    "readAt": "Taken",
+    "temperature": "Temperature (°C)",
+    "excursion": "Out of range",
+    "recordReading": "Record reading",
+    "complete": "Complete trip",
+    "cancel": "Cancel trip",
+    "allTrips": "All trips",
+    "recipient": "Received by",
+    "handoverTemp": "Temperature at handover (°C)",
+    "confirmDelivery": "Confirm delivery",
+    "signature": "Signature",
+    "signatureArea": "Signature pad: draw with a finger or the mouse",
+    "clearSignature": "Clear",
+    "statuses": {
+      "PLANNED": "Planned",
+      "IN_PROGRESS": "On the road",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "stopStatuses": {
+      "PENDING": "To deliver",
+      "DELIVERED": "Delivered",
+      "FAILED": "Not delivered"
+    }
   }
 }

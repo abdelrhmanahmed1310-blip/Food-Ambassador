@@ -2974,6 +2974,49 @@ feeding landed cost over the shipment's receipts.
   the VAT return, demurrage and detention, estimated charges before the
   invoices arrive.
 
+### ADR-116 Own fleet: trips, proof of delivery and cold chain — Accepted (C7a built)
+
+C7 (logistics and CRM) is built in parts: **C7a** own fleet for
+distribution from warehouses; C7b riders for restaurant delivery orders;
+C7c customer segments and feedback; C7d campaigns (needs a messaging
+provider — Q to be asked before it is built).
+
+- **Vehicles**: code, plate, type, home warehouse, capacity;
+  refrigerated vehicles must have a temperature range (database check);
+  archived ones take no new trips.
+- **Driver role** (new system role, also added to existing
+  organizations): `logistics.view` and `logistics.deliver`, usually at
+  warehouse scope. A trip's driver must be a member whose role grants
+  `logistics.deliver` covering the trip's warehouse.
+- **Trips** (`TRP-`): one vehicle (based at the warehouse) and one
+  driver for a day, with ordered **stops**: posted B2B customer
+  deliveries (ADR-046) from that warehouse, and transfers in transit
+  from it (ADR-026). A consignment is on one open stop at a time
+  (unique index; a failed stop frees it for another trip). Planned →
+  on the road (needs stops; optional odometer) → completed (every stop
+  delivered or failed; odometer not below the start) — or cancelled
+  before it starts, with a reason, freeing its stops.
+- **Proof of delivery**: recipient name, time, temperature at handover
+  (required on refrigerated vehicles, and also kept as a reading), a
+  **signature drawn on the phone** stored as SVG path data restricted to
+  move/line commands and numbers (so nothing but a line can be stored or
+  drawn back), photos as attachments (ADR-051), note. Final once
+  recorded (database trigger). Not delivered: the reason is kept.
+- **Cold chain**: readings on the road (−60 to 60 °C) flagged as an
+  **excursion** when outside the vehicle's range; trips with excursions
+  in the last 7 days are in Needs attention. Readings are append-only.
+- Recording on the road needs `logistics.deliver` and being the trip's
+  driver — or also holding `logistics.manage` there (planners stand in).
+  Planning needs `logistics.manage`.
+- **What it does not change**: stock. Deliveries were posted when
+  dispatched and transfers are still received at the destination as
+  before (ADR-026); a failed delivery's return is not posted
+  automatically.
+- **Not yet:** riders and dispatch for POS delivery orders (C7b), route
+  optimisation and maps, live GPS, temperature loggers feeding readings,
+  logistics cost per trip and per drop, returns from failed deliveries,
+  customer notifications.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
