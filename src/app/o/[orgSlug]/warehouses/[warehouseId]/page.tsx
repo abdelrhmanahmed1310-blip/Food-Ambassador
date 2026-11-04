@@ -54,12 +54,20 @@ export default async function WarehousePage({
           archived ? (
             <Badge tone="muted">{t("common.archived")}</Badge>
           ) : (
-            <LinkButton
-              href={`/o/${orgSlug}/warehouses/${warehouse.id}/putaway`}
-              variant="secondary"
-            >
-              {t("putaway.title")}
-            </LinkButton>
+            <>
+              <LinkButton
+                href={`/o/${orgSlug}/scan/labels/locations/${warehouse.id}`}
+                variant="secondary"
+              >
+                {t("scan.locationLabels")}
+              </LinkButton>
+              <LinkButton
+                href={`/o/${orgSlug}/warehouses/${warehouse.id}/putaway`}
+                variant="secondary"
+              >
+                {t("putaway.title")}
+              </LinkButton>
+            </>
           )
         }
       />

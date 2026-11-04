@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,25 @@ Last updated: 2026-11-04 (C3c packing and loading; C3b pick lists and waves; C3a
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C3d — Handheld scanning and labels (built; D5: both scanners and phones)
+
+Rules: DECISIONS.md ADR-104.
+
+| Area     | What works                                                                                                                      | Where                              |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Scanners | Keyboard-style scanners (Zebra, Honeywell…) type and press Enter; phone camera via the browser's barcode reader where available | every scan field                   |
+| Labels   | Code 128 labels for pack units and storage locations, printed from the browser                                                  | pick list → Unit labels; warehouse |
+| Lookup   | One field finds a unit, pick list, load, location, product (barcode or SKU) or lot                                              | Inventory → Scanner                |
+| Picking  | Guided: scan location, then product, then quantity, line by line in walk order; wrong scans refused                             | Scanner → Pick                     |
+| Loading  | Scan each unit onto the vehicle; progress shown                                                                                 | Scanner → Load a vehicle           |
+| Counting | Scan a product or lot, enter what is counted                                                                                    | Scanner → Count                    |
+
+**Unvalidated on hardware:** tested in the browser with simulated keyboard input only; to be checked on a physical Zebra/Honeywell scanner and a phone camera at the pilot. Camera scanning appears only where the browser has a barcode reader (Chrome/Edge on Android, among others). The site now allows the camera for itself (`camera=(self)`).
+
+Not yet: QR and GS1-128 content on labels, label printers (ZPL), scanning at receiving and put-away, offline scanning.
+
+Checks: `pnpm check` pass (unit 341; new: Code 128 pattern table well-formed, modulo-103 checksum, bar layout with quiet zones, printable ASCII only, scanner input cleaned of Enter/Tab/group separators, scan matching by barcode, SKU and lot); `pnpm test:integration` 470/470 pass (new: the guided pick expects shelf A-01, MILK, its EAN-13 and lot; a unit number in lower case with CR/LF, a location, a barcode, a SKU and a lot each resolve; unknown and blank codes find nothing; count lines found by barcode and lot on the shelf and in dispatch; nothing across organizations; cashiers refused); `pnpm test:e2e` 78/78 pass (new: look up a location by scanning, guided pick refusing a wrong location and product, pack, unit label with its barcode, scan the unit onto a van).
 
 ## C3c — Packing, loads and dispatch (built)
 

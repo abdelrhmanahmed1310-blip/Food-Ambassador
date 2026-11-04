@@ -2597,6 +2597,43 @@ country for now, so no inter-company transfer is built.
   temperature limits and in-transit temperature logging, routes and
   proof of delivery (C7), loads for branch shipments.
 
+### ADR-104 Handheld scanning and labels — Accepted (C3d built; D5 decided: both)
+
+- **D5 decided: both** keyboard-style handheld scanners (Zebra, Honeywell
+  and similar, which type the code and press Enter) and phones (the
+  camera). No special hardware integration is needed for the first: any
+  scanner set to keyboard mode with an Enter suffix works with the scan
+  fields. Camera scanning uses the browser's own barcode reader
+  (BarcodeDetector: Chrome and Edge on Android, among others); where the
+  browser has none, the camera button is not shown and the field is used.
+  The site now allows the camera for itself only
+  (`Permissions-Policy: camera=(self)`); microphone stays blocked.
+- **Validation status:** tested in the browser with simulated keyboard
+  input only. Not yet tested on a physical Zebra/Honeywell device or a
+  phone camera — to be checked at the pilot. The store apps' web views
+  (ADR-061) may need their own camera permission.
+- **Scan text** is cleaned before use: control characters (Enter, Tab,
+  GS1 group separators) are dropped and spaces trimmed.
+- **Labels**: Code 128 (code set B), drawn as SVG from our own encoder
+  (no new library), for pack units (unit number, order, customer, n of m)
+  and for storage locations (code, name, use, temperature). Printed from
+  the browser. The numbers are ours, not GS1 identifiers (no SSCC/GTIN is
+  issued).
+- **Scan lookup**: one field recognises a pack unit, pick list, load,
+  location (by code), product (by barcode or SKU) or lot, within what the
+  user may see.
+- **Screens** (Inventory → Scanner), sized for phones:
+  - _Guided picking_: line by line in walk order — scan the location (must
+    match), scan the product (barcode, SKU or lot; must match), confirm the
+    quantity (short needs a reason); the result is submitted as one pick
+    (ADR-102), which the server checks again.
+  - _Loading_: scan each unit onto the vehicle (ADR-103).
+  - _Counting_: scan a product barcode, SKU or lot to find its count
+    lines, then enter what is counted.
+    The field empties and refocuses after every scan, ready for the next.
+- **Not yet:** QR codes and GS1-128 data on our labels, label printers
+  (ZPL), scanning at receiving and put-away, offline scanning.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

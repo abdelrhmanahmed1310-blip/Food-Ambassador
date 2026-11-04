@@ -30,8 +30,9 @@
 > location zones, receiving inspection out of quarantine and directed
 > put-away. **C3b built** (ADR-102): FEFO pick lists with staging,
 > waves and delivery from picked stock. **C3c built** (ADR-103): packing
-> units, loads with loading confirmation and dispatch. Next in C3:
-> handheld scanning (needs D5).
+> units, loads with loading confirmation and dispatch. **C3d built**
+> (ADR-104, D5: both scanners and phones): Code 128 labels, scan lookup,
+> guided picking, loading and counting screens. C3 is complete.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development
@@ -271,7 +272,7 @@ Every capability marked Built or Partial above, and these invariants:
 | D2  | Email provider (Q-10), SMS and WhatsApp Business providers                                                                                                          | F2 notifications, CRM campaigns, password reset |
 | D3  | AI provider and data rules (which data may leave the platform; region)                                                                                              | I2                                              |
 | D4  | Production hosting and data residency (Q-03)                                                                                                                        | Go-live                                         |
-| D5  | Handheld hardware for warehouses (Android scanners such as Zebra/Honeywell, or phones)                                                                              | C3                                              |
+| D5  | ~~Handheld hardware~~ **Decided: both** keyboard-style scanners and phone cameras (ADR-104)                                                                         | C3                                              |
 | D6  | Network access and sandbox credentials for ZATCA, Moyasar and delivery platforms                                                                                    | Validation (L9)                                 |
 | D7  | Payroll rules per country (Q-20)                                                                                                                                    | HR4                                             |
 | D8  | Benchmark references: access to Sapaad material (feature list or demo) if exact parity matters; this audit benchmarks against the capabilities listed in the prompt | Prioritisation                                  |

@@ -10,7 +10,8 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+  // The camera is for barcode scanning on this site only (ADR-104).
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(self)" },
   // Content-Security-Policy is set per request in src/proxy.ts: it carries a
   // fresh script nonce (ADR-074).
   ...(process.env.NODE_ENV === "production"

@@ -60,6 +60,19 @@ export default async function PickListPage({
                 {t("loads.packingList")}
               </a>
             ) : null}
+            {p.packUnits.length > 0 ? (
+              <a
+                href={`/o/${orgSlug}/scan/labels/pick-list/${p.id}`}
+                className={buttonClass("secondary")}
+              >
+                {t("scan.unitLabels")}
+              </a>
+            ) : null}
+            {p.status === "PLANNED" && p.canPick ? (
+              <a href={`/o/${orgSlug}/scan/picking/${p.id}`} className={buttonClass("secondary")}>
+                {t("scan.pickWithScanner")}
+              </a>
+            ) : null}
           </>
         }
       />
