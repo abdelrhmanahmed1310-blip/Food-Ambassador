@@ -164,7 +164,9 @@
     "fsDocuments": "Documents",
     "audits": "Audits",
     "complaints": "Complaints",
-    "equipment": "Equipment"
+    "equipment": "Equipment",
+    "mockRecalls": "Mock recalls",
+    "compliance": "Compliance score"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -289,7 +291,8 @@
     "requiredDocumentNeedsExpiry": "A document required to buy needs an expiry date.",
     "respondAfterNeeded": "Quotes must be wanted on or before the day the goods are needed.",
     "invalidQuantity": "Enter a quantity greater than zero.",
-    "invalidRange": "The maximum is below the minimum."
+    "invalidRange": "The maximum is below the minimum.",
+    "invalidMinutes": "Enter a whole number of minutes (1–10080)."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -678,7 +681,9 @@
     "EQUIPMENT_NOT_ACTIVE": "The equipment is not in service.",
     "EQUIPMENT_NOT_OUT_OF_SERVICE": "The equipment is not out of service.",
     "EQUIPMENT_RETIRED": "The equipment is retired.",
-    "NEXT_DUE_BEFORE": "The next date must come after this one."
+    "NEXT_DUE_BEFORE": "The next date must come after this one.",
+    "MOCK_RECALL_FINISHED": "This exercise is already finished.",
+    "MOCK_RECALL_COUNTS_MISSING": "Enter what was found at every place before completing ({missing} missing)."
   },
   "notFound": {
     "title": "Page not found",
@@ -1839,7 +1844,35 @@
     "forward": "Where it went",
     "stockNow": "Stock now",
     "noStock": "None on hand.",
-    "movements": "All movements"
+    "movements": "All movements",
+    "batchReport": "Batch report (PDF)",
+    "startMockRecall": "Mock recall",
+    "pdf": {
+      "title": "Batch report",
+      "product": "Product",
+      "lot": "Lot",
+      "expires": "Expires",
+      "received": "Brought in",
+      "leftBusiness": "Left the business",
+      "onHand": "On hand now",
+      "recallHold": "Recall hold",
+      "yes": "Yes",
+      "no": "No",
+      "date": "Date",
+      "movement": "Movement",
+      "warehouse": "Warehouse",
+      "document": "Document",
+      "quantity": "Quantity",
+      "suppliers": "Received from",
+      "madeFrom": "Made from",
+      "usedIn": "Used in",
+      "shipments": "Shipments",
+      "recalls": "Recalls",
+      "gaps": "Gaps in the trace",
+      "noGaps": "No gaps found in the recorded movements.",
+      "generated": "Made from recorded movements only, on {date}.",
+      "truncated": "Only the first {count} movements are shown."
+    }
   },
   "recalls": {
     "title": "Recalls",
@@ -1998,7 +2031,8 @@
       "CHECKLIST": "Failed checklist",
       "AUDIT": "Audit finding",
       "COMPLAINT": "Customer complaint",
-      "EQUIPMENT": "Equipment calibration"
+      "EQUIPMENT": "Equipment calibration",
+      "MOCK_RECALL": "Mock recall"
     },
     "ncStatuses": {
       "OPEN": "Open",
@@ -4883,5 +4917,91 @@
       "OUT_OF_SERVICE": "Out of service",
       "RETIRED": "Retired"
     }
+  },
+  "mockRecalls": {
+    "title": "Mock recalls",
+    "hint": "Timed recall drills on one lot. Starting one copies the lot's book position and starts the clock; nothing in stock changes. Count what you find at each place, then complete it.",
+    "empty": "No mock recalls yet.",
+    "startHint": "Start a mock recall from a lot's trace page.",
+    "newTitle": "Start a mock recall",
+    "start": "Start the clock",
+    "branch": "Branch running the exercise",
+    "branchHint": "A failed exercise raises its non-conformance here.",
+    "scenario": "Scenario",
+    "scenarioHint": "For example: supplier reports possible glass in this lot.",
+    "target": "Target time (minutes)",
+    "targetHint": "Your own target; leave empty for none.",
+    "lot": "Lot",
+    "number": "Number",
+    "started": "Started",
+    "startedBy": "Started by",
+    "completedBy": "Completed by",
+    "elapsed": "Time taken",
+    "running": "Running for",
+    "hoursMinutes": "{hours} h {minutes} min",
+    "result": "Result",
+    "passed": "Passed",
+    "notPassed": "Not passed",
+    "withinTarget": "Within target",
+    "targetMissed": "Target missed",
+    "noTarget": "No target",
+    "accounted": "Accounted for",
+    "bookTitle": "Book position at the start",
+    "received": "Brought in",
+    "leftBusiness": "Left the business",
+    "bookOnHand": "On hand (book)",
+    "gaps": "Gaps in the trace",
+    "suppliers": "Suppliers on record",
+    "countsTitle": "What was found",
+    "place": "Place",
+    "book": "Book",
+    "found": "Found",
+    "difference": "Difference",
+    "noStockHint": "The book shows none on hand: completing records that nothing was found.",
+    "findings": "Findings",
+    "complete": "Stop the clock and complete",
+    "cancel": "Cancel exercise",
+    "cancelReason": "Why cancel",
+    "completedMessage": "Exercise completed.",
+    "ncMessage": "Exercise not passed: {number} opened.",
+    "problemsTitle": "Problems found",
+    "problems": {
+      "TARGET_MISSED": "The target time was missed.",
+      "STOCK_DIFFERENCE": "The stock found differs from the book.",
+      "NOT_ACCOUNTED": "The lot is not fully accounted for.",
+      "TRACE_GAPS": "The trace has gaps.",
+      "ORIGIN_UNKNOWN": "The lot's origin (supplier or production) is not recorded."
+    },
+    "statuses": {
+      "RUNNING": "Running",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "nonConformance": "Non-conformance",
+    "cancelNote": "Cancelled because"
+  },
+  "compliance": {
+    "title": "Compliance score",
+    "hint": "Per branch, from recorded facts only. Each part is the share that passed; the score is the plain average of the parts that have data. A part with nothing recorded shows no data instead of a score.",
+    "period": "Last {days} days",
+    "branch": "Branch",
+    "score": "Score",
+    "noData": "No data",
+    "openSerious": "Open high / critical NCs",
+    "empty": "No branches to show.",
+    "components": {
+      "RECORDS_IN_SPEC": "Records in spec",
+      "CHECKLIST_ITEMS_OK": "Checklist items OK",
+      "ACTIONS_ON_TIME": "Corrective actions on time",
+      "EQUIPMENT_CALIBRATED": "Equipment calibrated (now)"
+    },
+    "ratio": "{passed} of {counted}",
+    "bands": {
+      "GOOD": "Good",
+      "FAIR": "Fair",
+      "POOR": "Poor",
+      "NONE": "No data"
+    },
+    "bandsNote": "Bands are for display only: 90 and above good, 75–89 fair, below 75 poor."
   }
 }

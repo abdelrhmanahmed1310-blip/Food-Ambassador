@@ -465,7 +465,7 @@ function branchWhere(ctx: TenantContext) {
 }
 
 /** When calibration and maintenance are next due: the latest record's date, else (with an interval) now. */
-function dues(
+export function equipmentDues(
   eq: {
     calibrationIntervalDays: number | null;
     maintenanceIntervalDays: number | null;
@@ -520,7 +520,7 @@ export async function listEquipment(
     return rows.map((e) => ({
       ...e,
       lastCalibration: e.calibrations[0] ?? null,
-      ...dues(e, e.calibrations[0], e.maintenance[0], today),
+      ...equipmentDues(e, e.calibrations[0], e.maintenance[0], today),
     }));
   });
 }
@@ -546,7 +546,7 @@ export async function getEquipment(ctx: TenantContext, equipmentId: string) {
     const manage = hasPermission(ctx.grants, "foodsafety.manage", { branchId: e.branchId });
     return {
       equipment: e,
-      ...dues(e, e.calibrations[0], e.maintenance[0], today),
+      ...equipmentDues(e, e.calibrations[0], e.maintenance[0], today),
       can: {
         record: record && e.status !== "RETIRED",
         outOfService: record && e.status === "ACTIVE",

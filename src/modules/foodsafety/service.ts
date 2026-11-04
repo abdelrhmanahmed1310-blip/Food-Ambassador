@@ -1,6 +1,6 @@
 import "server-only";
 import { controlPointsAtCheckpoint } from "./haccp";
-import type { Prisma } from "@/generated/prisma/client";
+import type { NcSource, Prisma } from "@/generated/prisma/client";
 import { Decimal, toDecimal } from "@/lib/decimal";
 import {
   accessibleScope,
@@ -76,7 +76,7 @@ export async function openNonConformanceInTx(
     title: string;
     description: string;
     severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-    source: "MANUAL" | "RECORD" | "CHECKLIST" | "AUDIT" | "COMPLAINT" | "EQUIPMENT";
+    source: NcSource;
     /** A deviation from a HACCP control point (ADR-096). */
     controlPointId?: string;
   },

@@ -12,6 +12,7 @@ import {
   Td,
   Th,
 } from "@/components/ui/primitives";
+import { buttonClass } from "@/components/ui/styles";
 import { isUuid } from "@/lib/uuid";
 import { hasPermission } from "@/modules/access/authorize";
 import { traceLot } from "@/modules/traceability/trace";
@@ -53,10 +54,24 @@ export default async function LotTracePage({
         actions={
           <>
             {lot.recallHold ? <Badge tone="danger">{t("trace.recallHold")}</Badge> : null}
+            <a
+              href={`/o/${orgSlug}/traceability/lots/${lot.id}/pdf`}
+              className={buttonClass("secondary")}
+            >
+              {t("trace.batchReport")}
+            </a>
             {hasPermission(ctx.grants, "recalls.manage") ? (
-              <LinkButton href={`/o/${orgSlug}/recalls/new?lotId=${lot.id}`} variant="secondary">
-                {t("trace.startRecall")}
-              </LinkButton>
+              <>
+                <LinkButton
+                  href={`/o/${orgSlug}/traceability/mock-recalls/new?lotId=${lot.id}`}
+                  variant="secondary"
+                >
+                  {t("trace.startMockRecall")}
+                </LinkButton>
+                <LinkButton href={`/o/${orgSlug}/recalls/new?lotId=${lot.id}`} variant="secondary">
+                  {t("trace.startRecall")}
+                </LinkButton>
+              </>
             ) : null}
           </>
         }

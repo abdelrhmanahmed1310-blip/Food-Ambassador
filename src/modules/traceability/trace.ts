@@ -79,183 +79,186 @@ export async function lotStock(tx: Tx, ctx: TenantContext, lotIds: string[]) {
 
 export async function traceLot(ctx: TenantContext, lotId: string) {
   assertPermission(ctx.grants, "traceability.view");
-  return withTenantTx(ctx.organizationId, async (tx) => {
-    const lot = await tx.inventoryLot.findFirst({
-      where: { organizationId: ctx.organizationId, id: lotId },
-      include: {
-        product: {
-          select: {
-            id: true,
-            sku: true,
-            nameEn: true,
-            nameAr: true,
-            lotTracking: true,
-            baseUom: { select: { code: true } },
-          },
+  return withTenantTx(ctx.organizationId, (tx) => traceLotInTx(tx, ctx, lotId));
+}
+
+/** The full trace of one lot inside an open transaction (permission checked by the caller). */
+export async function traceLotInTx(tx: Tx, ctx: TenantContext, lotId: string) {
+  const lot = await tx.inventoryLot.findFirst({
+    where: { organizationId: ctx.organizationId, id: lotId },
+    include: {
+      product: {
+        select: {
+          id: true,
+          sku: true,
+          nameEn: true,
+          nameAr: true,
+          lotTracking: true,
+          baseUom: { select: { code: true } },
         },
       },
-    });
-    if (!lot) throw notFound("Lot");
-    const entries = await tx.inventoryLedgerEntry.findMany({
-      where: { organizationId: ctx.organizationId, lotId: lot.id },
-      select: {
-        id: true,
-        movementType: true,
-        warehouseId: true,
-        locationId: true,
-        stockStatus: true,
-        quantityDelta: true,
-        occurredAt: true,
-        reversesEntryId: true,
-        reasonCode: true,
-        document: { select: { id: true, number: true, type: true } },
-        warehouse: { select: { code: true } },
-      },
-      orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
-      take: 2000,
-    });
-    const warehouseIds = [...new Set(entries.map((e) => e.warehouseId))];
-    const firstArrival =
-      entries.find((e) => dec(e.quantityDelta).gt(0))?.occurredAt ?? lot.firstReceivedAt;
-    const unlotted = await tx.inventoryLedgerEntry.findMany({
-      where: {
-        organizationId: ctx.organizationId,
-        productId: lot.productId,
-        lotId: null,
-        warehouseId: { in: warehouseIds },
-        quantityDelta: { lt: 0 },
-        movementType: {
-          in: ["WRITE_OFF", "ADJUSTMENT", "COUNT_ADJUSTMENT", "CONSUMPTION", "RETURN_TO_SUPPLIER"],
-        },
-        occurredAt: { gte: firstArrival },
-      },
-      select: {
-        id: true,
-        movementType: true,
-        warehouseId: true,
-        quantityDelta: true,
-        occurredAt: true,
-        reversesEntryId: true,
-        document: { select: { id: true, number: true } },
-        warehouse: { select: { code: true } },
-      },
-      orderBy: { occurredAt: "asc" },
-      take: 200,
-    });
-    const summary = summarizeTrace(
-      entries.map((e) => ({ ...e, quantityDelta: dec(e.quantityDelta) })),
-      unlotted.map((e) => ({ ...e, quantityDelta: dec(e.quantityDelta) })),
-    );
-    const receipts = await tx.goodsReceiptLine.findMany({
-      where: { organizationId: ctx.organizationId, lotId: lot.id },
-      select: {
-        id: true,
-        acceptedQuantity: true,
-        rejectedQuantity: true,
-        temperatureCelsius: true,
-        uom: { select: { code: true } },
-        receipt: {
-          select: {
-            id: true,
-            number: true,
-            status: true,
-            receivedAt: true,
-            deliveryNoteRef: true,
-            supplier: {
-              select: { id: true, code: true, name: true, nameAr: true, phone: true, email: true },
-            },
-            purchaseOrder: { select: { id: true, number: true } },
-            warehouse: { select: { code: true } },
-          },
-        },
-      },
-      orderBy: { receipt: { receivedAt: "asc" } },
-    });
-    const shipments = await tx.stockShipmentLine.findMany({
-      where: { organizationId: ctx.organizationId, lotId: lot.id },
-      select: {
-        quantityBase: true,
-        receivedQuantityBase: true,
-        shipment: {
-          select: {
-            id: true,
-            number: true,
-            status: true,
-            dispatchedAt: true,
-            receivedAt: true,
-            from: { select: { code: true } },
-            to: { select: { code: true } },
-          },
-        },
-      },
-    });
-    const recalls = await tx.recallLot.findMany({
-      where: { organizationId: ctx.organizationId, lotId: lot.id },
-      select: { recall: { select: { id: true, number: true, status: true, title: true } } },
-    });
-    // Genealogy (ADR-045): what a produced lot was made from, and what this lot went into.
-    const madeBy = await tx.productionOrder.findMany({
-      where: { organizationId: ctx.organizationId, outputLotId: lot.id, documentId: { not: null } },
-      select: { id: true, number: true, status: true, documentId: true },
-    });
-    const madeFrom = madeBy.length
-      ? await tx.inventoryLedgerEntry.findMany({
-          where: {
-            organizationId: ctx.organizationId,
-            documentId: { in: madeBy.map((m) => m.documentId as string) },
-            quantityDelta: { lt: 0 },
-          },
-          select: {
-            quantityDelta: true,
-            documentId: true,
-            product: {
-              select: {
-                sku: true,
-                nameEn: true,
-                nameAr: true,
-                baseUom: { select: { code: true } },
-              },
-            },
-            lot: { select: { id: true, lotCode: true, expiresOn: true } },
-          },
-        })
-      : [];
-    const usedInDocs = entries
-      .filter((e) => e.document.type === "PRODUCTION" && dec(e.quantityDelta).lt(0))
-      .map((e) => e.document.id);
-    const usedIn = usedInDocs.length
-      ? await tx.productionOrder.findMany({
-          where: { organizationId: ctx.organizationId, documentId: { in: usedInDocs } },
-          select: {
-            id: true,
-            number: true,
-            status: true,
-            outputProduct: { select: { sku: true, nameEn: true, nameAr: true } },
-            outputLot: { select: { id: true, lotCode: true, expiresOn: true } },
-          },
-        })
-      : [];
-    const byId = new Map(entries.map((e) => [e.id, e]));
-    const unlottedById = new Map(unlotted.map((e) => [e.id, e]));
-    return {
-      lot,
-      entries,
-      origins: summary.origins.map((id) => byId.get(id)!),
-      exits: summary.exits.map((id) => byId.get(id)!),
-      received: summary.received,
-      exited: summary.exited,
-      onHand: summary.onHand,
-      gaps: summary.gaps.map((g) => ({
-        ...g,
-        entry: byId.get(g.entryId) ?? unlottedById.get(g.entryId)!,
-      })),
-      receipts,
-      shipments,
-      stock: await lotStock(tx, ctx, [lot.id]),
-      recalls: recalls.map((r) => r.recall),
-      madeBy,
-      madeFrom: madeFrom.map((m) => ({ ...m, quantity: dec(m.quantityDelta).negated() })),
-      usedIn,
-    };
+    },
   });
+  if (!lot) throw notFound("Lot");
+  const entries = await tx.inventoryLedgerEntry.findMany({
+    where: { organizationId: ctx.organizationId, lotId: lot.id },
+    select: {
+      id: true,
+      movementType: true,
+      warehouseId: true,
+      locationId: true,
+      stockStatus: true,
+      quantityDelta: true,
+      occurredAt: true,
+      reversesEntryId: true,
+      reasonCode: true,
+      document: { select: { id: true, number: true, type: true } },
+      warehouse: { select: { code: true } },
+    },
+    orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
+    take: 2000,
+  });
+  const warehouseIds = [...new Set(entries.map((e) => e.warehouseId))];
+  const firstArrival =
+    entries.find((e) => dec(e.quantityDelta).gt(0))?.occurredAt ?? lot.firstReceivedAt;
+  const unlotted = await tx.inventoryLedgerEntry.findMany({
+    where: {
+      organizationId: ctx.organizationId,
+      productId: lot.productId,
+      lotId: null,
+      warehouseId: { in: warehouseIds },
+      quantityDelta: { lt: 0 },
+      movementType: {
+        in: ["WRITE_OFF", "ADJUSTMENT", "COUNT_ADJUSTMENT", "CONSUMPTION", "RETURN_TO_SUPPLIER"],
+      },
+      occurredAt: { gte: firstArrival },
+    },
+    select: {
+      id: true,
+      movementType: true,
+      warehouseId: true,
+      quantityDelta: true,
+      occurredAt: true,
+      reversesEntryId: true,
+      document: { select: { id: true, number: true } },
+      warehouse: { select: { code: true } },
+    },
+    orderBy: { occurredAt: "asc" },
+    take: 200,
+  });
+  const summary = summarizeTrace(
+    entries.map((e) => ({ ...e, quantityDelta: dec(e.quantityDelta) })),
+    unlotted.map((e) => ({ ...e, quantityDelta: dec(e.quantityDelta) })),
+  );
+  const receipts = await tx.goodsReceiptLine.findMany({
+    where: { organizationId: ctx.organizationId, lotId: lot.id },
+    select: {
+      id: true,
+      acceptedQuantity: true,
+      rejectedQuantity: true,
+      temperatureCelsius: true,
+      uom: { select: { code: true } },
+      receipt: {
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          receivedAt: true,
+          deliveryNoteRef: true,
+          supplier: {
+            select: { id: true, code: true, name: true, nameAr: true, phone: true, email: true },
+          },
+          purchaseOrder: { select: { id: true, number: true } },
+          warehouse: { select: { code: true } },
+        },
+      },
+    },
+    orderBy: { receipt: { receivedAt: "asc" } },
+  });
+  const shipments = await tx.stockShipmentLine.findMany({
+    where: { organizationId: ctx.organizationId, lotId: lot.id },
+    select: {
+      quantityBase: true,
+      receivedQuantityBase: true,
+      shipment: {
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          dispatchedAt: true,
+          receivedAt: true,
+          from: { select: { code: true } },
+          to: { select: { code: true } },
+        },
+      },
+    },
+  });
+  const recalls = await tx.recallLot.findMany({
+    where: { organizationId: ctx.organizationId, lotId: lot.id },
+    select: { recall: { select: { id: true, number: true, status: true, title: true } } },
+  });
+  // Genealogy (ADR-045): what a produced lot was made from, and what this lot went into.
+  const madeBy = await tx.productionOrder.findMany({
+    where: { organizationId: ctx.organizationId, outputLotId: lot.id, documentId: { not: null } },
+    select: { id: true, number: true, status: true, documentId: true },
+  });
+  const madeFrom = madeBy.length
+    ? await tx.inventoryLedgerEntry.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          documentId: { in: madeBy.map((m) => m.documentId as string) },
+          quantityDelta: { lt: 0 },
+        },
+        select: {
+          quantityDelta: true,
+          documentId: true,
+          product: {
+            select: {
+              sku: true,
+              nameEn: true,
+              nameAr: true,
+              baseUom: { select: { code: true } },
+            },
+          },
+          lot: { select: { id: true, lotCode: true, expiresOn: true } },
+        },
+      })
+    : [];
+  const usedInDocs = entries
+    .filter((e) => e.document.type === "PRODUCTION" && dec(e.quantityDelta).lt(0))
+    .map((e) => e.document.id);
+  const usedIn = usedInDocs.length
+    ? await tx.productionOrder.findMany({
+        where: { organizationId: ctx.organizationId, documentId: { in: usedInDocs } },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          outputProduct: { select: { sku: true, nameEn: true, nameAr: true } },
+          outputLot: { select: { id: true, lotCode: true, expiresOn: true } },
+        },
+      })
+    : [];
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  const unlottedById = new Map(unlotted.map((e) => [e.id, e]));
+  return {
+    lot,
+    entries,
+    origins: summary.origins.map((id) => byId.get(id)!),
+    exits: summary.exits.map((id) => byId.get(id)!),
+    received: summary.received,
+    exited: summary.exited,
+    onHand: summary.onHand,
+    gaps: summary.gaps.map((g) => ({
+      ...g,
+      entry: byId.get(g.entryId) ?? unlottedById.get(g.entryId)!,
+    })),
+    receipts,
+    shipments,
+    stock: await lotStock(tx, ctx, [lot.id]),
+    recalls: recalls.map((r) => r.recall),
+    madeBy,
+    madeFrom: madeFrom.map((m) => ({ ...m, quantity: dec(m.quantityDelta).negated() })),
+    usedIn,
+  };
 }

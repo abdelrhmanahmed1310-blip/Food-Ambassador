@@ -24,8 +24,9 @@
 > document control with versions, approval, review dates and read
 > confirmation. **C2c built** (ADR-098): audits with findings and customer
 > complaints, both opening non-conformances. **C2d built** (ADR-099):
-> equipment register with calibration and maintenance. Next in C2:
-> compliance score, mock recall, batch report.
+> equipment register with calibration and maintenance. **C2e built**
+> (ADR-100): compliance score per branch, timed mock recalls and the
+> one-click batch report PDF. C2 is complete.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

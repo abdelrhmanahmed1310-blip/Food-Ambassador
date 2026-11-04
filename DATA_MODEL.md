@@ -950,6 +950,23 @@ Equipment (C2d, ADR-099; migration `20261226090000_c2d_equipment`):
   description, `next_due_on`. Insert-only.
 - **non_conformances.source** gains `EQUIPMENT`.
 
+Mock recalls (C2e, ADR-100; migration `20261227090000_c2e_mock_recall`):
+
+- **mock_recalls**: `number` (MRC-YYYY-n), branch running it, product and
+  lot (FK to that product's lot), scenario, `target_minutes` (1–10080 or
+  null), `status` (`RUNNING` | `COMPLETED` | `CANCELLED`), started at/by,
+  book position at the start (`received_quantity`, `exited_quantity`,
+  `on_hand_quantity`, `gap_count`, `supplier_count`), completed at/by,
+  `elapsed_seconds`, `found_quantity`, `accounted_percent`,
+  `within_target` (only with a target), findings, `non_conformance_id`,
+  `cancel_note` (required when cancelled). Frozen once not running
+  (trigger).
+- **mock_recall_counts**: drill, warehouse, location, stock status,
+  `book_quantity` (fixed — trigger), `found_quantity`, note.
+- **non_conformances.source** gains `MOCK_RECALL`.
+- The compliance score and the batch report store nothing; they are read
+  from existing records.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

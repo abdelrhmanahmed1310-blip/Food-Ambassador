@@ -319,6 +319,8 @@ model Organization {
   equipment                    Equipment[]
   calibrations                 Calibration[]
   maintenanceRecords           MaintenanceRecord[]
+  mockRecalls                  MockRecall[]
+  mockRecallCounts             MockRecallCount[]
 
   @@map("organizations")
 }
@@ -509,6 +511,7 @@ model Branch {
   audits              Audit[]
   complaints          Complaint[]
   equipment           Equipment[]
+  mockRecalls         MockRecall[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -562,11 +565,12 @@ model Warehouse {
   productionOrders ProductionOrder[]
   salesOrders      SalesOrder[]
 
-  posRegisters    PosRegister[]
-  posFloors       PosFloor[]
-  posTabs         PosTab[]
-  rfqs            Rfq[]
-  supplierReturns SupplierReturn[]
+  posRegisters     PosRegister[]
+  posFloors        PosFloor[]
+  posTabs          PosTab[]
+  rfqs             Rfq[]
+  supplierReturns  SupplierReturn[]
+  mockRecallCounts MockRecallCount[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -852,6 +856,7 @@ model InventoryLot {
   recallLots    RecallLot[]
   recallStock   RecallStock[]
   producedBy    ProductionOrder[]
+  mockRecalls   MockRecall[]
 
   @@unique([organizationId, id])
   /// Lets ledger rows prove their lot belongs to their product.
@@ -2804,6 +2809,7 @@ enum NcSource {
   AUDIT
   COMPLAINT
   EQUIPMENT
+  MOCK_RECALL
 }
 
 enum NcStatus {
@@ -2842,6 +2848,7 @@ model NonConformance {
   auditFindings AuditFinding[]
   complaints    Complaint[]
   calibrations  Calibration[]
+  mockRecalls   MockRecall[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -3378,6 +3385,82 @@ model MaintenanceRecord {
   @@unique([organizationId, id])
   @@index([organizationId, equipmentId, performedOn(sort: Desc)])
   @@map("maintenance_records")
+}
+
+// ─── Mock recall exercises (C2e, ADR-100) ───
+
+enum MockRecallStatus {
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
+
+/// A timed recall drill on one lot. Never touches stock: the book position is
+/// copied at the start, the team counts what it finds, the clock stops at completion.
+model MockRecall {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  number            String
+  /// The site running the exercise; a failed exercise raises its non-conformance here.
+  branchId          String           @map("branch_id") @db.Uuid
+  productId         String           @map("product_id") @db.Uuid
+  lotId             String           @map("lot_id") @db.Uuid
+  scenario          String
+  /// Target time set by the user; none means no target.
+  targetMinutes     Int?             @map("target_minutes")
+  status            MockRecallStatus @default(RUNNING)
+  startedAt         DateTime         @default(now()) @map("started_at") @db.Timestamptz(3)
+  startedByUserId   String           @map("started_by_user_id") @db.Uuid
+  /// Book position of the lot at the start.
+  receivedQuantity  Decimal          @map("received_quantity") @db.Decimal(20, 6)
+  exitedQuantity    Decimal          @map("exited_quantity") @db.Decimal(20, 6)
+  onHandQuantity    Decimal          @map("on_hand_quantity") @db.Decimal(20, 6)
+  gapCount          Int              @map("gap_count")
+  supplierCount     Int              @map("supplier_count")
+  completedAt       DateTime?        @map("completed_at") @db.Timestamptz(3)
+  completedByUserId String?          @map("completed_by_user_id") @db.Uuid
+  elapsedSeconds    Int?             @map("elapsed_seconds")
+  foundQuantity     Decimal?         @map("found_quantity") @db.Decimal(20, 6)
+  /// (left the business + found) / received, in percent.
+  accountedPercent  Decimal?         @map("accounted_percent") @db.Decimal(7, 2)
+  withinTarget      Boolean?         @map("within_target")
+  findings          String?
+  nonConformanceId  String?          @map("non_conformance_id") @db.Uuid
+  cancelNote        String?          @map("cancel_note")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch         Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  lot            InventoryLot      @relation(fields: [organizationId, productId, lotId], references: [organizationId, productId, id], onDelete: Restrict)
+  nonConformance NonConformance?   @relation(fields: [organizationId, nonConformanceId], references: [organizationId, id], onDelete: Restrict)
+  counts         MockRecallCount[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, startedAt(sort: Desc)])
+  @@map("mock_recalls")
+}
+
+/// Book stock of the lot at one place when the exercise started, and what the team found there.
+model MockRecallCount {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  mockRecallId   String      @map("mock_recall_id") @db.Uuid
+  warehouseId    String      @map("warehouse_id") @db.Uuid
+  locationId     String?     @map("location_id") @db.Uuid
+  stockStatus    StockStatus @map("stock_status")
+  bookQuantity   Decimal     @map("book_quantity") @db.Decimal(20, 6)
+  foundQuantity  Decimal?    @map("found_quantity") @db.Decimal(20, 6)
+  note           String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  mockRecall   MockRecall   @relation(fields: [organizationId, mockRecallId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse    @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, mockRecallId])
+  @@map("mock_recall_counts")
 }
 
 // ─── Sales import and recipe consumption (Milestone 7a, ADR-036) ───

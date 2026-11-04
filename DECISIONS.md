@@ -2446,6 +2446,51 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** blocking temperature readings from out-of-service
   thermometers, spare parts and costs, maintenance contracts.
 
+### ADR-100 Compliance score, mock recalls and the batch report — Accepted (C2e built)
+
+- **Compliance score per branch** from recorded facts only, over the last
+  7, 30 or 90 days ending today in the branch's time zone. Four parts, each
+  passed / counted:
+  - records in spec (food safety records);
+  - checklist items OK (answers);
+  - corrective actions on time (actions due in the period, done by their
+    due date);
+  - equipment calibrated, as of now (equipment with a planned calibration,
+    or out of service, that is in service, passed its last calibration and
+    is not overdue; never calibrated counts as not calibrated).
+    A part with nothing counted has **no score** rather than 100 %. The
+    overall score is the plain mean of the parts that have one — equal
+    weights, no hidden factors — rounded half up to a whole percent, and is
+    empty when no part has data. Open high and critical non-conformances are
+    shown beside it but not scored. The bands (90+ good, 75–89 fair, below 75
+    poor) are a display convention of this product, not a standard. Branch
+    scope follows `foodsafety.view`.
+- **Mock recall** (`MRC-` number; `recalls.manage` to run,
+  `traceability.view` to see): a timed drill on one lot that **never
+  touches stock**. Starting it records the site running it, the scenario,
+  an optional target time set by the user (no default is assumed), and
+  copies the lot's book position — brought in, left the business, stock by
+  warehouse, location and status, number of trace gaps (ADR-033) and of
+  suppliers on record — and starts the clock. The team enters what it
+  physically found at every place; completing it stops the clock (elapsed
+  seconds stored) and scores it. Problems: target missed (inclusive),
+  stock found differs from the book, not fully accounted for
+  ((left + found) / brought in ≠ 100 %), trace gaps, origin unknown (no
+  supplier receipt and no posted production order). Any problem opens a
+  MEDIUM non-conformance (source `MOCK_RECALL`) at the branch that ran it,
+  stating the problems, time against target and quantities. A running
+  drill can be cancelled with a reason. Completed and cancelled drills are
+  frozen by database triggers, as is the book position.
+- **Batch report**: one click on a lot's trace page gives a PDF (ADR-089
+  layout): the lot and product, expiry, brought in / left / on hand,
+  recall hold, every recorded movement (first 500, stated when cut),
+  suppliers with receipt, order and delivery-note references, what it was
+  made from and went into, shipments, recalls and the gaps — from recorded
+  movements only.
+- **Not yet:** drills across several lots or a whole supplier, notifying
+  customers in a drill, trend of the score over time, weights chosen by
+  the organization, POS sales linked to lots in the report.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
