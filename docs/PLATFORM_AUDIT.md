@@ -35,8 +35,8 @@
 > guided picking, loading and counting screens. C3 is complete.
 > **C4a built** (ADR-105): sales analytics with comparisons and monthly
 > targets per branch. **C4b built** (ADR-106): stock ageing, turnover and
-> days on hand. **C4c built** (ADR-107): menu engineering. Next in C4:
-> kitchen performance.
+> days on hand. **C4c built** (ADR-107): menu engineering. **C4d built**
+> (ADR-108): kitchen display performance. C4 is complete.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

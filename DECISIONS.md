@@ -2716,6 +2716,27 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** cost at the time of sale, combos split into components,
   option ingredients, per-branch menus compared side by side.
 
+### ADR-108 Kitchen display performance — Accepted (C4d built)
+
+- **Source**: kitchen tickets (ADR-063) only. A ticket's time runs from
+  when it reached its station to when it was bumped; recalled-and-rebumped
+  tickets count their last bump. Tickets count on the day and hour they
+  were sent, in the branch's time zone.
+- **Figures** per station, hour sent and day: tickets sent, median, 90th
+  percentile (linear interpolation, as SQL percentile_cont) and average
+  time of bumped tickets; share within target; tickets not bumped; items
+  and items voided after reaching the kitchen. Right now: tickets on the
+  screens and those already past their target.
+- **Within target** means under the station's target minutes, the same
+  rule as the station screen (reaching the target is late). Targets are
+  the stations' current settings — a changed target re-judges past
+  tickets; no history of targets is kept yet.
+- No figure is shown without bumped tickets. At most 50 000 tickets are
+  read per request (the page says so when the period holds more). Needs
+  `sales.view` at the branches shown. CSV and Excel.
+- **Not yet:** per-item preparation times, staff on shift against
+  tickets, target history.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

@@ -173,7 +173,8 @@
     "scanner": "Scanner",
     "salesReport": "Sales analytics",
     "stockHealth": "Stock ageing and turnover",
-    "menuEngineering": "Menu engineering"
+    "menuEngineering": "Menu engineering",
+    "kitchenReport": "Kitchen performance"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -5443,5 +5444,33 @@
     },
     "incomplete": "Some ingredients have no cost",
     "empty": "No menu items sold in this period."
+  },
+  "kitchenReport": {
+    "title": "Kitchen performance",
+    "hint": "From the kitchen display: a ticket's time is from reaching its station to being bumped. Tickets count on the day and hour they were sent, in the branch's time zone.",
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "truncated": "The period holds more tickets than the report reads at once; choose a shorter period.",
+    "sent": "Tickets sent",
+    "median": "Median time",
+    "p90": "90 % done within",
+    "withinTarget": "Within target",
+    "average": "Average time",
+    "openNow": "On screens now",
+    "lateNow": "Late now",
+    "voided": "Items voided",
+    "basis": "Times from sent to bumped; 90 % of tickets were done within the 90th-percentile time. Within target means under the station's target, as on the screen (reaching it counts as late). Targets are the stations' current ones. No figure is shown without bumped tickets.",
+    "byStation": "By station",
+    "station": "Station",
+    "target": "Target",
+    "notBumped": "Not bumped",
+    "items": "Items",
+    "voidedCount": "{n} voided",
+    "noStations": "No kitchen stations.",
+    "byHour": "By hour sent",
+    "byDay": "By day",
+    "day": "Date",
+    "empty": "No tickets in this period.",
+    "minutes": "{m} min"
   }
 }

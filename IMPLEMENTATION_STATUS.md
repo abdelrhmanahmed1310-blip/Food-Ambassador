@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C4d kitchen performance — C4 complete; C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,22 @@ Last updated: 2026-11-04 (C4c menu engineering; C4b stock ageing and turnover; C
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C4d — Kitchen display performance (built)
+
+Rules: DECISIONS.md ADR-108.
+
+| Area      | What works                                                                                                  | Where                         |
+| --------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Times     | Sent to bumped per station: median, 90th percentile, average, share within target (same rule as the screen) | Reports → Kitchen performance |
+| Now       | Tickets on screens and those past their target                                                              | same                          |
+| Breakdown | By hour sent and day in the branch's time zone; items and voided items; branch filter; CSV and Excel        | same                          |
+
+Not yet: per-item preparation times, staff on shift against tickets, history of station targets (current targets judge past tickets).
+
+Also: the restaurant set-up used by the table-service tests moved to `tests/e2e/restaurant-setup.ts` so the kitchen report test can share it.
+
+Checks: `pnpm check` pass (unit 353; new: interpolated percentiles, within target strictly under the target, no figures without tickets); `pnpm test:integration` 481/481 pass (new: three till orders on a 10-minute grill — bumped after 5 and 15 minutes, one open for 20: median 10.0, 90th percentile 14.0, 50 % within target, one late now; hour and day totals; CSV line; cashiers refused; other organizations see nothing); `pnpm test:e2e` 82/82 pass (new: send soup to the grill, bump it, the report shows one ticket at 100 % within the 12-minute target).
 
 ## C4c — Menu engineering (built)
 

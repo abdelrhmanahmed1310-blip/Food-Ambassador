@@ -10,6 +10,7 @@ import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { unreadCount } from "@/modules/notifications/service";
 import { listUserOrganizations } from "@/modules/organizations/service";
 import { canSeeSpend } from "@/modules/procurement/spend";
+import { canSeeKitchenPerformance } from "@/modules/analytics/kitchen-performance";
 import { canSeeMenuEngineering } from "@/modules/analytics/menu-engineering";
 import { canSeeStockHealth } from "@/modules/analytics/stock";
 import { canSeeReports } from "@/modules/analytics/service";
@@ -231,6 +232,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   // Sales analytics and targets (ADR-105).
   if (holdsAnyGrant(ctx.grants, "sales.view"))
     reports.items.push({ href: `${base}/reports/sales`, label: t("salesReport") });
+  // Kitchen display performance (ADR-108).
+  if (canSeeKitchenPerformance(ctx))
+    reports.items.push({ href: `${base}/reports/kitchen`, label: t("kitchenReport") });
   // Menu engineering (ADR-107).
   if (canSeeMenuEngineering(ctx))
     reports.items.push({ href: `${base}/reports/menu-engineering`, label: t("menuEngineering") });
