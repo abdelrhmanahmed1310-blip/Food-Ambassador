@@ -166,7 +166,8 @@
     "complaints": "Complaints",
     "equipment": "Equipment",
     "mockRecalls": "Mock recalls",
-    "compliance": "Compliance score"
+    "compliance": "Compliance score",
+    "inspections": "Receiving inspection"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -683,7 +684,16 @@
     "EQUIPMENT_RETIRED": "The equipment is retired.",
     "NEXT_DUE_BEFORE": "The next date must come after this one.",
     "MOCK_RECALL_FINISHED": "This exercise is already finished.",
-    "MOCK_RECALL_COUNTS_MISSING": "Enter what was found at every place before completing ({missing} missing)."
+    "MOCK_RECALL_COUNTS_MISSING": "Enter what was found at every place before completing ({missing} missing).",
+    "REJECTION_REASON_REQUIRED": "Give the reason for rejecting part of the goods.",
+    "ACCEPTED_OUT_OF_RANGE": "The accepted quantity must be between 0 and {maximum}.",
+    "INSPECTION_NOTE_REQUIRED": "A check failed: add a note explaining why the goods are accepted.",
+    "NOT_AWAITING_INSPECTION": "This receipt line is not waiting for inspection.",
+    "ALREADY_INSPECTED": "This receipt line was already inspected.",
+    "RECEIPT_INSPECTED": "Goods from this receipt were inspected; correct the stock with an adjustment instead.",
+    "PUTAWAY_LOCATION_NOT_STORAGE": "Choose an active storage or picking location.",
+    "PUTAWAY_TEMPERATURE_MISMATCH": "The location's temperature does not match the product's storage requirement.",
+    "PUTAWAY_NOT_AVAILABLE": "Only available stock can be put away."
   },
   "notFound": {
     "title": "Page not found",
@@ -776,6 +786,14 @@
       "AMBIENT": "Ambient",
       "CHILLED": "Chilled",
       "FROZEN": "Frozen"
+    },
+    "use": "Use",
+    "uses": {
+      "RECEIVING": "Receiving",
+      "QUARANTINE": "Quarantine",
+      "STORAGE": "Storage",
+      "PICKING": "Picking",
+      "DISPATCH": "Dispatch"
     }
   },
   "settings": {
@@ -1051,7 +1069,8 @@
     "newCategory": "New category",
     "categoryCode": "Code",
     "categoryName": "Name",
-    "categoryArchiveHint": "Archived categories cannot be assigned to products; products keep them until changed."
+    "categoryArchiveHint": "Archived categories cannot be assigned to products; products keep them until changed.",
+    "inspectOnReceipt": "Inspect on receipt (received goods wait in quarantine)"
   },
   "import": {
     "title": "Import",
@@ -2606,7 +2625,8 @@
       "AUDITS_OVERDUE": "{count, plural, one {# audit past its planned date} other {# audits past their planned date}}",
       "EQUIPMENT_OVERDUE": "{count, plural, one {# piece of equipment overdue for calibration or maintenance} other {# pieces of equipment overdue for calibration or maintenance}}",
       "EQUIPMENT_DUE_SOON": "{count, plural, one {# piece of equipment due for calibration or maintenance within 30 days} other {# pieces of equipment due within 30 days}}",
-      "EQUIPMENT_OUT_OF_SERVICE": "{count, plural, one {# piece of equipment out of service} other {# pieces of equipment out of service}}"
+      "EQUIPMENT_OUT_OF_SERVICE": "{count, plural, one {# piece of equipment out of service} other {# pieces of equipment out of service}}",
+      "INSPECTIONS_WAITING": "{count, plural, one {# receipt line waiting for inspection} other {# receipt lines waiting for inspection}}"
     }
   },
   "production": {
@@ -5003,5 +5023,73 @@
       "NONE": "No data"
     },
     "bandsNote": "Bands are for display only: 90 and above good, 75–89 fair, below 75 poor."
+  },
+  "inspections": {
+    "title": "Receiving inspection",
+    "hint": "Goods flagged at receipt, or of products inspected on receipt, wait in quarantine here. Record the checks and how much you accept: the accepted part becomes available, the rest is rejected, through a stock document.",
+    "waiting": "Waiting for inspection",
+    "nothingWaiting": "Nothing is waiting for inspection.",
+    "atReceipt": "{temperature} °C at receipt",
+    "packaging": "Packaging intact",
+    "labelling": "Labelling correct",
+    "condition": "Condition acceptable",
+    "accepted": "Accepted",
+    "acceptedHint": "Of {total} in quarantine; the rest is rejected.",
+    "rejected": "Rejected",
+    "temperature": "Temperature at inspection (°C)",
+    "rejectionReason": "Reason for rejecting",
+    "rejectionHint": "Needed when you reject any quantity.",
+    "noteHint": "Needed when a check failed but you accept goods.",
+    "record": "Record inspection",
+    "recent": "Recent inspections",
+    "none": "No inspections yet.",
+    "when": "When",
+    "product": "Product",
+    "decision": "Decision",
+    "document": "Stock document",
+    "decisions": {
+      "ACCEPTED": "Accepted",
+      "PARTIAL": "Partly accepted",
+      "REJECTED": "Rejected"
+    },
+    "decisionMessages": {
+      "ACCEPTED": "Accepted and released ({number}).",
+      "PARTIAL": "Partly accepted; the rest rejected ({number}).",
+      "REJECTED": "Rejected ({number})."
+    }
+  },
+  "putaway": {
+    "title": "Put-away",
+    "hint": "Received stock waiting in receiving locations, with where to put it. Put-away moves it between locations through a stock document, only into a storage or picking location at the product's temperature.",
+    "waiting": "Waiting to be put away",
+    "nothingWaiting": "Nothing is waiting to be put away.",
+    "product": "Product",
+    "from": "Now in",
+    "onHand": "Quantity",
+    "suggestion": "Suggested place",
+    "action": "Put away",
+    "to": "Put into",
+    "quantity": "Quantity",
+    "confirm": "Put away",
+    "done": "Put away ({number}).",
+    "noLocation": "No location",
+    "noTargets": "No storage location at this temperature.",
+    "sources": {
+      "RULE": "By rule",
+      "SAME_PRODUCT": "Where it already is",
+      "NONE": "No rule — choose a place"
+    },
+    "rules": "Put-away rules",
+    "rulesHint": "The first matching rule with the lowest priority number decides. Rules match a product, a category or a storage temperature; leave all empty for any product. A rule pointing at a place of the wrong temperature is skipped.",
+    "noRules": "No rules yet.",
+    "priority": "Priority",
+    "priorityHint": "1 is checked first.",
+    "matches": "Matches",
+    "any": "Any",
+    "category": "Category",
+    "storage": "Storage",
+    "location": "Location",
+    "addRule": "Add rule",
+    "noStorage": "Add a storage or picking location to this warehouse first."
   }
 }

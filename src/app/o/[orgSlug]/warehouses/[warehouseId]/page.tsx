@@ -7,12 +7,14 @@ import {
   Badge,
   Card,
   DescriptionList,
+  LinkButton,
   PageHeader,
   Table,
   Td,
   Th,
 } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
+import { LOCATION_ZONES } from "@/modules/sites/schemas";
 import { getWarehouse } from "@/modules/sites/warehouses";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -39,14 +41,27 @@ export default async function WarehousePage({
     code: t("warehouses.locationCode"),
     name: t("warehouses.locationName"),
     zone: t("warehouses.temperatureZone"),
+    use: t("warehouses.use"),
   };
+  const uses = LOCATION_ZONES.map((z) => ({ value: z, label: t(`warehouses.uses.${z}`) }));
 
   return (
     <>
       <PageHeader
         title={warehouse.name}
         description={`${warehouse.branch.code} — ${warehouse.branch.name}`}
-        actions={archived ? <Badge tone="muted">{t("common.archived")}</Badge> : undefined}
+        actions={
+          archived ? (
+            <Badge tone="muted">{t("common.archived")}</Badge>
+          ) : (
+            <LinkButton
+              href={`/o/${orgSlug}/warehouses/${warehouse.id}/putaway`}
+              variant="secondary"
+            >
+              {t("putaway.title")}
+            </LinkButton>
+          )
+        }
       />
       <div className="space-y-6">
         {warehouse.canManage ? (
@@ -102,6 +117,7 @@ export default async function WarehousePage({
                     <Th>{t("warehouses.locationCode")}</Th>
                     <Th>{t("warehouses.locationName")}</Th>
                     <Th>{t("warehouses.temperatureZone")}</Th>
+                    <Th>{t("warehouses.use")}</Th>
                     <Th>{t("common.status")}</Th>
                     {warehouse.canManage ? <Th>{t("common.actions")}</Th> : null}
                   </tr>
@@ -114,6 +130,7 @@ export default async function WarehousePage({
                       </Td>
                       <Td>{loc.name}</Td>
                       <Td>{t(`warehouses.zones.${loc.temperatureZone}`)}</Td>
+                      <Td>{t(`warehouses.uses.${loc.zone}`)}</Td>
                       <Td>
                         {loc.archivedAt ? (
                           <Badge tone="muted">{t("common.archived")}</Badge>
@@ -133,10 +150,12 @@ export default async function WarehousePage({
                                   action={updateLocationAction.bind(null, orgSlug, loc.id)}
                                   labels={{ ...locationLabels, submit: t("common.save") }}
                                   zones={zones}
+                                  uses={uses}
                                   defaults={{
                                     code: loc.code,
                                     name: loc.name,
                                     temperatureZone: loc.temperatureZone,
+                                    zone: loc.zone,
                                   }}
                                 />
                               </div>
@@ -175,6 +194,7 @@ export default async function WarehousePage({
                 action={createLocationAction.bind(null, orgSlug, warehouse.id)}
                 labels={{ ...locationLabels, submit: t("warehouses.addLocation") }}
                 zones={zones}
+                uses={uses}
                 idempotent
               />
             </div>

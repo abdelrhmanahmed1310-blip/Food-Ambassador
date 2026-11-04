@@ -477,6 +477,93 @@ export async function postStatusChange(
   );
 }
 
+// ─── Receiving inspection (ADR-101) ───
+
+/**
+ * Settle quarantined stock after a receiving inspection, inside the caller's
+ * transaction: the accepted part moves QUARANTINE → AVAILABLE and the
+ * rejected part QUARANTINE → REJECTED, in one status-change document. Base
+ * units. Releasing needs the lot to be usable (not expired, not recalled).
+ */
+export async function postInspectionInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  input: {
+    warehouseId: string;
+    locationId: string | null;
+    productId: string;
+    lotId: string | null;
+    accepted: Decimal;
+    rejected: Decimal;
+    reference: string;
+    note?: string;
+  },
+): Promise<{ documentId: string; number: string }> {
+  const wh = await loadWarehouse(tx, ctx, input.warehouseId);
+  assertWarehousePermission(ctx, "inventory.quarantine.release", wh);
+  const product = await loadProductForPosting(tx, ctx, input.productId);
+  const lot = await resolveExistingLot(tx, ctx, product, input.lotId ?? undefined);
+  if (input.accepted.gt(0)) assertUsable(lot, todayFor(wh));
+  const documentId = uuidv7();
+  const common = {
+    movementType: "STATUS_CHANGE" as MovementType,
+    warehouseId: wh.id,
+    locationId: input.locationId,
+    productId: product.id,
+    lotId: lot?.id ?? null,
+    enteredUomId: product.baseUomId,
+    reasonCode: "INSPECTION",
+    note: input.note ?? input.reference,
+  };
+  const lines: PostingLine[] = [];
+  const parts: Array<[StockStatus, Decimal]> = [
+    ["AVAILABLE", input.accepted],
+    ["REJECTED", input.rejected],
+  ];
+  for (const [to, quantity] of parts) {
+    if (!quantity.gt(0)) continue;
+    const n = lines.length;
+    lines.push(
+      line(
+        { ...common, stockStatus: "QUARANTINE", quantity, entered: quantity, sign: -1 },
+        `inspection:${documentId}:${to}:from`,
+      ),
+      line(
+        {
+          ...common,
+          stockStatus: to,
+          quantity,
+          entered: quantity,
+          sign: 1,
+          costFromLine: n,
+        },
+        `inspection:${documentId}:${to}:to`,
+      ),
+    );
+  }
+  const result = await postDocument(
+    tx,
+    ctx,
+    {
+      id: documentId,
+      type: "STATUS_CHANGE",
+      warehouseId: wh.id,
+      reasonCode: "INSPECTION",
+      note: input.note ?? input.reference,
+    },
+    lines,
+    {
+      year: yearOf(todayFor(wh)),
+      auditChanges: {
+        inspection: input.reference,
+        accepted: input.accepted.toFixed(),
+        rejected: input.rejected.toFixed(),
+      },
+    },
+  );
+  return { documentId: result.documentId, number: result.number };
+}
+
 // ─── Goods receipt (called by purchasing) ───
 
 export interface ReceiptPostingLine {

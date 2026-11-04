@@ -17,6 +17,14 @@ export const BRANCH_TYPES = [
 ] as const;
 export const WAREHOUSE_TYPES = ["MAIN", "KITCHEN_STORE", "BAR", "TRANSIT", "OTHER"] as const;
 export const TEMPERATURE_ZONES = ["AMBIENT", "CHILLED", "FROZEN"] as const;
+/** What a location is used for (ADR-101). */
+export const LOCATION_ZONES = [
+  "RECEIVING",
+  "QUARANTINE",
+  "STORAGE",
+  "PICKING",
+  "DISPATCH",
+] as const;
 
 const countrySchema = z
   .string()
@@ -64,6 +72,8 @@ export const locationSchema = z.object({
   code: codeSchema,
   name: requiredText(120),
   temperatureZone: z.enum(TEMPERATURE_ZONES, { error: "invalidOption" }),
+  /** Left out = unchanged (new locations are STORAGE). */
+  zone: z.enum(LOCATION_ZONES, { error: "invalidOption" }).optional(),
 });
 export const createLocationSchema = locationSchema.extend({ idempotencyKey: idempotencyKeySchema });
 

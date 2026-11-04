@@ -50,7 +50,8 @@ export type AttentionKey =
   | "AUDITS_OVERDUE"
   | "EQUIPMENT_OVERDUE"
   | "EQUIPMENT_DUE_SOON"
-  | "EQUIPMENT_OUT_OF_SERVICE";
+  | "EQUIPMENT_OUT_OF_SERVICE"
+  | "INSPECTIONS_WAITING";
 
 export interface AttentionItem {
   key: AttentionKey;
@@ -578,6 +579,23 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         tone: "warning",
         count: await tx.supplierReturn.count({ where: { organizationId: org, status: "POSTED" } }),
         href: "/purchasing/returns?status=POSTED",
+      });
+
+    // Quarantined receipt lines waiting for their receiving inspection (ADR-101).
+    const inspect = warehouseWhere(ctx, "inventory.quarantine.release");
+    if (inspect)
+      push({
+        key: "INSPECTIONS_WAITING",
+        tone: "warning",
+        count: await tx.goodsReceiptLine.count({
+          where: {
+            organizationId: org,
+            quarantine: true,
+            inspection: null,
+            receipt: { status: "POSTED", warehouse: inspect },
+          },
+        }),
+        href: "/inventory/inspections",
       });
 
     const order = { danger: 0, warning: 1, info: 2 };

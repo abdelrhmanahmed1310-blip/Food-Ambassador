@@ -2491,6 +2491,43 @@ country for now, so no inter-company transfer is built.
   customers in a drill, trend of the score over time, weights chosen by
   the organization, POS sales linked to lots in the report.
 
+### ADR-101 Location zones, receiving inspection and directed put-away — Accepted (C3a built)
+
+- **Zones**: every storage location has a use — receiving, quarantine,
+  storage, picking or dispatch (existing locations: storage) — next to its
+  temperature zone.
+- **Receiving area**: a receipt posted without a location lands on the
+  warehouse's receiving location when it has exactly one; otherwise as
+  before.
+- **Receiving inspection**: products can be marked "inspect on receipt";
+  their accepted receipt quantities go to QUARANTINE whatever the form
+  says (lines flagged on the form do too). Each quarantined receipt line
+  gets one inspection: packaging, labelling and condition (yes/no), an
+  optional temperature, the accepted quantity (base unit) and a reason for
+  any rejected part. Accepting goods that failed a check needs a note. The
+  accepted part moves QUARANTINE → AVAILABLE and the rest → REJECTED in
+  one status-change document (reason INSPECTION); releasing needs the lot
+  to be usable. Inspections are evidence (insert-only, a trigger refuses
+  changes); a receipt with an inspection can no longer be reversed. Needs
+  `inventory.quarantine.release` at the warehouse. Waiting lines appear
+  under Needs attention.
+- **Put-away rules** per warehouse: priority (1 first), match on product,
+  category and/or storage temperature (none = any product), target
+  location. Targets must be active storage or picking locations; a rule's
+  temperature must match its location. When suggesting, the first matching
+  rule whose location still fits the product's storage requirement wins;
+  unfit rules are skipped. Without one, a fitting location already holding
+  the product is suggested; otherwise none. Managed with
+  `warehouses.manage`.
+- **Put-away worklist**: available stock in receiving locations (or
+  without a location, in a warehouse that has storage locations). A
+  put-away is a transfer between locations in the ledger (`inventory.transfer`)
+  and is refused into a location that is not storage/picking or whose
+  temperature differs from the product's storage requirement.
+- **Not yet:** moving quarantined stock to a quarantine location
+  automatically, capacity limits per location, inspection checklists set
+  by the organization, an NC raised on rejection, scanning (C3d).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

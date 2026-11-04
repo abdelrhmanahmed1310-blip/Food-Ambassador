@@ -117,6 +117,7 @@ export default async function ProductPage({
                 lotTracking: product.lotTracking,
                 shelfLifeDays: product.shelfLifeDays?.toString() ?? "",
                 storageRequirement: product.storageRequirement,
+                inspectOnReceipt: String(product.inspectOnReceipt),
                 categoryId: product.categoryId ?? "",
               }}
             />
@@ -138,6 +139,10 @@ export default async function ProductPage({
                 {
                   label: t("catalog.storage"),
                   value: t(`catalog.zones.${product.storageRequirement}`),
+                },
+                {
+                  label: t("catalog.inspectOnReceipt"),
+                  value: product.inspectOnReceipt ? t("common.yes") : t("common.no"),
                 },
               ]}
             />

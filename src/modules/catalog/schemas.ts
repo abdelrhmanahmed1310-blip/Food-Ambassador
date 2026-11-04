@@ -47,6 +47,11 @@ export const productSchema = z.object({
   shelfLifeDays: optionalPositiveInt,
   storageRequirement: z.enum(STORAGE_ZONES, { error: "invalidOption" }).default("AMBIENT"),
   categoryId: optionalUuidSchema,
+  /** Receipts go to quarantine for inspection (ADR-101). Left out = unchanged (new: no). */
+  inspectOnReceipt: z
+    .union([z.boolean(), z.enum(["on", "true", "false"], { error: "invalidOption" })])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === true || v === "on" || v === "true")),
 });
 export const createProductSchema = productSchema.extend({ idempotencyKey: idempotencyKeySchema });
 export type ProductInput = z.input<typeof productSchema>;

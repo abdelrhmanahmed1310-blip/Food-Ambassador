@@ -81,6 +81,8 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
         rejected: Decimal;
         acceptedBase: Decimal;
         rejectedBase: Decimal;
+        /** Flagged on the form, or the product is inspected on receipt (ADR-101). */
+        quarantine: boolean;
         input: (typeof input.lines)[number];
       }> = [];
       for (const [formIndex, l] of input.lines.entries()) {
@@ -135,6 +137,7 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
           rejected,
           acceptedBase,
           rejectedBase,
+          quarantine: l.quarantine || product.inspectOnReceipt,
           input: l,
         });
       }
@@ -144,6 +147,21 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
           "Enter the quantity received for at least one line",
         );
 
+      // Without a location, goods land in the warehouse's receiving area when it has exactly one (ADR-101).
+      let locationId = input.locationId ?? null;
+      if (!locationId) {
+        const receiving = await tx.storageLocation.findMany({
+          where: {
+            organizationId: ctx.organizationId,
+            warehouseId: order.warehouseId,
+            zone: "RECEIVING",
+            archivedAt: null,
+          },
+          select: { id: true },
+          take: 2,
+        });
+        if (receiving.length === 1) locationId = receiving[0].id;
+      }
       if (input.locationId) {
         const location = await tx.storageLocation.findFirst({
           where: {
@@ -168,7 +186,7 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
           purchaseOrderId: order.id,
           supplierId: order.supplierId,
           warehouseId: order.warehouseId,
-          locationId: input.locationId ?? null,
+          locationId,
           deliveryNoteRef: input.deliveryNoteRef,
           note: input.note,
           receivedAt,
@@ -186,7 +204,7 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
       if (acceptedLines.length > 0) {
         const posting = await postReceiptInTx(tx, ctx, {
           warehouseId: order.warehouseId,
-          locationId: input.locationId ?? null,
+          locationId,
           receiptNumber: number,
           note: input.note,
           lines: acceptedLines.map((l): ReceiptPostingLine => ({
@@ -198,7 +216,7 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
             unitPrice: unitToBase(toDecimal(l.input.unitPrice), fx.rate).toFixed(),
             lotCode: l.input.lotCode,
             expiresOn: l.input.expiresOn,
-            quarantine: l.input.quarantine,
+            quarantine: l.quarantine,
           })),
         });
         documentId = posting.documentId;
@@ -219,7 +237,7 @@ export async function postReceipt(ctx: TenantContext, orderId: string, rawInput:
           acceptedQuantityBase: l.acceptedBase.toFixed(),
           rejectedQuantityBase: l.rejectedBase.toFixed(),
           rejectionReason: l.rejected.gt(0) ? (l.input.rejectionReason ?? null) : null,
-          quarantine: l.accepted.gt(0) && l.input.quarantine,
+          quarantine: l.accepted.gt(0) && l.quarantine,
           lotId: lotByLine.get(l.id) ?? null,
           unitPrice: l.input.unitPrice,
           orderedUnitPrice: dec(l.orderLine.unitPrice).toFixed(),
@@ -339,6 +357,15 @@ export async function reverseReceipt(ctx: TenantContext, receiptId: string, rawI
       throw businessRuleViolation(
         "RECEIPT_HAS_RETURNS",
         "Goods from this receipt were returned to the supplier; reverse the returns first",
+      );
+    // Inspected goods have left quarantine through the ledger (ADR-101).
+    const inspected = await tx.receiptInspection.count({
+      where: { organizationId: ctx.organizationId, receiptLine: { receiptId: receipt.id } },
+    });
+    if (inspected > 0)
+      throw businessRuleViolation(
+        "RECEIPT_INSPECTED",
+        "Goods from this receipt were inspected; correct the stock with an adjustment instead",
       );
     if (order.status === "CLOSED" || order.status === "CANCELLED")
       throw businessRuleViolation(

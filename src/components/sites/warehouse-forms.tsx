@@ -70,12 +70,22 @@ export function LocationForm({
   action,
   labels,
   zones,
+  uses,
   defaults = {},
   idempotent = false,
 }: {
   action: Action;
-  labels: { submit: string; pending: string; code: string; name: string; zone: string };
+  labels: {
+    submit: string;
+    pending: string;
+    code: string;
+    name: string;
+    zone: string;
+    use: string;
+  };
   zones: Option[];
+  /** What the location is used for (ADR-101). */
+  uses: Option[];
   defaults?: Record<string, string | undefined>;
   idempotent?: boolean;
 }) {
@@ -87,7 +97,7 @@ export function LocationForm({
       idempotent={idempotent}
       submitVariant="secondary"
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <TextField
           name="code"
           label={labels.code}
@@ -101,6 +111,13 @@ export function LocationForm({
           label={labels.zone}
           options={zones}
           defaultValue={defaults.temperatureZone ?? zones[0]?.value}
+          required
+        />
+        <SelectField
+          name="zone"
+          label={labels.use}
+          options={uses}
+          defaultValue={defaults.zone ?? "STORAGE"}
           required
         />
       </div>

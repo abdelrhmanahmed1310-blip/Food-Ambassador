@@ -967,6 +967,22 @@ Mock recalls (C2e, ADR-100; migration `20261227090000_c2e_mock_recall`):
 - The compliance score and the batch report store nothing; they are read
   from existing records.
 
+Warehouse operations (C3a, ADR-101; migration `20261228090000_c3a_inspection_putaway`):
+
+- **storage_locations.zone** (`RECEIVING` | `QUARANTINE` | `STORAGE` |
+  `PICKING` | `DISPATCH`, default `STORAGE`).
+- **products.inspect_on_receipt** (boolean, default false).
+- **receipt_inspections**: receipt line (UQ — one per line), warehouse,
+  product, `accepted_quantity` / `rejected_quantity` (base unit, sum > 0),
+  `decision` (`ACCEPTED` | `REJECTED` | `PARTIAL`, consistent with the
+  quantities — check), temperature, `packaging_ok`, `labelling_ok`,
+  `condition_ok`, rejection reason (required when anything is rejected),
+  note, `inventory_document_id` (the status change), inspected by/at.
+  Insert-only (grant and trigger).
+- **putaway_rules**: warehouse, `priority` (1–9999), optional product,
+  category and storage requirement, target location (FK through the
+  warehouse), archived at.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),

@@ -114,7 +114,14 @@ export async function getWarehouse(ctx: TenantContext, warehouseId: string) {
     const warehouse = await findVisibleWarehouse(tx, ctx, warehouseId);
     const locations = await tx.storageLocation.findMany({
       where: { organizationId: ctx.organizationId, warehouseId },
-      select: { id: true, code: true, name: true, temperatureZone: true, archivedAt: true },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        temperatureZone: true,
+        zone: true,
+        archivedAt: true,
+      },
       orderBy: [{ archivedAt: { sort: "asc", nulls: "first" } }, { code: "asc" }],
     });
     return {

@@ -4,7 +4,13 @@ import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import type { ActionState } from "@/components/forms/action-state";
 import { initialActionState } from "@/components/forms/action-state";
-import { ActionForm, SelectField, SubmitButton, TextField } from "@/components/forms/fields";
+import {
+  ActionForm,
+  CheckboxField,
+  SelectField,
+  SubmitButton,
+  TextField,
+} from "@/components/forms/fields";
 import { inputClass } from "@/components/ui/styles";
 
 export type Option = { value: string; label: string };
@@ -169,6 +175,13 @@ export function ProductForm({
           optionalLabel={t("common.optional")}
         />
       </div>
+      {/* Unchecked boxes send nothing: the hidden "false" comes first, a ticked box overrides it. */}
+      <input type="hidden" name="inspectOnReceipt" value="false" />
+      <CheckboxField
+        name="inspectOnReceipt"
+        label={t("catalog.inspectOnReceipt")}
+        defaultChecked={defaults.inspectOnReceipt === "true"}
+      />
     </ActionForm>
   );
 }

@@ -122,6 +122,7 @@ const productListSelect = {
   type: true,
   lotTracking: true,
   storageRequirement: true,
+  inspectOnReceipt: true,
   archivedAt: true,
   baseUom: { select: { id: true, code: true } },
   category: { select: { id: true, code: true, name: true, nameAr: true } },
@@ -332,6 +333,7 @@ export async function updateProduct(
           shelfLifeDays: before.shelfLifeDays,
           storageRequirement: before.storageRequirement,
           categoryId: before.categoryId,
+          inspectOnReceipt: before.inspectOnReceipt,
         },
         input,
       );

@@ -26,7 +26,10 @@
 > complaints, both opening non-conformances. **C2d built** (ADR-099):
 > equipment register with calibration and maintenance. **C2e built**
 > (ADR-100): compliance score per branch, timed mock recalls and the
-> one-click batch report PDF. C2 is complete.
+> one-click batch report PDF. C2 is complete. **C3a built** (ADR-101):
+> location zones, receiving inspection out of quarantine and directed
+> put-away. Next in C3: pick lists and waves, packing and loading,
+> handheld scanning.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

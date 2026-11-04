@@ -321,6 +321,8 @@ model Organization {
   maintenanceRecords           MaintenanceRecord[]
   mockRecalls                  MockRecall[]
   mockRecallCounts             MockRecallCount[]
+  receiptInspections           ReceiptInspection[]
+  putawayRules                 PutawayRule[]
 
   @@map("organizations")
 }
@@ -565,12 +567,14 @@ model Warehouse {
   productionOrders ProductionOrder[]
   salesOrders      SalesOrder[]
 
-  posRegisters     PosRegister[]
-  posFloors        PosFloor[]
-  posTabs          PosTab[]
-  rfqs             Rfq[]
-  supplierReturns  SupplierReturn[]
-  mockRecallCounts MockRecallCount[]
+  posRegisters       PosRegister[]
+  posFloors          PosFloor[]
+  posTabs            PosTab[]
+  rfqs               Rfq[]
+  supplierReturns    SupplierReturn[]
+  mockRecallCounts   MockRecallCount[]
+  receiptInspections ReceiptInspection[]
+  putawayRules       PutawayRule[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -584,6 +588,15 @@ enum TemperatureZone {
   FROZEN
 }
 
+/// What a storage location is used for (ADR-101).
+enum LocationZone {
+  RECEIVING
+  QUARANTINE
+  STORAGE
+  PICKING
+  DISPATCH
+}
+
 model StorageLocation {
   id              String          @id @default(uuid(7)) @db.Uuid
   organizationId  String          @map("organization_id") @db.Uuid
@@ -591,6 +604,7 @@ model StorageLocation {
   code            String
   name            String
   temperatureZone TemperatureZone @map("temperature_zone")
+  zone            LocationZone    @default(STORAGE)
   archivedAt      DateTime?       @map("archived_at") @db.Timestamptz(3)
   createdByUserId String          @map("created_by_user_id") @db.Uuid
   updatedByUserId String          @map("updated_by_user_id") @db.Uuid
@@ -606,6 +620,7 @@ model StorageLocation {
   shipmentsIn   StockShipment[]
   stockCounts   StockCount[]
   countLines    StockCountLine[]
+  putawayRules  PutawayRule[]
 
   @@unique([organizationId, id])
   /// Lets ledger rows prove their location belongs to their warehouse.
@@ -723,6 +738,8 @@ model Product {
   lotTracking        LotTracking     @default(NONE) @map("lot_tracking")
   shelfLifeDays      Int?            @map("shelf_life_days")
   storageRequirement TemperatureZone @default(AMBIENT) @map("storage_requirement")
+  /// Receipts go to quarantine until a receiving inspection releases them (ADR-101).
+  inspectOnReceipt   Boolean         @default(false) @map("inspect_on_receipt")
   /// Optional grouping for lists, reports and reorder planning (flat list, Q-13 default).
   categoryId         String?         @map("category_id") @db.Uuid
   archivedAt         DateTime?       @map("archived_at") @db.Timestamptz(3)
@@ -772,6 +789,7 @@ model Product {
   rfqLines            RfqLine[]
   supplierReturnLines SupplierReturnLine[]
   complaints          Complaint[]
+  putawayRules        PutawayRule[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
@@ -965,6 +983,7 @@ model InventoryDocument {
   customerDeliveryReversal CustomerDelivery?      @relation("DeliveryReversal")
   supplierReturnPostings   SupplierReturn[]       @relation("SupplierReturnPosting")
   supplierReturnReversals  SupplierReturn[]       @relation("SupplierReturnReversal")
+  receiptInspections       ReceiptInspection[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -1795,6 +1814,7 @@ model GoodsReceiptLine {
   landedCostLines   LandedCostLine[]
   invoiceLines      SupplierInvoiceLine[]
   returnLines       SupplierReturnLine[]
+  inspection        ReceiptInspection?
 
   @@unique([organizationId, id])
   @@index([organizationId, receiptId])
@@ -1911,8 +1931,9 @@ model ProductCategory {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   products     Product[]
+  putawayRules PutawayRule[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -3385,6 +3406,72 @@ model MaintenanceRecord {
   @@unique([organizationId, id])
   @@index([organizationId, equipmentId, performedOn(sort: Desc)])
   @@map("maintenance_records")
+}
+
+// ─── Warehouse operations: receiving inspection and put-away (C3a, ADR-101) ───
+
+enum InspectionDecision {
+  ACCEPTED
+  REJECTED
+  PARTIAL
+}
+
+/// The quality check of one quarantined receipt line. Insert-only; its status change is in the ledger.
+model ReceiptInspection {
+  id                  String             @id @default(uuid(7)) @db.Uuid
+  organizationId      String             @map("organization_id") @db.Uuid
+  receiptLineId       String             @map("receipt_line_id") @db.Uuid
+  warehouseId         String             @map("warehouse_id") @db.Uuid
+  productId           String             @map("product_id") @db.Uuid
+  /// Base-unit quantities.
+  acceptedQuantity    Decimal            @map("accepted_quantity") @db.Decimal(20, 6)
+  rejectedQuantity    Decimal            @map("rejected_quantity") @db.Decimal(20, 6)
+  decision            InspectionDecision
+  temperatureCelsius  Decimal?           @map("temperature_celsius") @db.Decimal(5, 1)
+  packagingOk         Boolean            @map("packaging_ok")
+  labellingOk         Boolean            @map("labelling_ok")
+  conditionOk         Boolean            @map("condition_ok")
+  rejectionReason     String?            @map("rejection_reason")
+  note                String?
+  inventoryDocumentId String             @map("inventory_document_id") @db.Uuid
+  inspectedByUserId   String             @map("inspected_by_user_id") @db.Uuid
+  inspectedAt         DateTime           @default(now()) @map("inspected_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  receiptLine  GoodsReceiptLine  @relation(fields: [organizationId, receiptLineId], references: [organizationId, id], onDelete: Restrict)
+  warehouse    Warehouse         @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  document     InventoryDocument @relation(fields: [organizationId, inventoryDocumentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, receiptLineId])
+  @@index([organizationId, warehouseId, inspectedAt(sort: Desc)])
+  @@map("receipt_inspections")
+}
+
+/// Where received stock should be put away. First matching active rule by priority wins.
+model PutawayRule {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  warehouseId        String           @map("warehouse_id") @db.Uuid
+  priority           Int
+  /// Match conditions; all empty = any product.
+  productId          String?          @map("product_id") @db.Uuid
+  categoryId         String?          @map("category_id") @db.Uuid
+  storageRequirement TemperatureZone? @map("storage_requirement")
+  locationId         String           @map("location_id") @db.Uuid
+  archivedAt         DateTime?        @map("archived_at") @db.Timestamptz(3)
+  createdByUserId    String           @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse        @relation(fields: [organizationId, warehouseId], references: [organizationId, id], onDelete: Restrict)
+  product      Product?         @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  category     ProductCategory? @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  location     StorageLocation  @relation(fields: [organizationId, warehouseId, locationId], references: [organizationId, warehouseId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, warehouseId, priority])
+  @@map("putaway_rules")
 }
 
 // ─── Mock recall exercises (C2e, ADR-100) ───

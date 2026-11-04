@@ -91,6 +91,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/inventory/counts`, label: t("counts") },
     );
   }
+  if (holdsAnyGrant(ctx.grants, "inventory.quarantine.release"))
+    inventory.items.push({ href: `${base}/inventory/inspections`, label: t("inspections") });
   if (canViewValuation(ctx))
     inventory.items.push({ href: `${base}/inventory/valuation`, label: t("valuation") });
   const purchasing: NavSection = { title: t("purchasingSection"), icon: "purchasing", items: [] };
