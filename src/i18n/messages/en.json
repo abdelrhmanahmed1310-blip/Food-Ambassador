@@ -172,7 +172,8 @@
     "loads": "Loads",
     "scanner": "Scanner",
     "salesReport": "Sales analytics",
-    "stockHealth": "Stock ageing and turnover"
+    "stockHealth": "Stock ageing and turnover",
+    "menuEngineering": "Menu engineering"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -5404,5 +5405,43 @@
     "hasExpired": "Expired stock",
     "costMissing": "Cost incomplete",
     "empty": "No stock or movements."
+  },
+  "menuEngineering": {
+    "title": "Menu engineering",
+    "hint": "Each menu item's popularity against its contribution margin (Kasavana–Smith). Sales are POS lines of paid orders, net of VAT, discounts and refunds; cost is the item's standard cost today — its recipe per portion or its product's average cost — at the selling warehouse.",
+    "category": "Menu category",
+    "allCategories": "All categories",
+    "classes": {
+      "STAR": "Stars",
+      "PLOWHORSE": "Plowhorses",
+      "PUZZLE": "Puzzles",
+      "DOG": "Dogs"
+    },
+    "advice": {
+      "STAR": "Popular and profitable: keep as they are.",
+      "PLOWHORSE": "Popular, low margin: look at cost or price.",
+      "PUZZLE": "Profitable, little sold: promote or reposition.",
+      "DOG": "Neither: rework or remove."
+    },
+    "basis": "In {currency}. Popular from {threshold} % of items sold (70 % of an equal share); profitable from {margin} per item (the sales-weighted average).",
+    "noBasis": "Nothing to classify yet: no item with a known cost was sold in this period.",
+    "items": "Items",
+    "item": "Item",
+    "class": "Class",
+    "sold": "Sold",
+    "mix": "Mix",
+    "averagePrice": "Average price",
+    "unitCost": "Cost per item",
+    "unitMargin": "Margin per item",
+    "totalMargin": "Total margin",
+    "foodCost": "Food cost",
+    "gaps": {
+      "COMBO": "Combo: not classified",
+      "NO_ACTIVE_RECIPE": "No active recipe version",
+      "NO_PRODUCT_COST": "No product cost",
+      "NONE": "—"
+    },
+    "incomplete": "Some ingredients have no cost",
+    "empty": "No menu items sold in this period."
   }
 }

@@ -1,6 +1,6 @@
 # Food Ambassador — Implementation Status
 
-Last updated: 2026-11-04 (C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
+Last updated: 2026-11-04 (C4c menu engineering; C4b stock ageing and turnover; C4a sales analytics and targets; C3d handheld scanning — C3 complete; C3c packing and loading; C3b pick lists and waves; C3a receiving inspection and put-away; C2e compliance score, mock recalls, batch report — C2 complete; C2d equipment and calibration; C2c audits and complaints; C2b document control; C2a HACCP plans; C1e spend and price variance — C1 complete; C1d supplier returns; C1c purchase order revisions; C1b requests for quotation; C1a supplier compliance; F2d REST API v1 — F2 complete; F2c Excel and PDF; F2b global search; F2a job runner and notifications; F1b step 3 currency per company complete; step 2b ZATCA per company; step 2a VAT per company; F1a companies and brands; HR1–HR2b)
 
 ## Summary
 
@@ -18,6 +18,21 @@ Last updated: 2026-11-04 (C4b stock ageing and turnover; C4a sales analytics and
 | M9 Central kitchen & B2B      | ✅ Complete — M9a production orders, plan, genealogy; **M9b** branch fulfilment from the kitchen, B2B orders, deliveries, invoices, receivables                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | M10 Integrations              | ✅ Framework — **M10a** connectors, signed inbound sales webhook, outbound event webhooks with outbox and retries. Named third-party connectors open                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | POS1 – POS5                   | POS1 and POS2 complete. POS3a done; **POS3b pay by QR (Moyasar)** built — Moyasar validation pending. POS4a ZATCA and POS4b standard invoices with clearance built — ZATCA validation pending. Both need the network allowlist (api.moyasar.com, gw-fatoora.zatca.gov.sa). **POS5a discounts**, **POS5b customers, loyalty, gift cards** done; **POS5c delivery intake** built (native platform adapters pending specifications) with payout reconciliation; **POS5d online ordering and kiosks** and **POS5e** (prepayment — Moyasar validation pending, pick-up times, promotions, manual ready) done |
+
+## C4c — Menu engineering (built)
+
+Rules: DECISIONS.md ADR-107.
+
+| Area    | What works                                                                                                                                       | Where                      |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| Sales   | Items sold and revenue per menu item from paid POS lines, net of VAT, discounts and refunds                                                      | Reports → Menu engineering |
+| Cost    | Standard cost today: active recipe per portion or product average × quantity, at the selling warehouse; price and cost converted together        | same                       |
+| Classes | Stars, plowhorses, puzzles, dogs (popular from 70 % of an equal share, profitable from the weighted average margin); per category; CSV and Excel | same                       |
+| Gaps    | Combos, items without an active recipe or product cost listed but not classified; uncosted ingredients marked                                    | same                       |
+
+Not yet: cost at the time of sale, combos split into components, option ingredients, branch menus side by side.
+
+Checks: `pnpm check` pass (unit 351; new: 70 % of an equal share, weighted average margin, the four classes, items without cost left out); `pnpm test:integration` 479/479 pass (new: till sales of 2 burgers and 10 colas with 1 refunded — burger 100.00 at cost 20 margin 30, cola 9 for 90.00 at cost 3; threshold 35 % and average margin 11.18 → burger a puzzle, cola a plowhorse; a soda sold without a recorded cost listed but not classified; the drinks category alone makes cola a star; CSV line; cashiers refused; other organizations see nothing); `pnpm test:e2e` 81/81 pass (new: empty report says nothing can be classified yet, shows the four classes and the category filter, CSV header).
 
 ## C4b — Stock ageing, turnover and days on hand (built)
 

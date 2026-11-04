@@ -2689,6 +2689,33 @@ country for now, so no inter-company transfer is built.
 - **Not yet:** ageing at a past date, quantity-based turnover, service
   level and stock-out days, ABC classification.
 
+### ADR-107 Menu engineering — Accepted (C4c built)
+
+- **Method**: Kasavana–Smith. Among the items analysed, an item is
+  _popular_ when its share of items sold is at least 70 % of an equal
+  share (1 ÷ number of items), and _profitable_ when its contribution
+  margin per item (average net price − cost per item) is at least the
+  sales-weighted average margin. Stars: both; plowhorses: popular only;
+  puzzles: profitable only; dogs: neither. The short advice per class is a
+  display convention.
+- **Sales**: POS lines of paid orders in the period, net of VAT and
+  discounts, less refunded quantities (revenue reduced in proportion).
+- **Cost**: the standard cost of the item today, not at the time of sale —
+  the active recipe version's cost per portion at moving average cost in
+  the selling warehouse (ADR-031), or the product's average cost there ×
+  quantity per item. Price and cost are taken in the selling warehouse's
+  currency and both converted into the report currency at the period's
+  average rate. Option price changes are in the price; options' extra
+  ingredients are not in the cost.
+- **Not classified**: combos, items whose recipe has no active version,
+  product items without a cost. They are listed with their sales and the
+  reason. Recipes with uncosted ingredients are classified and marked.
+- A category filter analyses one menu category at a time (the classes are
+  relative to the items analysed). Needs `sales.view` and
+  `recipes.costs.view`. CSV and Excel.
+- **Not yet:** cost at the time of sale, combos split into components,
+  option ingredients, per-branch menus compared side by side.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
