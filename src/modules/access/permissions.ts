@@ -58,6 +58,7 @@ export const PERMISSIONS = [
   "logistics.view",
   "logistics.manage",
   "logistics.deliver",
+  "pos.dispatch",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -133,6 +134,7 @@ export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "logistics.view",
   "logistics.manage",
   "logistics.deliver",
+  "pos.dispatch",
 ]);
 
 /**
@@ -203,6 +205,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "pos.dispatch",
       "logistics.view",
       "logistics.manage",
       "logistics.deliver",
@@ -381,6 +384,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "pos.dispatch",
+      "logistics.deliver",
       "logistics.view",
       "budgets.view",
       "pnl.view",
@@ -463,7 +468,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Cashier",
     description:
       "Sells at the point of sale and runs their own shift (usually granted at branch scope).",
-    permissions: ["pos.sell", "menu.view"],
+    permissions: ["pos.sell", "menu.view", "pos.dispatch"],
     organizationScopeOnly: false,
   },
   {

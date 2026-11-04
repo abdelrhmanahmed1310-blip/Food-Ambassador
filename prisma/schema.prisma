@@ -47,6 +47,7 @@ model User {
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
   drivenTrips             Trip[]                   @relation("TripDriver")
+  riddenDeliveries        HomeDelivery[]           @relation("HomeDeliveryRider")
 
   @@map("users")
 }
@@ -352,6 +353,8 @@ model Organization {
   tripStops           TripStop[]
   temperatureReadings TemperatureReading[]
 
+  homeDeliveries HomeDelivery[]
+
   @@map("organizations")
 }
 
@@ -546,6 +549,8 @@ model Branch {
   costCentres         CostCentre[]
   expenses            Expense[]
   budgets             BranchBudget[]
+
+  homeDeliveries HomeDelivery[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -5372,6 +5377,7 @@ model PosOrder {
   refunds       PosRefund[]
   shortfalls    PosConsumptionShortfall[]
   deliveryOrder DeliveryOrder?
+  homeDelivery  HomeDelivery?
   tab           PosTab?                   @relation(fields: [organizationId, tabId], references: [organizationId, id], onDelete: Restrict)
 
   company Company? @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
@@ -7284,4 +7290,53 @@ model TemperatureReading {
   @@unique([organizationId, id])
   @@index([organizationId, tripId, readAt])
   @@map("temperature_readings")
+}
+
+// ─── C7b own riders for delivery orders (ADR-117) ───
+
+enum HomeDeliveryStatus {
+  WAITING
+  ASSIGNED
+  OUT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+/// The restaurant's own delivery of one paid delivery order, by one of its riders.
+model HomeDelivery {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  organizationId  String             @map("organization_id") @db.Uuid
+  posOrderId      String             @map("pos_order_id") @db.Uuid
+  branchId        String             @map("branch_id") @db.Uuid
+  status          HomeDeliveryStatus @default(WAITING)
+  /// Contact details for this delivery only; erased 30 days after it ends.
+  contactName     String?            @map("contact_name")
+  phone           String?
+  address         String?
+  directions      String?
+  contactPurgedAt DateTime?          @map("contact_purged_at") @db.Timestamptz(3)
+  riderUserId     String?            @map("rider_user_id") @db.Uuid
+  assignedAt      DateTime?          @map("assigned_at") @db.Timestamptz(3)
+  pickedUpAt      DateTime?          @map("picked_up_at") @db.Timestamptz(3)
+  deliveredAt     DateTime?          @map("delivered_at") @db.Timestamptz(3)
+  recipientName   String?            @map("recipient_name")
+  failedAt        DateTime?          @map("failed_at") @db.Timestamptz(3)
+  failureReason   String?            @map("failure_reason")
+  cancelledAt     DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason    String?            @map("cancel_reason")
+  createdByUserId String             @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  posOrder     PosOrder     @relation(fields: [organizationId, posOrderId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  rider        User?        @relation("HomeDeliveryRider", fields: [riderUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, posOrderId])
+  @@index([organizationId, branchId, status])
+  @@index([organizationId, riderUserId, status])
+  @@map("home_deliveries")
 }

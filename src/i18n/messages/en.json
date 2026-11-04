@@ -182,7 +182,9 @@
     "importShipments": "Import shipments",
     "tradeDocuments": "Trade documents",
     "trips": "Trips",
-    "vehicles": "Vehicles"
+    "vehicles": "Vehicles",
+    "posDispatch": "Delivery dispatch",
+    "myDeliveries": "My deliveries"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -351,7 +353,8 @@
     "containerTaken": "This container is already on the shipment.",
     "orderTaken": "This order is already on the shipment.",
     "declarationTaken": "This declaration is already recorded for the shipment.",
-    "consignmentOnTrip": "This is already on a trip."
+    "consignmentOnTrip": "This is already on a trip.",
+    "deliveryExists": "This order is already sent for delivery."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -768,7 +771,13 @@
     "HANDOVER_TEMPERATURE_REQUIRED": "Record the temperature at handover.",
     "STOP_ALREADY_RECORDED": "This stop is already recorded.",
     "TRIP_STOPS_OPEN": "Record every stop first.",
-    "ODOMETER_BACKWARDS": "The odometer is below its reading at the start."
+    "ODOMETER_BACKWARDS": "The odometer is below its reading at the start.",
+    "NOT_A_DELIVERY_ORDER": "Only paid delivery orders are delivered.",
+    "PLATFORM_DELIVERS": "The delivery platform delivers this order.",
+    "RIDER_NOT_ALLOWED": "This person does not ride for this branch.",
+    "DELIVERY_ALREADY_LEFT": "The delivery has already left the branch.",
+    "DELIVERY_NOT_ASSIGNED": "The delivery is not assigned to you.",
+    "DELIVERY_NOT_OUT": "The delivery is not on the way."
   },
   "notFound": {
     "title": "Page not found",
@@ -1016,7 +1025,8 @@
       "trade.manage": "Create and track import shipments",
       "logistics.view": "View trips and vehicles",
       "logistics.manage": "Plan trips and manage vehicles",
-      "logistics.deliver": "Drive trips: proof of delivery and temperatures"
+      "logistics.deliver": "Drive trips: proof of delivery and temperatures",
+      "pos.dispatch": "Dispatch own deliveries for delivery orders"
     }
   },
   "audit": {
@@ -5973,6 +5983,62 @@
       "PENDING": "To deliver",
       "DELIVERED": "Delivered",
       "FAILED": "Not delivered"
+    }
+  },
+  "homeDelivery": {
+    "dispatchTitle": "Delivery dispatch — {branch}",
+    "dispatchHint": "Your own riders for the branch's delivery orders. Delivery platforms deliver their own orders.",
+    "branch": "Branch",
+    "day": "Day",
+    "needAddress": "Delivery orders without an address",
+    "noneWaiting": "No delivery orders waiting for an address.",
+    "create": "Send for delivery",
+    "contactName": "Customer name",
+    "phone": "Phone",
+    "address": "Address",
+    "directions": "Directions",
+    "active": "Out for delivery",
+    "noneActive": "Nothing to deliver right now.",
+    "voided": "Order voided",
+    "voidedHint": "Bring it back to the branch; the dispatcher cancels the delivery.",
+    "withRider": "With {name}",
+    "noRider": "No rider yet",
+    "minutesSince": "{minutes} min since the order",
+    "rider": "Rider",
+    "assign": "Assign",
+    "reassign": "Reassign",
+    "noRiders": "Nobody rides for this branch yet: give someone the Driver role at the branch.",
+    "cancelReason": "Reason for cancelling",
+    "cancel": "Cancel delivery",
+    "delivered": "Delivered",
+    "recipient": "Received by",
+    "failureReason": "Why not delivered",
+    "failed": "Not delivered",
+    "riders": "Riders today",
+    "carrying": "Carrying",
+    "deliveredCount": "Delivered",
+    "failedCount": "Not delivered",
+    "medianRoad": "Median minutes on the road",
+    "medianTotal": "Median minutes order to door",
+    "ended": "Finished today",
+    "order": "Order",
+    "status": "Status",
+    "totalMinutes": "Minutes order to door",
+    "note": "Note",
+    "riderTitle": "My deliveries",
+    "riderHint": "Your deliveries in order. Call the customer or open the address in maps.",
+    "nothingToDeliver": "Nothing to deliver.",
+    "openMap": "Open in maps",
+    "pickedUp": "Picked up",
+    "recent": "Recently finished",
+    "minutes": "{minutes} min",
+    "statuses": {
+      "WAITING": "Waiting for a rider",
+      "ASSIGNED": "Assigned",
+      "OUT": "On the way",
+      "DELIVERED": "Delivered",
+      "FAILED": "Not delivered",
+      "CANCELLED": "Cancelled"
     }
   }
 }

@@ -4,6 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { hasPermission } from "@/modules/access/authorize";
 import { attentionItems } from "@/modules/analytics/attention";
 import { purgeExpiredAttachments } from "@/modules/attachments/service";
+import { purgeDeliveryContacts } from "@/modules/delivery/home";
 import { deliverDueWebhooks } from "@/modules/integrations/service";
 import { membersWithGrantsInTx, notifyInTx } from "@/modules/notifications/service";
 import { resolveTenantContext, type TenantContext } from "@/modules/tenancy/context";
@@ -114,6 +115,7 @@ const HANDLERS = {
     return { purged };
   },
   "attention.digest": attentionDigest,
+  "deliveries.purge-contacts": async () => purgeDeliveryContacts(),
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -142,6 +144,11 @@ export async function scheduleRecurringJobs(now = new Date()) {
     added += await enqueueJobInTx(tx, {
       kind: "attachments.purge",
       dedupeKey: `attachments.purge:${now.toISOString().slice(0, 10)}`,
+    });
+    // Customer contact details of own deliveries, 30 days after they end (ADR-117).
+    added += await enqueueJobInTx(tx, {
+      kind: "deliveries.purge-contacts",
+      dedupeKey: `deliveries.purge-contacts:${now.toISOString().slice(0, 10)}`,
     });
     const orgs = await tx.organization.findMany({
       where: { status: "ACTIVE" },

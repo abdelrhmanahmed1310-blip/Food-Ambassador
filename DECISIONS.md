@@ -3017,6 +3017,37 @@ provider — Q to be asked before it is built).
   logistics cost per trip and per drop, returns from failed deliveries,
   customer notifications.
 
+### ADR-117 Own riders for delivery orders — Accepted (C7b built)
+
+- **What is delivered**: paid POS orders on the delivery channel sold at
+  a branch. Platform orders (ADR-066) are delivered by the platform and
+  refused here; takeaway and dine-in orders too.
+- **A home delivery** (one per order) holds the customer's name, phone,
+  address and directions **for this delivery only**. A dispatcher
+  (`pos.dispatch` at the branch — new; administrators, operations and
+  branch managers, cashiers) creates it from the dispatch board.
+- **Riders** are members whose role grants `logistics.deliver` covering
+  the branch — the Driver role (ADR-116) at branch scope, or branch
+  managers, who now also hold it, standing in. Waiting → assigned (and
+  reassigned until it leaves) → on the way (picked up by the assigned
+  rider) → delivered (optionally who took it) or not delivered (reason).
+  Cancelled with a reason before it leaves. A voided order cannot be
+  picked up; the dispatcher cancels its delivery.
+- **The rider's phone page** lists their deliveries with the address, a
+  call link and a map **search link** (no map service is called by the
+  system and no location is collected), and the steps.
+- **Dispatch board** per branch and day: delivery orders still without a
+  delivery, deliveries in progress with minutes since the order, the
+  branch's riders with what each carries, and per rider delivered, not
+  delivered and the median minutes on the road and from order to door.
+- **Privacy**: the address, phone, name and directions are **erased 30
+  days after the delivery ends** by a daily job (ADR-087); the audit log
+  never contains them. The delivery record, times and outcome remain.
+- **Not yet:** cash collected on delivery and its reconciliation per
+  rider, delivery fees and zones, promised times and lateness alerts,
+  customer tracking links and notifications, address book for repeat
+  customers, rider shifts and pay, live location.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

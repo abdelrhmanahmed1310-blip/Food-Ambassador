@@ -182,7 +182,9 @@
     "importShipments": "شحنات الاستيراد",
     "tradeDocuments": "المستندات التجارية",
     "trips": "الرحلات",
-    "vehicles": "المركبات"
+    "vehicles": "المركبات",
+    "posDispatch": "توزيع التوصيل",
+    "myDeliveries": "توصيلاتي"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -351,7 +353,8 @@
     "containerTaken": "هذه الحاوية موجودة على الشحنة.",
     "orderTaken": "هذا الطلب موجود على الشحنة.",
     "declarationTaken": "هذا البيان مسجل للشحنة بالفعل.",
-    "consignmentOnTrip": "هذا موجود على رحلة بالفعل."
+    "consignmentOnTrip": "هذا موجود على رحلة بالفعل.",
+    "deliveryExists": "هذا الطلب مُرسل للتوصيل بالفعل."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "قم بأرشفة مستودعات هذا الفرع أولًا.",
@@ -768,7 +771,13 @@
     "HANDOVER_TEMPERATURE_REQUIRED": "سجّل الحرارة عند التسليم.",
     "STOP_ALREADY_RECORDED": "هذه المحطة مسجلة بالفعل.",
     "TRIP_STOPS_OPEN": "سجّل كل المحطات أولًا.",
-    "ODOMETER_BACKWARDS": "قراءة العداد أقل من قراءة البداية."
+    "ODOMETER_BACKWARDS": "قراءة العداد أقل من قراءة البداية.",
+    "NOT_A_DELIVERY_ORDER": "لا يُوصَّل إلا طلبات التوصيل المدفوعة.",
+    "PLATFORM_DELIVERS": "منصة التوصيل توصل هذا الطلب.",
+    "RIDER_NOT_ALLOWED": "هذا الشخص لا يوصّل لهذا الفرع.",
+    "DELIVERY_ALREADY_LEFT": "غادر التوصيل الفرع بالفعل.",
+    "DELIVERY_NOT_ASSIGNED": "التوصيل غير معيّن لك.",
+    "DELIVERY_NOT_OUT": "التوصيل ليس في الطريق."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1016,7 +1025,8 @@
       "trade.manage": "إنشاء شحنات الاستيراد ومتابعتها",
       "logistics.view": "عرض الرحلات والمركبات",
       "logistics.manage": "تخطيط الرحلات وإدارة المركبات",
-      "logistics.deliver": "قيادة الرحلات: إثبات التسليم ودرجات الحرارة"
+      "logistics.deliver": "قيادة الرحلات: إثبات التسليم ودرجات الحرارة",
+      "pos.dispatch": "توزيع التوصيل الخاص لطلبات التوصيل"
     }
   },
   "audit": {
@@ -5973,6 +5983,62 @@
       "PENDING": "للتسليم",
       "DELIVERED": "سُلّمت",
       "FAILED": "لم تُسلَّم"
+    }
+  },
+  "homeDelivery": {
+    "dispatchTitle": "توزيع التوصيل — {branch}",
+    "dispatchHint": "مندوبو التوصيل الخاصون بك لطلبات التوصيل في الفرع. منصات التوصيل توصل طلباتها بنفسها.",
+    "branch": "الفرع",
+    "day": "اليوم",
+    "needAddress": "طلبات توصيل بلا عنوان",
+    "noneWaiting": "لا توجد طلبات توصيل تنتظر عنوانًا.",
+    "create": "إرسال للتوصيل",
+    "contactName": "اسم العميل",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "directions": "إرشادات الوصول",
+    "active": "قيد التوصيل",
+    "noneActive": "لا شيء للتوصيل الآن.",
+    "voided": "الطلب ملغى",
+    "voidedHint": "أعده إلى الفرع؛ يلغي الموزع التوصيل.",
+    "withRider": "مع {name}",
+    "noRider": "لا مندوب بعد",
+    "minutesSince": "{minutes} دقيقة منذ الطلب",
+    "rider": "المندوب",
+    "assign": "تعيين",
+    "reassign": "إعادة التعيين",
+    "noRiders": "لا أحد يوصّل لهذا الفرع بعد: امنح أحدهم دور السائق في الفرع.",
+    "cancelReason": "سبب الإلغاء",
+    "cancel": "إلغاء التوصيل",
+    "delivered": "تم التسليم",
+    "recipient": "المستلم",
+    "failureReason": "سبب عدم التسليم",
+    "failed": "لم يُسلَّم",
+    "riders": "المندوبون اليوم",
+    "carrying": "يحمل",
+    "deliveredCount": "سُلّمت",
+    "failedCount": "لم تُسلَّم",
+    "medianRoad": "الوسيط بالدقائق على الطريق",
+    "medianTotal": "الوسيط بالدقائق من الطلب إلى الباب",
+    "ended": "انتهت اليوم",
+    "order": "الطلب",
+    "status": "الحالة",
+    "totalMinutes": "الدقائق من الطلب إلى الباب",
+    "note": "ملاحظة",
+    "riderTitle": "توصيلاتي",
+    "riderHint": "توصيلاتك بالترتيب. اتصل بالعميل أو افتح العنوان في الخرائط.",
+    "nothingToDeliver": "لا شيء للتوصيل.",
+    "openMap": "فتح في الخرائط",
+    "pickedUp": "تم الاستلام من الفرع",
+    "recent": "انتهت مؤخرًا",
+    "minutes": "{minutes} دقيقة",
+    "statuses": {
+      "WAITING": "بانتظار مندوب",
+      "ASSIGNED": "معيّن",
+      "OUT": "في الطريق",
+      "DELIVERED": "سُلّم",
+      "FAILED": "لم يُسلَّم",
+      "CANCELLED": "ملغى"
     }
   }
 }

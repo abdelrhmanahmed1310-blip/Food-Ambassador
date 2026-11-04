@@ -1116,6 +1116,16 @@ Own fleet (C7a, ADR-116; migration `20270108090000_c7a_fleet_trips`):
   `logistics.view`, `logistics.manage`, `logistics.deliver`; new system
   role `driver`.
 
+Own riders (C7b, ADR-117; migration `20270109090000_c7b_home_delivery`):
+
+- **home_deliveries**: POS order (UQ), branch, `status` (`WAITING` |
+  `ASSIGNED` | `OUT` | `DELIVERED` | `FAILED` | `CANCELLED`), contact
+  name, phone, address (required until erased — check), directions,
+  `contact_purged_at`, rider (user), assigned / picked up / delivered /
+  failed / cancelled at, recipient, failure and cancel reasons (required
+  for their status — check).
+- Permission `pos.dispatch`; branch managers gain `logistics.deliver`.
+
 ## 9. Sales and finance (Milestone 7)
 
 - **sales_transactions / lines**: branch, channel, sold item (recipe/product),
