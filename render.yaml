@@ -20,15 +20,20 @@ services:
   - type: web
     name: food-ambassador-demo
     runtime: node
-    plan: starter # pre-deploy commands need a paid instance
+    # Standard (2 GB): the app server uses ~350–500 MB and the demo seed ~430 MB,
+    # too close to Starter's 512 MB limit. Pre-deploy commands need a paid instance.
+    plan: standard
     region: frankfurt
     branch: milestone-0-foundation
     autoDeploy: true
     buildCommand: npx --yes pnpm@10.28.0 install --frozen-lockfile --prod=false && npx --yes pnpm@10.28.0 build
-    # Migrations, then the idempotent [DEMO] seed (it refuses NODE_ENV=production).
-    preDeployCommand: npm run db:deploy && npm run db:seed
-    # APP_URL defaults to the address Render gives the service.
-    startCommand: APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}" npx next start -p "$PORT"
+    # Migrations, then the idempotent [DEMO] seed (it refuses NODE_ENV=production
+    # unless ALLOW_DEMO_SEED is set). Binaries are called directly — no npm/npx
+    # wrapper process, which costs ~80 MB each.
+    preDeployCommand: ./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/tsx --conditions=react-server --tsconfig tsconfig.json prisma/seed.ts
+    # APP_URL defaults to the address Render gives the service. Next runs under
+    # node directly (no npx wrapper) with the heap capped below the 2 GB instance.
+    startCommand: APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}" NODE_OPTIONS=--max-old-space-size=1536 node node_modules/next/dist/bin/next start -p "$PORT"
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION

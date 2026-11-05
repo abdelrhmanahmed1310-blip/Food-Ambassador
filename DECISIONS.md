@@ -1760,6 +1760,13 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   seed, health and readiness checks, sign-in and tenant isolation pass. Not
   yet run on Render itself. The migrations create the `fa_tenant` role, so
   the database user needs permission to create roles.
+- **Memory (2026-11-05):** the web service runs on Render's Standard plan
+  (2 GB). Measured here, the app server uses about 350–500 MB once
+  serving pages and the demo seed about 430 MB, too close to Starter's
+  512 MB. The start and pre-deploy commands call `node`, `prisma` and
+  `tsx` directly (an `npx` or `npm` wrapper costs about 80 MB each), and
+  the server's heap is capped at 1.5 GB. The build (about 3 GB at peak)
+  runs on Render's build machines, not the instance.
 - **Not production.** No real customer data goes on the demo. Production
   hosting and data residency stay open (Q-03); attachments are not
   virus-scanned there (no ClamAV), and payment, ZATCA and delivery
