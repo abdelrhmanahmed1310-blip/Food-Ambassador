@@ -397,6 +397,15 @@ model Organization {
   engagementParticipations EngagementParticipation[]
   recognitions             Recognition[]
 
+  rosterSettings          RosterSettings?
+  shiftTemplates          ShiftTemplate[]
+  rosterShifts            RosterShift[]
+  overtimeDecisions       OvertimeDecision[]
+  onboardingTemplates     OnboardingTemplate[]
+  onboardingTemplateTasks OnboardingTemplateTask[]
+  onboardingChecklists    OnboardingChecklist[]
+  onboardingTasks         OnboardingTask[]
+
   @@map("organizations")
 }
 
@@ -597,6 +606,8 @@ model Branch {
   guestFeedback GuestFeedback[]
 
   trainingSessions TrainingSession[]
+
+  rosterShifts RosterShift[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -6586,6 +6597,10 @@ model Employee {
   recognitionsGiven    Recognition[]             @relation("RecognitionFrom")
   recognitionsReceived Recognition[]             @relation("RecognitionTo")
 
+  rosterShifts         RosterShift[]
+  overtimeDecisions    OvertimeDecision[]
+  onboardingChecklists OnboardingChecklist[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@unique([organizationId, userId])
@@ -7850,6 +7865,8 @@ model PayrollAdjustment {
   run          PayrollRun   @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
   employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
 
+  overtime OvertimeDecision?
+
   @@index([organizationId, runId, employeeId])
   @@map("payroll_adjustments")
 }
@@ -8353,4 +8370,199 @@ model Recognition {
   @@index([organizationId, createdAt])
   @@index([organizationId, toEmployeeId])
   @@map("recognitions")
+}
+
+// ─── HR2c rosters and onboarding (ADR-128) ───
+
+enum OvertimeBase {
+  BASIC
+  GROSS
+}
+
+enum OvertimeDecisionStatus {
+  APPROVED
+  REJECTED
+}
+
+enum OnboardingAssignee {
+  HR
+  MANAGER
+  EMPLOYEE
+}
+
+/// How rostered shifts are compared with clock-ins, and how overtime is paid — all entered by the organization.
+model RosterSettings {
+  organizationId         String        @id @map("organization_id") @db.Uuid
+  graceMinutes           Int           @map("grace_minutes")
+  overtimeMinimumMinutes Int           @map("overtime_minimum_minutes")
+  /// Standard paid hours a day, for an hourly rate of monthly pay.
+  standardDailyHours     Decimal?      @map("standard_daily_hours") @db.Decimal(5, 2)
+  overtimeMultiplier     Decimal?      @map("overtime_multiplier") @db.Decimal(6, 4)
+  overtimeBase           OvertimeBase? @map("overtime_base")
+  updatedByUserId        String        @map("updated_by_user_id") @db.Uuid
+  updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("roster_settings")
+}
+
+/// A reusable shift: local start and end (an end at or before the start is the next day) and an unpaid break.
+model ShiftTemplate {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  startTime      String    @map("start_time") @db.Char(5)
+  endTime        String    @map("end_time") @db.Char(5)
+  breakMinutes   Int       @map("break_minutes")
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shifts       RosterShift[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("shift_templates")
+}
+
+/// One person's planned shift at a branch on a day. Drafts change freely; published shifts are cancelled, not edited.
+model RosterShift {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  employeeId        String    @map("employee_id") @db.Uuid
+  branchId          String    @map("branch_id") @db.Uuid
+  /// The local day the shift starts.
+  day               DateTime  @db.Date
+  startTime         String    @map("start_time") @db.Char(5)
+  endTime           String    @map("end_time") @db.Char(5)
+  breakMinutes      Int       @map("break_minutes")
+  startsAt          DateTime  @map("starts_at") @db.Timestamptz(3)
+  endsAt            DateTime  @map("ends_at") @db.Timestamptz(3)
+  templateId        String?   @map("template_id") @db.Uuid
+  note              String?
+  createdByUserId   String    @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt       DateTime? @map("published_at") @db.Timestamptz(3)
+  publishedByUserId String?   @map("published_by_user_id") @db.Uuid
+  cancelledAt       DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelledByUserId String?   @map("cancelled_by_user_id") @db.Uuid
+  cancelReason      String?   @map("cancel_reason")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee          @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  template     ShiftTemplate?    @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Restrict)
+  overtime     OvertimeDecision?
+
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId, day])
+  @@index([organizationId, employeeId, startsAt])
+  @@map("roster_shifts")
+}
+
+/// A manager's decision on overtime worked beyond a published shift; approved overtime is paid through payroll.
+model OvertimeDecision {
+  id                  String                 @id @default(uuid(7)) @db.Uuid
+  organizationId      String                 @map("organization_id") @db.Uuid
+  shiftId             String                 @unique @map("shift_id") @db.Uuid
+  employeeId          String                 @map("employee_id") @db.Uuid
+  /// Overtime the clock-ins showed when decided.
+  measuredMinutes     Int                    @map("measured_minutes")
+  /// Minutes approved (at most the measured minutes; 0 when rejected).
+  minutes             Int
+  status              OvertimeDecisionStatus
+  note                String?
+  decidedByUserId     String                 @map("decided_by_user_id") @db.Uuid
+  decidedAt           DateTime               @default(now()) @map("decided_at") @db.Timestamptz(3)
+  /// Set when payroll takes it into a run; cleared if that adjustment is removed.
+  payrollAdjustmentId String?                @unique @map("payroll_adjustment_id") @db.Uuid
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  shift        RosterShift        @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
+  employee     Employee           @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  adjustment   PayrollAdjustment? @relation(fields: [payrollAdjustmentId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, shiftId])
+  @@index([organizationId, status, employeeId])
+  @@map("overtime_decisions")
+}
+
+/// An onboarding checklist to start new hires on.
+model OnboardingTemplate {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  tasks        OnboardingTemplateTask[]
+  checklists   OnboardingChecklist[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("onboarding_templates")
+}
+
+model OnboardingTemplateTask {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  templateId     String             @map("template_id") @db.Uuid
+  position       Int
+  title          String
+  /// Due this many days after the start date.
+  dueDays        Int                @map("due_days")
+  assignee       OnboardingAssignee
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  template     OnboardingTemplate @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, templateId, position])
+  @@map("onboarding_template_tasks")
+}
+
+/// A template started for one employee; its tasks are copied so later template edits do not change it.
+model OnboardingChecklist {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  employeeId      String    @map("employee_id") @db.Uuid
+  templateId      String    @map("template_id") @db.Uuid
+  startedOn       DateTime  @map("started_on") @db.Date
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(3)
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason    String?   @map("cancel_reason")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee           @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  template     OnboardingTemplate @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Restrict)
+  tasks        OnboardingTask[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, employeeId])
+  @@map("onboarding_checklists")
+}
+
+model OnboardingTask {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  checklistId    String             @map("checklist_id") @db.Uuid
+  position       Int
+  title          String
+  dueOn          DateTime           @map("due_on") @db.Date
+  assignee       OnboardingAssignee
+  doneAt         DateTime?          @map("done_at") @db.Timestamptz(3)
+  doneByUserId   String?            @map("done_by_user_id") @db.Uuid
+  note           String?
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  checklist    OnboardingChecklist @relation(fields: [organizationId, checklistId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, checklistId, position])
+  @@index([organizationId, dueOn])
+  @@map("onboarding_tasks")
 }

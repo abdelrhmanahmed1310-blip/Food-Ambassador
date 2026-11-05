@@ -44,12 +44,18 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       ...(isEmployee
         ? [
             { href: `${base}/my/attendance`, label: t("myAttendance"), icon: "clock" as const },
+            { href: `${base}/my/roster`, label: t("myRoster"), icon: "roster" as const },
             { href: `${base}/my/leave`, label: t("myLeave"), icon: "leave" as const },
             { href: `${base}/my/payslips`, label: t("myPayslips"), icon: "payslip" as const },
             { href: `${base}/my/training`, label: t("myTraining"), icon: "training" as const },
             { href: `${base}/my/performance`, label: t("myPerformance"), icon: "goals" as const },
             { href: `${base}/my/surveys`, label: t("mySurveys"), icon: "survey" as const },
             { href: `${base}/recognition`, label: t("recognition"), icon: "recognition" as const },
+            {
+              href: `${base}/my/onboarding`,
+              label: t("myOnboarding"),
+              icon: "onboarding" as const,
+            },
           ]
         : []),
     ],
@@ -268,7 +274,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr`, label: t("hrOverview"), exact: true },
       { href: `${base}/hr/employees`, label: t("employees") },
       { href: `${base}/hr/attendance`, label: t("attendance") },
+      { href: `${base}/hr/rosters`, label: t("rosters") },
       { href: `${base}/hr/leave`, label: t("leave") },
+      { href: `${base}/hr/onboarding`, label: t("onboarding") },
       { href: `${base}/hr/departments`, label: t("departments") },
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );

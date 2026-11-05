@@ -1,6 +1,7 @@
 import { surveysToAnswerCountInTx } from "@/modules/engagement/service";
 import { reviewsToDoInTx } from "@/modules/performance/service";
 import { trainingAttentionInTx } from "@/modules/learning/service";
+import { onboardingAttentionInTx } from "@/modules/rosters/onboarding";
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
@@ -62,6 +63,8 @@ export type AttentionKey =
   | "PERFORMANCE_REVIEWS_TO_DO"
   | "SURVEYS_TO_ANSWER"
   | "TRAINING_EXPIRING"
+  | "ONBOARDING_OVERDUE"
+  | "ONBOARDING_TASKS_MINE"
   | "TRADE_DOCUMENTS_EXPIRING"
   | "COLD_CHAIN_EXCURSIONS"
   | "LOW_RATINGS_TO_REVIEW";
@@ -681,6 +684,21 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
       tone: "info",
       count: await reviewsToDoInTx(tx, ctx),
       href: "/my/performance",
+    });
+
+    // Onboarding tasks overdue (HR) and waiting on the user (ADR-128).
+    const onboarding = await onboardingAttentionInTx(tx, ctx);
+    push({
+      key: "ONBOARDING_OVERDUE",
+      tone: "warning",
+      count: onboarding.overdue,
+      href: "/hr/onboarding",
+    });
+    push({
+      key: "ONBOARDING_TASKS_MINE",
+      tone: "info",
+      count: onboarding.mine,
+      href: "/my/onboarding",
     });
 
     // Required training lapsed (expired or overdue) or expiring (ADR-125).

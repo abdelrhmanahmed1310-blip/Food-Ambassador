@@ -3463,6 +3463,67 @@ just the screens.
 - **Not yet**: recurring pulse surveys, survey templates, comparing
   cycles over time, reactions and comments on recognition, rewards.
 
+### ADR-128 Rosters, overtime and onboarding checklists — Accepted (HR2c built; HR2 complete)
+
+Decision (2026-11-05): branches plan who works when, the plan is compared
+with the clock-ins of ADR-080, overtime is decided by a manager and paid
+through payroll (ADR-123), and new hires get onboarding checklists.
+
+- **Settings, entered not preset**: grace minutes (lateness and leaving
+  early up to this are not flagged), an overtime minimum (extra time below
+  it is not overtime), standard daily hours, an overtime multiplier and
+  whether it applies to basic pay or basic and allowances. No country's
+  overtime rule is built in (as Q-20). Organization-wide HR sets them.
+- **Shift templates**: local start and end (an end at or before the start
+  is the next day) and an unpaid break.
+- **Shifts**: one person, one branch, one local day, from a template or
+  own times; start and end are also stored as instants in the branch's
+  time zone. Refused when they overlap another of the person's shifts
+  (checked under a row lock on the employee), fall on approved leave, are
+  outside employment, or the break is as long as the shift. Drafts are
+  added and removed freely; **publishing** a week shows them to staff.
+  A published shift is never edited or deleted, only cancelled with a
+  reason (trigger) — and not once overtime was decided on it. A week can
+  be copied into another as drafts; clashes, leave and leavers are skipped.
+- **Comparison** with clock-ins: the person's sessions (ADR-080
+  timesheet) are each given to one shift — the one they overlap most, or
+  the nearest within two hours — so split shifts never share a session.
+  Late and early count beyond the grace minutes; worked = the sessions
+  less the break; overtime = worked beyond the planned paid minutes, from
+  the minimum. Outcomes: upcoming, in progress, on time, late or early,
+  no-show (shown as leave on approved leave), or missing punch — a
+  missing clock-in or clock-out is never guessed.
+- **Overtime** is decided once per shift by someone with
+  `rosters.manage` at the branch — never by the person themself —
+  approving up to the measured minutes, or rejecting. The decision cannot
+  change (trigger). Payroll's **Add overtime from rosters** turns each
+  approved, unpaid decision for someone on a draft run, up to the month's
+  end, into an OVERTIME addition: the multiplier × hours × monthly base ÷
+  (days of the run's proration basis × standard daily hours), on the
+  salary in force that day, rounded to the currency. Removing the addition,
+  or cancelling the run, frees it for a later run.
+- **Labour cost** on the week, for those with `payroll.view` only:
+  planned and worked hours at straight time, at gross monthly pay (basic
+  and allowances) as an hourly rate. Employer contributions and overtime
+  premiums are not included; shifts of people without a salary record are
+  counted as not costed.
+- **Onboarding**: organization-wide HR keeps checklist templates whose
+  tasks are for HR, the line manager or the new employee, each due so
+  many days from the start (−30 to 365). Starting one for an employee
+  copies its tasks (later template edits do not change it), from the hire
+  date unless another start is given; one open copy of a template per
+  employee. HR at the branch ticks any task, the line manager (the
+  employee's manager's sign-in) manager tasks, the employee their own; the
+  last tick completes the checklist. HR may cancel it with a reason.
+- **Access**: a new branch-scopable `rosters.manage` (administrators,
+  operations managers and branch managers) plans rosters and decides
+  overtime; viewing needs `hr.view`. Staff see their published shifts in
+  My roster and their checklists in Onboarding. Needs attention shows HR
+  overdue onboarding tasks and each person the tasks waiting for them.
+- **Not yet**: demand-based scheduling from forecasts, shift swaps and
+  open shifts, availability, labour cost against sales, break rules,
+  night or holiday premiums, onboarding documents to sign.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

@@ -166,7 +166,7 @@ export function TextField({
   inputMode,
   ...props
 }: BaseFieldProps & {
-  type?: "text" | "email" | "password" | "date";
+  type?: "text" | "email" | "password" | "date" | "time";
   autoComplete?: string;
   dir?: "ltr" | "rtl" | "auto";
   inputMode?: "decimal" | "numeric" | "text";

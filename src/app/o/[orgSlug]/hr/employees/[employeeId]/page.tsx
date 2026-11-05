@@ -23,6 +23,8 @@ import { canViewPayroll, employeePay } from "@/modules/payroll/service";
 import { canViewTraining, employeeTraining } from "@/modules/learning/service";
 import { TrainingSection } from "@/components/learning/training-section";
 import { GoalsSection } from "@/components/performance/goals-section";
+import { OnboardingSection } from "@/components/onboarding/onboarding-section";
+import { employeeOnboarding } from "@/modules/rosters/onboarding";
 import { employeeGoals } from "@/modules/performance/service";
 import { getLocale } from "next-intl/server";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
@@ -77,6 +79,8 @@ export default async function EmployeePage({
   const locale = await getLocale();
   // Goals and reviews (ADR-126): HR, the employee's manager, or the employee.
   const performance = await employeeGoals(ctx, e.id).catch(() => null);
+  // Onboarding checklists (ADR-128).
+  const onboarding = await employeeOnboarding(ctx, e.id).catch(() => null);
   const money = pay ? (await moneyIn([pay.currency]))(pay.currency).money : null;
   const base = `/o/${orgSlug}/hr`;
   return (
@@ -392,6 +396,11 @@ export default async function EmployeePage({
               canSetGoals={performance.canSetGoals}
               canUpdate={performance.own}
             />
+          </Card>
+        ) : null}
+        {onboarding && (onboarding.checklists.length || onboarding.can.start) ? (
+          <Card title={t("onboarding.title")}>
+            <OnboardingSection orgSlug={orgSlug} employeeId={e.id} data={onboarding} />
           </Card>
         ) : null}
         {training ? (

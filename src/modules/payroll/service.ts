@@ -36,6 +36,8 @@ import {
   type SalaryInput,
   type TaxTableInput,
 } from "./rules";
+import { basisDaysFor, overtimePay } from "@/modules/rosters/rules";
+import { unpaidOvertimeWhere } from "@/modules/rosters/service";
 
 /**
  * Payroll (DECISIONS.md ADR-123): dated salaries, contribution rules the
@@ -887,6 +889,96 @@ export async function addPayrollAdjustment(ctx: TenantContext, runId: string, ra
       },
     });
     await computeRunInTx(tx, ctx, run.id);
+  });
+}
+
+/**
+ * Bring approved overtime (ADR-128) into a draft run: each approved,
+ * unpaid decision for someone on the run, on a shift up to the end of the
+ * month, becomes an OVERTIME addition at the entered multiplier on an
+ * hourly rate of the salary in force that day. Removing the addition
+ * frees it for a later run.
+ */
+export async function addOvertimeToRun(ctx: TenantContext, runId: string) {
+  assertPermission(ctx.grants, "payroll.manage");
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const run = await draftRun(tx, ctx, runId);
+    const p = periodBounds(day(run.period).slice(0, 7));
+    const settings = await tx.rosterSettings.findUnique({
+      where: { organizationId: ctx.organizationId },
+    });
+    if (!settings?.overtimeMultiplier || !settings.overtimeBase || !settings.standardDailyHours)
+      throw businessRuleViolation(
+        "OVERTIME_PAY_NOT_SET",
+        "Enter the overtime multiplier, base and standard daily hours in roster settings first",
+      );
+    const onRun = await tx.payrollLine.findMany({
+      where: { organizationId: ctx.organizationId, runId: run.id },
+      select: { employeeId: true },
+    });
+    const decisions = await tx.overtimeDecision.findMany({
+      where: {
+        ...unpaidOvertimeWhere(ctx.organizationId),
+        employeeId: { in: onRun.map((l) => l.employeeId) },
+        shift: { day: { lte: asDate(p.end) } },
+      },
+      include: { shift: { select: { day: true } } },
+      orderBy: { shift: { startsAt: "asc" } },
+    });
+    const salaries = await tx.employeeSalary.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        employeeId: { in: [...new Set(decisions.map((d) => d.employeeId))] },
+      },
+      orderBy: { effectiveFrom: "desc" },
+      include: { items: true },
+    });
+    let added = 0;
+    for (const d of decisions) {
+      const on = day(d.shift.day);
+      const s = salaries.find((x) => x.employeeId === d.employeeId && day(x.effectiveFrom) <= on);
+      if (!s) continue;
+      const monthlyBase =
+        settings.overtimeBase === "BASIC"
+          ? dec(s.basic)
+          : s.items.reduce((a, i) => a.plus(dec(i.amount)), dec(s.basic));
+      const amount = overtimePay({
+        minutes: d.minutes,
+        monthlyBase,
+        basisDays: basisDaysFor(run.prorationBasis as ProrationBasis, on),
+        dailyHours: dec(settings.standardDailyHours),
+        multiplier: dec(settings.overtimeMultiplier),
+        currency: run.currency,
+      });
+      if (amount.lte(0)) continue;
+      const adj = await tx.payrollAdjustment.create({
+        data: {
+          organizationId: ctx.organizationId,
+          runId: run.id,
+          employeeId: d.employeeId,
+          kind: "ADDITION",
+          category: "OVERTIME",
+          amount: amount.toFixed(),
+          note: `Overtime ${on} (${d.minutes} min)`,
+          createdByUserId: ctx.userId,
+        },
+      });
+      await tx.overtimeDecision.update({
+        where: { id: d.id },
+        data: { payrollAdjustmentId: adj.id },
+      });
+      added++;
+    }
+    if (added) {
+      await computeRunInTx(tx, ctx, run.id);
+      await recordAudit(tx, actorOf(ctx), {
+        action: "payroll_run.overtime_added",
+        entityType: "payroll_run",
+        entityId: run.id,
+        changes: { added },
+      });
+    }
+    return { added };
   });
 }
 

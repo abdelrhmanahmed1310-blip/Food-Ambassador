@@ -1719,6 +1719,32 @@ Migration `20261209090000_f1a_companies_brands`.
 - **branches** gains `company_id` (required; backfilled to the default
   company) and `brand_id` (optional), both with composite tenant keys.
 
+### Rosters and onboarding (HR2c, ADR-128)
+
+Migration `20270119090000_hr2c_rosters_onboarding`.
+
+- **roster_settings** (one per organization): `grace_minutes`,
+  `overtime_minimum_minutes`, `standard_daily_hours`,
+  `overtime_multiplier`, `overtime_base` (BASIC | GROSS); all entered.
+- **shift_templates**: `code`, name, `start_time`, `end_time` (HH:MM;
+  end ≤ start is the next day), `break_minutes`, `archived_at`.
+- **roster_shifts**: employee, branch, local `day`, times and break as
+  planned, `starts_at`/`ends_at` instants, optional template, note,
+  creator; `published_at`/by; `cancelled_at`/by with `cancel_reason`.
+  Published shifts only change by cancelling; only drafts are deleted
+  (trigger).
+- **overtime_decisions**: one per shift — `measured_minutes`, approved
+  `minutes`, `status` APPROVED | REJECTED, note, decider; fixed once made
+  (trigger) except `payroll_adjustment_id`, set when payroll takes it and
+  cleared (SET NULL) if that adjustment is removed.
+- **onboarding_templates** / **onboarding_template_tasks**: tasks with
+  `position`, title, `due_days` from the start, `assignee` HR | MANAGER |
+  EMPLOYEE.
+- **onboarding_checklists**: employee, template, `started_on`, creator,
+  `completed_at`, `cancelled_at` with reason; one open per employee and
+  template (partial unique index).
+- **onboarding_tasks**: copied tasks with `due_on`, `done_at`/by, note.
+
 ### Leave (HR2b, ADR-081)
 
 Migration `20261208090000_hr2b_leave`.

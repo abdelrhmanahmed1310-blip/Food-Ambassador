@@ -29,6 +29,7 @@ import {
   approveRunAction,
   cancelRunAction,
   markPaidAction,
+  addOvertimeAction,
   recalculateAction,
   removeAdjustmentAction,
   settleAction,
@@ -229,6 +230,14 @@ export default async function PayrollRunPage({
             <ConfirmActionButton
               action={recalculateAction.bind(null, orgSlug, r.run.id)}
               label={t("recalculate")}
+              variant="secondary"
+            />
+          ) : null}
+          {draft && r.canManage ? (
+            <ConfirmActionButton
+              action={addOvertimeAction.bind(null, orgSlug, r.run.id)}
+              label={t("addOvertime")}
+              confirmMessage={t("addOvertimeConfirm")}
               variant="secondary"
             />
           ) : null}

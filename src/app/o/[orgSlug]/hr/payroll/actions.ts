@@ -11,6 +11,7 @@ import {
   createPayrollRun,
   endContributionRule,
   markPayrollRunPaid,
+  addOvertimeToRun,
   recalculatePayrollRun,
   removePayrollAdjustment,
   setBankAccount,
@@ -44,6 +45,18 @@ export async function createRunAction(orgSlug: string, previous: S, formData: Fo
   return result;
 }
 
+export async function addOvertimeAction(
+  orgSlug: string,
+  runId: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("payroll");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    const { added } = await addOvertimeToRun(ctx, runId);
+    return { message: t("overtimeAdded", { count: added }) };
+  });
+}
 export async function recalculateAction(
   orgSlug: string,
   runId: string,

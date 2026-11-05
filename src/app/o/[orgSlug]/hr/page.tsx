@@ -10,8 +10,8 @@ import { requireTenant } from "@/modules/tenancy/require-tenant";
 /** HR capabilities and what each one has today (ADR-079). Phases are in PROJECT_PLAN.md. */
 const CAPABILITIES = [
   ["hris", "AVAILABLE", "HR1"],
-  ["onboarding", "PARTIAL", "HR2"],
-  ["attendance", "PARTIAL", "HR2"],
+  ["onboarding", "AVAILABLE", "HR2"],
+  ["attendance", "AVAILABLE", "HR2"],
   ["automation", "PARTIAL", "HR2"],
   ["recruitment", "PLANNED", "HR3"],
   ["workforce", "PLANNED", "HR3"],

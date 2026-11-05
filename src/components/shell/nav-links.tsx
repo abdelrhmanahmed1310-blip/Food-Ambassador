@@ -10,6 +10,8 @@ import {
   Building2,
   ChefHat,
   CalendarDays,
+  CalendarClock,
+  ListChecks,
   ChevronDown,
   Clock,
   Handshake,
@@ -57,6 +59,8 @@ const ICONS = {
   goals: Target,
   survey: MessageSquare,
   recognition: Heart,
+  roster: CalendarClock,
+  onboarding: ListChecks,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 
