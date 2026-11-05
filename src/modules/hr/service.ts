@@ -434,42 +434,55 @@ function uniqueError(error: unknown) {
       });
 }
 
-export async function createEmployee(ctx: TenantContext, rawInput: unknown) {
+/**
+ * Create an employee inside a caller's transaction (recruitment hires
+ * through this, ADR-129). Unique-number and account clashes surface as the
+ * database error; callers map them with `employeeUniqueError`.
+ */
+export async function createEmployeeInTx(tx: Tx, ctx: TenantContext, rawInput: unknown) {
   const parsed = employeeSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const v = parsed.data;
   if (!canManageBranch(ctx, v.branchId)) throw forbidden();
+  await checkLinks(tx, ctx, v, null);
+  const e = await tx.employee.create({
+    data: {
+      organizationId: ctx.organizationId,
+      number: v.number ?? (await nextEmployeeNumber(tx, ctx.organizationId)),
+      firstName: v.firstName,
+      lastName: v.lastName,
+      nameAr: v.nameAr ?? null,
+      email: v.email,
+      phone: v.phone,
+      nationality: v.nationality,
+      nationalId: v.nationalId,
+      jobTitle: v.jobTitle,
+      branchId: v.branchId,
+      departmentId: v.departmentId,
+      managerId: v.managerId,
+      employmentType: v.employmentType,
+      hireDate: asDate(v.hireDate),
+      userId: v.userId,
+    },
+  });
+  await recordAudit(tx, actorOf(ctx), {
+    action: "employee.created",
+    entityType: "employee",
+    entityId: e.id,
+    changes: { number: e.number, ...auditable(v) },
+  });
+  return e;
+}
+
+export const employeeUniqueError = (error: unknown) => uniqueError(error);
+
+export async function createEmployee(ctx: TenantContext, rawInput: unknown) {
+  // Validate and check access before opening a transaction.
+  const parsed = employeeSchema.safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  if (!canManageBranch(ctx, parsed.data.branchId)) throw forbidden();
   try {
-    return await withTenantTx(ctx.organizationId, async (tx) => {
-      await checkLinks(tx, ctx, v, null);
-      const e = await tx.employee.create({
-        data: {
-          organizationId: ctx.organizationId,
-          number: v.number ?? (await nextEmployeeNumber(tx, ctx.organizationId)),
-          firstName: v.firstName,
-          lastName: v.lastName,
-          nameAr: v.nameAr ?? null,
-          email: v.email,
-          phone: v.phone,
-          nationality: v.nationality,
-          nationalId: v.nationalId,
-          jobTitle: v.jobTitle,
-          branchId: v.branchId,
-          departmentId: v.departmentId,
-          managerId: v.managerId,
-          employmentType: v.employmentType,
-          hireDate: asDate(v.hireDate),
-          userId: v.userId,
-        },
-      });
-      await recordAudit(tx, actorOf(ctx), {
-        action: "employee.created",
-        entityType: "employee",
-        entityId: e.id,
-        changes: { number: e.number, ...auditable(v) },
-      });
-      return e;
-    });
+    return await withTenantTx(ctx.organizationId, (tx) => createEmployeeInTx(tx, ctx, rawInput));
   } catch (error) {
     throw uniqueError(error);
   }

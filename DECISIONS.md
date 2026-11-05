@@ -3524,6 +3524,60 @@ through payroll (ADR-123), and new hires get onboarding checklists.
   open shifts, availability, labour cost against sales, break rules,
   night or holiday premiums, onboarding documents to sign.
 
+### ADR-129 Recruitment and workforce planning — Accepted (HR3 built)
+
+Decision (2026-11-05): branches plan their positions, ask to recruit
+against the plan, and run candidates through to a hire that creates the
+employee.
+
+- **Workforce plan**: a planned headcount per branch and job title, set by
+  HR at the branch. Titles match employees' titles without regard to case
+  or spacing. The plan page shows planned, in post (active and on leave),
+  in recruitment (places left on openings waiting or open) and the gap —
+  to fill, on plan, or over plan; titles with people but no plan show
+  with zero planned.
+- **Openings** (JOB-year-number) for a branch, job title, optional
+  department, employment type, places, reason (new position, replacement,
+  seasonal), target start and description. Requested with
+  `recruitment.manage` at the branch; the places beyond the plan's gap at
+  that moment are recorded and shown to the approver (not a block).
+  Organization-wide HR approves or rejects — never the requester. An open
+  opening fills with its last hire; it is closed by hand only once no
+  candidate is still in play.
+- **Candidates** (personal data): name, e-mail (one live record per
+  address), phone, source, note, CVs as attachments. Names and contact
+  details are never written to the audit log. Scoped staff see the
+  candidates on their branches' openings and those they added.
+- **Applications** move APPLIED → SCREENING → INTERVIEW → OFFER, one step
+  forward or out to REJECTED or WITHDRAWN (with a note), each change
+  recorded. HIRED only through a hire; closed applications never move
+  (trigger).
+- **Interviews** (in person, phone, video or **trial shift**) are scheduled
+  while screening or interviewing — the first moves a screened candidate
+  to interview — with an interviewer who is any member of the
+  organization. Only the interviewer scores, once it has begun: rating
+  1–5 and hire / unsure / do not hire, with notes. Scorecards are
+  summarised on the application and the opening.
+- **Hire** at the offer stage, by HR at the branch: in one transaction
+  the employee is created from the candidate and the opening (title,
+  branch, department, employment type), with a hire date and optional line
+  manager; the application closes as hired, the opening counts the hire
+  and fills with the last place, and an onboarding checklist (ADR-128)
+  starts if chosen.
+- **Retention**: organization-wide HR erases a candidate with nothing
+  open — names, contact, notes, interview notes and CVs; the records stay
+  for counts. An optional retention (30–3650 days, none preset) erases
+  such candidates automatically after their last activity (daily job
+  `recruitment.purge`).
+- **Access**: new `recruitment.view` and `recruitment.manage`, per branch
+  (administrators, operations managers and branch managers);
+  organization-wide `hr.manage` approves, sets retention and erases;
+  hiring needs `hr.manage` at the branch. Needs attention shows HR openings
+  to approve and each interviewer the interviews to score.
+- **Not yet**: a public careers page and online applications, job-board
+  posting, offer letters with pay (pay stays in payroll), e-mail to
+  candidates, a talent pool, headcount budgets in money.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

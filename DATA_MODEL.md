@@ -1719,6 +1719,30 @@ Migration `20261209090000_f1a_companies_brands`.
 - **branches** gains `company_id` (required; backfilled to the default
   company) and `brand_id` (optional), both with composite tenant keys.
 
+### Recruitment and workforce planning (HR3, ADR-129)
+
+Migration `20270120090000_hr3_recruitment`.
+
+- **recruitment_settings** (one per organization):
+  `candidate_retention_days` (30–3650 or null).
+- **workforce_positions**: branch, `job_title`, `title_key` (lower case,
+  single spaces; unique per branch), `planned_headcount`, note.
+- **job_openings**: `number` (JOB-), branch, department, title and key,
+  `employment_type`, `headcount`, `reason`, description,
+  `target_start_on`, `status` PENDING_APPROVAL | OPEN | FILLED | CLOSED |
+  REJECTED, `beyond_plan`, requester, decider and note, `hired`,
+  `closed_at` with reason.
+- **candidates**: names, `email` (unique among live candidates, case-
+  insensitive), phone, `source`, note, `last_activity_at`, `erased_at`.
+- **job_applications**: opening × candidate (unique), `stage`,
+  `stage_changed_at`, `close_note`, `employee_id` (set exactly when
+  HIRED); closed stages are final (trigger).
+- **application_events**: from → to stage, note, who, when (insert only).
+- **interviews**: application, `kind`, `scheduled_at`, location,
+  interviewer (a user), `status` SCHEDULED | DONE | CANCELLED, `rating`
+  1–5, `recommendation`, notes, `submitted_at`.
+- Attachments gain the entity CANDIDATE (CVs).
+
 ### Rosters and onboarding (HR2c, ADR-128)
 
 Migration `20270119090000_hr2c_rosters_onboarding`.

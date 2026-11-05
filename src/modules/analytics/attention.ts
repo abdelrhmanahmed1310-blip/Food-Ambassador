@@ -2,6 +2,7 @@ import { surveysToAnswerCountInTx } from "@/modules/engagement/service";
 import { reviewsToDoInTx } from "@/modules/performance/service";
 import { trainingAttentionInTx } from "@/modules/learning/service";
 import { onboardingAttentionInTx } from "@/modules/rosters/onboarding";
+import { recruitmentAttentionInTx } from "@/modules/recruitment/service";
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
@@ -64,6 +65,8 @@ export type AttentionKey =
   | "SURVEYS_TO_ANSWER"
   | "TRAINING_EXPIRING"
   | "ONBOARDING_OVERDUE"
+  | "OPENINGS_TO_APPROVE"
+  | "INTERVIEWS_TO_SCORE"
   | "ONBOARDING_TASKS_MINE"
   | "TRADE_DOCUMENTS_EXPIRING"
   | "COLD_CHAIN_EXCURSIONS"
@@ -684,6 +687,21 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
       tone: "info",
       count: await reviewsToDoInTx(tx, ctx),
       href: "/my/performance",
+    });
+
+    // Job openings to approve and interviews to score (ADR-129).
+    const recruitment = await recruitmentAttentionInTx(tx, ctx);
+    push({
+      key: "OPENINGS_TO_APPROVE",
+      tone: "info",
+      count: recruitment.toApprove,
+      href: "/hr/recruitment?status=PENDING_APPROVAL",
+    });
+    push({
+      key: "INTERVIEWS_TO_SCORE",
+      tone: "warning",
+      count: recruitment.toScore,
+      href: "/my/interviews",
     });
 
     // Onboarding tasks overdue (HR) and waiting on the user (ADR-128).

@@ -203,7 +203,10 @@
     "myRoster": "My roster",
     "myOnboarding": "Onboarding",
     "rosters": "Rosters",
-    "onboarding": "Onboarding"
+    "onboarding": "Onboarding",
+    "recruitment": "Recruitment",
+    "workforce": "Workforce plan",
+    "myInterviews": "My interviews"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -352,7 +355,8 @@
     "invalidPercent": "Enter a whole number from 0 to 100.",
     "invalidTime": "Enter a time as HH:MM.",
     "shiftTooLong": "A shift cannot start and end at the same time.",
-    "overtimePayIncomplete": "Enter the overtime multiplier and the pay it is based on together."
+    "overtimePayIncomplete": "Enter the overtime multiplier and the pay it is based on together.",
+    "retentionRange": "Enter between 30 and 3650 days, or leave empty."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -885,7 +889,19 @@
     "ONBOARDING_ARCHIVED": "This checklist is archived.",
     "ONBOARDING_TERMINATED": "This employee has left.",
     "ONBOARDING_NO_TASKS": "Add tasks to the checklist first.",
-    "ONBOARDING_CLOSED": "This checklist is closed."
+    "ONBOARDING_CLOSED": "This checklist is closed.",
+    "OPENING_NOT_PENDING": "This opening was already decided.",
+    "OPENING_SELF_APPROVAL": "Someone else approves your request.",
+    "OPENING_NOT_OPEN": "This opening is not open.",
+    "OPENING_HAS_CANDIDATES": "Reject or withdraw the candidates still in play first.",
+    "CANDIDATE_ERASED": "This candidate was erased.",
+    "CANDIDATE_ACTIVE": "Reject or withdraw the candidate's open applications first.",
+    "APPLICATION_MOVE": "The application cannot move to this stage.",
+    "INTERVIEW_STAGE": "Interviews are scheduled while screening or interviewing.",
+    "INTERVIEWER_NOT_MEMBER": "Choose a member of the organization.",
+    "INTERVIEW_NOT_SCHEDULED": "This interview is no longer scheduled.",
+    "INTERVIEW_NOT_YET": "Score the interview once it has taken place.",
+    "HIRE_NOT_OFFER": "Hire a candidate who was made an offer."
   },
   "notFound": {
     "title": "Page not found",
@@ -1147,7 +1163,11 @@
       "performance.manage": "Run review cycles and finalize ratings",
       "engagement.view": "See survey results",
       "engagement.manage": "Run surveys and moderate recognition",
-      "rosters.manage": "Plan rosters and decide on overtime"
+      "rosters.manage": "Plan rosters and decide on overtime",
+      "recruitment": {
+        "view": "See openings and candidates",
+        "manage": "Request openings and run candidates through interviews"
+      }
     }
   },
   "audit": {
@@ -2872,7 +2892,9 @@
       "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {# performance review waiting for you} other {# performance reviews waiting for you}}",
       "SURVEYS_TO_ANSWER": "{count, plural, one {# survey waiting for your answers} other {# surveys waiting for your answers}}",
       "ONBOARDING_OVERDUE": "{count, plural, one {# onboarding task overdue} other {# onboarding tasks overdue}}",
-      "ONBOARDING_TASKS_MINE": "{count, plural, one {# onboarding task for you} other {# onboarding tasks for you}}"
+      "ONBOARDING_TASKS_MINE": "{count, plural, one {# onboarding task for you} other {# onboarding tasks for you}}",
+      "OPENINGS_TO_APPROVE": "{count, plural, one {# job opening to approve} other {# job openings to approve}}",
+      "INTERVIEWS_TO_SCORE": "{count, plural, one {# interview to score} other {# interviews to score}}"
     }
   },
   "production": {
@@ -4175,7 +4197,7 @@
       },
       "recruitment": {
         "title": "Recruitment",
-        "text": "Vacancies, applicants and talent pipeline."
+        "text": "Openings with approval against a workforce plan, candidates through screening, interviews and trial shifts with scorecards, offers, and a hire that creates the employee and starts onboarding."
       },
       "onboarding": {
         "title": "Onboarding",
@@ -4203,7 +4225,7 @@
       },
       "workforce": {
         "title": "Workforce planning",
-        "text": "Positions, headcount plans and capacity per branch."
+        "text": "Planned positions per branch and job title against people in post and openings being recruited."
       },
       "automation": {
         "title": "HR automation",
@@ -7060,5 +7082,167 @@
     "myTitle": "Onboarding",
     "tasksToDo": "{count, plural, =0 {Nothing waiting for you.} one {# task waiting for you.} other {# tasks waiting for you.}}",
     "yours": "Your {name}"
+  },
+  "recruitment": {
+    "title": "Recruitment",
+    "hint": "Openings requested by branches and approved by HR; candidates through screening, interviews and offers to hire.",
+    "candidates": "Candidates",
+    "workforce": "Workforce plan",
+    "live": "Waiting or open",
+    "openingStatuses": {
+      "PENDING_APPROVAL": "Waiting for approval",
+      "OPEN": "Open",
+      "FILLED": "Filled",
+      "CLOSED": "Closed",
+      "REJECTED": "Not approved"
+    },
+    "noOpenings": "No openings here.",
+    "number": "Number",
+    "jobTitle": "Job title",
+    "branch": "Branch",
+    "places": "Hired / places",
+    "inPlay": "In play",
+    "status": "Status",
+    "beyondPlan": "{count} beyond plan",
+    "withinPlan": "Within the workforce plan",
+    "plan": "Workforce plan",
+    "requestOpening": "Request an opening",
+    "department": "Department",
+    "none": "None",
+    "employmentType": "Employment type",
+    "employmentTypes": {
+      "FULL_TIME": "Full time",
+      "PART_TIME": "Part time",
+      "CONTRACT": "Contract",
+      "TEMPORARY": "Temporary"
+    },
+    "headcount": "Places",
+    "reason": "Reason",
+    "reasons": {
+      "NEW_POSITION": "New position",
+      "REPLACEMENT": "Replacement",
+      "SEASONAL": "Seasonal"
+    },
+    "targetStart": "Wanted from",
+    "description": "Description",
+    "details": "Details",
+    "decisionNote": "Decision note",
+    "closeReason": "Closed because",
+    "approval": "Approval",
+    "decision": "Decision",
+    "approveOpening": "Approve",
+    "rejectOpening": "Do not approve",
+    "decide": "Record decision",
+    "candidate": "Candidate",
+    "source": "Source",
+    "sources": {
+      "REFERRAL": "Referral",
+      "JOB_BOARD": "Job board",
+      "WALK_IN": "Walk-in",
+      "AGENCY": "Agency",
+      "SOCIAL_MEDIA": "Social media",
+      "OTHER": "Other"
+    },
+    "stage": "Stage",
+    "stages": {
+      "APPLIED": "Applied",
+      "SCREENING": "Screening",
+      "INTERVIEW": "Interview",
+      "OFFER": "Offer",
+      "HIRED": "Hired",
+      "REJECTED": "Rejected",
+      "WITHDRAWN": "Withdrawn"
+    },
+    "scorecards": "Scorecards",
+    "scoreLine": "{average} / 5 from {count, plural, one {# scorecard} other {# scorecards}}",
+    "recommendLine": "hire {hire}, unsure {unsure}, do not hire {noHire}",
+    "noCandidates": "No candidates yet.",
+    "addCandidate": "Add candidate",
+    "existingCandidate": "Existing candidate",
+    "newCandidate": "New candidate (below)",
+    "newCandidateHint": "Choose an existing candidate, or leave it on new and fill in the details.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "E-mail",
+    "phone": "Phone",
+    "note": "Note",
+    "closeOpening": "Close opening",
+    "working": "Working…",
+    "backToOpening": "Back to the opening",
+    "candidateRecord": "Candidate record",
+    "employeeRecord": "Employee record",
+    "move": "Move",
+    "moveTo": "Move to",
+    "interviews": "Interviews",
+    "noInterviews": "No interviews yet.",
+    "kinds": {
+      "IN_PERSON": "In person",
+      "PHONE": "Phone",
+      "VIDEO": "Video",
+      "TRIAL_SHIFT": "Trial shift"
+    },
+    "interviewStatuses": {
+      "SCHEDULED": "Scheduled",
+      "DONE": "Scored",
+      "CANCELLED": "Cancelled"
+    },
+    "ratings": {
+      "1": "1 — poor",
+      "2": "2 — below the bar",
+      "3": "3 — meets the bar",
+      "4": "4 — strong",
+      "5": "5 — outstanding"
+    },
+    "recommendations": {
+      "HIRE": "Hire",
+      "NO_HIRE": "Do not hire",
+      "UNSURE": "Unsure"
+    },
+    "cancelInterview": "Cancel interview",
+    "schedule": "Schedule interview",
+    "interviewKind": "Kind",
+    "date": "Date",
+    "time": "Time",
+    "interviewer": "Interviewer",
+    "location": "Where",
+    "hire": "Hire",
+    "hireHint": "Creates the employee from the candidate and this opening, closes the application as hired, and starts onboarding if chosen.",
+    "hireDate": "Hire date",
+    "lineManager": "Line manager",
+    "onboarding": "Onboarding checklist",
+    "history": "History",
+    "candidatesHint": "People applying. Their details are personal data: erased by hand or after the retention days.",
+    "search": "Search",
+    "applications": "Applications",
+    "noApplications": "No applications.",
+    "erasedName": "Erased candidate",
+    "createCandidate": "Add candidate",
+    "contact": "Contact",
+    "erasedHint": "This candidate's personal data was erased; the applications remain for counts.",
+    "erase": "Erase personal data",
+    "eraseConfirm": "Erase this candidate's name, contact details, notes and files? This cannot be undone.",
+    "retention": "Candidate data retention",
+    "retentionDays": "Erase candidates after (days)",
+    "retentionHint": "Counted from their last activity, once no application is open. Leave empty to keep until erased by hand.",
+    "save": "Save",
+    "saved": "Saved.",
+    "workforceHint": "Planned positions per branch and job title, against people in post and openings being recruited.",
+    "noPlan": "No positions planned yet.",
+    "planned": "Planned",
+    "filled": "In post",
+    "inRecruitment": "Recruiting",
+    "gap": "Gap",
+    "toFill": "{count} to fill",
+    "overPlan": "{count} over plan",
+    "onPlan": "On plan",
+    "setPosition": "Set planned positions",
+    "myInterviews": "My interviews",
+    "myInterviewsHint": "Interviews and trial shifts you run. Score each once it has taken place.",
+    "noMyInterviews": "No interviews for you.",
+    "submitScorecard": "Submit scorecard",
+    "rating": "Rating",
+    "recommendation": "Recommendation",
+    "notes": "Notes",
+    "scoreAfter": "You can score it once it has started."
   }
 }

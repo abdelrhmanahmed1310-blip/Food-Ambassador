@@ -50,6 +50,7 @@ model User {
   riddenDeliveries        HomeDelivery[]           @relation("HomeDeliveryRider")
 
   assistantConversations AssistantConversation[]
+  interviewsToGive       Interview[]
 
   @@map("users")
 }
@@ -406,6 +407,14 @@ model Organization {
   onboardingChecklists    OnboardingChecklist[]
   onboardingTasks         OnboardingTask[]
 
+  recruitmentSettings RecruitmentSettings?
+  workforcePositions  WorkforcePosition[]
+  jobOpenings         JobOpening[]
+  candidates          Candidate[]
+  jobApplications     JobApplication[]
+  applicationEvents   ApplicationEvent[]
+  interviews          Interview[]
+
   @@map("organizations")
 }
 
@@ -608,6 +617,9 @@ model Branch {
   trainingSessions TrainingSession[]
 
   rosterShifts RosterShift[]
+
+  workforcePositions WorkforcePosition[]
+  jobOpenings        JobOpening[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1361,6 +1373,7 @@ model ExchangeRate {
 
 /// Documents that can carry attachments (ADR-051).
 enum AttachmentEntity {
+  CANDIDATE
   PURCHASE_ORDER
   GOODS_RECEIPT
   SUPPLIER_INVOICE
@@ -6533,6 +6546,8 @@ model Department {
   children     Department[] @relation("DepartmentTree")
   employees    Employee[]
 
+  jobOpenings JobOpening[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@map("departments")
@@ -6600,6 +6615,8 @@ model Employee {
   rosterShifts         RosterShift[]
   overtimeDecisions    OvertimeDecision[]
   onboardingChecklists OnboardingChecklist[]
+
+  hiredFrom JobApplication?
 
   @@unique([organizationId, id])
   @@unique([organizationId, number])
@@ -8565,4 +8582,220 @@ model OnboardingTask {
   @@unique([organizationId, checklistId, position])
   @@index([organizationId, dueOn])
   @@map("onboarding_tasks")
+}
+
+// ─── HR3 recruitment and workforce planning (ADR-129) ───
+
+enum JobOpeningStatus {
+  PENDING_APPROVAL
+  OPEN
+  FILLED
+  CLOSED
+  REJECTED
+}
+
+enum JobOpeningReason {
+  NEW_POSITION
+  REPLACEMENT
+  SEASONAL
+}
+
+enum CandidateSource {
+  REFERRAL
+  JOB_BOARD
+  WALK_IN
+  AGENCY
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum ApplicationStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum InterviewKind {
+  IN_PERSON
+  PHONE
+  VIDEO
+  TRIAL_SHIFT
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  DONE
+  CANCELLED
+}
+
+enum InterviewRecommendation {
+  HIRE
+  NO_HIRE
+  UNSURE
+}
+
+/// How long candidates' data is kept after their last application closes; null keeps it until erased by hand.
+model RecruitmentSettings {
+  organizationId         String   @id @map("organization_id") @db.Uuid
+  candidateRetentionDays Int?     @map("candidate_retention_days")
+  updatedByUserId        String   @map("updated_by_user_id") @db.Uuid
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("recruitment_settings")
+}
+
+/// The planned headcount of a job title at a branch.
+model WorkforcePosition {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  jobTitle         String   @map("job_title")
+  /// The title in lower case with single spaces, to match employees' titles.
+  titleKey         String   @map("title_key")
+  plannedHeadcount Int      @map("planned_headcount")
+  note             String?
+  updatedByUserId  String   @map("updated_by_user_id") @db.Uuid
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, branchId, titleKey])
+  @@map("workforce_positions")
+}
+
+/// A request to recruit for a job at a branch; approved by HR before candidates are hired.
+model JobOpening {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  number            String
+  branchId          String           @map("branch_id") @db.Uuid
+  departmentId      String?          @map("department_id") @db.Uuid
+  jobTitle          String           @map("job_title")
+  titleKey          String           @map("title_key")
+  employmentType    EmploymentType   @map("employment_type")
+  headcount         Int
+  reason            JobOpeningReason
+  description       String?
+  targetStartOn     DateTime?        @map("target_start_on") @db.Date
+  status            JobOpeningStatus @default(PENDING_APPROVAL)
+  /// Places beyond the workforce plan when requested (shown to the approver).
+  beyondPlan        Int              @default(0) @map("beyond_plan")
+  requestedByUserId String           @map("requested_by_user_id") @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedByUserId   String?          @map("decided_by_user_id") @db.Uuid
+  decidedAt         DateTime?        @map("decided_at") @db.Timestamptz(3)
+  decisionNote      String?          @map("decision_note")
+  hired             Int              @default(0)
+  closedAt          DateTime?        @map("closed_at") @db.Timestamptz(3)
+  closeReason       String?          @map("close_reason")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch           @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  department   Department?      @relation(fields: [organizationId, departmentId], references: [organizationId, id], onDelete: Restrict)
+  applications JobApplication[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@map("job_openings")
+}
+
+/// A person applying. Personal data: erased (not deleted) by hand or after the retention days.
+model Candidate {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  firstName       String          @map("first_name")
+  lastName        String          @map("last_name")
+  email           String?
+  phone           String?
+  source          CandidateSource
+  note            String?
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastActivityAt  DateTime        @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  erasedAt        DateTime?       @map("erased_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  applications JobApplication[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, lastActivityAt])
+  @@map("candidates")
+}
+
+/// A candidate for one opening, moving through the stages.
+model JobApplication {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  openingId      String           @map("opening_id") @db.Uuid
+  candidateId    String           @map("candidate_id") @db.Uuid
+  stage          ApplicationStage @default(APPLIED)
+  stageChangedAt DateTime         @default(now()) @map("stage_changed_at") @db.Timestamptz(3)
+  closeNote      String?          @map("close_note")
+  employeeId     String?          @unique @map("employee_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  opening      JobOpening         @relation(fields: [organizationId, openingId], references: [organizationId, id], onDelete: Restrict)
+  candidate    Candidate          @relation(fields: [organizationId, candidateId], references: [organizationId, id], onDelete: Restrict)
+  employee     Employee?          @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  events       ApplicationEvent[]
+  interviews   Interview[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, employeeId])
+  @@unique([organizationId, openingId, candidateId])
+  @@index([organizationId, stage])
+  @@map("job_applications")
+}
+
+/// Every stage change of an application, append-only.
+model ApplicationEvent {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  applicationId  String            @map("application_id") @db.Uuid
+  fromStage      ApplicationStage? @map("from_stage")
+  toStage        ApplicationStage  @map("to_stage")
+  note           String?
+  byUserId       String            @map("by_user_id") @db.Uuid
+  at             DateTime          @default(now()) @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  application  JobApplication @relation(fields: [organizationId, applicationId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, applicationId, at])
+  @@map("application_events")
+}
+
+/// An interview or trial shift, with the interviewer's scorecard.
+model Interview {
+  id                String                   @id @default(uuid(7)) @db.Uuid
+  organizationId    String                   @map("organization_id") @db.Uuid
+  applicationId     String                   @map("application_id") @db.Uuid
+  kind              InterviewKind
+  scheduledAt       DateTime                 @map("scheduled_at") @db.Timestamptz(3)
+  location          String?
+  interviewerUserId String                   @map("interviewer_user_id") @db.Uuid
+  status            InterviewStatus          @default(SCHEDULED)
+  rating            Int?
+  recommendation    InterviewRecommendation?
+  notes             String?
+  submittedAt       DateTime?                @map("submitted_at") @db.Timestamptz(3)
+  createdByUserId   String                   @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  application  JobApplication @relation(fields: [organizationId, applicationId], references: [organizationId, id], onDelete: Restrict)
+  interviewer  User           @relation(fields: [interviewerUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, interviewerUserId, status])
+  @@index([organizationId, applicationId])
+  @@map("interviews")
 }

@@ -203,7 +203,10 @@
     "myRoster": "جدول مناوباتي",
     "myOnboarding": "التهيئة",
     "rosters": "جداول المناوبات",
-    "onboarding": "تهيئة الموظفين الجدد"
+    "onboarding": "تهيئة الموظفين الجدد",
+    "recruitment": "التوظيف",
+    "workforce": "خطة القوى العاملة",
+    "myInterviews": "مقابلاتي"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -352,7 +355,8 @@
     "invalidPercent": "أدخل عددًا صحيحًا من 0 إلى 100.",
     "invalidTime": "أدخل الوقت بصيغة HH:MM.",
     "shiftTooLong": "لا يمكن أن تبدأ المناوبة وتنتهي في الوقت نفسه.",
-    "overtimePayIncomplete": "أدخل معامل العمل الإضافي والأجر الذي يُحتسب عليه معًا."
+    "overtimePayIncomplete": "أدخل معامل العمل الإضافي والأجر الذي يُحتسب عليه معًا.",
+    "retentionRange": "أدخل من 30 إلى 3650 يومًا، أو اتركه فارغًا."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -885,7 +889,19 @@
     "ONBOARDING_ARCHIVED": "قائمة المهام هذه مؤرشفة.",
     "ONBOARDING_TERMINATED": "غادر هذا الموظف.",
     "ONBOARDING_NO_TASKS": "أضف مهام إلى القائمة أولًا.",
-    "ONBOARDING_CLOSED": "قائمة المهام هذه مغلقة."
+    "ONBOARDING_CLOSED": "قائمة المهام هذه مغلقة.",
+    "OPENING_NOT_PENDING": "تم البت في هذه الوظيفة الشاغرة بالفعل.",
+    "OPENING_SELF_APPROVAL": "يعتمد شخص آخر طلبك.",
+    "OPENING_NOT_OPEN": "هذه الوظيفة الشاغرة ليست مفتوحة.",
+    "OPENING_HAS_CANDIDATES": "ارفض أو اسحب المرشحين الذين ما زالوا قيد النظر أولًا.",
+    "CANDIDATE_ERASED": "تم مسح بيانات هذا المرشح.",
+    "CANDIDATE_ACTIVE": "ارفض أو اسحب طلبات المرشح المفتوحة أولًا.",
+    "APPLICATION_MOVE": "لا يمكن نقل الطلب إلى هذه المرحلة.",
+    "INTERVIEW_STAGE": "تُحدد المقابلات أثناء الفرز أو المقابلات.",
+    "INTERVIEWER_NOT_MEMBER": "اختر عضوًا في المؤسسة.",
+    "INTERVIEW_NOT_SCHEDULED": "لم تعد هذه المقابلة مجدولة.",
+    "INTERVIEW_NOT_YET": "قيّم المقابلة بعد انعقادها.",
+    "HIRE_NOT_OFFER": "وظّف مرشحًا قُدم له عرض."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1147,7 +1163,11 @@
       "performance.manage": "إدارة دورات التقييم واعتماد التقييمات",
       "engagement.view": "عرض نتائج الاستبيانات",
       "engagement.manage": "إدارة الاستبيانات والإشراف على التقدير",
-      "rosters.manage": "إعداد جداول المناوبات والبت في العمل الإضافي"
+      "rosters.manage": "إعداد جداول المناوبات والبت في العمل الإضافي",
+      "recruitment": {
+        "view": "عرض الوظائف الشاغرة والمرشحين",
+        "manage": "طلب الوظائف الشاغرة وإدارة المرشحين خلال المقابلات"
+      }
     }
   },
   "audit": {
@@ -2872,7 +2892,9 @@
       "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {تقييم أداء واحد بانتظارك} other {# تقييمات أداء بانتظارك}}",
       "SURVEYS_TO_ANSWER": "{count, plural, one {استبيان واحد بانتظار إجاباتك} other {# استبيانات بانتظار إجاباتك}}",
       "ONBOARDING_OVERDUE": "{count, plural, one {مهمة تهيئة متأخرة واحدة} other {# مهام تهيئة متأخرة}}",
-      "ONBOARDING_TASKS_MINE": "{count, plural, one {مهمة تهيئة واحدة لك} other {# مهام تهيئة لك}}"
+      "ONBOARDING_TASKS_MINE": "{count, plural, one {مهمة تهيئة واحدة لك} other {# مهام تهيئة لك}}",
+      "OPENINGS_TO_APPROVE": "{count, plural, one {وظيفة شاغرة واحدة للاعتماد} other {# وظائف شاغرة للاعتماد}}",
+      "INTERVIEWS_TO_SCORE": "{count, plural, one {مقابلة واحدة للتقييم} other {# مقابلات للتقييم}}"
     }
   },
   "production": {
@@ -4175,7 +4197,7 @@
       },
       "recruitment": {
         "title": "التوظيف",
-        "text": "الوظائف الشاغرة والمتقدمون ومسار المواهب."
+        "text": "وظائف شاغرة باعتماد مقابل خطة القوى العاملة، ومرشحون عبر الفرز والمقابلات والمناوبات التجريبية مع التقييمات والعروض، وتوظيف يُنشئ الموظف ويبدأ التهيئة."
       },
       "onboarding": {
         "title": "التهيئة",
@@ -4203,7 +4225,7 @@
       },
       "workforce": {
         "title": "تخطيط القوى العاملة",
-        "text": "الوظائف وخطط الأعداد والطاقة لكل فرع."
+        "text": "المناصب المخططة لكل فرع ومسمى وظيفي مقابل الموظفين الحاليين والوظائف قيد التوظيف."
       },
       "automation": {
         "title": "أتمتة الموارد البشرية",
@@ -7060,5 +7082,167 @@
     "myTitle": "التهيئة",
     "tasksToDo": "{count, plural, =0 {لا شيء بانتظارك.} one {مهمة واحدة بانتظارك.} other {# مهام بانتظارك.}}",
     "yours": "{name} الخاصة بك"
+  },
+  "recruitment": {
+    "title": "التوظيف",
+    "hint": "وظائف شاغرة تطلبها الفروع وتعتمدها الموارد البشرية؛ ومرشحون عبر الفرز والمقابلات والعروض حتى التوظيف.",
+    "candidates": "المرشحون",
+    "workforce": "خطة القوى العاملة",
+    "live": "بانتظار الاعتماد أو مفتوحة",
+    "openingStatuses": {
+      "PENDING_APPROVAL": "بانتظار الاعتماد",
+      "OPEN": "مفتوحة",
+      "FILLED": "مشغولة",
+      "CLOSED": "مغلقة",
+      "REJECTED": "غير معتمدة"
+    },
+    "noOpenings": "لا توجد وظائف شاغرة هنا.",
+    "number": "الرقم",
+    "jobTitle": "المسمى الوظيفي",
+    "branch": "الفرع",
+    "places": "المعينون / المقاعد",
+    "inPlay": "قيد النظر",
+    "status": "الحالة",
+    "beyondPlan": "{count} خارج الخطة",
+    "withinPlan": "ضمن خطة القوى العاملة",
+    "plan": "خطة القوى العاملة",
+    "requestOpening": "طلب وظيفة شاغرة",
+    "department": "القسم",
+    "none": "لا شيء",
+    "employmentType": "نوع التوظيف",
+    "employmentTypes": {
+      "FULL_TIME": "دوام كامل",
+      "PART_TIME": "دوام جزئي",
+      "CONTRACT": "عقد",
+      "TEMPORARY": "مؤقت"
+    },
+    "headcount": "المقاعد",
+    "reason": "السبب",
+    "reasons": {
+      "NEW_POSITION": "وظيفة جديدة",
+      "REPLACEMENT": "بديل",
+      "SEASONAL": "موسمي"
+    },
+    "targetStart": "مطلوب من",
+    "description": "الوصف",
+    "details": "التفاصيل",
+    "decisionNote": "ملاحظة القرار",
+    "closeReason": "سبب الإغلاق",
+    "approval": "الاعتماد",
+    "decision": "القرار",
+    "approveOpening": "اعتماد",
+    "rejectOpening": "عدم الاعتماد",
+    "decide": "تسجيل القرار",
+    "candidate": "المرشح",
+    "source": "المصدر",
+    "sources": {
+      "REFERRAL": "ترشيح",
+      "JOB_BOARD": "موقع وظائف",
+      "WALK_IN": "حضور مباشر",
+      "AGENCY": "وكالة",
+      "SOCIAL_MEDIA": "وسائل التواصل",
+      "OTHER": "أخرى"
+    },
+    "stage": "المرحلة",
+    "stages": {
+      "APPLIED": "تقدّم",
+      "SCREENING": "الفرز",
+      "INTERVIEW": "المقابلة",
+      "OFFER": "العرض",
+      "HIRED": "تم التوظيف",
+      "REJECTED": "مرفوض",
+      "WITHDRAWN": "منسحب"
+    },
+    "scorecards": "التقييمات",
+    "scoreLine": "{average} / 5 من {count, plural, one {تقييم واحد} other {# تقييمات}}",
+    "recommendLine": "توظيف {hire}، غير متأكد {unsure}، عدم توظيف {noHire}",
+    "noCandidates": "لا يوجد مرشحون بعد.",
+    "addCandidate": "إضافة مرشح",
+    "existingCandidate": "مرشح موجود",
+    "newCandidate": "مرشح جديد (أدناه)",
+    "newCandidateHint": "اختر مرشحًا موجودًا، أو اتركه على جديد واملأ التفاصيل.",
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "note": "ملاحظة",
+    "closeOpening": "إغلاق الوظيفة الشاغرة",
+    "working": "جارٍ التنفيذ…",
+    "backToOpening": "العودة إلى الوظيفة الشاغرة",
+    "candidateRecord": "سجل المرشح",
+    "employeeRecord": "سجل الموظف",
+    "move": "نقل",
+    "moveTo": "النقل إلى",
+    "interviews": "المقابلات",
+    "noInterviews": "لا توجد مقابلات بعد.",
+    "kinds": {
+      "IN_PERSON": "حضوري",
+      "PHONE": "هاتفية",
+      "VIDEO": "مرئية",
+      "TRIAL_SHIFT": "مناوبة تجريبية"
+    },
+    "interviewStatuses": {
+      "SCHEDULED": "مجدولة",
+      "DONE": "مُقيّمة",
+      "CANCELLED": "ملغاة"
+    },
+    "ratings": {
+      "1": "1 — ضعيف",
+      "2": "2 — دون المستوى",
+      "3": "3 — يلبي المستوى",
+      "4": "4 — قوي",
+      "5": "5 — متميز"
+    },
+    "recommendations": {
+      "HIRE": "توظيف",
+      "NO_HIRE": "عدم توظيف",
+      "UNSURE": "غير متأكد"
+    },
+    "cancelInterview": "إلغاء المقابلة",
+    "schedule": "جدولة مقابلة",
+    "interviewKind": "النوع",
+    "date": "التاريخ",
+    "time": "الوقت",
+    "interviewer": "المُقابِل",
+    "location": "المكان",
+    "hire": "توظيف",
+    "hireHint": "يُنشئ الموظف من المرشح وهذه الوظيفة، ويغلق الطلب كتوظيف، ويبدأ التهيئة إن اختيرت.",
+    "hireDate": "تاريخ التعيين",
+    "lineManager": "المدير المباشر",
+    "onboarding": "قائمة التهيئة",
+    "history": "السجل",
+    "candidatesHint": "المتقدمون. بياناتهم شخصية: تُمسح يدويًا أو بعد أيام الاحتفاظ.",
+    "search": "بحث",
+    "applications": "الطلبات",
+    "noApplications": "لا توجد طلبات.",
+    "erasedName": "مرشح ممسوح",
+    "createCandidate": "إضافة مرشح",
+    "contact": "التواصل",
+    "erasedHint": "مُسحت البيانات الشخصية لهذا المرشح؛ وتبقى الطلبات للإحصاء.",
+    "erase": "مسح البيانات الشخصية",
+    "eraseConfirm": "مسح اسم هذا المرشح وبيانات التواصل والملاحظات والملفات؟ لا يمكن التراجع.",
+    "retention": "الاحتفاظ ببيانات المرشحين",
+    "retentionDays": "مسح المرشحين بعد (أيام)",
+    "retentionHint": "تُحسب من آخر نشاط، بعد ألا يبقى طلب مفتوح. اتركه فارغًا للاحتفاظ حتى المسح اليدوي.",
+    "save": "حفظ",
+    "saved": "تم الحفظ.",
+    "workforceHint": "المناصب المخططة لكل فرع ومسمى وظيفي، مقابل الموظفين الحاليين والوظائف قيد التوظيف.",
+    "noPlan": "لا توجد مناصب مخططة بعد.",
+    "planned": "المخطط",
+    "filled": "الحاليون",
+    "inRecruitment": "قيد التوظيف",
+    "gap": "الفجوة",
+    "toFill": "{count} للشغل",
+    "overPlan": "{count} فوق الخطة",
+    "onPlan": "وفق الخطة",
+    "setPosition": "تحديد المناصب المخططة",
+    "myInterviews": "مقابلاتي",
+    "myInterviewsHint": "المقابلات والمناوبات التجريبية التي تجريها. قيّم كلًا منها بعد انعقادها.",
+    "noMyInterviews": "لا توجد مقابلات لك.",
+    "submitScorecard": "إرسال التقييم",
+    "rating": "التقدير",
+    "recommendation": "التوصية",
+    "notes": "ملاحظات",
+    "scoreAfter": "يمكنك التقييم بعد بدئها."
   }
 }

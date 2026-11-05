@@ -44,6 +44,7 @@ export const ATTACHMENT_ENTITIES = [
   "TRADE_DOCUMENT",
   "TRIP_STOP",
   "TRAINING_RECORD",
+  "CANDIDATE",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -155,6 +156,33 @@ async function accessTo(
         (st.trip.driverUserId === ctx.userId ||
           hasPermission(ctx.grants, "logistics.manage", where));
       return { view: true, upload: st.trip.status === "IN_PROGRESS" && mayRecord };
+    }
+    case "CANDIDATE": {
+      // A CV or certificate of a candidate (ADR-129): those who see the candidate; erased ones keep none.
+      const c = await tx.candidate.findFirst({
+        where: { organizationId: org, id: entityId },
+        select: {
+          erasedAt: true,
+          createdByUserId: true,
+          applications: { select: { opening: { select: { branchId: true } } } },
+        },
+      });
+      const branches = c ? c.applications.map((a) => a.opening.branchId) : [];
+      const sees = (p: Permission) =>
+        holdsAnyGrant(ctx.grants, p) &&
+        (hasPermission(ctx.grants, p) ||
+          branches.some((branchId) => hasPermission(ctx.grants, p, { branchId })) ||
+          c?.createdByUserId === ctx.userId);
+      if (
+        !c ||
+        c.erasedAt ||
+        !(["recruitment.view", "recruitment.manage", "hr.manage"] as const).some(sees)
+      )
+        throw notFound("Document");
+      return {
+        view: true,
+        upload: sees("recruitment.manage") || sees("hr.manage"),
+      };
     }
     case "TRAINING_RECORD": {
       // A certificate on a training record (ADR-125): the employee's branch; the employee sees their own.

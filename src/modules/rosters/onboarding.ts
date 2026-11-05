@@ -158,11 +158,23 @@ const startSchema = z.object({
 
 /** Start a checklist for an employee, from their hire date unless another start is given. */
 export async function startOnboarding(ctx: TenantContext, employeeId: string, rawInput: unknown) {
+  return withTenantTx(ctx.organizationId, (tx) =>
+    startOnboardingInTx(tx, ctx, employeeId, rawInput),
+  );
+}
+
+/** Start a checklist inside a caller's transaction (a hire from recruitment, ADR-129). */
+export async function startOnboardingInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  employeeId: string,
+  rawInput: unknown,
+) {
   const parsed = startSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const id = uuidSchema.safeParse(employeeId);
   if (!id.success) throw notFound("Employee");
-  return withTenantTx(ctx.organizationId, async (tx) => {
+  {
     const e = await tx.employee.findFirst({
       where: { organizationId: ctx.organizationId, id: id.data, AND: [viewFilter(ctx)] },
       select: { id: true, branchId: true, hireDate: true, status: true },
@@ -212,7 +224,7 @@ export async function startOnboarding(ctx: TenantContext, employeeId: string, ra
       changes: { checklist: t.code, startedOn },
     });
     return c;
-  });
+  }
 }
 
 type Role = { hr: boolean; manager: boolean; employee: boolean };

@@ -1,5 +1,6 @@
 import { purgeOldConversations } from "@/modules/assistant/service";
 import "server-only";
+import { purgeCandidates } from "@/modules/recruitment/service";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { hasPermission } from "@/modules/access/authorize";
@@ -120,6 +121,7 @@ const HANDLERS = {
   "deliveries.purge-contacts": async () => purgeDeliveryContacts(),
   "campaigns.send": async () => sendDueCampaigns(),
   "assistant.purge": async () => purgeOldConversations(),
+  "recruitment.purge": async () => purgeCandidates(),
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -159,6 +161,11 @@ export async function scheduleRecurringJobs(now = new Date()) {
     added += await enqueueJobInTx(tx, {
       kind: "assistant.purge",
       dedupeKey: `assistant.purge:${now.toISOString().slice(0, 10)}`,
+    });
+    // Candidates past the organization's retention days (ADR-129).
+    added += await enqueueJobInTx(tx, {
+      kind: "recruitment.purge",
+      dedupeKey: `recruitment.purge:${now.toISOString().slice(0, 10)}`,
     });
     // Customer contact details of own deliveries, 30 days after they end (ADR-117).
     added += await enqueueJobInTx(tx, {

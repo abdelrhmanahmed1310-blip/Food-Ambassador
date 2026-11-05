@@ -6,6 +6,7 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { DesktopNav, MobileNav, type NavSection } from "@/components/shell/nav-links";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import { hasEmployeeRecord } from "@/modules/hr/attendance";
+import { showsMyInterviews } from "@/modules/recruitment/service";
 import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { unreadCount } from "@/modules/notifications/service";
 import { listUserOrganizations } from "@/modules/organizations/service";
@@ -60,6 +61,13 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
         : []),
     ],
   };
+  // Interviews to run and score (ADR-129).
+  if (await showsMyInterviews(ctx))
+    main.items.push({
+      href: `${base}/my/interviews`,
+      label: t("myInterviews"),
+      icon: "interviews",
+    });
   if (holdsAnyGrant(ctx.grants, "branches.view"))
     main.items.push({ href: `${base}/branches`, label: t("branches"), icon: "branches" });
   if (holdsAnyGrant(ctx.grants, "warehouses.view"))
@@ -277,9 +285,17 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr/rosters`, label: t("rosters") },
       { href: `${base}/hr/leave`, label: t("leave") },
       { href: `${base}/hr/onboarding`, label: t("onboarding") },
+      { href: `${base}/hr/workforce`, label: t("workforce") },
       { href: `${base}/hr/departments`, label: t("departments") },
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );
+  // Recruitment (ADR-129).
+  if (
+    holdsAnyGrant(ctx.grants, "recruitment.view") ||
+    holdsAnyGrant(ctx.grants, "recruitment.manage") ||
+    holdsAnyGrant(ctx.grants, "hr.manage")
+  )
+    hr.items.push({ href: `${base}/hr/recruitment`, label: t("recruitment") });
   // Staff surveys (ADR-127).
   if (
     holdsAnyGrant(ctx.grants, "engagement.view") ||
