@@ -52,6 +52,9 @@ export async function GET(
       ...line.details.contributions
         .filter((c) => new Decimal(c.employee).gt(0))
         .map((c) => [c.name, neg(c.employee)]),
+      ...(new Decimal(line.incomeTax.toString()).gt(0)
+        ? [[t("incomeTax"), neg(line.incomeTax)]]
+        : []),
       ...adjustments
         .filter((a) => a.kind === "DEDUCTION")
         .map((a) => [

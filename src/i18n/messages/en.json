@@ -334,7 +334,8 @@
     "invalidCoverDays": "Enter a whole number of days from 1 to 14.",
     "invalidApiKey": "Enter an Anthropic API key (it starts with sk-ant-).",
     "invalidQuestionLimit": "Enter a whole number from 1 to 1000.",
-    "invalidIban": "Enter a valid IBAN."
+    "invalidIban": "Enter a valid IBAN.",
+    "tiersFromZero": "The first row starts at 0 years."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -820,7 +821,12 @@
     "PAYROLL_NEGATIVE_NET": "Net pay would be below zero for some employees.",
     "PAYROLL_RUN_NOT_APPROVED": "Approve the run first.",
     "PAYROLL_RUN_CLOSED": "A paid or cancelled run cannot be cancelled.",
-    "BANK_ACCOUNT_MISSING": "Some employees paid by bank have no bank account."
+    "BANK_ACCOUNT_MISSING": "Some employees paid by bank have no bank account.",
+    "RULE_OVERLAP": "Another rule of this kind already covers these employees; end it first.",
+    "EOS_NOT_LEAVING": "The employee does not leave in this month.",
+    "EOS_NO_SALARY": "The employee has no salary on record.",
+    "EOS_NO_RULE": "No end-of-service rule covers this employee.",
+    "EOS_NOTHING_DUE": "Nothing is due under the rule for this length of service."
   },
   "notFound": {
     "title": "Page not found",
@@ -4105,7 +4111,7 @@
       },
       "payroll": {
         "title": "Payroll",
-        "text": "Salaries, allowances, unpaid leave, contributions from your own dated rules, approval, payslips and a bank file. Income tax, end of service and WPS / Mudad files wait for your country rules."
+        "text": "Salaries, allowances, unpaid leave, contributions, income tax and end of service from your own dated rules, approval, payslips and a bank file. WPS / Mudad files wait for their specifications."
       },
       "attendance": {
         "title": "Time and attendance",
@@ -6342,7 +6348,7 @@
   "payroll": {
     "title": "Payroll",
     "hint": "Monthly pay per company: salaries, allowances, unpaid leave, contributions and one-off additions or deductions, approved by a second person.",
-    "noPresets": "No statutory rate is built in. Social insurance and similar contributions are worked out only from the rules you enter on the Rules page, with their source. Income tax, end-of-service benefits and WPS / Mudad files are not yet part of payroll.",
+    "noPresets": "No statutory rate is built in. Contributions, income tax and end of service are worked out only from the rules you enter on the Rules page, with their source. WPS / Mudad files are not yet produced.",
     "rules": "Contribution rules",
     "noRuns": "No payroll runs yet.",
     "number": "Number",
@@ -6404,7 +6410,8 @@
       "ADVANCE_RECOVERY": "Advance recovery",
       "INCOME_TAX": "Income tax",
       "PENALTY": "Penalty",
-      "OTHER_DEDUCTION": "Other deduction"
+      "OTHER_DEDUCTION": "Other deduction",
+      "END_OF_SERVICE": "End of service"
     },
     "amount": "Amount",
     "note": "Note",
@@ -6467,6 +6474,51 @@
     "saveBank": "Save bank account",
     "item": "Item",
     "unpaidLeaveLine": "Unpaid leave ({days} days)",
-    "employerNote": "Employer contributions this month: {amount} (not deducted from pay)."
+    "employerNote": "Employer contributions this month: {amount} (not deducted from pay).",
+    "inEosBase": "In end-of-service base",
+    "incomeTax": "Income tax",
+    "eosAccrual": "End-of-service accrual",
+    "eosShort": "EOS +{amount}",
+    "settleTitle": "Settle end of service",
+    "settle": "Add end-of-service payment",
+    "leavingReason": "Why they left",
+    "reasons": {
+      "RESIGNATION": "Resigned",
+      "OTHER": "Ended by the employer or the contract"
+    },
+    "taxTables": "Income tax tables",
+    "noTaxTables": "No income tax tables yet.",
+    "brackets": "Brackets",
+    "exemptionShort": "exempt {amount} a year",
+    "afterContributions": "after employee contributions",
+    "addTaxTable": "Add income tax table",
+    "taxIntro": "Enter the tax as the law sets it. Taxable pay is annualised (×12), the annual exemption comes off, and the brackets of the band the yearly amount falls in apply; the month's tax is a twelfth. Leave out bands when the law has one set of brackets.",
+    "annualExemption": "Annual exemption",
+    "deductContributions": "Employee contributions come off taxable pay",
+    "bandN": "Band {n}",
+    "bandUpTo": "Band applies up to (annual taxable)",
+    "bandUpToHint": "Leave empty on the last band.",
+    "bracketUpTo": "Bracket {n} up to",
+    "bracketRate": "Bracket {n} rate (%)",
+    "eosRules": "End-of-service rules",
+    "noEosRules": "No end-of-service rules yet.",
+    "addEosRule": "Add end-of-service rule",
+    "eosIntro": "Enter the end-of-service rule as the law sets it: months of pay earned per year of service from each number of years on, the share paid on resignation by years, and any cap.",
+    "eosBase": "Worked out on",
+    "eosBases": {
+      "BASIC": "Basic salary",
+      "EOS_BASE": "Basic + allowances marked for end of service"
+    },
+    "capMonths": "Cap (months of pay)",
+    "tiers": "Months per year of service",
+    "fromYears": "Tier {n} from years",
+    "monthsPerYear": "Tier {n} months per year",
+    "resignation": "Share paid on resignation",
+    "resignFromYears": "Step {n} from years",
+    "resignShare": "Step {n} share (%)",
+    "tierShort": "from {from} y: {months}/y",
+    "shareShort": "from {from} y: {share}%",
+    "resignationFull": "Paid in full",
+    "capShort": "cap {months} months"
   }
 }

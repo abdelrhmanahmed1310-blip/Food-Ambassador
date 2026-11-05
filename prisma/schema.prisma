@@ -376,6 +376,9 @@ model Organization {
   payrollLines             PayrollLine[]
   payrollAdjustments       PayrollAdjustment[]
 
+  payrollTaxTables PayrollTaxTable[]
+  payrollEosRules  PayrollEosRule[]
+
   @@map("organizations")
 }
 
@@ -6788,6 +6791,9 @@ model Company {
   payrollContributionRules PayrollContributionRule[]
   payrollRuns              PayrollRun[]
 
+  payrollTaxTables PayrollTaxTable[]
+  payrollEosRules  PayrollEosRule[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, code])
   @@map("companies")
@@ -7661,6 +7667,8 @@ model EmployeeSalaryItem {
   amount             Decimal @db.Decimal(19, 4)
   /// Counted in the base that contributions are worked out on.
   inContributionBase Boolean @map("in_contribution_base")
+  /// Counted in the base that end of service is worked out on (ADR-124).
+  inEosBase          Boolean @default(false) @map("in_eos_base")
 
   organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   salary       EmployeeSalary @relation(fields: [organizationId, salaryId], references: [organizationId, id], onDelete: Restrict)
@@ -7731,6 +7739,8 @@ model PayrollRun {
   net                   Decimal          @default(0) @db.Decimal(19, 4)
   employerContributions Decimal          @default(0) @map("employer_contributions") @db.Decimal(19, 4)
   employerCost          Decimal          @default(0) @map("employer_cost") @db.Decimal(19, 4)
+  incomeTax             Decimal          @default(0) @map("income_tax") @db.Decimal(19, 4)
+  eosAccrual            Decimal          @default(0) @map("eos_accrual") @db.Decimal(19, 4)
   /// Employees left out (no salary record), with why.
   skipped               Json             @default("[]")
   preparedByUserId      String           @map("prepared_by_user_id") @db.Uuid
@@ -7773,6 +7783,11 @@ model PayrollLine {
   net                   Decimal   @db.Decimal(19, 4)
   employerContributions Decimal   @map("employer_contributions") @db.Decimal(19, 4)
   employerCost          Decimal   @map("employer_cost") @db.Decimal(19, 4)
+  /// From the entered tax table (ADR-124).
+  incomeTax             Decimal   @default(0) @map("income_tax") @db.Decimal(19, 4)
+  /// End-of-service owed at month end, and this month's increase (ADR-124).
+  eosLiability          Decimal   @default(0) @map("eos_liability") @db.Decimal(19, 4)
+  eosAccrual            Decimal   @default(0) @map("eos_accrual") @db.Decimal(19, 4)
   /// Components and contributions, as worked out.
   details               Json
 
@@ -7805,4 +7820,66 @@ model PayrollAdjustment {
 
   @@index([organizationId, runId, employeeId])
   @@map("payroll_adjustments")
+}
+
+// ─── HR4b payroll rules (ADR-124) ───
+
+enum EosBase {
+  BASIC
+  EOS_BASE
+}
+
+/// Income tax as the organization enters it for a company: bands of annual taxable income, each with its brackets.
+model PayrollTaxTable {
+  id                  String                @id @default(uuid(7)) @db.Uuid
+  organizationId      String                @map("organization_id") @db.Uuid
+  companyId           String                @map("company_id") @db.Uuid
+  code                String
+  name                String
+  appliesTo           ContributionAppliesTo @map("applies_to")
+  annualExemption     Decimal               @map("annual_exemption") @db.Decimal(19, 4)
+  /// Employee contributions come off taxable pay.
+  deductContributions Boolean               @map("deduct_contributions")
+  /// [{ upTo | null, brackets: [{ upTo | null, rate }] }], validated by the service.
+  bands               Json
+  effectiveFrom       DateTime              @map("effective_from") @db.Date
+  effectiveTo         DateTime?             @map("effective_to") @db.Date
+  source              String
+  createdByUserId     String                @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  company      Company      @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, companyId, effectiveFrom])
+  @@map("payroll_tax_tables")
+}
+
+/// End of service as the organization enters it for a company.
+model PayrollEosRule {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  organizationId  String                @map("organization_id") @db.Uuid
+  companyId       String                @map("company_id") @db.Uuid
+  code            String
+  name            String
+  appliesTo       ContributionAppliesTo @map("applies_to")
+  base            EosBase
+  /// [{ fromYears, monthsPerYear }]
+  tiers           Json
+  /// [{ fromYears, factor }]; empty: resignation is paid in full.
+  resignation     Json
+  capMonths       Decimal?              @map("cap_months") @db.Decimal(9, 4)
+  effectiveFrom   DateTime              @map("effective_from") @db.Date
+  effectiveTo     DateTime?             @map("effective_to") @db.Date
+  source          String
+  createdByUserId String                @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  company      Company      @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, companyId, effectiveFrom])
+  @@map("payroll_eos_rules")
 }

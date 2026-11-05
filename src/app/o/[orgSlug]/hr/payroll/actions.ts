@@ -16,6 +16,10 @@ import {
   setBankAccount,
   setProrationBasis,
   setSalary,
+  addEosRule,
+  addTaxTable,
+  endPayrollRule,
+  settleEndOfService,
 } from "@/modules/payroll/service";
 import { formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
@@ -151,6 +155,72 @@ export async function setBankAction(
 ) {
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await setBankAccount(ctx, employeeId, formValues(formData));
+    return saved();
+  });
+}
+
+/** `a.0.b.1.c` form fields as nested objects and arrays. */
+function nested(values: Record<string, string>): Record<string, unknown> {
+  const root: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(values)) {
+    const parts = key.split(".");
+    let node: Record<string, unknown> | unknown[] = root;
+    parts.forEach((part, k) => {
+      const last = k === parts.length - 1;
+      const nextIsIndex = !last && /^\d+$/.test(parts[k + 1]);
+      const slot = /^\d+$/.test(part) ? Number(part) : part;
+      const container = node as Record<string | number, unknown>;
+      if (last) container[slot] = value;
+      else {
+        container[slot] ??= nextIsIndex ? [] : {};
+        node = container[slot] as Record<string, unknown> | unknown[];
+      }
+    });
+  }
+  // Holes from unsent rows become empty objects, which the service skips.
+  const fill = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? Array.from(v, (x) => fill(x ?? {}))
+      : v && typeof v === "object"
+        ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fill(x)]))
+        : v;
+  return fill(root) as Record<string, unknown>;
+}
+
+export async function addTaxTableAction(orgSlug: string, previous: S, formData: FormData) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await addTaxTable(ctx, nested(formValues(formData)));
+    return saved();
+  });
+}
+
+export async function addEosRuleAction(orgSlug: string, previous: S, formData: FormData) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await addEosRule(ctx, nested(formValues(formData)));
+    return saved();
+  });
+}
+
+export async function endTaxOrEosAction(
+  orgSlug: string,
+  kind: "tax" | "eos",
+  ruleId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    endPayrollRule(ctx, kind, ruleId, formValues(formData)),
+  );
+}
+
+export async function settleAction(
+  orgSlug: string,
+  runId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await settleEndOfService(ctx, runId, formValues(formData));
     return saved();
   });
 }

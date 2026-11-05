@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
+  bracketTax,
   computeLine,
+  endOfService,
+  entitlementMonths,
+  monthlyIncomeTax,
+  salarySegments,
+  yearsOfService,
   overlapDays,
   paidDays,
   periodBounds,
@@ -79,9 +85,7 @@ describe("computeLine", () => {
     const l = computeLine({
       currency: "SAR",
       basisDays: 30,
-      paidDays: 30,
-      unpaidLeaveDays: d(0),
-      salary,
+      segments: [{ salary, paidDays: 30, unpaidLeaveDays: d(0) }],
       rules: [rule()],
       adjustments: [{ kind: "ADDITION", category: "OVERTIME", amount: d("250") }],
     });
@@ -102,9 +106,9 @@ describe("computeLine", () => {
     const l = computeLine({
       currency: "KWD", // three decimals
       basisDays: 31,
-      paidDays: 10,
-      unpaidLeaveDays: d("1"),
-      salary: { basic: d("1000"), items: [] },
+      segments: [
+        { salary: { basic: d("1000"), items: [] }, paidDays: 10, unpaidLeaveDays: d("1") },
+      ],
       rules: [rule({ employeeRate: d("0.075"), employerRate: d("0") })],
       adjustments: [{ kind: "DEDUCTION", category: "ADVANCE_RECOVERY", amount: d("20") }],
     });
@@ -120,9 +124,7 @@ describe("computeLine", () => {
       computeLine({
         currency: "SAR",
         basisDays: 30,
-        paidDays: 30,
-        unpaidLeaveDays: d(0),
-        salary: { basic: d(basic), items: [] },
+        segments: [{ salary: { basic: d(basic), items: [] }, paidDays: 30, unpaidLeaveDays: d(0) }],
         rules: [rule({ baseMin: min ? d(min) : null, baseMax: max ? d(max) : null })],
         adjustments: [],
       }).contributions[0].base.toFixed();
@@ -135,12 +137,151 @@ describe("computeLine", () => {
     const l = computeLine({
       currency: "EGP",
       basisDays: 30,
-      paidDays: 30,
-      unpaidLeaveDays: d(0),
-      salary: { basic: d("100"), items: [] },
+      segments: [{ salary: { basic: d("100"), items: [] }, paidDays: 30, unpaidLeaveDays: d(0) }],
       rules: [],
       adjustments: [{ kind: "DEDUCTION", category: "PENALTY", amount: d("150") }],
     });
     expect(l.net.toFixed()).toBe("-50");
+  });
+});
+
+describe("salary segments (ADR-124)", () => {
+  it("splits the month at a raise, on calendar days and on a 30-day month", () => {
+    const base = { period: "2026-03", hireDate: "2020-01-01", terminatedOn: null };
+    const salaries = [{ effectiveFrom: "2025-01-01" }, { effectiveFrom: "2026-03-16" }];
+    expect(
+      salarySegments({ ...base, basis: "CALENDAR_DAYS", salaries }).map((s) => s.days),
+    ).toEqual([15, 16]);
+    // 31-day month on a 30-day basis: the later part gives up a day.
+    expect(salarySegments({ ...base, basis: "THIRTY_DAYS", salaries }).map((s) => s.days)).toEqual([
+      15, 15,
+    ]);
+    expect(
+      salarySegments({ ...base, period: "2026-02", basis: "THIRTY_DAYS", salaries: [salaries[0]] }),
+    ).toEqual([{ index: 0, from: "2026-02-01", to: "2026-02-28", days: 30 }]);
+  });
+
+  it("pays each part at its own salary", () => {
+    const l = computeLine({
+      currency: "SAR",
+      basisDays: 30,
+      segments: [
+        { salary: { basic: d("3000"), items: [] }, paidDays: 15, unpaidLeaveDays: d(0) },
+        { salary: { basic: d("6000"), items: [] }, paidDays: 15, unpaidLeaveDays: d("1") },
+      ],
+      rules: [rule()],
+      adjustments: [],
+    });
+    expect([l.fixedPay, l.unpaidLeaveDeduction, l.contributions[0].base].map(String)).toEqual([
+      "4500", // 1500 + 3000
+      "200", // a day at 6000
+      "4300", // 1500 + 6000 × 14 / 30
+    ]);
+    expect(l.paidDays).toBe(30);
+  });
+});
+
+describe("income tax from entered tables (ADR-124)", () => {
+  /** Made-up brackets, shaped like a law with income bands — not any country's. */
+  const table = {
+    id: "t1",
+    code: "TEST_TAX",
+    name: "Test tax",
+    annualExemption: d("20000"),
+    deductContributions: true,
+    bands: [
+      {
+        upTo: d("600000"),
+        brackets: [
+          { upTo: d("40000"), rate: d("0") },
+          { upTo: d("100000"), rate: d("0.1") },
+          { upTo: null, rate: d("0.2") },
+        ],
+      },
+      // Above the band the first brackets fall away (as some laws do).
+      {
+        upTo: null,
+        brackets: [
+          { upTo: d("100000"), rate: d("0.15") },
+          { upTo: null, rate: d("0.25") },
+        ],
+      },
+    ],
+  };
+
+  it("taxes brackets progressively", () => {
+    expect(bracketTax(d("150000"), table.bands[0].brackets).toFixed()).toBe("16000"); // 6000 + 10000
+    expect(bracketTax(d("30000"), table.bands[0].brackets).toFixed()).toBe("0");
+  });
+
+  it("annualises the month, takes the exemption and picks the band", () => {
+    const low = monthlyIncomeTax(d("10000"), table); // 120000 − 20000 = 100000
+    expect([low.annualTaxable, low.annualTax, low.monthly].map((v) => v.toFixed(2))).toEqual([
+      "100000.00",
+      "6000.00",
+      "500.00",
+    ]);
+    const high = monthlyIncomeTax(d("60000"), table); // 700000: second band
+    expect([high.band, high.annualTax.toFixed()]).toEqual([1, "165000"]); // 15000 + 150000
+  });
+
+  it("is a deduction on the line, after contributions and without end of service", () => {
+    const l = computeLine({
+      currency: "EGP",
+      basisDays: 30,
+      segments: [{ salary: { basic: d("10500"), items: [] }, paidDays: 30, unpaidLeaveDays: d(0) }],
+      rules: [rule({ employeeRate: d("0.0476190"), employerRate: d(0) })], // 500
+      taxTable: table,
+      adjustments: [{ kind: "ADDITION", category: "END_OF_SERVICE", amount: d("50000") }],
+    });
+    expect([l.employeeContributions, l.incomeTax].map(String)).toEqual(["500", "500"]);
+    expect(String(l.net)).toBe("59500"); // 60500 − 500 − 500
+  });
+});
+
+describe("end of service from entered rules (ADR-124)", () => {
+  /** Made-up tiers and shares — not any country's law. */
+  const eos = {
+    id: "e1",
+    code: "TEST_EOS",
+    name: "Test",
+    tiers: [
+      { fromYears: d(0), monthsPerYear: d("0.5") },
+      { fromYears: d(5), monthsPerYear: d(1) },
+    ],
+    resignation: [
+      { fromYears: d(0), factor: d(0) },
+      { fromYears: d(2), factor: d("0.5") },
+      { fromYears: d(10), factor: d(1) },
+    ],
+    capMonths: d(12),
+  };
+
+  it("counts years of service and earns months per tier, within the cap", () => {
+    expect(yearsOfService("2026-01-01", "2026-12-31").toFixed()).toBe("1");
+    expect(entitlementMonths(d(4), eos).toFixed()).toBe("2");
+    expect(entitlementMonths(d(8), eos).toFixed()).toBe("5.5"); // 2.5 + 3
+    expect(entitlementMonths(d(20), eos).toFixed()).toBe("12"); // capped
+  });
+
+  it("pays a resignation its share by years", () => {
+    const pay = (asOf: string, resigned: boolean) =>
+      endOfService({
+        currency: "SAR",
+        hireDate: "2020-01-01",
+        asOf,
+        monthlyBase: d("6000"),
+        rule: eos,
+        resigned,
+      });
+    const a = pay("2021-07-01", true); // about 1.5 years: nothing on resignation
+    expect(a.factor.toFixed()).toBe("0");
+    expect(a.amount.toFixed()).toBe("0");
+    const b = pay("2026-12-31", true); // 7 years: half
+    expect(b.factor.toFixed()).toBe("0.5");
+    expect(b.amount.toFixed()).toBe(
+      new Decimal("6000").times(b.months).times("0.5").toDecimalPlaces(2).toFixed(),
+    );
+    expect(pay("2026-12-31", false).factor.toFixed()).toBe("1");
   });
 });

@@ -23,12 +23,18 @@ import {
   ADJUSTMENT_CATEGORIES,
   APPLIES_TO,
   computeLine,
+  endOfService,
   paidDays,
   periodBounds,
   PRORATION_BASES,
   ruleApplies,
+  salarySegments,
   unpaidDaysIn,
+  type AppliesTo,
+  type EosRuleInput,
   type ProrationBasis,
+  type SalaryInput,
+  type TaxTableInput,
 } from "./rules";
 
 /**
@@ -122,6 +128,10 @@ const itemSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "on" || v === "true"),
+  inEosBase: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
 });
 
 const salarySchema = z.object({
@@ -190,6 +200,7 @@ export async function setSalary(ctx: TenantContext, employeeId: string, rawInput
               name: i.name,
               amount: i.amount,
               inContributionBase: i.inContributionBase,
+              inEosBase: i.inEosBase,
             })),
           },
         },
@@ -241,6 +252,7 @@ export async function employeePay(ctx: TenantContext, employeeId: string) {
           name: i.name,
           amount: dec(i.amount),
           inContributionBase: i.inContributionBase,
+          inEosBase: i.inEosBase,
         })),
         total: s.items.reduce((a, i) => a.plus(dec(i.amount)), dec(s.basic)),
       })),
@@ -459,12 +471,89 @@ async function loadRun(tx: Tx, ctx: TenantContext, runId: string) {
   return run;
 }
 
+/** Rules of a company in force on a date (contribution, tax or end of service). */
+const inForce = (companyId: string, on: string) => ({
+  companyId,
+  effectiveFrom: { lte: asDate(on) },
+  OR: [{ effectiveTo: null }, { effectiveTo: { gte: asDate(on) } }],
+});
+
+type TaxRow = Awaited<ReturnType<Tx["payrollTaxTable"]["findMany"]>>[number];
+type EosRow = Awaited<ReturnType<Tx["payrollEosRule"]["findMany"]>>[number];
+
+function taxTableInput(t: TaxRow): TaxTableInput {
+  const bands = t.bands as Array<{
+    upTo: string | null;
+    brackets: Array<{ upTo: string | null; rate: string }>;
+  }>;
+  return {
+    id: t.id,
+    code: t.code,
+    name: t.name,
+    annualExemption: dec(t.annualExemption),
+    deductContributions: t.deductContributions,
+    bands: bands.map((b) => ({
+      upTo: b.upTo ? new Decimal(b.upTo) : null,
+      brackets: b.brackets.map((x) => ({
+        upTo: x.upTo ? new Decimal(x.upTo) : null,
+        rate: new Decimal(x.rate),
+      })),
+    })),
+  };
+}
+
+function eosRuleInput(r: EosRow): EosRuleInput {
+  const tiers = r.tiers as Array<{ fromYears: string; monthsPerYear: string }>;
+  const resignation = r.resignation as Array<{ fromYears: string; factor: string }>;
+  return {
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    tiers: tiers.map((x) => ({
+      fromYears: new Decimal(x.fromYears),
+      monthsPerYear: new Decimal(x.monthsPerYear),
+    })),
+    resignation: resignation.map((x) => ({
+      fromYears: new Decimal(x.fromYears),
+      factor: new Decimal(x.factor),
+    })),
+    capMonths: r.capMonths ? dec(r.capMonths) : null,
+  };
+}
+
+type SalaryRow = {
+  basic: { toString(): string };
+  items: Array<{
+    code: string;
+    name: string;
+    amount: { toString(): string };
+    inContributionBase: boolean;
+    inEosBase: boolean;
+  }>;
+};
+
+const salaryInput = (s: SalaryRow): SalaryInput => ({
+  basic: dec(s.basic),
+  items: s.items.map((i) => ({
+    code: i.code,
+    name: i.name,
+    amount: dec(i.amount),
+    inContributionBase: i.inContributionBase,
+  })),
+});
+
+/** The monthly pay end of service is worked out on. */
+const eosBaseOf = (s: SalaryRow, base: "BASIC" | "EOS_BASE") =>
+  base === "BASIC"
+    ? dec(s.basic)
+    : s.items.filter((i) => i.inEosBase).reduce((a, i) => a.plus(dec(i.amount)), dec(s.basic));
+
 /** Work out every line of a draft run again from salaries, leave, rules and adjustments. */
 async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
   const run = await loadRun(tx, ctx, runId);
   const period = day(run.period).slice(0, 7);
   const p = periodBounds(period);
-  const [employees, rules, leave, adjustments] = await inSequence([
+  const [employees, rules, taxTables, eosRules, leave, adjustments, previous] = await inSequence([
     tx.employee.findMany({
       where: {
         organizationId: ctx.organizationId,
@@ -475,8 +564,6 @@ async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
       select: {
         id: true,
         number: true,
-        firstName: true,
-        lastName: true,
         nationality: true,
         branchId: true,
         hireDate: true,
@@ -484,19 +571,21 @@ async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
         salaries: {
           where: { effectiveFrom: { lte: asDate(p.end) } },
           orderBy: { effectiveFrom: "desc" },
-          take: 1,
           include: { items: true },
         },
       },
       orderBy: { number: "asc" },
     }),
     tx.payrollContributionRule.findMany({
-      where: {
-        organizationId: ctx.organizationId,
-        companyId: run.companyId,
-        effectiveFrom: { lte: asDate(p.end) },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: asDate(p.end) } }],
-      },
+      where: { organizationId: ctx.organizationId, ...inForce(run.companyId, p.end) },
+      orderBy: { code: "asc" },
+    }),
+    tx.payrollTaxTable.findMany({
+      where: { organizationId: ctx.organizationId, ...inForce(run.companyId, p.end) },
+      orderBy: { code: "asc" },
+    }),
+    tx.payrollEosRule.findMany({
+      where: { organizationId: ctx.organizationId, ...inForce(run.companyId, p.end) },
       orderBy: { code: "asc" },
     }),
     tx.leaveRequest.findMany({
@@ -513,7 +602,23 @@ async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
     tx.payrollAdjustment.findMany({
       where: { organizationId: ctx.organizationId, runId: run.id },
     }),
+    // End of service owed at the last approved month before this one.
+    tx.payrollLine.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        run: {
+          companyId: run.companyId,
+          status: { in: ["APPROVED", "PAID"] },
+          period: { lt: run.period },
+        },
+      },
+      orderBy: { run: { period: "desc" } },
+      select: { employeeId: true, eosLiability: true },
+    }),
   ]);
+  const lastLiability = new Map<string, Decimal>();
+  for (const l of previous)
+    if (!lastLiability.has(l.employeeId)) lastLiability.set(l.employeeId, dec(l.eosLiability));
   await tx.payrollLine.deleteMany({ where: { organizationId: ctx.organizationId, runId: run.id } });
   const skipped: Array<{ employeeId: string; number: string; reason: string }> = [];
   const totals = {
@@ -522,66 +627,84 @@ async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
     net: new Decimal(0),
     employerContributions: new Decimal(0),
     employerCost: new Decimal(0),
+    incomeTax: new Decimal(0),
+    eosAccrual: new Decimal(0),
   };
   for (const e of employees) {
-    const salary = e.salaries[0];
-    if (!salary) {
+    // Salaries in force during the month, oldest first: the one at its start and any changes in it.
+    const desc = e.salaries;
+    const atStart = desc.findIndex((s) => day(s.effectiveFrom) <= p.start);
+    const inMonth = (atStart < 0 ? desc : desc.slice(0, atStart + 1)).reverse();
+    if (inMonth.length === 0) {
       skipped.push({ employeeId: e.id, number: e.number, reason: "NO_SALARY" });
       continue;
     }
-    const days = paidDays({
-      basis: run.prorationBasis,
-      period,
-      hireDate: day(e.hireDate),
-      terminatedOn: e.terminatedOn ? day(e.terminatedOn) : null,
-    });
+    const hireDate = day(e.hireDate);
+    const terminatedOn = e.terminatedOn ? day(e.terminatedOn) : null;
+    const days = paidDays({ basis: run.prorationBasis, period, hireDate, terminatedOn });
     if (days.paidDays === 0) continue;
+    const parts = salarySegments({
+      period,
+      basis: run.prorationBasis,
+      hireDate,
+      terminatedOn,
+      salaries: inMonth.map((s) => ({ effectiveFrom: day(s.effectiveFrom) })),
+    });
+    if (parts.length === 0) {
+      skipped.push({ employeeId: e.id, number: e.number, reason: "NO_SALARY" });
+      continue;
+    }
+    const requests = leave
+      .filter((l) => l.employeeId === e.id)
+      .map((l) => ({ startDate: day(l.startDate), endDate: day(l.endDate), days: dec(l.days) }));
+    const applies = <T extends { appliesTo: AppliesTo }>(list: T[]) =>
+      list.filter((r) => ruleApplies(r.appliesTo, e.nationality, run.company.country));
+    const taxTable = applies(taxTables)[0];
+    const eosRule = applies(eosRules)[0];
+    const current = inMonth[inMonth.length - 1];
     const line = computeLine({
       currency: run.currency,
       basisDays: days.basisDays,
-      paidDays: days.paidDays,
-      unpaidLeaveDays: unpaidDaysIn(
-        period,
-        leave
-          .filter((l) => l.employeeId === e.id)
-          .map((l) => ({
-            startDate: day(l.startDate),
-            endDate: day(l.endDate),
-            days: dec(l.days),
-          })),
-      ),
-      salary: {
-        basic: dec(salary.basic),
-        items: salary.items.map((i) => ({
-          code: i.code,
-          name: i.name,
-          amount: dec(i.amount),
-          inContributionBase: i.inContributionBase,
-        })),
-      },
-      rules: rules
-        .filter((r) => ruleApplies(r.appliesTo, e.nationality, run.company.country))
-        .map((r) => ({
-          id: r.id,
-          code: r.code,
-          name: r.name,
-          employeeRate: dec(r.employeeRate),
-          employerRate: dec(r.employerRate),
-          baseMin: r.baseMin ? dec(r.baseMin) : null,
-          baseMax: r.baseMax ? dec(r.baseMax) : null,
-        })),
+      segments: parts.map((x) => ({
+        salary: salaryInput(inMonth[x.index]),
+        paidDays: x.days,
+        unpaidLeaveDays: unpaidDaysIn(period, requests, { from: x.from, to: x.to }),
+      })),
+      rules: applies(rules).map((r) => ({
+        id: r.id,
+        code: r.code,
+        name: r.name,
+        employeeRate: dec(r.employeeRate),
+        employerRate: dec(r.employerRate),
+        baseMin: r.baseMin ? dec(r.baseMin) : null,
+        baseMax: r.baseMax ? dec(r.baseMax) : null,
+      })),
+      taxTable: taxTable ? taxTableInput(taxTable) : null,
       adjustments: adjustments
         .filter((a) => a.employeeId === e.id)
         .map((a) => ({ kind: a.kind, category: a.category, amount: dec(a.amount) })),
     });
+    // End of service owed at month end (before any resignation share), and the month's change.
+    const eos = eosRule
+      ? endOfService({
+          currency: run.currency,
+          hireDate,
+          asOf: terminatedOn && terminatedOn < p.end ? terminatedOn : p.end,
+          monthlyBase: eosBaseOf(current, eosRule.base),
+          rule: eosRuleInput(eosRule),
+          resigned: false,
+        })
+      : null;
+    const eosLiability = eos?.amount ?? new Decimal(0);
+    const eosAccrual = eosLiability.minus(lastLiability.get(e.id) ?? 0);
     await tx.payrollLine.create({
       data: {
         organizationId: ctx.organizationId,
         runId: run.id,
         employeeId: e.id,
-        salaryId: salary.id,
+        salaryId: current.id,
         branchId: e.branchId,
-        payMethod: salary.payMethod,
+        payMethod: current.payMethod,
         basisDays: line.basisDays,
         paidDays: line.paidDays,
         unpaidLeaveDays: line.unpaidLeaveDays.toDecimalPlaces(2).toFixed(),
@@ -590,12 +713,34 @@ async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
         gross: line.gross.toFixed(),
         unpaidLeaveDeduction: line.unpaidLeaveDeduction.toFixed(),
         employeeContributions: line.employeeContributions.toFixed(),
+        incomeTax: line.incomeTax.toFixed(),
         otherDeductions: line.otherDeductions.toFixed(),
         net: line.net.toFixed(),
         employerContributions: line.employerContributions.toFixed(),
         employerCost: line.employerCost.toFixed(),
+        eosLiability: eosLiability.toFixed(),
+        eosAccrual: eosAccrual.toFixed(),
         details: JSON.parse(
-          JSON.stringify({ components: line.components, contributions: line.contributions }),
+          JSON.stringify({
+            components: line.components,
+            contributions: line.contributions,
+            segments: parts.map((x) => ({
+              from: x.from,
+              to: x.to,
+              days: x.days,
+              salaryId: inMonth[x.index].id,
+            })),
+            tax: line.tax,
+            eos:
+              eos && eosRule
+                ? {
+                    ruleId: eosRule.id,
+                    code: eosRule.code,
+                    years: eos.years.toDecimalPlaces(4),
+                    months: eos.months.toDecimalPlaces(4),
+                  }
+                : null,
+          }),
         ),
       },
     });
@@ -604,6 +749,8 @@ async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
     totals.net = totals.net.plus(line.net);
     totals.employerContributions = totals.employerContributions.plus(line.employerContributions);
     totals.employerCost = totals.employerCost.plus(line.employerCost);
+    totals.incomeTax = totals.incomeTax.plus(line.incomeTax);
+    totals.eosAccrual = totals.eosAccrual.plus(eosAccrual);
   }
   await tx.payrollRun.update({
     where: { id: run.id },
@@ -613,6 +760,8 @@ async function computeRunInTx(tx: Tx, ctx: TenantContext, runId: string) {
       net: totals.net.toFixed(),
       employerContributions: totals.employerContributions.toFixed(),
       employerCost: totals.employerCost.toFixed(),
+      incomeTax: totals.incomeTax.toFixed(),
+      eosAccrual: totals.eosAccrual.toFixed(),
       skipped,
     },
   });
@@ -700,10 +849,15 @@ const adjustmentSchema = z
     amount: money({ min: "0.0001" }),
     note: optionalText(200),
   })
-  .refine((a) => (ADJUSTMENT_CATEGORIES[a.kind] as readonly string[]).includes(a.category), {
-    error: "invalidOption",
-    path: ["category"],
-  });
+  .refine(
+    (a) =>
+      a.category !== "END_OF_SERVICE" &&
+      (ADJUSTMENT_CATEGORIES[a.kind] as readonly string[]).includes(a.category),
+    {
+      error: "invalidOption",
+      path: ["category"],
+    },
+  );
 
 export async function addPayrollAdjustment(ctx: TenantContext, runId: string, rawInput: unknown) {
   assertPermission(ctx.grants, "payroll.manage");
@@ -861,6 +1015,15 @@ export async function listPayrollRuns(ctx: TenantContext) {
 
 export interface LineDetails {
   components: Array<{ code: string; name: string; amount: string }>;
+  segments?: Array<{ from: string; to: string; days: number; salaryId: string }>;
+  tax?: {
+    tableId: string;
+    code: string;
+    annualTaxable: string;
+    annualTax: string;
+    band: number;
+  } | null;
+  eos?: { ruleId: string; code: string; years: string; months: string } | null;
   contributions: Array<{
     ruleId: string;
     code: string;
@@ -886,6 +1049,7 @@ export async function getPayrollRun(ctx: TenantContext, runId: string) {
               firstName: true,
               lastName: true,
               jobTitle: true,
+              terminatedOn: true,
               bankAccount: { select: { ibanLast4: true } },
             },
           },
@@ -1014,5 +1178,420 @@ export async function myPayslips(ctx: TenantContext) {
         run: { select: { number: true, period: true, currency: true, status: true, paidOn: true } },
       },
     });
+  });
+}
+
+// ─── Income tax tables and end-of-service rules (ADR-124) ───
+
+const amt = z
+  .string()
+  .transform((v) => v.trim())
+  .pipe(decimalString({ maxScale: 4, min: "0", max: "999999999999" }));
+const amtOpt = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.trim() ? v.trim() : undefined))
+  .pipe(decimalString({ maxScale: 4, min: "0", max: "999999999999" }).optional());
+const percentFraction = z
+  .string()
+  .transform((v) => v.trim())
+  .pipe(decimalString({ maxScale: 4, min: "0", max: "100" }))
+  .transform((v) => new Decimal(v).dividedBy(100).toFixed());
+
+/** Upper limits must rise, and only the last row is open-ended. */
+function ascendingOpenLast(rows: ReadonlyArray<{ upTo?: string }>): boolean {
+  if (rows.length === 0 || rows[rows.length - 1].upTo !== undefined) return false;
+  for (let k = 0; k < rows.length - 1; k++) {
+    const cur = rows[k].upTo;
+    if (cur === undefined) return false;
+    const prev = k > 0 ? rows[k - 1].upTo : undefined;
+    if (prev !== undefined && !new Decimal(cur).gt(prev)) return false;
+  }
+  return true;
+}
+
+const ruleHeader = {
+  companyId: uuidSchema,
+  code,
+  name: requiredText(80),
+  appliesTo: z.enum(APPLIES_TO),
+  effectiveFrom: date,
+  source: requiredText(300),
+};
+
+/** Whether a form row holds anything (nested rows included). */
+const hasValue = (v: unknown): boolean =>
+  typeof v === "string"
+    ? v.trim() !== ""
+    : Array.isArray(v)
+      ? v.some(hasValue)
+      : v !== null && typeof v === "object"
+        ? Object.values(v).some(hasValue)
+        : false;
+const nonEmpty = (rows: unknown[]) => rows.filter(hasValue);
+
+const taxTableSchema = z.object({
+  ...ruleHeader,
+  annualExemption: amt,
+  deductContributions: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
+  bands: z
+    .array(z.unknown())
+    .transform(nonEmpty)
+    .pipe(
+      z
+        .array(
+          z.object({
+            upTo: amtOpt,
+            brackets: z
+              .array(z.unknown())
+              .transform(nonEmpty)
+              .pipe(
+                z
+                  .array(z.object({ upTo: amtOpt, ratePercent: percentFraction }))
+                  .min(1, { error: "required" })
+                  .max(10)
+                  .refine(ascendingOpenLast, { error: "invalidRange" }),
+              ),
+          }),
+        )
+        .min(1, { error: "required" })
+        .max(12)
+        .refine(ascendingOpenLast, { error: "invalidRange" }),
+    ),
+});
+
+const eosRuleSchema = z.object({
+  ...ruleHeader,
+  base: z.enum(["BASIC", "EOS_BASE"]),
+  capMonths: amtOpt,
+  tiers: z
+    .array(z.unknown())
+    .transform(nonEmpty)
+    .pipe(
+      z
+        .array(z.object({ fromYears: amt, monthsPerYear: amt }))
+        .min(1, { error: "required" })
+        .max(6)
+        .refine((t) => t[0] && new Decimal(t[0].fromYears).isZero(), { error: "tiersFromZero" })
+        .refine(
+          (t) => t.every((x, k) => k === 0 || new Decimal(x.fromYears).gt(t[k - 1].fromYears)),
+          {
+            error: "invalidRange",
+          },
+        ),
+    ),
+  resignation: z
+    .array(z.unknown())
+    .default([])
+    .transform(nonEmpty)
+    .pipe(
+      z
+        .array(z.object({ fromYears: amt, factorPercent: percentFraction }))
+        .max(8)
+        .refine((t) => t.length === 0 || new Decimal(t[0].fromYears).isZero(), {
+          error: "tiersFromZero",
+        })
+        .refine(
+          (t) => t.every((x, k) => k === 0 || new Decimal(x.fromYears).gt(t[k - 1].fromYears)),
+          {
+            error: "invalidRange",
+          },
+        ),
+    ),
+});
+
+type RuleKind = "tax" | "eos";
+
+/**
+ * Before a new rule: the company exists (with a country when the rule is
+ * for nationals or others), no other rule of this kind already covers the
+ * same people, and the same code continues by ending its open version.
+ */
+async function prepareRuleInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  kind: RuleKind,
+  r: { companyId: string; code: string; appliesTo: AppliesTo; effectiveFrom: string },
+) {
+  const company = await tx.company.findFirst({
+    where: { organizationId: ctx.organizationId, id: r.companyId },
+    select: { id: true, country: true },
+  });
+  if (!company) throw notFound("Company");
+  if (r.appliesTo !== "ALL" && !company.country)
+    throw businessRuleViolation("COMPANY_COUNTRY_REQUIRED", "Set the company's country first", {
+      field: "appliesTo",
+    });
+  const model = kind === "tax" ? tx.payrollTaxTable : tx.payrollEosRule;
+  const open = await (model as typeof tx.payrollTaxTable).findMany({
+    where: { organizationId: ctx.organizationId, companyId: company.id, effectiveTo: null },
+    select: { id: true, code: true, appliesTo: true, effectiveFrom: true },
+  });
+  const overlaps = (a: AppliesTo, b: AppliesTo) => a === "ALL" || b === "ALL" || a === b;
+  const clash = open.find((o) => o.code !== r.code && overlaps(o.appliesTo, r.appliesTo));
+  if (clash)
+    throw businessRuleViolation(
+      "RULE_OVERLAP",
+      `Rule ${clash.code} already covers these employees; end it first`,
+      { field: "appliesTo" },
+    );
+  const same = open.find((o) => o.code === r.code);
+  if (same && day(same.effectiveFrom) >= r.effectiveFrom)
+    throw businessRuleViolation("RULE_DATE_BEFORE_CURRENT", "Start after the current rule", {
+      field: "effectiveFrom",
+    });
+  if (same)
+    await (model as typeof tx.payrollTaxTable).update({
+      where: { id: same.id },
+      data: { effectiveTo: new Date(asDate(r.effectiveFrom).getTime() - 86_400_000) },
+    });
+  return { company, replaced: same?.id ?? null };
+}
+
+/** An income tax table as the organization enters it (ADR-124: nothing preset). */
+export async function addTaxTable(ctx: TenantContext, rawInput: unknown) {
+  assertPermission(ctx.grants, "payroll.manage");
+  const parsed = taxTableSchema.safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const r = parsed.data;
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const { company, replaced } = await prepareRuleInTx(tx, ctx, "tax", r);
+    const bands = r.bands.map((b) => ({
+      upTo: b.upTo ?? null,
+      brackets: b.brackets.map((x) => ({
+        upTo: x.upTo ?? null,
+        rate: x.ratePercent,
+      })),
+    }));
+    const table = await tx.payrollTaxTable.create({
+      data: {
+        organizationId: ctx.organizationId,
+        companyId: company.id,
+        code: r.code,
+        name: r.name,
+        appliesTo: r.appliesTo,
+        annualExemption: r.annualExemption,
+        deductContributions: r.deductContributions,
+        bands,
+        effectiveFrom: asDate(r.effectiveFrom),
+        source: r.source,
+        createdByUserId: ctx.userId,
+      },
+      select: { id: true },
+    });
+    await recordAudit(tx, actorOf(ctx), {
+      action: "payroll_tax_table.added",
+      entityType: "company",
+      entityId: company.id,
+      changes: {
+        code: r.code,
+        appliesTo: r.appliesTo,
+        effectiveFrom: r.effectiveFrom,
+        bands,
+        replaced,
+      },
+    });
+    return table;
+  });
+}
+
+/** An end-of-service rule as the organization enters it (ADR-124: nothing preset). */
+export async function addEosRule(ctx: TenantContext, rawInput: unknown) {
+  assertPermission(ctx.grants, "payroll.manage");
+  const parsed = eosRuleSchema.safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const r = parsed.data;
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const { company, replaced } = await prepareRuleInTx(tx, ctx, "eos", r);
+    const tiers = r.tiers.map((t) => ({ fromYears: t.fromYears, monthsPerYear: t.monthsPerYear }));
+    const resignation = r.resignation.map((t) => ({
+      fromYears: t.fromYears,
+      factor: t.factorPercent,
+    }));
+    const rule = await tx.payrollEosRule.create({
+      data: {
+        organizationId: ctx.organizationId,
+        companyId: company.id,
+        code: r.code,
+        name: r.name,
+        appliesTo: r.appliesTo,
+        base: r.base,
+        tiers,
+        resignation,
+        capMonths: r.capMonths ?? null,
+        effectiveFrom: asDate(r.effectiveFrom),
+        source: r.source,
+        createdByUserId: ctx.userId,
+      },
+      select: { id: true },
+    });
+    await recordAudit(tx, actorOf(ctx), {
+      action: "payroll_eos_rule.added",
+      entityType: "company",
+      entityId: company.id,
+      changes: {
+        code: r.code,
+        appliesTo: r.appliesTo,
+        base: r.base,
+        tiers,
+        resignation,
+        capMonths: r.capMonths ?? null,
+        effectiveFrom: r.effectiveFrom,
+        replaced,
+      },
+    });
+    return rule;
+  });
+}
+
+export async function endPayrollRule(
+  ctx: TenantContext,
+  kind: RuleKind,
+  ruleId: string,
+  rawInput: unknown,
+) {
+  assertPermission(ctx.grants, "payroll.manage");
+  const parsed = z.object({ effectiveTo: date }).safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    const model = (
+      kind === "tax" ? tx.payrollTaxTable : tx.payrollEosRule
+    ) as typeof tx.payrollTaxTable;
+    const rule = await model.findFirst({
+      where: { organizationId: ctx.organizationId, id: ruleId },
+    });
+    if (!rule) throw notFound("Rule");
+    if (rule.effectiveTo) throw businessRuleViolation("RULE_ENDED", "This rule has already ended");
+    if (parsed.data.effectiveTo < day(rule.effectiveFrom))
+      throw businessRuleViolation("RULE_END_BEFORE_START", "End on or after the start", {
+        field: "effectiveTo",
+      });
+    await model.update({
+      where: { id: rule.id },
+      data: { effectiveTo: asDate(parsed.data.effectiveTo) },
+    });
+    await recordAudit(tx, actorOf(ctx), {
+      action: kind === "tax" ? "payroll_tax_table.ended" : "payroll_eos_rule.ended",
+      entityType: "company",
+      entityId: rule.companyId,
+      changes: { code: rule.code, effectiveTo: parsed.data.effectiveTo },
+    });
+  });
+}
+
+export async function listTaxAndEosRules(ctx: TenantContext) {
+  assertPermission(ctx.grants, "payroll.view");
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const [tax, eos] = await inSequence([
+      tx.payrollTaxTable.findMany({
+        where: { organizationId: ctx.organizationId },
+        orderBy: [{ companyId: "asc" }, { code: "asc" }, { effectiveFrom: "desc" }],
+        include: { company: { select: { code: true, currency: true } } },
+      }),
+      tx.payrollEosRule.findMany({
+        where: { organizationId: ctx.organizationId },
+        orderBy: [{ companyId: "asc" }, { code: "asc" }, { effectiveFrom: "desc" }],
+        include: { company: { select: { code: true, currency: true } } },
+      }),
+    ]);
+    const dates = <T extends { effectiveFrom: Date; effectiveTo: Date | null }>(r: T) => ({
+      ...r,
+      effectiveFrom: day(r.effectiveFrom),
+      effectiveTo: r.effectiveTo ? day(r.effectiveTo) : null,
+    });
+    return {
+      tax: tax.map((t) => ({ ...dates(t), input: taxTableInput(t) })),
+      eos: eos.map((r) => ({ ...dates(r), input: eosRuleInput(r) })),
+    };
+  });
+}
+
+/**
+ * Add a leaver's end-of-service payment to the run of the month they left:
+ * worked out from the rule in force, the salary at leaving and, for a
+ * resignation, the rule's share by years. Once per employee and run.
+ */
+export async function settleEndOfService(ctx: TenantContext, runId: string, rawInput: unknown) {
+  assertPermission(ctx.grants, "payroll.manage");
+  const parsed = z
+    .object({ employeeId: uuidSchema, reason: z.enum(["RESIGNATION", "OTHER"]) })
+    .safeParse(rawInput);
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const { employeeId, reason } = parsed.data;
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const run = await draftRun(tx, ctx, runId);
+    const p = periodBounds(day(run.period).slice(0, 7));
+    const e = await tx.employee.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        id: employeeId,
+        branch: { companyId: run.companyId },
+      },
+      select: {
+        id: true,
+        hireDate: true,
+        terminatedOn: true,
+        nationality: true,
+        salaries: {
+          where: { effectiveFrom: { lte: asDate(p.end) } },
+          orderBy: { effectiveFrom: "desc" },
+          take: 1,
+          include: { items: true },
+        },
+      },
+    });
+    if (!e) throw notFound("Employee");
+    const left = e.terminatedOn ? day(e.terminatedOn) : null;
+    if (!left || left < p.start || left > p.end)
+      throw businessRuleViolation("EOS_NOT_LEAVING", "The employee does not leave in this month");
+    const salary = e.salaries[0];
+    if (!salary) throw businessRuleViolation("EOS_NO_SALARY", "No salary on record");
+    const rule = (
+      await tx.payrollEosRule.findMany({
+        where: { organizationId: ctx.organizationId, ...inForce(run.companyId, left) },
+        orderBy: { code: "asc" },
+      })
+    ).find((r) => ruleApplies(r.appliesTo, e.nationality, run.company.country));
+    if (!rule)
+      throw businessRuleViolation("EOS_NO_RULE", "No end-of-service rule covers this employee");
+    const r = endOfService({
+      currency: run.currency,
+      hireDate: day(e.hireDate),
+      asOf: left,
+      monthlyBase: eosBaseOf(salary, rule.base),
+      rule: eosRuleInput(rule),
+      resigned: reason === "RESIGNATION",
+    });
+    if (!r.amount.gt(0))
+      throw businessRuleViolation("EOS_NOTHING_DUE", "Nothing is due under the rule", {
+        years: r.years.toDecimalPlaces(2).toFixed(),
+        factor: r.factor.toFixed(),
+      });
+    try {
+      await tx.payrollAdjustment.create({
+        data: {
+          organizationId: ctx.organizationId,
+          runId: run.id,
+          employeeId: e.id,
+          kind: "ADDITION",
+          category: "END_OF_SERVICE",
+          amount: r.amount.toFixed(),
+          note: `${rule.code}: ${r.years.toDecimalPlaces(2).toFixed()} years × ${r.months
+            .dividedBy(r.years.gt(0) ? r.years : 1)
+            .toDecimalPlaces(4)
+            .toFixed()} → ${r.months.toDecimalPlaces(4).toFixed()} months × ${r.factor.times(100).toDecimalPlaces(2).toFixed()}%${reason === "RESIGNATION" ? " (resignation)" : ""}`,
+          createdByUserId: ctx.userId,
+        },
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "P2002")
+        throw conflict("End of service is already settled in this run");
+      throw error;
+    }
+    await computeRunInTx(tx, ctx, run.id);
+    return { amount: r.amount, years: r.years, months: r.months, factor: r.factor };
   });
 }

@@ -172,7 +172,10 @@ export function SalaryForm({ action }: { action: Action }) {
               inputMode="decimal"
               dir="ltr"
             />
-            <CheckboxField name={`items.${i}.inContributionBase`} label={t("inBase")} />
+            <div className="space-y-1">
+              <CheckboxField name={`items.${i}.inContributionBase`} label={t("inBase")} />
+              <CheckboxField name={`items.${i}.inEosBase`} label={t("inEosBase")} />
+            </div>
           </div>
         ))}
       </fieldset>
@@ -188,6 +191,147 @@ export function BankForm({ action }: { action: Action }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField name="bankName" label={t("bankName")} required />
         <TextField name="iban" label="IBAN" dir="ltr" autoComplete="off" required />
+      </div>
+    </ActionForm>
+  );
+}
+
+function RuleHeader({ companies }: { companies: Option[] }) {
+  const t = useTranslations("payroll");
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <SelectField name="companyId" label={t("company")} options={companies} />
+      <SelectField
+        name="appliesTo"
+        label={t("appliesTo")}
+        options={["ALL", "NATIONALS", "NON_NATIONALS"].map((a) => ({
+          value: a,
+          label: t(`applies.${a}`),
+        }))}
+      />
+      <TextField name="code" label={t("ruleCode")} hint={t("ruleCodeHint")} dir="ltr" required />
+      <TextField name="name" label={t("ruleName")} required />
+      <TextField name="effectiveFrom" type="date" label={t("effectiveFrom")} required />
+      <TextField name="source" label={t("source")} hint={t("sourceHint")} required />
+    </div>
+  );
+}
+
+export function TaxTableForm({ action, companies }: { action: Action; companies: Option[] }) {
+  const t = useTranslations("payroll");
+  return (
+    <ActionForm action={action} submitLabel={t("addTaxTable")} pendingLabel={t("working")}>
+      <p className="text-muted text-sm">{t("taxIntro")}</p>
+      <RuleHeader companies={companies} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          name="annualExemption"
+          label={t("annualExemption")}
+          inputMode="decimal"
+          dir="ltr"
+          defaultValue="0"
+        />
+        <CheckboxField name="deductContributions" label={t("deductContributions")} />
+      </div>
+      {[0, 1, 2].map((b) => (
+        <fieldset key={b} className="border-border space-y-2 rounded-lg border p-3">
+          <legend className="px-1 text-sm font-medium">{t("bandN", { n: b + 1 })}</legend>
+          <TextField
+            name={`bands.${b}.upTo`}
+            label={t("bandUpTo")}
+            hint={t("bandUpToHint")}
+            inputMode="decimal"
+            dir="ltr"
+          />
+          {[0, 1, 2, 3, 4].map((k) => (
+            <div key={k} className="grid gap-3 sm:grid-cols-2">
+              <TextField
+                name={`bands.${b}.brackets.${k}.upTo`}
+                label={t("bracketUpTo", { n: k + 1 })}
+                inputMode="decimal"
+                dir="ltr"
+              />
+              <TextField
+                name={`bands.${b}.brackets.${k}.ratePercent`}
+                label={t("bracketRate", { n: k + 1 })}
+                inputMode="decimal"
+                dir="ltr"
+              />
+            </div>
+          ))}
+        </fieldset>
+      ))}
+    </ActionForm>
+  );
+}
+
+export function EosRuleForm({ action, companies }: { action: Action; companies: Option[] }) {
+  const t = useTranslations("payroll");
+  return (
+    <ActionForm action={action} submitLabel={t("addEosRule")} pendingLabel={t("working")}>
+      <p className="text-muted text-sm">{t("eosIntro")}</p>
+      <RuleHeader companies={companies} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SelectField
+          name="base"
+          label={t("eosBase")}
+          options={["BASIC", "EOS_BASE"].map((b) => ({ value: b, label: t(`eosBases.${b}`) }))}
+        />
+        <TextField name="capMonths" label={t("capMonths")} inputMode="decimal" dir="ltr" />
+      </div>
+      <fieldset className="border-border space-y-2 rounded-lg border p-3">
+        <legend className="px-1 text-sm font-medium">{t("tiers")}</legend>
+        {[0, 1, 2, 3].map((k) => (
+          <div key={k} className="grid gap-3 sm:grid-cols-2">
+            <TextField
+              name={`tiers.${k}.fromYears`}
+              label={t("fromYears", { n: k + 1 })}
+              inputMode="decimal"
+              dir="ltr"
+            />
+            <TextField
+              name={`tiers.${k}.monthsPerYear`}
+              label={t("monthsPerYear", { n: k + 1 })}
+              inputMode="decimal"
+              dir="ltr"
+            />
+          </div>
+        ))}
+      </fieldset>
+      <fieldset className="border-border space-y-2 rounded-lg border p-3">
+        <legend className="px-1 text-sm font-medium">{t("resignation")}</legend>
+        {[0, 1, 2, 3, 4].map((k) => (
+          <div key={k} className="grid gap-3 sm:grid-cols-2">
+            <TextField
+              name={`resignation.${k}.fromYears`}
+              label={t("resignFromYears", { n: k + 1 })}
+              inputMode="decimal"
+              dir="ltr"
+            />
+            <TextField
+              name={`resignation.${k}.factorPercent`}
+              label={t("resignShare", { n: k + 1 })}
+              inputMode="decimal"
+              dir="ltr"
+            />
+          </div>
+        ))}
+      </fieldset>
+    </ActionForm>
+  );
+}
+
+export function SettlementForm({ action, employees }: { action: Action; employees: Option[] }) {
+  const t = useTranslations("payroll");
+  return (
+    <ActionForm action={action} submitLabel={t("settle")} pendingLabel={t("working")}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SelectField name="employeeId" label={t("employee")} options={employees} />
+        <SelectField
+          name="reason"
+          label={t("leavingReason")}
+          options={["RESIGNATION", "OTHER"].map((r) => ({ value: r, label: t(`reasons.${r}`) }))}
+        />
       </div>
     </ActionForm>
   );

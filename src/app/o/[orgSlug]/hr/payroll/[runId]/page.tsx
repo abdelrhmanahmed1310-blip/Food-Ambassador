@@ -2,7 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
-import { AdjustmentForm, CancelRunForm, PaidForm } from "@/components/payroll/forms";
+import {
+  AdjustmentForm,
+  CancelRunForm,
+  PaidForm,
+  SettlementForm,
+} from "@/components/payroll/forms";
 import {
   Alert,
   Badge,
@@ -26,6 +31,7 @@ import {
   markPaidAction,
   recalculateAction,
   removeAdjustmentAction,
+  settleAction,
 } from "../actions";
 import { STATUS_TONE } from "../status";
 
@@ -39,6 +45,11 @@ export default async function PayrollRunPage({
   const money = (await moneyIn([r.run.currency]))(r.run.currency).money;
   const base = `/o/${orgSlug}/hr/payroll`;
   const draft = r.run.status === "DRAFT";
+  // Employees who leave in this month can be settled (ADR-124).
+  const leavers = r.lines.filter(
+    (l) =>
+      l.employee.terminatedOn && l.employee.terminatedOn.toISOString().slice(0, 7) === r.run.period,
+  );
   const nameOf = new Map(
     r.lines.map((l) => [
       l.employeeId,
@@ -95,6 +106,7 @@ export default async function PayrollRunPage({
               <Th>{t("additions")}</Th>
               <Th>{t("unpaidLeave")}</Th>
               <Th>{t("contributionsEmployee")}</Th>
+              <Th>{t("incomeTax")}</Th>
               <Th>{t("otherDeductions")}</Th>
               <Th>{t("net")}</Th>
               <Th>{t("employerCost")}</Th>
@@ -134,9 +146,22 @@ export default async function PayrollRunPage({
                     </span>
                   ))}
                 </Td>
+                <Td className="ltr-value tabular-nums">
+                  {money(l.incomeTax)}
+                  {l.details.tax ? (
+                    <span className="text-muted block text-xs">{l.details.tax.code}</span>
+                  ) : null}
+                </Td>
                 <Td className="ltr-value tabular-nums">{money(l.otherDeductions)}</Td>
                 <Td className="ltr-value font-medium tabular-nums">{money(l.net)}</Td>
-                <Td className="ltr-value tabular-nums">{money(l.employerCost)}</Td>
+                <Td className="ltr-value tabular-nums">
+                  {money(l.employerCost)}
+                  {l.details.eos ? (
+                    <span className="text-muted block text-xs">
+                      {t("eosShort", { amount: money(l.eosAccrual) })}
+                    </span>
+                  ) : null}
+                </Td>
                 <Td>
                   <a
                     href={`${base}/payslips/${l.id}/pdf?inline=1`}
@@ -176,6 +201,17 @@ export default async function PayrollRunPage({
           </Card>
         ) : null}
 
+        {draft && r.canManage && leavers.length > 0 ? (
+          <Card title={t("settleTitle")}>
+            <SettlementForm
+              action={settleAction.bind(null, orgSlug, r.run.id)}
+              employees={leavers.map((l) => ({
+                value: l.employeeId,
+                label: nameOf.get(l.employeeId)!,
+              }))}
+            />
+          </Card>
+        ) : null}
         {draft && r.canManage ? (
           <Card title={t("addAdjustment")}>
             <AdjustmentForm

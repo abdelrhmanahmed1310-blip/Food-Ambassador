@@ -72,8 +72,10 @@
 > **HR4a built** (ADR-123): payroll with dated salaries, sealed IBANs,
 > contribution rules the organization enters (none preset), monthly runs
 > with proration and unpaid leave, approval by a second person, payslips
-> and a bank CSV. HR4b (income tax, end of service, WPS / Mudad) waits for
-> Q-20 confirmations.
+> and a bank CSV. **HR4b built** (ADR-124): entered income tax tables
+> with bands and brackets, entered end-of-service rules with accruals and
+> settlements, salary changes split within a month, payroll in the branch
+> P&L. WPS / Mudad files wait for their specifications.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

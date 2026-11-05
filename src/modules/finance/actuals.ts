@@ -18,7 +18,8 @@ import type { ExpenseGroup } from "./expense-rules";
  * - STOCK_LOSSES (ADR-111): write-offs, adjustments and count differences
  *   net of their reversals (as the waste report, ADR-041), on the day in
  *   the branch's time zone; stock found reduces it.
- * - Expense groups: posted operating expenses' net (expense date).
+ * - Expense groups: posted operating expenses' net (expense date); STAFF
+ *   also takes approved payroll by pay month (ADR-124).
  * Sales are also given by source (SALES_POS, SALES_IMPORTED, SALES_B2B),
  * and INTERCOMPANY_SALES is the B2B net invoiced to group companies.
  * Months are "YYYY-MM". Callers check permissions.
@@ -54,7 +55,7 @@ export async function branchActualsInTx(
     cost: Prisma.Decimal | null;
     ic?: Prisma.Decimal | null;
   };
-  const [pos, imports, b2b, expenses, losses] = await Promise.all([
+  const [pos, imports, b2b, expenses, losses, payroll] = await Promise.all([
     tx.$queryRaw<Row[]>`
       SELECT o.branch_id, to_char(o.business_date, 'YYYY-MM') AS m,
              SUM(o.net_amount - coalesce(r.net, 0)) AS net, SUM(o.cost_amount) AS cost
@@ -124,6 +125,22 @@ export async function branchActualsInTx(
       JOIN warehouses w ON w.id = x.warehouse_id
       WHERE x.day BETWEEN ${from}::date AND ${to}::date
       GROUP BY 1, 2`,
+    // Approved payroll (ADR-124): cost to the employer plus the month's
+    // end-of-service accrual; a settlement is paid from what was accrued.
+    tx.$queryRaw<Array<{ branch_id: string; m: string; value: Prisma.Decimal }>>`
+      SELECT l.branch_id, to_char(r.period, 'YYYY-MM') AS m,
+             SUM(l.employer_cost + l.eos_accrual - coalesce(a.eos, 0)) AS value
+      FROM payroll_lines l
+      JOIN payroll_runs r ON r.id = l.run_id
+      LEFT JOIN (
+        SELECT run_id, employee_id, SUM(amount) AS eos FROM payroll_adjustments
+        WHERE organization_id = ${org}::uuid AND category = 'END_OF_SERVICE'
+        GROUP BY run_id, employee_id
+      ) a ON a.run_id = l.run_id AND a.employee_id = l.employee_id
+      WHERE l.organization_id = ${org}::uuid AND r.status IN ('APPROVED', 'PAID')
+        AND l.branch_id = ANY(${branchIds}::uuid[])
+        AND r.period BETWEEN date_trunc('month', ${from}::date) AND ${to}::date
+      GROUP BY 1, 2`,
   ]);
   const sales = (rows: Row[], source: SalesSource) => {
     for (const r of rows) {
@@ -138,5 +155,6 @@ export async function branchActualsInTx(
   for (const r of b2b) add(r.branch_id, r.m, "INTERCOMPANY_SALES", dec(r.ic));
   for (const r of expenses) add(r.branch_id, r.m, r.grp, dec(r.net));
   for (const r of losses) add(r.branch_id, r.m, "STOCK_LOSSES", dec(r.value));
+  for (const r of payroll) add(r.branch_id, r.m, "STAFF", dec(r.value));
   return out;
 }

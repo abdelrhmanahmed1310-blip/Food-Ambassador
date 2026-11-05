@@ -1167,6 +1167,22 @@ Payroll (HR4a, ADR-123; migration `20270114090000_hr4a_payroll`):
   OTHER_DEDUCTION). Lines and adjustments change only in a draft run
   (trigger).
 
+Payroll rules (HR4b, ADR-124; migration `20270115090000_hr4b_payroll_rules`):
+
+- **payroll_tax_tables**: per company — `code`, `name`, `applies_to`,
+  `annual_exemption`, `deduct_contributions`, `bands` (JSON: `[{ upTo,
+brackets: [{ upTo, rate }] }]`, upper limits rising, last open),
+  dated, `source`. None preset.
+- **payroll_eos_rules**: per company — `code`, `name`, `applies_to`,
+  `base` (BASIC | EOS_BASE), `tiers` (`[{ fromYears, monthsPerYear }]`,
+  from 0), `resignation` (`[{ fromYears, factor }]`), `cap_months`, dated,
+  `source`. None preset.
+- **employee_salary_items** gain `in_eos_base`.
+- **payroll_lines** gain `income_tax`, `eos_liability`, `eos_accrual`;
+  **payroll_runs** gain `income_tax`, `eos_accrual` (fixed once approved).
+- **payroll_adjustments**: category END_OF_SERVICE (an addition, one per
+  employee and run, added only by the settlement).
+
 AI assistant (I2a, ADR-122; migration `20270113090000_i2a_assistant`):
 
 - **assistant_settings** (one row per org): `api_key_sealed` (AES-256-GCM),
