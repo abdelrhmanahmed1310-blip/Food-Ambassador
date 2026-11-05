@@ -3578,6 +3578,49 @@ employee.
   posting, offer letters with pay (pay stays in payroll), e-mail to
   candidates, a talent pool, headcount budgets in money.
 
+### ADR-130 HR analytics — Accepted (HR6 built; HR complete)
+
+Decision (2026-11-05): one HR analytics page reads the HR modules for a
+range of months (the last twelve by default, at most 36, never past this
+month) and optionally one branch. It holds counts and rates only — nothing
+per person — and needs no new data.
+
+- **Headcount and turnover**: a person counts from their hire date
+  through their last day. Per month: headcount at the start and end, hires,
+  leavers, and turnover = leavers ÷ the average of start and end. Over the
+  range: turnover = leavers ÷ the average of the monthly averages. Known
+  limits: people count at their current branch (no transfer history), and
+  a rehire replaces the earlier leaving date (ADR-079).
+- **People on the last day**: by branch and department, tenure bands
+  (under 3 months, 3–12 months, 1–3 years, over 3 years), and new-hire
+  retention — of those hired in the range who are 90 days past hire, the
+  share still employed on day 90.
+- **Absence**: approved leave days inside the range by type (paid or
+  unpaid), and the absence rate = leave days ÷ (average headcount ×
+  calendar days).
+- **Rosters** (ADR-128): published shifts that have ended — no-shows
+  (excluding approved leave) and lateness as shares, planned and worked
+  hours, approved overtime.
+- **Recruitment** (ADR-129), for those who see recruitment: openings
+  approved and their places, candidates per opening, hires through
+  recruitment, approval-to-hire days (average and median), offers
+  accepted (offers leading to a hire ÷ offers closed), and sources of
+  hire.
+- **Pay** (ADR-123), with `payroll.view` only: approved and paid runs per
+  month and run currency — people paid, gross, employer cost and cost per
+  head (Decimal, not converted between currencies).
+- **Training** (ADR-125) compliance today and **performance** (ADR-126)
+  ratings of reviews in cycles ending in the range, each for those with
+  that module's view right. Engagement results are left to the survey
+  page, so its five-answer anonymity rule (ADR-127) is never bypassed.
+- **Access**: `hr.view` or `hr.manage`; every count is limited to the
+  branches the user sees in HR, and a branch outside them falls back to
+  all of theirs. The monthly series exports as CSV.
+- **Not yet**: transfer history for counts by branch over time, voluntary
+  versus involuntary leaving (needs a leaving-reason list), absence
+  against rostered days, cost against sales, charts, and HR questions for
+  the AI assistant.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

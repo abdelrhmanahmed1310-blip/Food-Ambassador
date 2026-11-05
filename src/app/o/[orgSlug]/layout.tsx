@@ -286,6 +286,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr/leave`, label: t("leave") },
       { href: `${base}/hr/onboarding`, label: t("onboarding") },
       { href: `${base}/hr/workforce`, label: t("workforce") },
+      { href: `${base}/hr/analytics`, label: t("hrAnalytics") },
       { href: `${base}/hr/departments`, label: t("departments") },
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );

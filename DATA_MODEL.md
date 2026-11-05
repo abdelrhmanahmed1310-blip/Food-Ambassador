@@ -1719,6 +1719,11 @@ Migration `20261209090000_f1a_companies_brands`.
 - **branches** gains `company_id` (required; backfilled to the default
   company) and `brand_id` (optional), both with composite tenant keys.
 
+### HR analytics (HR6, ADR-130)
+
+No tables: the page reads employees, leave, rosters, recruitment, payroll,
+training and performance records as they are.
+
 ### Recruitment and workforce planning (HR3, ADR-129)
 
 Migration `20270120090000_hr3_recruitment`.

@@ -784,6 +784,25 @@ export async function myTraining(ctx: TenantContext) {
   return employeeTraining(ctx, me.id);
 }
 
+/** Required-training compliance today across the given branches (HR analytics, ADR-130). */
+export async function trainingComplianceSummaryInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  branchIds: string[] | null,
+) {
+  const m = await complianceInTx(tx, ctx, { branchIds });
+  const out = { required: 0, compliant: 0, expiring: 0, lapsed: 0, due: 0 };
+  for (const r of m.rows)
+    for (const c of r.cells) {
+      out.required++;
+      if (c.status === "COMPLIANT") out.compliant++;
+      else if (c.status === "EXPIRING") out.expiring++;
+      else if (c.status === "DUE") out.due++;
+      else out.lapsed++;
+    }
+  return out;
+}
+
 /** Counts for the needs-attention list: expired or overdue, and expiring soon. */
 export async function trainingAttentionInTx(tx: Tx, ctx: TenantContext) {
   if (!canViewTraining(ctx)) return null;

@@ -930,3 +930,66 @@ export const unpaidOvertimeWhere = (organizationId: string): Prisma.OvertimeDeci
   status: "APPROVED",
   OR: [{ payrollAdjustmentId: null }, { adjustment: { run: { status: "CANCELLED" } } }],
 });
+
+/**
+ * How published shifts in a range went, for HR analytics (ADR-130): counts
+ * by outcome, lateness, and overtime approved. Only shifts already ended.
+ */
+export async function shiftOutcomesInTx(
+  tx: Tx,
+  ctx: TenantContext,
+  input: { from: string; to: string; branchIds: string[] | null },
+) {
+  const shifts = await tx.rosterShift.findMany({
+    where: {
+      organizationId: ctx.organizationId,
+      publishedAt: { not: null },
+      cancelledAt: null,
+      day: { gte: asDate(input.from), lte: asDate(input.to) },
+      endsAt: { lte: new Date() },
+      ...(input.branchIds ? { branchId: { in: input.branchIds } } : {}),
+    },
+    include: { branch: { select: { timeZone: true } } },
+  });
+  const comparisons = await compareInTx(
+    tx,
+    ctx,
+    shifts,
+    (s) => shifts.find((x) => x.id === s.id)?.branch.timeZone ?? ctx.timeZone,
+  );
+  const out = {
+    shifts: shifts.length,
+    onTime: 0,
+    lateOrEarly: 0,
+    noShow: 0,
+    onLeave: 0,
+    incomplete: 0,
+    late: 0,
+    plannedMinutes: 0,
+    workedMinutes: 0,
+  };
+  for (const s of shifts) {
+    const c = comparisons.get(s.id);
+    out.plannedMinutes += paidMinutes(s.startsAt, s.endsAt, s.breakMinutes);
+    if (!c) continue;
+    out.workedMinutes += c.workedMinutes;
+    if (c.lateMinutes) out.late++;
+    if (c.onLeave) out.onLeave++;
+    else if (c.outcome === "ON_TIME") out.onTime++;
+    else if (c.outcome === "EXCEPTION") out.lateOrEarly++;
+    else if (c.outcome === "NO_SHOW") out.noShow++;
+    else if (c.outcome === "INCOMPLETE") out.incomplete++;
+  }
+  const overtime = await tx.overtimeDecision.aggregate({
+    where: {
+      organizationId: ctx.organizationId,
+      status: "APPROVED",
+      shift: {
+        day: { gte: asDate(input.from), lte: asDate(input.to) },
+        ...(input.branchIds ? { branchId: { in: input.branchIds } } : {}),
+      },
+    },
+    _sum: { minutes: true },
+  });
+  return { ...out, overtimeApprovedMinutes: overtime._sum.minutes ?? 0 };
+}

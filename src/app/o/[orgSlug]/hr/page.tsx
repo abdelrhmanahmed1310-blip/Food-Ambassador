@@ -19,7 +19,7 @@ const CAPABILITIES = [
   ["performance", "AVAILABLE", "HR5"],
   ["engagement", "AVAILABLE", "HR5"],
   ["learning", "AVAILABLE", "HR5"],
-  ["analytics", "PARTIAL", "HR6"],
+  ["analytics", "AVAILABLE", "HR6"],
 ] as const;
 
 const STATE = {
