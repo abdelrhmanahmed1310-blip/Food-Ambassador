@@ -20,9 +20,10 @@ const securityHeaders = [
 ];
 
 // Low-memory builds (ADR-076): hosts with a hard build memory cap (Render's
-// is 8 GB) set LOW_MEMORY_BUILD=1. The build then skips its own TypeScript
-// pass — CI and `pnpm check` typecheck every commit before it is pushed —
-// uses at most two workers, and writes no server source maps.
+// is 8 GB) set LOW_MEMORY_BUILD=1 and run `pnpm typecheck` as its own step
+// first (a type error still fails the build). `next build` then skips its
+// second, in-process TypeScript pass and uses at most two workers, so the
+// two never hold memory at the same time.
 const lowMemoryBuild = process.env.LOW_MEMORY_BUILD === "1";
 
 const nextConfig: NextConfig = {
@@ -38,9 +39,8 @@ const nextConfig: NextConfig = {
     // Attachments up to 3 MB (ADR-051, Q-08) plus multipart overhead. Other
     // uploads keep their own, lower limits in their actions.
     serverActions: { bodySizeLimit: "4mb" },
-    ...(lowMemoryBuild ? { cpus: 2, serverSourceMaps: false } : {}),
+    ...(lowMemoryBuild ? { cpus: 2 } : {}),
   },
-  ...(lowMemoryBuild ? { enablePrerenderSourceMaps: false } : {}),
   turbopack: {
     rules: {
       "*.css": {
