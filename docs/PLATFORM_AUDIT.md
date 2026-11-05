@@ -61,8 +61,10 @@
 > **I1a built** (ADR-120): transparent demand forecasts per product ×
 > warehouse from the ledger (28- and 7-day averages, same weekday),
 > scored over the last 14 days, and forecast-based orders over lead time
-> and review period with safety stock at a chosen service level. I1b
-> (production forecasts) is next.
+> and review period with safety stock at a chosen service level. **I1b
+> built** (ADR-121): forecast batches on the central kitchen's production
+> plan, from what leaves the kitchen or what all branches use. I1 is
+> complete.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

@@ -22,7 +22,10 @@ import {
 } from "@/modules/inventory/context";
 import { reverseDocumentInTx } from "@/modules/inventory/operations";
 import { nextDocumentNumber, postDocument, type PostingLine } from "@/modules/inventory/posting";
+import { demandHistoryInTx, type DemandKind } from "@/modules/forecasting/demand";
+import { forecast, forecastOrder } from "@/modules/forecasting/rules";
 import { addDays } from "@/modules/inventory/rules";
+import { loadRules } from "@/modules/procurement/settings";
 import { loadRecipeStructureInTx } from "@/modules/recipes/costs";
 import { explodeRecipe } from "@/modules/recipes/explode";
 import { runIdempotent } from "@/modules/shared/idempotency";
@@ -650,13 +653,42 @@ export async function producibleRecipes(ctx: TenantContext) {
   );
 }
 
+export const PLAN_BASES = ["KITCHEN", "BRANCHES"] as const;
+export type PlanBasis = (typeof PLAN_BASES)[number];
+
+export const planOptionsSchema = z.object({
+  /** Days the forecast batches cover, from today (ADR-121). */
+  coverDays: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : "2"))
+    .refine((v) => /^\d{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 14, {
+      error: "invalidCoverDays",
+    })
+    .transform(Number),
+  basis: z.enum(PLAN_BASES, { error: "invalidOption" }).optional().default("KITCHEN"),
+});
+
 /**
  * What to produce in a warehouse: open branch requisitions for each output
  * product (not yet ordered from a supplier) plus what is needed to reach the
  * warehouse's reorder maximum when below its minimum, less usable stock and
  * batches already planned. Rounded up to whole recipe batches.
+ *
+ * Beside it, forecast batches (ADR-121): forecast demand over the next
+ * `coverDays` days plus safety stock at the organization's service level,
+ * less stock and batches already planned. The basis is either what leaves
+ * this kitchen (KITCHEN) or what all warehouses use (BRANCHES, against the
+ * stock held anywhere, in transit included).
  */
-export async function productionPlan(ctx: TenantContext, warehouseId: string) {
+export async function productionPlan(
+  ctx: TenantContext,
+  warehouseId: string,
+  rawOptions: unknown = {},
+) {
+  const parsedOptions = planOptionsSchema.safeParse(rawOptions);
+  if (!parsedOptions.success) throw validationFailed(parsedOptions.error);
+  const options = parsedOptions.data;
   return withTenantTx(ctx.organizationId, async (tx) => {
     const wh = await loadWarehouse(tx, ctx, warehouseId);
     assertWarehousePermission(ctx, "production.view", wh);
@@ -680,6 +712,47 @@ export async function productionPlan(ctx: TenantContext, warehouseId: string) {
         },
       },
     });
+    const outputs = recipes.map((r) => r.outputProductId as string);
+    const settings = await loadRules(tx, ctx);
+    const network = options.basis === "BRANCHES";
+    const histories = await demandHistoryInTx(
+      tx,
+      ctx,
+      { id: wh.id, timeZone: wh.timeZone },
+      today,
+      outputs,
+      { kind: (network ? "USE" : "OUTBOUND") satisfies DemandKind, allWarehouses: network },
+    );
+    // Stock held anywhere, usable or on its way, for the BRANCHES basis.
+    const networkStock = new Map<string, Decimal>();
+    if (network && outputs.length > 0)
+      for (const b of await tx.stockBalance.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          productId: { in: outputs },
+          stockStatus: { in: ["AVAILABLE", "IN_TRANSIT"] },
+          onHandQuantity: { gt: 0 },
+        },
+        select: {
+          productId: true,
+          onHandQuantity: true,
+          reservedQuantity: true,
+          lot: { select: { expiresOn: true, recallHold: true } },
+        },
+      })) {
+        if (
+          b.lot &&
+          (b.lot.recallHold ||
+            (b.lot.expiresOn && b.lot.expiresOn.toISOString().slice(0, 10) < today))
+        )
+          continue;
+        networkStock.set(
+          b.productId,
+          (networkStock.get(b.productId) ?? new Decimal(0)).plus(
+            dec(b.onHandQuantity).minus(dec(b.reservedQuantity)),
+          ),
+        );
+      }
     const rows = [];
     for (const r of recipes) {
       const productId = r.outputProductId as string;
@@ -758,6 +831,23 @@ export async function productionPlan(ctx: TenantContext, warehouseId: string) {
         rule && usable.minus(demand).lt(minimum) ? dec(rule.maxQuantityBase) : new Decimal(0);
       const need = Decimal.max(demand.plus(target).minus(usable).minus(plannedBase), 0);
       const batches = need.gt(0) ? need.dividedBy(batchBase).ceil() : new Decimal(0);
+      const history = histories.get(productId)!;
+      const predicted = forecast(history.series, history.historyDays, options.coverDays);
+      const stockBase = network ? (networkStock.get(productId) ?? new Decimal(0)) : usable;
+      const byForecast =
+        predicted.status === "OK"
+          ? forecastOrder({
+              daily: predicted.daily,
+              rmse: predicted.accuracy.rmse,
+              leadTimeDays: 0,
+              reviewDays: options.coverDays,
+              serviceLevel: settings.forecastServiceLevel,
+              availableBase: stockBase,
+              onOrderBase: plannedBase,
+              basePerPurchaseUnit: batchBase,
+              minOrderPurchaseUnits: null,
+            })
+          : null;
       rows.push({
         recipe: { id: r.id, code: r.code, name: r.name, nameAr: r.nameAr },
         product: { id: productId, sku: product.sku, unit: product.baseUom.code },
@@ -769,10 +859,27 @@ export async function productionPlan(ctx: TenantContext, warehouseId: string) {
         batches,
         suggestedQuantity: batches.times(dec(v.yieldQuantity)),
         yieldUnit: v.yieldUom.code,
+        forecast:
+          predicted.status === "OK" && byForecast
+            ? {
+                status: "OK" as const,
+                method: predicted.method,
+                wape: predicted.accuracy.wape,
+                demand: byForecast.demandBase,
+                safety: byForecast.safetyBase,
+                stock: stockBase,
+                batches: byForecast.purchaseUnits ?? new Decimal(0),
+                suggestedQuantity: (byForecast.purchaseUnits ?? new Decimal(0)).times(
+                  dec(v.yieldQuantity),
+                ),
+              }
+            : { status: "SHORT_HISTORY" as const, historyDays: history.historyDays },
       });
     }
     return {
       warehouse: wh,
+      options,
+      serviceLevel: settings.forecastServiceLevel,
       rows: rows.sort(
         (a, b) => b.need.comparedTo(a.need) || a.recipe.code.localeCompare(b.recipe.code),
       ),

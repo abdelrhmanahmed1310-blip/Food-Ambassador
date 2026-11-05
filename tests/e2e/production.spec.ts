@@ -97,5 +97,14 @@ test("production: a preparation made in the central kitchen enters stock at the 
 
   await page.goto(`/o/${slug}/inventory/valuation`);
   await expect(page.getByTestId("total-value")).toHaveText(/EGP\s?200\.00/); // 6 kg tomato 120 + 4 kg sauce 80
+
+  // Forecast batches (ADR-121): a new kitchen has no history to forecast from yet.
+  await page.goto(`/o/${slug}/production/plan`);
+  await expect(page.getByTestId("plan-SAUCE")).toContainText("Not enough history (0 days of 28)");
+  await page.getByLabel("Forecast cover (days)").fill("7");
+  await page.getByLabel("Forecast from").selectOption({ label: "What all branches use" });
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(page.getByText(/what all warehouses use over the next 7 days/)).toBeVisible();
+  await expect(page.getByLabel("Forecast cover (days)")).toHaveValue("7");
   await context.close();
 });

@@ -326,7 +326,8 @@
     "invalidRating": "Choose 1 to 5 stars.",
     "subjectRequired": "An e-mail needs a subject.",
     "unknownPlaceholder": "Only '{name}' can be filled in.",
-    "invalidReviewDays": "Enter a whole number of days from 1 to 90."
+    "invalidReviewDays": "Enter a whole number of days from 1 to 90.",
+    "invalidCoverDays": "Enter a whole number of days from 1 to 14."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -2825,7 +2826,21 @@
     "noOutput": "Not produced into stock",
     "madeFrom": "Made from",
     "usedIn": "Used in batches",
-    "noLot": "no lot recorded (gap)"
+    "noLot": "no lot recorded (gap)",
+    "coverDays": "Forecast cover (days)",
+    "forecastBasis": "Forecast from",
+    "forecastBases": {
+      "KITCHEN": "What leaves this kitchen",
+      "BRANCHES": "What all branches use"
+    },
+    "forecastNote": {
+      "KITCHEN": "By forecast: demand leaving this kitchen over the next {days} days, plus safety stock at a {level} service level, less usable stock here and batches already planned.",
+      "BRANCHES": "By forecast: what all warehouses use over the next {days} days, plus safety stock at a {level} service level, less the stock held anywhere (in transit included) and batches already planned. Use this when only this kitchen makes these preparations."
+    },
+    "byForecast": "By forecast",
+    "forecastEnough": "Enough stock",
+    "forecastDetail": "Demand {demand}, safety {safety}, stock {stock} {unit}",
+    "planForecast": "Plan forecast batches"
   },
   "b2b": {
     "customers": "Customers",

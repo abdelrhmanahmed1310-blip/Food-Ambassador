@@ -132,7 +132,7 @@ export function forecast(
 }
 
 export interface ForecastOrderInput {
-  /** Forecast daily demand from tomorrow, base units. */
+  /** Forecast daily demand from today (the day after the history), base units. */
   daily: readonly Decimal[];
   /** Daily forecast error (backtest RMSE), base units. */
   rmse: Decimal;

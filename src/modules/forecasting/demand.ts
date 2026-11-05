@@ -36,8 +36,18 @@ export interface ForecastWarehouse {
 }
 
 /**
+ * What counts as demand: OUTBOUND is everything that left the warehouse to
+ * be used (use, customer deliveries, transfers to another warehouse); USE
+ * is use and customer deliveries only, for demand summed over all
+ * warehouses, where transfers between them are not demand (ADR-121).
+ */
+export type DemandKind = "OUTBOUND" | "USE";
+
+/**
  * Daily demand for the given products (or every product that moved at the
- * warehouse in the window) over the HISTORY_DAYS days before `today`.
+ * warehouse in the window) over the HISTORY_DAYS days before `today`. With
+ * `allWarehouses`, demand of the whole organization, by business day in the
+ * given warehouse's time zone.
  */
 export async function demandHistoryInTx(
   tx: Tx,
@@ -45,8 +55,21 @@ export async function demandHistoryInTx(
   warehouse: ForecastWarehouse,
   today: string,
   productIds?: string[],
+  options: { kind?: DemandKind; allWarehouses?: boolean } = {},
 ): Promise<Map<string, DemandHistory>> {
   const tz = warehouse.timeZone ?? ctx.timeZone;
+  const kind = options.kind ?? "OUTBOUND";
+  const where = options.allWarehouses
+    ? Prisma.empty
+    : Prisma.sql`AND e.warehouse_id = ${warehouse.id}::uuid`;
+  const transfers =
+    kind === "OUTBOUND"
+      ? Prisma.sql`OR (x.kind = 'TRANSFER_OUT' AND NOT EXISTS (
+            SELECT 1 FROM inventory_ledger_entries i
+            WHERE i.organization_id = e.organization_id AND i.document_id = x.doc
+              AND i.movement_type = 'TRANSFER_IN' AND i.warehouse_id = e.warehouse_id
+              AND i.product_id = e.product_id))`
+      : Prisma.empty;
   const from = addDays(today, -HISTORY_DAYS);
   const to = addDays(today, -1);
   if (productIds && productIds.length === 0) return new Map();
@@ -65,24 +88,17 @@ export async function demandHistoryInTx(
                coalesce(o.document_id, e.document_id) AS doc
       ) x
       WHERE e.organization_id = ${ctx.organizationId}::uuid
-        AND e.warehouse_id = ${warehouse.id}::uuid
+        ${where}
         ${only}
         AND x.d BETWEEN ${from}::date AND ${to}::date
         AND (e.movement_type <> 'REVERSAL' OR o.id IS NOT NULL)
-        AND (
-          x.kind IN ('CONSUMPTION', 'CUSTOMER_DELIVERY')
-          OR (x.kind = 'TRANSFER_OUT' AND NOT EXISTS (
-            SELECT 1 FROM inventory_ledger_entries i
-            WHERE i.organization_id = e.organization_id AND i.document_id = x.doc
-              AND i.movement_type = 'TRANSFER_IN' AND i.warehouse_id = e.warehouse_id
-              AND i.product_id = e.product_id))
-        )
+        AND (x.kind IN ('CONSUMPTION', 'CUSTOMER_DELIVERY') ${transfers})
       GROUP BY e.product_id, x.d`,
     tx.$queryRaw<Array<{ product_id: string; d: Date }>>`
       SELECT e.product_id, MIN((e.occurred_at AT TIME ZONE ${tz})::date) AS d
       FROM inventory_ledger_entries e
       WHERE e.organization_id = ${ctx.organizationId}::uuid
-        AND e.warehouse_id = ${warehouse.id}::uuid
+        ${where}
         ${only}
       GROUP BY e.product_id`,
   ]);

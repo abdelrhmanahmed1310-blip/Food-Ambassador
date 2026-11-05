@@ -3165,10 +3165,37 @@ a model that cannot be explained, and no input is guessed.
   (`procurement_settings.forecast_review_days`, `forecast_service_level`).
 - **Known limit**: imported sales post their stock use when imported, so
   a day imported late counts on the day it was imported.
-- **Not yet (I1b and later)**: production forecasts for the central
-  kitchen from branch demand, seasonality beyond the week, holidays and
+- **Not yet**: production forecasts (built in I1b, ADR-121), seasonality beyond the week, holidays and
   promotions, forecasts for items without a reorder level on the plan,
   storing forecasts to track their accuracy over time.
+
+### ADR-121 Forecast batches for the central kitchen — Accepted (I1b built)
+
+Decision (2026-11-05): the production plan (ADR-045) shows forecast
+batches beside the batches it plans from branch requisitions and par
+levels, with the methods, scoring and short-history rule of ADR-120.
+
+- **Two bases**, chosen on the plan:
+  - **What leaves this kitchen** (default): demand as in ADR-120 at the
+    kitchen's warehouse — its own use, customer deliveries and transfers
+    to the branches — against usable stock at the kitchen.
+  - **What all branches use**: use and customer deliveries of the
+    preparation in every warehouse of the organization (transfers between
+    warehouses are not use), by business day in the kitchen's time zone,
+    against the stock held anywhere, usable or in transit. Totals only;
+    no branch's figures are shown. Meant for preparations only this
+    kitchen makes: with two kitchens making the same one, plan from what
+    leaves each kitchen.
+- **Batches**: forecast demand over the next N days from today (1–14,
+  default 2, chosen on the plan, not stored) plus safety stock z × RMSE ×
+  √N at the organization's service level (ADR-120), less that stock and
+  the batches already planned, rounded up to whole recipe batches. "Plan
+  forecast batches" opens a new production order with that quantity; the
+  planner confirms it as usual.
+- No schema change.
+- **Not yet**: planning ingredients for forecast batches, production
+  calendars and shifts, forecasts per branch shown to the kitchen,
+  holidays and promotions.
 
 ## Business assumptions (recorded, not invented rules)
 
