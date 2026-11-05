@@ -3386,6 +3386,46 @@ show that staff hold food-hygiene and safety training.
   training cost, the food-safety compliance score taking training into
   account, development plans (with HR5b).
 
+### ADR-126 Goals and performance reviews — Accepted (HR5b built)
+
+Decision (2026-11-05): performance runs in review cycles on a fixed 1–5
+scale (unsatisfactory, needs improvement, meets expectations, exceeds
+expectations, outstanding), with the manager from the HR reporting line
+(ADR-079) as reviewer and HR holding the final say.
+
+- **Goals** per employee: title, description, weight 0–100 %, due date,
+  progress 0–100 % and an outcome (open, achieved, partly achieved,
+  missed, cancelled). Set by HR at the branch or by the employee's own
+  manager; the employee updates progress, not the outcome. Goals in one
+  cycle weigh at most 100 % together (cancelled ones aside); none can be
+  added once the review is rated.
+- **Cycles**: a name, a period, self-review and manager-review due dates,
+  for one branch or every branch (HR scope). **Launching** opens a review
+  for each active employee hired by the period's end, with their manager
+  at that moment as reviewer (none: HR reviews). **Closing** needs every
+  review final or skipped.
+- **A review** moves forward only: the employee's self-review (a comment
+  and a rating per goal) → the manager's review (a rating for every goal
+  of the cycle, an overall rating, strengths and what to work on; it can
+  come without a self-review) → the employee acknowledges, with a comment
+  → HR finalizes: the manager's rating, or another with a reason. HR may
+  skip a review with a reason (long leave, left). Nobody reviews or
+  finalizes their own. A final or skipped review never changes (trigger).
+- **Who sees what**: the employee sees the manager's part once submitted;
+  the manager sees the self-review once submitted; HR sees all at their
+  branches. The goal score is the manager's goal ratings weighted by
+  goal weight (a plain average when no goal carries weight), shown beside
+  the overall rating the manager chooses.
+- **Reporting**: each cycle shows progress by status and the rating
+  distribution (final, else the manager's). Needs attention shows each
+  person the reviews waiting for them; My performance lists their goals,
+  reviews and the reviews they give.
+- **Access**: `performance.view` / `performance.manage`, per branch —
+  administrators, operations managers and branch managers. Managers need
+  no permission to set their own reports' goals or review them.
+- **Not yet**: 360° and peer feedback, competency frameworks, ratings
+  feeding pay changes, reminders by e-mail, development plans.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

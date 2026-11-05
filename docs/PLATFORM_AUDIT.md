@@ -79,7 +79,9 @@
 > **HR5a built** (ADR-125): training courses, requirements by job,
 > department or branch, sessions with attendance and results, outside
 > certificates, and a compliance matrix with expiries in Needs attention.
-> HR5b (performance) and HR5c (engagement) follow.
+> **HR5b built** (ADR-126): weighted goals, review cycles with self,
+> manager and final ratings, rating distribution. HR5c (engagement)
+> follows.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

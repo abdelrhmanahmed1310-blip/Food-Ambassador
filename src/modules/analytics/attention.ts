@@ -1,3 +1,4 @@
+import { reviewsToDoInTx } from "@/modules/performance/service";
 import { trainingAttentionInTx } from "@/modules/learning/service";
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
@@ -57,6 +58,7 @@ export type AttentionKey =
   | "IMPORT_SHIPMENTS_LATE"
   | "TRADE_DOCUMENTS_EXPIRED"
   | "TRAINING_LAPSED"
+  | "PERFORMANCE_REVIEWS_TO_DO"
   | "TRAINING_EXPIRING"
   | "TRADE_DOCUMENTS_EXPIRING"
   | "COLD_CHAIN_EXCURSIONS"
@@ -663,6 +665,14 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         links: docLinks(expiring),
       });
     }
+
+    // Performance reviews waiting for this person (ADR-126).
+    push({
+      key: "PERFORMANCE_REVIEWS_TO_DO",
+      tone: "info",
+      count: await reviewsToDoInTx(tx, ctx),
+      href: "/my/performance",
+    });
 
     // Required training lapsed (expired or overdue) or expiring (ADR-125).
     const training = await trainingAttentionInTx(tx, ctx);

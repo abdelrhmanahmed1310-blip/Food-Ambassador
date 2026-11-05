@@ -194,7 +194,9 @@
     "payroll": "الرواتب",
     "myPayslips": "قسائم راتبي",
     "training": "التدريب",
-    "myTraining": "تدريبي"
+    "myTraining": "تدريبي",
+    "performance": "الأداء",
+    "myPerformance": "أدائي"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -339,7 +341,8 @@
     "invalidIban": "أدخل رقم آيبان صحيحًا.",
     "tiersFromZero": "يبدأ الصف الأول من 0 سنوات.",
     "invalidNumber": "أدخل عددًا صحيحًا.",
-    "resultNeedsAttendance": "النتيجة تتطلب الحضور."
+    "resultNeedsAttendance": "النتيجة تتطلب الحضور.",
+    "invalidPercent": "أدخل عددًا صحيحًا من 0 إلى 100."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -836,7 +839,17 @@
     "TRAINING_SESSION_EMPTY": "لا أحد في هذه الجلسة.",
     "TRAINING_ATTENDANCE_MISSING": "سجّل حضور الجميع ونتيجة من حضر.",
     "TRAINING_IN_FUTURE": "تاريخ الإتمام في المستقبل.",
-    "TRAINING_RECORD_VOIDED": "هذا السجل ملغى بالفعل."
+    "TRAINING_RECORD_VOIDED": "هذا السجل ملغى بالفعل.",
+    "CYCLE_NOT_DRAFT": "الدورة مطلقة بالفعل.",
+    "CYCLE_NO_STAFF": "لا أحد ضمن نطاق هذه الدورة.",
+    "CYCLE_NOT_OPEN": "الدورة غير مفتوحة.",
+    "CYCLE_REVIEWS_OPEN": "اعتمد كل التقييمات أو تجاوزها أولًا.",
+    "CYCLE_CLOSED": "الدورة مغلقة.",
+    "REVIEW_ALREADY_RATED": "التقييم مُقيَّم بالفعل.",
+    "GOAL_WEIGHTS_OVER_100": "مجموع أوزان أهداف الدورة 100% كحد أقصى.",
+    "REVIEW_STEP_NOT_ALLOWED": "هذه الخطوة غير ممكنة الآن.",
+    "REVIEW_GOALS_UNRATED": "قيّم كل أهداف الدورة.",
+    "REVIEW_CHANGE_NEEDS_REASON": "اذكر سبب تغيير التقييم."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1093,7 +1106,9 @@
       "payroll.manage": "إعداد الرواتب وتحديدها",
       "payroll.approve": "اعتماد الرواتب",
       "training.view": "عرض التدريب والشهادات",
-      "training.manage": "إدارة التدريب والشهادات"
+      "training.manage": "إدارة التدريب والشهادات",
+      "performance.view": "عرض الأهداف وتقييمات الأداء",
+      "performance.manage": "إدارة دورات التقييم واعتماد التقييمات"
     }
   },
   "audit": {
@@ -2814,7 +2829,8 @@
       "COLD_CHAIN_EXCURSIONS": "{count, plural, one {رحلة بخروج في الحرارة} two {رحلتان بخروج في الحرارة} few {# رحلات بخروج في الحرارة} other {# رحلة بخروج في الحرارة}}",
       "LOW_RATINGS_TO_REVIEW": "{count, plural, one {تقييم منخفض للمراجعة} two {تقييمان منخفضان للمراجعة} few {# تقييمات منخفضة للمراجعة} other {# تقييمًا منخفضًا للمراجعة}}",
       "TRAINING_LAPSED": "{count, plural, one {تدريب مطلوب واحد منتهٍ أو متأخر} other {# تدريبات مطلوبة منتهية أو متأخرة}}",
-      "TRAINING_EXPIRING": "{count, plural, one {شهادة واحدة تنتهي خلال 30 يومًا} other {# شهادات تنتهي خلال 30 يومًا}}"
+      "TRAINING_EXPIRING": "{count, plural, one {شهادة واحدة تنتهي خلال 30 يومًا} other {# شهادات تنتهي خلال 30 يومًا}}",
+      "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {تقييم أداء واحد بانتظارك} other {# تقييمات أداء بانتظارك}}"
     }
   },
   "production": {
@@ -6662,5 +6678,102 @@
     "certificateNumber": "رقم الشهادة",
     "note": "ملاحظة",
     "myTraining": "تدريبي"
+  },
+  "performance": {
+    "title": "الأداء",
+    "hint": "دورات التقييم: يقيّم كل موظف نفسه، ويقيّم مديره كل هدف ويعطي تقييمًا عامًا، ثم يطّلع الموظف، وتعتمد الموارد البشرية.",
+    "noCycles": "لا توجد دورات تقييم بعد.",
+    "cycleName": "الاسم",
+    "period": "الفترة",
+    "branch": "الفرع",
+    "allBranches": "كل الفروع",
+    "reviews": "التقييمات",
+    "status": "الحالة",
+    "cycleStatuses": {
+      "DRAFT": "مسودة",
+      "OPEN": "مفتوحة",
+      "CLOSED": "مغلقة"
+    },
+    "reviewStatuses": {
+      "NOT_STARTED": "لم يبدأ",
+      "SELF_DONE": "اكتمل التقييم الذاتي",
+      "MANAGER_DONE": "قيّمه المدير",
+      "ACKNOWLEDGED": "اطّلع عليه",
+      "FINALIZED": "نهائي",
+      "SKIPPED": "متجاوز"
+    },
+    "goalStatuses": {
+      "OPEN": "مفتوح",
+      "ACHIEVED": "متحقق",
+      "PARTLY_ACHIEVED": "متحقق جزئيًا",
+      "MISSED": "لم يتحقق",
+      "CANCELLED": "ملغى"
+    },
+    "ratings": {
+      "1": "غير مُرضٍ",
+      "2": "يحتاج إلى تحسين",
+      "3": "يلبي التوقعات",
+      "4": "يفوق التوقعات",
+      "5": "متميز"
+    },
+    "createCycle": "دورة تقييم جديدة",
+    "periodStart": "الفترة من",
+    "periodEnd": "الفترة إلى",
+    "selfDueOn": "موعد التقييم الذاتي",
+    "managerDueOn": "موعد تقييم المدير",
+    "working": "جارٍ العمل…",
+    "distribution": "التقييمات",
+    "notLaunched": "أطلق الدورة لفتح تقييم لكل موظف.",
+    "noReviews": "لا توجد تقييمات يمكنك رؤيتها.",
+    "employee": "الموظف",
+    "reviewer": "المقيّم",
+    "hrReviews": "الموارد البشرية",
+    "rating": "التقييم",
+    "launch": "إطلاق الدورة",
+    "launchConfirm": "إطلاق الدورة؟ يُفتح تقييم لكل موظف نشط ضمن نطاقها.",
+    "close": "إغلاق الدورة",
+    "goals": "الأهداف",
+    "goalTitle": "الهدف",
+    "weight": "الوزن (%)",
+    "weightHint": "مجموع أوزان أهداف الدورة 100% كحد أقصى. 0: بلا وزن.",
+    "progress": "التقدم (%)",
+    "selfRating": "ذاتي",
+    "managerRating": "المدير",
+    "selfComment": "التقييم الذاتي",
+    "goalScore": "درجة الأهداف (موزونة)",
+    "overallRating": "التقييم العام",
+    "strengths": "نقاط القوة",
+    "improvements": "مجالات التطوير",
+    "employeeComment": "تعليق الموظف",
+    "finalRating": "التقييم النهائي",
+    "finalReason": "سبب تغيير التقييم",
+    "finalReasonHint": "مطلوب فقط إذا اختلف عن تقييم المدير.",
+    "skipReason": "سبب التجاوز",
+    "selfReview": "تقييمك الذاتي",
+    "selfDue": "مستحق بحلول {date}.",
+    "managerReview": "تقييم المدير",
+    "managerDue": "مستحق بحلول {date}.",
+    "acknowledgeTitle": "الاطلاع على تقييمك",
+    "acknowledge": "اطّلعت",
+    "finalizeTitle": "التقييم النهائي",
+    "finalize": "اعتماد",
+    "skip": "تجاوز التقييم",
+    "submitSelf": "إرسال التقييم الذاتي",
+    "submitManager": "إرسال التقييم",
+    "rateGoal": "التقييم: {goal}",
+    "cycle": "الدورة",
+    "noCycle": "بلا دورة",
+    "dueOn": "الموعد",
+    "description": "الوصف",
+    "addGoal": "إضافة هدف",
+    "save": "حفظ",
+    "outcome": "النتيجة",
+    "noGoals": "لا توجد أهداف بعد.",
+    "dueBy": "مستحق {date}",
+    "finalShort": "التقييم النهائي {rating}",
+    "myPerformance": "أدائي",
+    "myGoals": "أهدافي وتقييماتي",
+    "toGive": "تقييمات تجريها",
+    "goalsAndReviews": "الأهداف والتقييمات"
   }
 }

@@ -22,6 +22,8 @@ import { businessDate } from "@/modules/inventory/rules";
 import { canViewPayroll, employeePay } from "@/modules/payroll/service";
 import { canViewTraining, employeeTraining } from "@/modules/learning/service";
 import { TrainingSection } from "@/components/learning/training-section";
+import { GoalsSection } from "@/components/performance/goals-section";
+import { employeeGoals } from "@/modules/performance/service";
 import { getLocale } from "next-intl/server";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { moneyIn } from "@/server/fx-view";
@@ -73,6 +75,8 @@ export default async function EmployeePage({
     ? await employeeTraining(ctx, e.id).catch(() => null)
     : null;
   const locale = await getLocale();
+  // Goals and reviews (ADR-126): HR, the employee's manager, or the employee.
+  const performance = await employeeGoals(ctx, e.id).catch(() => null);
   const money = pay ? (await moneyIn([pay.currency]))(pay.currency).money : null;
   const base = `/o/${orgSlug}/hr`;
   return (
@@ -374,6 +378,19 @@ export default async function EmployeePage({
                 hireDate: day(e.hireDate),
                 userId: e.userId,
               }}
+            />
+          </Card>
+        ) : null}
+        {performance ? (
+          <Card title={t("performance.goalsAndReviews")}>
+            <GoalsSection
+              orgSlug={orgSlug}
+              employeeId={e.id}
+              goals={performance.goals}
+              reviews={performance.reviews}
+              cycles={performance.cycles}
+              canSetGoals={performance.canSetGoals}
+              canUpdate={performance.own}
             />
           </Card>
         ) : null}

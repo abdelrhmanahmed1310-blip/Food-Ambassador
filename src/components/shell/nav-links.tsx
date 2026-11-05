@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Menu,
   GraduationCap,
+  Target,
   Package,
   ReceiptText,
   Settings,
@@ -51,6 +52,7 @@ const ICONS = {
   leave: CalendarDays,
   payslip: ReceiptText,
   training: GraduationCap,
+  goals: Target,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

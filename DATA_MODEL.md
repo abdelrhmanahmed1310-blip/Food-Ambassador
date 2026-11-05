@@ -1167,6 +1167,21 @@ Payroll (HR4a, ADR-123; migration `20270114090000_hr4a_payroll`):
   OTHER_DEDUCTION). Lines and adjustments change only in a draft run
   (trigger).
 
+Performance (HR5b, ADR-126; migration `20270117090000_hr5b_performance`):
+
+- **performance_cycles**: name, optional branch, period, self and manager
+  due dates, `status` (DRAFT → OPEN → CLOSED).
+- **performance_goals**: employee, optional cycle, title, `weight` and
+  `progress` (0–100), due date, `status` (OPEN | ACHIEVED |
+  PARTLY_ACHIEVED | MISSED | CANCELLED).
+- **performance_reviews**: UQ (cycle, employee); reviewer (the manager at
+  launch, or none); `status` (NOT_STARTED → SELF_DONE → MANAGER_DONE →
+  ACKNOWLEDGED → FINALIZED; SKIPPED); self comment, manager rating 1–5,
+  strengths, improvements, employee comment, final rating with reason.
+  Final and skipped reviews never change (trigger).
+- **performance_review_goals**: review × goal, self and manager ratings
+  1–5; fixed with their review.
+
 Training (HR5a, ADR-125; migration `20270116090000_hr5a_learning`):
 
 - **training_courses**: UQ (org, code); `category`, `delivery`,

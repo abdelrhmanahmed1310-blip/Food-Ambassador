@@ -385,6 +385,11 @@ model Organization {
   trainingParticipants TrainingParticipant[]
   trainingRecords      TrainingRecord[]
 
+  performanceCycles      PerformanceCycle[]
+  performanceGoals       PerformanceGoal[]
+  performanceReviews     PerformanceReview[]
+  performanceReviewGoals PerformanceReviewGoal[]
+
   @@map("organizations")
 }
 
@@ -6566,6 +6571,10 @@ model Employee {
   trainingParticipations TrainingParticipant[]
   trainingRecords        TrainingRecord[]
 
+  performanceGoals   PerformanceGoal[]
+  performanceReviews PerformanceReview[] @relation("PerformanceReviewee")
+  reviewsToGive      PerformanceReview[] @relation("PerformanceReviewer")
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@unique([organizationId, userId])
@@ -8065,4 +8074,134 @@ model TrainingRecord {
   @@index([organizationId, employeeId, courseId])
   @@index([organizationId, expiresOn])
   @@map("training_records")
+}
+
+// ─── HR5b performance (ADR-126) ───
+
+enum PerformanceCycleStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum PerformanceGoalStatus {
+  OPEN
+  ACHIEVED
+  PARTLY_ACHIEVED
+  MISSED
+  CANCELLED
+}
+
+enum PerformanceReviewStatus {
+  NOT_STARTED
+  SELF_DONE
+  MANAGER_DONE
+  ACKNOWLEDGED
+  FINALIZED
+  SKIPPED
+}
+
+/// A review period: launched for the active staff of a branch or the whole organization.
+model PerformanceCycle {
+  id              String                 @id @default(uuid(7)) @db.Uuid
+  organizationId  String                 @map("organization_id") @db.Uuid
+  name            String
+  /// Null: every branch.
+  branchId        String?                @map("branch_id") @db.Uuid
+  periodStart     DateTime               @map("period_start") @db.Date
+  periodEnd       DateTime               @map("period_end") @db.Date
+  selfDueOn       DateTime               @map("self_due_on") @db.Date
+  managerDueOn    DateTime               @map("manager_due_on") @db.Date
+  status          PerformanceCycleStatus @default(DRAFT)
+  createdByUserId String                 @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  launchedAt      DateTime?              @map("launched_at") @db.Timestamptz(3)
+  closedAt        DateTime?              @map("closed_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  goals        PerformanceGoal[]
+  reviews      PerformanceReview[]
+
+  @@unique([organizationId, id])
+  @@map("performance_cycles")
+}
+
+/// An employee's goal, optionally for a cycle; weights within a cycle add up to at most 100.
+model PerformanceGoal {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  organizationId  String                @map("organization_id") @db.Uuid
+  employeeId      String                @map("employee_id") @db.Uuid
+  cycleId         String?               @map("cycle_id") @db.Uuid
+  title           String
+  description     String?
+  weight          Int
+  dueOn           DateTime?             @map("due_on") @db.Date
+  status          PerformanceGoalStatus @default(OPEN)
+  progress        Int                   @default(0)
+  createdByUserId String                @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee                @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  cycle        PerformanceCycle?       @relation(fields: [organizationId, cycleId], references: [organizationId, id], onDelete: Restrict)
+  ratings      PerformanceReviewGoal[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, employeeId, cycleId])
+  @@map("performance_goals")
+}
+
+/// One employee's review in a cycle, from self-review to the final rating.
+model PerformanceReview {
+  id                     String                  @id @default(uuid(7)) @db.Uuid
+  organizationId         String                  @map("organization_id") @db.Uuid
+  cycleId                String                  @map("cycle_id") @db.Uuid
+  employeeId             String                  @map("employee_id") @db.Uuid
+  /// The employee's manager at launch; null: HR reviews.
+  reviewerEmployeeId     String?                 @map("reviewer_employee_id") @db.Uuid
+  status                 PerformanceReviewStatus @default(NOT_STARTED)
+  selfComment            String?                 @map("self_comment")
+  selfSubmittedAt        DateTime?               @map("self_submitted_at") @db.Timestamptz(3)
+  managerRating          Int?                    @map("manager_rating")
+  managerStrengths       String?                 @map("manager_strengths")
+  managerImprovements    String?                 @map("manager_improvements")
+  managerSubmittedAt     DateTime?               @map("manager_submitted_at") @db.Timestamptz(3)
+  managerSubmittedUserId String?                 @map("manager_submitted_user_id") @db.Uuid
+  employeeComment        String?                 @map("employee_comment")
+  acknowledgedAt         DateTime?               @map("acknowledged_at") @db.Timestamptz(3)
+  finalRating            Int?                    @map("final_rating")
+  finalReason            String?                 @map("final_reason")
+  finalizedAt            DateTime?               @map("finalized_at") @db.Timestamptz(3)
+  finalizedByUserId      String?                 @map("finalized_by_user_id") @db.Uuid
+  skipReason             String?                 @map("skip_reason")
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  cycle        PerformanceCycle        @relation(fields: [organizationId, cycleId], references: [organizationId, id], onDelete: Restrict)
+  employee     Employee                @relation("PerformanceReviewee", fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  reviewer     Employee?               @relation("PerformanceReviewer", fields: [organizationId, reviewerEmployeeId], references: [organizationId, id], onDelete: Restrict)
+  goals        PerformanceReviewGoal[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, cycleId, employeeId])
+  @@index([organizationId, reviewerEmployeeId])
+  @@map("performance_reviews")
+}
+
+/// Ratings of one goal in a review, by the employee and by the manager.
+model PerformanceReviewGoal {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  reviewId       String  @map("review_id") @db.Uuid
+  goalId         String  @map("goal_id") @db.Uuid
+  selfRating     Int?    @map("self_rating")
+  managerRating  Int?    @map("manager_rating")
+  comment        String?
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  review       PerformanceReview @relation(fields: [organizationId, reviewId], references: [organizationId, id], onDelete: Restrict)
+  goal         PerformanceGoal   @relation(fields: [organizationId, goalId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, reviewId, goalId])
+  @@map("performance_review_goals")
 }

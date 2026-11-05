@@ -194,7 +194,9 @@
     "payroll": "Payroll",
     "myPayslips": "My payslips",
     "training": "Training",
-    "myTraining": "My training"
+    "myTraining": "My training",
+    "performance": "Performance",
+    "myPerformance": "My performance"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -339,7 +341,8 @@
     "invalidIban": "Enter a valid IBAN.",
     "tiersFromZero": "The first row starts at 0 years.",
     "invalidNumber": "Enter a whole number.",
-    "resultNeedsAttendance": "A result needs attendance."
+    "resultNeedsAttendance": "A result needs attendance.",
+    "invalidPercent": "Enter a whole number from 0 to 100."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -836,7 +839,17 @@
     "TRAINING_SESSION_EMPTY": "Nobody is on this session.",
     "TRAINING_ATTENDANCE_MISSING": "Mark everyone's attendance, and a result for those who attended.",
     "TRAINING_IN_FUTURE": "The completion date is in the future.",
-    "TRAINING_RECORD_VOIDED": "This record is already voided."
+    "TRAINING_RECORD_VOIDED": "This record is already voided.",
+    "CYCLE_NOT_DRAFT": "The cycle is already launched.",
+    "CYCLE_NO_STAFF": "Nobody is in this cycle's scope.",
+    "CYCLE_NOT_OPEN": "The cycle is not open.",
+    "CYCLE_REVIEWS_OPEN": "Finalize or skip every review first.",
+    "CYCLE_CLOSED": "The cycle is closed.",
+    "REVIEW_ALREADY_RATED": "The review is already rated.",
+    "GOAL_WEIGHTS_OVER_100": "Goal weights in a cycle add up to at most 100 %.",
+    "REVIEW_STEP_NOT_ALLOWED": "This step is not possible now.",
+    "REVIEW_GOALS_UNRATED": "Rate every goal of the cycle.",
+    "REVIEW_CHANGE_NEEDS_REASON": "Say why the rating changes."
   },
   "notFound": {
     "title": "Page not found",
@@ -1093,7 +1106,9 @@
       "payroll.manage": "Prepare payroll and set salaries",
       "payroll.approve": "Approve payroll",
       "training.view": "See training and certificates",
-      "training.manage": "Manage training and certificates"
+      "training.manage": "Manage training and certificates",
+      "performance.view": "See goals and performance reviews",
+      "performance.manage": "Run review cycles and finalize ratings"
     }
   },
   "audit": {
@@ -2814,7 +2829,8 @@
       "COLD_CHAIN_EXCURSIONS": "{count, plural, one {# trip with a temperature excursion} other {# trips with temperature excursions}}",
       "LOW_RATINGS_TO_REVIEW": "{count, plural, one {# low rating to review} other {# low ratings to review}}",
       "TRAINING_LAPSED": "{count, plural, one {# required training expired or overdue} other {# required trainings expired or overdue}}",
-      "TRAINING_EXPIRING": "{count, plural, one {# certificate expiring within 30 days} other {# certificates expiring within 30 days}}"
+      "TRAINING_EXPIRING": "{count, plural, one {# certificate expiring within 30 days} other {# certificates expiring within 30 days}}",
+      "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {# performance review waiting for you} other {# performance reviews waiting for you}}"
     }
   },
   "production": {
@@ -6662,5 +6678,102 @@
     "certificateNumber": "Certificate number",
     "note": "Note",
     "myTraining": "My training"
+  },
+  "performance": {
+    "title": "Performance",
+    "hint": "Review cycles: each employee reviews themself, their manager rates each goal and gives an overall rating, the employee acknowledges, and HR finalizes.",
+    "noCycles": "No review cycles yet.",
+    "cycleName": "Name",
+    "period": "Period",
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "reviews": "Reviews",
+    "status": "Status",
+    "cycleStatuses": {
+      "DRAFT": "Draft",
+      "OPEN": "Open",
+      "CLOSED": "Closed"
+    },
+    "reviewStatuses": {
+      "NOT_STARTED": "Not started",
+      "SELF_DONE": "Self-review done",
+      "MANAGER_DONE": "Rated by manager",
+      "ACKNOWLEDGED": "Acknowledged",
+      "FINALIZED": "Final",
+      "SKIPPED": "Skipped"
+    },
+    "goalStatuses": {
+      "OPEN": "Open",
+      "ACHIEVED": "Achieved",
+      "PARTLY_ACHIEVED": "Partly achieved",
+      "MISSED": "Missed",
+      "CANCELLED": "Cancelled"
+    },
+    "ratings": {
+      "1": "Unsatisfactory",
+      "2": "Needs improvement",
+      "3": "Meets expectations",
+      "4": "Exceeds expectations",
+      "5": "Outstanding"
+    },
+    "createCycle": "New review cycle",
+    "periodStart": "Period from",
+    "periodEnd": "Period to",
+    "selfDueOn": "Self-reviews due",
+    "managerDueOn": "Manager reviews due",
+    "working": "Working…",
+    "distribution": "Ratings",
+    "notLaunched": "Launch the cycle to open a review for each employee.",
+    "noReviews": "No reviews you can see.",
+    "employee": "Employee",
+    "reviewer": "Reviewer",
+    "hrReviews": "HR",
+    "rating": "Rating",
+    "launch": "Launch cycle",
+    "launchConfirm": "Launch the cycle? A review opens for every active employee in its scope.",
+    "close": "Close cycle",
+    "goals": "Goals",
+    "goalTitle": "Goal",
+    "weight": "Weight (%)",
+    "weightHint": "Goals in a cycle add up to at most 100 %. 0: not weighted.",
+    "progress": "Progress (%)",
+    "selfRating": "Self",
+    "managerRating": "Manager",
+    "selfComment": "Self-review",
+    "goalScore": "Goal score (weighted)",
+    "overallRating": "Overall rating",
+    "strengths": "Strengths",
+    "improvements": "To work on",
+    "employeeComment": "Employee's comment",
+    "finalRating": "Final rating",
+    "finalReason": "Why the rating changed",
+    "finalReasonHint": "Needed only when it differs from the manager's.",
+    "skipReason": "Why skipped",
+    "selfReview": "Your self-review",
+    "selfDue": "Due by {date}.",
+    "managerReview": "Manager's review",
+    "managerDue": "Due by {date}.",
+    "acknowledgeTitle": "Acknowledge your review",
+    "acknowledge": "Acknowledge",
+    "finalizeTitle": "Final rating",
+    "finalize": "Finalize",
+    "skip": "Skip review",
+    "submitSelf": "Submit self-review",
+    "submitManager": "Submit review",
+    "rateGoal": "Rating: {goal}",
+    "cycle": "Cycle",
+    "noCycle": "No cycle",
+    "dueOn": "Due on",
+    "description": "Description",
+    "addGoal": "Add goal",
+    "save": "Save",
+    "outcome": "Outcome",
+    "noGoals": "No goals yet.",
+    "dueBy": "due {date}",
+    "finalShort": "final rating {rating}",
+    "myPerformance": "My performance",
+    "myGoals": "My goals and reviews",
+    "toGive": "Reviews you give",
+    "goalsAndReviews": "Goals and reviews"
   }
 }
