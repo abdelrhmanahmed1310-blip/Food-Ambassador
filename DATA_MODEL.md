@@ -1167,6 +1167,22 @@ Payroll (HR4a, ADR-123; migration `20270114090000_hr4a_payroll`):
   OTHER_DEDUCTION). Lines and adjustments change only in a draft run
   (trigger).
 
+Engagement (HR5c, ADR-127; migration `20270118090000_hr5c_engagement`):
+
+- **engagement_surveys**: title, intro, optional branch, `status` (DRAFT →
+  OPEN → CLOSED), closing day, `audience_count` at opening.
+- **engagement_questions**: survey, position, `type` (RATING | ENPS |
+  YES_NO | TEXT), text, required; change only in a draft (trigger).
+- **engagement_responses**: survey, respondent's branch, `submitted_on`
+  (day only), random id; **no employee**. Insert only, and only while the
+  survey is open (trigger).
+- **engagement_answers**: response × question, `value` (0–10) or `text`;
+  insert only.
+- **engagement_participations**: PK (org, survey, employee), no timestamp —
+  that someone answered, never what.
+- **recognitions**: from and to employee (different), `value`, message,
+  hidden with a reason.
+
 Performance (HR5b, ADR-126; migration `20270117090000_hr5b_performance`):
 
 - **performance_cycles**: name, optional branch, period, self and manager

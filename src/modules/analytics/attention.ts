@@ -1,3 +1,4 @@
+import { surveysToAnswerCountInTx } from "@/modules/engagement/service";
 import { reviewsToDoInTx } from "@/modules/performance/service";
 import { trainingAttentionInTx } from "@/modules/learning/service";
 import "server-only";
@@ -59,6 +60,7 @@ export type AttentionKey =
   | "TRADE_DOCUMENTS_EXPIRED"
   | "TRAINING_LAPSED"
   | "PERFORMANCE_REVIEWS_TO_DO"
+  | "SURVEYS_TO_ANSWER"
   | "TRAINING_EXPIRING"
   | "TRADE_DOCUMENTS_EXPIRING"
   | "COLD_CHAIN_EXCURSIONS"
@@ -666,6 +668,13 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
       });
     }
 
+    // Staff surveys waiting for this person (ADR-127).
+    push({
+      key: "SURVEYS_TO_ANSWER",
+      tone: "info",
+      count: await surveysToAnswerCountInTx(tx, ctx),
+      href: "/my/surveys",
+    });
     // Performance reviews waiting for this person (ADR-126).
     push({
       key: "PERFORMANCE_REVIEWS_TO_DO",

@@ -3426,6 +3426,43 @@ expectations, outstanding), with the manager from the HR reporting line
 - **Not yet**: 360° and peer feedback, competency frameworks, ratings
   feeding pay changes, reminders by e-mail, development plans.
 
+### ADR-127 Anonymous staff surveys and recognition — Accepted (HR5c built; HR5 complete)
+
+Decision (2026-11-05): engagement is measured with anonymous surveys and
+encouraged with a recognition wall. Anonymity is built into the data, not
+just the screens.
+
+- **Surveys** for everyone or one branch: a title, an introduction, an
+  optional closing day, and up to 50 questions — agreement 1–5, 0–10
+  "would you recommend working here" (eNPS), yes or no, or free text;
+  each required or optional. Questions change only in a draft (trigger);
+  opening counts the staff who can answer (active employees with a
+  sign-in); answers arrive only while open (trigger).
+- **Anonymity**: an answer set (`engagement_responses`) holds the survey,
+  the respondent's branch and the day — no employee, a random id (not
+  time-ordered) and no time. A separate participation row says only that
+  an employee answered, without a timestamp, to stop a second answer.
+  Submitting writes nothing to the audit log. Answers are never changed or
+  deleted (no grants). Free-text answers are shown in a keyed hash order,
+  not the order they came in.
+- **Results** only from **five answers** (overall, and for each branch in
+  a breakdown): response rate against those asked, eNPS (% 9–10 less %
+  0–6) with promoters, passives and detractors, average and spread of
+  agreement, share of yes, and the free text. Branch-scoped viewers of an
+  all-branch survey see only their branches' answers — and only from five.
+- **Recognition**: any employee with a sign-in thanks a colleague (not
+  themself) for teamwork, guest service, food safety, cleanliness,
+  leadership or going the extra mile, with a message, on a wall the whole
+  organization sees. HR at the colleague's branch can hide a post with a
+  reason (still visible to HR, marked hidden).
+- **Access**: `engagement.view` (results) and `engagement.manage`
+  (surveys, moderation), per branch — administrators and operations
+  managers manage, branch managers view. Answering and the wall need only
+  an employee record linked to the sign-in. Needs attention shows each
+  person the surveys waiting for them.
+- **Not yet**: recurring pulse surveys, survey templates, comparing
+  cycles over time, reactions and comments on recognition, rewards.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

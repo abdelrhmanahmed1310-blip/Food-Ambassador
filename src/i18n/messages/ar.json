@@ -196,7 +196,10 @@
     "training": "التدريب",
     "myTraining": "تدريبي",
     "performance": "الأداء",
-    "myPerformance": "أدائي"
+    "myPerformance": "أدائي",
+    "engagement": "المشاركة",
+    "mySurveys": "الاستبيانات",
+    "recognition": "التقدير"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -849,7 +852,16 @@
     "GOAL_WEIGHTS_OVER_100": "مجموع أوزان أهداف الدورة 100% كحد أقصى.",
     "REVIEW_STEP_NOT_ALLOWED": "هذه الخطوة غير ممكنة الآن.",
     "REVIEW_GOALS_UNRATED": "قيّم كل أهداف الدورة.",
-    "REVIEW_CHANGE_NEEDS_REASON": "اذكر سبب تغيير التقييم."
+    "REVIEW_CHANGE_NEEDS_REASON": "اذكر سبب تغيير التقييم.",
+    "SURVEY_NOT_DRAFT": "لم يعد الاستبيان مسودة.",
+    "SURVEY_TOO_LONG": "للاستبيان 50 سؤالًا كحد أقصى.",
+    "SURVEY_NO_QUESTIONS": "أضف سؤالًا واحدًا على الأقل.",
+    "SURVEY_CLOSES_IN_PAST": "مضى يوم الإغلاق.",
+    "SURVEY_NOT_OPEN": "الاستبيان غير مفتوح.",
+    "SURVEY_ANSWER_REQUIRED": "أجب على كل الأسئلة الإلزامية.",
+    "SURVEY_ANSWER_INVALID": "إحدى الإجابات غير صالحة.",
+    "RECOGNITION_SELF": "قدّر زميلًا لا نفسك.",
+    "RECOGNITION_HIDDEN": "هذا المنشور مخفي بالفعل."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1108,7 +1120,9 @@
       "training.view": "عرض التدريب والشهادات",
       "training.manage": "إدارة التدريب والشهادات",
       "performance.view": "عرض الأهداف وتقييمات الأداء",
-      "performance.manage": "إدارة دورات التقييم واعتماد التقييمات"
+      "performance.manage": "إدارة دورات التقييم واعتماد التقييمات",
+      "engagement.view": "عرض نتائج الاستبيانات",
+      "engagement.manage": "إدارة الاستبيانات والإشراف على التقدير"
     }
   },
   "audit": {
@@ -2830,7 +2844,8 @@
       "LOW_RATINGS_TO_REVIEW": "{count, plural, one {تقييم منخفض للمراجعة} two {تقييمان منخفضان للمراجعة} few {# تقييمات منخفضة للمراجعة} other {# تقييمًا منخفضًا للمراجعة}}",
       "TRAINING_LAPSED": "{count, plural, one {تدريب مطلوب واحد منتهٍ أو متأخر} other {# تدريبات مطلوبة منتهية أو متأخرة}}",
       "TRAINING_EXPIRING": "{count, plural, one {شهادة واحدة تنتهي خلال 30 يومًا} other {# شهادات تنتهي خلال 30 يومًا}}",
-      "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {تقييم أداء واحد بانتظارك} other {# تقييمات أداء بانتظارك}}"
+      "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {تقييم أداء واحد بانتظارك} other {# تقييمات أداء بانتظارك}}",
+      "SURVEYS_TO_ANSWER": "{count, plural, one {استبيان واحد بانتظار إجاباتك} other {# استبيانات بانتظار إجاباتك}}"
     }
   },
   "production": {
@@ -6775,5 +6790,85 @@
     "myGoals": "أهدافي وتقييماتي",
     "toGive": "تقييمات تجريها",
     "goalsAndReviews": "الأهداف والتقييمات"
+  },
+  "engagement": {
+    "title": "المشاركة",
+    "hint": "استبيانات مجهولة للموظفين: لا تُربط الإجابات بأصحابها، ولا تظهر النتائج إلا من خمس إجابات.",
+    "wall": "لوحة التقدير",
+    "noSurveys": "لا توجد استبيانات بعد.",
+    "surveyTitle": "العنوان",
+    "audience": "الفئة المستهدفة",
+    "everyone": "الجميع",
+    "questions": "الأسئلة",
+    "responses": "الإجابات",
+    "status": "الحالة",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "OPEN": "مفتوح",
+      "CLOSED": "مغلق"
+    },
+    "createSurvey": "استبيان جديد",
+    "closesOn": "يُغلق في",
+    "intro": "مقدمة",
+    "working": "جارٍ العمل…",
+    "addQuestion": "إضافة سؤال",
+    "questionType": "النوع",
+    "questionText": "السؤال",
+    "required": "إلزامي",
+    "types": {
+      "RATING": "موافقة 1–5",
+      "ENPS": "توصية 0–10 (eNPS)",
+      "YES_NO": "نعم أو لا",
+      "TEXT": "نص حر"
+    },
+    "noQuestions": "لا توجد أسئلة بعد.",
+    "remove": "إزالة",
+    "open": "فتح الاستبيان",
+    "openConfirm": "فتح الاستبيان؟ لن يمكن تغيير الأسئلة بعد ذلك.",
+    "close": "إغلاق الاستبيان",
+    "responseCount": "{count, plural, =0 {لا توجد إجابات بعد} one {إجابة واحدة} two {إجابتان} few {# إجابات} other {# إجابة}}",
+    "responseRate": "{rate} من المستهدفين",
+    "tooFew": "تظهر النتائج من {min} إجابات حتى لا يمكن التعرف على أحد.",
+    "answerCount": "{count, plural, one {إجابة واحدة} two {إجابتان} few {# إجابات} other {# إجابة}}",
+    "enpsLine": "eNPS · {promoters} مروّجون، {passives} محايدون، {detractors} منتقدون",
+    "yesShare": "{share} أجابوا بنعم",
+    "anonymousNote": "إجاباتك مجهولة: تُحفظ دون اسمك، ولا تظهر النتائج إلا بعد إجابة خمسة أشخاص على الأقل.",
+    "submit": "إرسال إجاباتي",
+    "yes": "نعم",
+    "no": "لا",
+    "enpsHint": "0 = غير محتمل إطلاقًا، 10 = محتمل جدًا أن توصي بالعمل هنا.",
+    "scale": {
+      "1": "أعارض بشدة",
+      "2": "أعارض",
+      "3": "محايد",
+      "4": "أوافق",
+      "5": "أوافق بشدة"
+    },
+    "mySurveys": "الاستبيانات",
+    "thanks": "شكرًا لك — أُرسلت إجاباتك دون اسمك.",
+    "nothingToAnswer": "لا توجد استبيانات بانتظارك.",
+    "answerNow": "أجب الآن",
+    "alreadyAnswered": "أجبت على هذا الاستبيان بالفعل. شكرًا لك.",
+    "notOpen": "هذا الاستبيان غير مفتوح.",
+    "wallHint": "اشكر زميلًا على عمل جيد. يرى الجميع في المؤسسة هذه اللوحة.",
+    "recognizeTitle": "تقدير زميل",
+    "colleague": "الزميل",
+    "for": "على",
+    "message": "الرسالة",
+    "recognize": "إرسال الشكر",
+    "sent": "شكرك على اللوحة.",
+    "values": {
+      "TEAMWORK": "العمل الجماعي",
+      "GUEST_SERVICE": "خدمة الضيوف",
+      "FOOD_SAFETY": "سلامة الغذاء",
+      "CLEANLINESS": "النظافة",
+      "LEADERSHIP": "القيادة",
+      "EXTRA_MILE": "بذل جهد إضافي"
+    },
+    "noPosts": "لا يوجد شكر منشور بعد.",
+    "from": "من {name}",
+    "hidden": "مخفي: {reason}",
+    "hide": "إخفاء",
+    "hideReason": "سبب الإخفاء"
   }
 }

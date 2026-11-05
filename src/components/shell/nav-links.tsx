@@ -16,6 +16,8 @@ import {
   LayoutDashboard,
   Menu,
   GraduationCap,
+  Heart,
+  MessageSquare,
   Target,
   Package,
   ReceiptText,
@@ -53,6 +55,8 @@ const ICONS = {
   payslip: ReceiptText,
   training: GraduationCap,
   goals: Target,
+  survey: MessageSquare,
+  recognition: Heart,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

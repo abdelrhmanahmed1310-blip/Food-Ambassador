@@ -390,6 +390,13 @@ model Organization {
   performanceReviews     PerformanceReview[]
   performanceReviewGoals PerformanceReviewGoal[]
 
+  engagementSurveys        EngagementSurvey[]
+  engagementQuestions      EngagementQuestion[]
+  engagementResponses      EngagementResponse[]
+  engagementAnswers        EngagementAnswer[]
+  engagementParticipations EngagementParticipation[]
+  recognitions             Recognition[]
+
   @@map("organizations")
 }
 
@@ -6575,6 +6582,10 @@ model Employee {
   performanceReviews PerformanceReview[] @relation("PerformanceReviewee")
   reviewsToGive      PerformanceReview[] @relation("PerformanceReviewer")
 
+  surveyParticipations EngagementParticipation[]
+  recognitionsGiven    Recognition[]             @relation("RecognitionFrom")
+  recognitionsReceived Recognition[]             @relation("RecognitionTo")
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@unique([organizationId, userId])
@@ -8204,4 +8215,142 @@ model PerformanceReviewGoal {
 
   @@unique([organizationId, reviewId, goalId])
   @@map("performance_review_goals")
+}
+
+// ─── HR5c engagement (ADR-127) ───
+
+enum SurveyStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum SurveyQuestionType {
+  RATING
+  ENPS
+  YES_NO
+  TEXT
+}
+
+enum RecognitionValue {
+  TEAMWORK
+  GUEST_SERVICE
+  FOOD_SAFETY
+  CLEANLINESS
+  LEADERSHIP
+  EXTRA_MILE
+}
+
+/// An anonymous staff survey for everyone or one branch.
+model EngagementSurvey {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  title           String
+  intro           String?
+  /// Null: every branch.
+  branchId        String?      @map("branch_id") @db.Uuid
+  status          SurveyStatus @default(DRAFT)
+  closesOn        DateTime?    @map("closes_on") @db.Date
+  /// Employees who could answer when it opened.
+  audienceCount   Int          @default(0) @map("audience_count")
+  createdByUserId String       @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  openedAt        DateTime?    @map("opened_at") @db.Timestamptz(3)
+  closedAt        DateTime?    @map("closed_at") @db.Timestamptz(3)
+
+  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  questions      EngagementQuestion[]
+  responses      EngagementResponse[]
+  participations EngagementParticipation[]
+
+  @@unique([organizationId, id])
+  @@map("engagement_surveys")
+}
+
+model EngagementQuestion {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  surveyId       String             @map("survey_id") @db.Uuid
+  position       Int
+  type           SurveyQuestionType
+  text           String
+  required       Boolean            @default(true)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  survey       EngagementSurvey   @relation(fields: [organizationId, surveyId], references: [organizationId, id], onDelete: Cascade)
+  answers      EngagementAnswer[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, surveyId, position])
+  @@map("engagement_questions")
+}
+
+/// One anonymous set of answers. Random id (not time-ordered) and only the day, so it cannot be matched to who answered.
+model EngagementResponse {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  surveyId       String   @map("survey_id") @db.Uuid
+  /// The respondent's branch, for breakdowns of at least five.
+  branchId       String   @map("branch_id") @db.Uuid
+  submittedOn    DateTime @map("submitted_on") @db.Date
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  survey       EngagementSurvey   @relation(fields: [organizationId, surveyId], references: [organizationId, id], onDelete: Restrict)
+  answers      EngagementAnswer[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, surveyId])
+  @@map("engagement_responses")
+}
+
+model EngagementAnswer {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  responseId     String  @map("response_id") @db.Uuid
+  questionId     String  @map("question_id") @db.Uuid
+  value          Int?
+  text           String?
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  response     EngagementResponse @relation(fields: [organizationId, responseId], references: [organizationId, id], onDelete: Restrict)
+  question     EngagementQuestion @relation(fields: [organizationId, questionId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, responseId, questionId])
+  @@map("engagement_answers")
+}
+
+/// That an employee answered a survey — never which answers are theirs. No timestamp.
+model EngagementParticipation {
+  organizationId String @map("organization_id") @db.Uuid
+  surveyId       String @map("survey_id") @db.Uuid
+  employeeId     String @map("employee_id") @db.Uuid
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  survey       EngagementSurvey @relation(fields: [organizationId, surveyId], references: [organizationId, id], onDelete: Restrict)
+  employee     Employee         @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, surveyId, employeeId])
+  @@map("engagement_participations")
+}
+
+/// A thank-you from one colleague to another, on the recognition wall.
+model Recognition {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  fromEmployeeId String           @map("from_employee_id") @db.Uuid
+  toEmployeeId   String           @map("to_employee_id") @db.Uuid
+  value          RecognitionValue
+  message        String
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  hiddenAt       DateTime?        @map("hidden_at") @db.Timestamptz(3)
+  hiddenByUserId String?          @map("hidden_by_user_id") @db.Uuid
+  hiddenReason   String?          @map("hidden_reason")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  from         Employee     @relation("RecognitionFrom", fields: [organizationId, fromEmployeeId], references: [organizationId, id], onDelete: Restrict)
+  to           Employee     @relation("RecognitionTo", fields: [organizationId, toEmployeeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, toEmployeeId])
+  @@map("recognitions")
 }

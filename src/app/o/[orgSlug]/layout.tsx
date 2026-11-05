@@ -48,6 +48,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
             { href: `${base}/my/payslips`, label: t("myPayslips"), icon: "payslip" as const },
             { href: `${base}/my/training`, label: t("myTraining"), icon: "training" as const },
             { href: `${base}/my/performance`, label: t("myPerformance"), icon: "goals" as const },
+            { href: `${base}/my/surveys`, label: t("mySurveys"), icon: "survey" as const },
+            { href: `${base}/recognition`, label: t("recognition"), icon: "recognition" as const },
           ]
         : []),
     ],
@@ -270,6 +272,12 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr/departments`, label: t("departments") },
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );
+  // Staff surveys (ADR-127).
+  if (
+    holdsAnyGrant(ctx.grants, "engagement.view") ||
+    holdsAnyGrant(ctx.grants, "engagement.manage")
+  )
+    hr.items.push({ href: `${base}/hr/engagement`, label: t("engagement") });
   // Review cycles (ADR-126).
   if (
     holdsAnyGrant(ctx.grants, "performance.view") ||

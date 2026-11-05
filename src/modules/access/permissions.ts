@@ -69,6 +69,8 @@ export const PERMISSIONS = [
   "training.manage",
   "performance.view",
   "performance.manage",
+  "engagement.view",
+  "engagement.manage",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -100,6 +102,8 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 /** Permissions that may be granted at branch or warehouse scope. All others are organization-wide only. */
 export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
+  "engagement.view",
+  "engagement.manage",
   "performance.view",
   "performance.manage",
   "training.view",
@@ -220,6 +224,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "engagement.view",
+      "engagement.manage",
       "performance.view",
       "performance.manage",
       "training.view",
@@ -413,6 +419,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "engagement.view",
       "performance.view",
       "performance.manage",
       "training.view",

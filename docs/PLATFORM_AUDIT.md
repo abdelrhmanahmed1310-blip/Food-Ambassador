@@ -80,8 +80,9 @@
 > department or branch, sessions with attendance and results, outside
 > certificates, and a compliance matrix with expiries in Needs attention.
 > **HR5b built** (ADR-126): weighted goals, review cycles with self,
-> manager and final ratings, rating distribution. HR5c (engagement)
-> follows.
+> manager and final ratings, rating distribution. **HR5c built**
+> (ADR-127): anonymous surveys with eNPS shown from five answers, and a
+> recognition wall. HR5 is complete.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

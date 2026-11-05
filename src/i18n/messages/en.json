@@ -196,7 +196,10 @@
     "training": "Training",
     "myTraining": "My training",
     "performance": "Performance",
-    "myPerformance": "My performance"
+    "myPerformance": "My performance",
+    "engagement": "Engagement",
+    "mySurveys": "Surveys",
+    "recognition": "Recognition"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -849,7 +852,16 @@
     "GOAL_WEIGHTS_OVER_100": "Goal weights in a cycle add up to at most 100 %.",
     "REVIEW_STEP_NOT_ALLOWED": "This step is not possible now.",
     "REVIEW_GOALS_UNRATED": "Rate every goal of the cycle.",
-    "REVIEW_CHANGE_NEEDS_REASON": "Say why the rating changes."
+    "REVIEW_CHANGE_NEEDS_REASON": "Say why the rating changes.",
+    "SURVEY_NOT_DRAFT": "The survey is no longer a draft.",
+    "SURVEY_TOO_LONG": "A survey has at most 50 questions.",
+    "SURVEY_NO_QUESTIONS": "Add at least one question.",
+    "SURVEY_CLOSES_IN_PAST": "The closing day has passed.",
+    "SURVEY_NOT_OPEN": "The survey is not open.",
+    "SURVEY_ANSWER_REQUIRED": "Answer every required question.",
+    "SURVEY_ANSWER_INVALID": "An answer is not valid.",
+    "RECOGNITION_SELF": "Recognize a colleague, not yourself.",
+    "RECOGNITION_HIDDEN": "This post is already hidden."
   },
   "notFound": {
     "title": "Page not found",
@@ -1108,7 +1120,9 @@
       "training.view": "See training and certificates",
       "training.manage": "Manage training and certificates",
       "performance.view": "See goals and performance reviews",
-      "performance.manage": "Run review cycles and finalize ratings"
+      "performance.manage": "Run review cycles and finalize ratings",
+      "engagement.view": "See survey results",
+      "engagement.manage": "Run surveys and moderate recognition"
     }
   },
   "audit": {
@@ -2830,7 +2844,8 @@
       "LOW_RATINGS_TO_REVIEW": "{count, plural, one {# low rating to review} other {# low ratings to review}}",
       "TRAINING_LAPSED": "{count, plural, one {# required training expired or overdue} other {# required trainings expired or overdue}}",
       "TRAINING_EXPIRING": "{count, plural, one {# certificate expiring within 30 days} other {# certificates expiring within 30 days}}",
-      "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {# performance review waiting for you} other {# performance reviews waiting for you}}"
+      "PERFORMANCE_REVIEWS_TO_DO": "{count, plural, one {# performance review waiting for you} other {# performance reviews waiting for you}}",
+      "SURVEYS_TO_ANSWER": "{count, plural, one {# survey waiting for your answers} other {# surveys waiting for your answers}}"
     }
   },
   "production": {
@@ -6775,5 +6790,85 @@
     "myGoals": "My goals and reviews",
     "toGive": "Reviews you give",
     "goalsAndReviews": "Goals and reviews"
+  },
+  "engagement": {
+    "title": "Engagement",
+    "hint": "Anonymous staff surveys: answers are never linked to the person, and results show only from five answers.",
+    "wall": "Recognition wall",
+    "noSurveys": "No surveys yet.",
+    "surveyTitle": "Title",
+    "audience": "Who is asked",
+    "everyone": "Everyone",
+    "questions": "Questions",
+    "responses": "Answers",
+    "status": "Status",
+    "statuses": {
+      "DRAFT": "Draft",
+      "OPEN": "Open",
+      "CLOSED": "Closed"
+    },
+    "createSurvey": "New survey",
+    "closesOn": "Closes on",
+    "intro": "Introduction",
+    "working": "Working…",
+    "addQuestion": "Add question",
+    "questionType": "Type",
+    "questionText": "Question",
+    "required": "required",
+    "types": {
+      "RATING": "Agreement 1–5",
+      "ENPS": "0–10 recommend (eNPS)",
+      "YES_NO": "Yes or no",
+      "TEXT": "Free text"
+    },
+    "noQuestions": "No questions yet.",
+    "remove": "Remove",
+    "open": "Open survey",
+    "openConfirm": "Open the survey? Questions can no longer change.",
+    "close": "Close survey",
+    "responseCount": "{count, plural, =0 {No answers yet} one {# answer} other {# answers}}",
+    "responseRate": "{rate} of those asked",
+    "tooFew": "Results show from {min} answers, so that nobody can be identified.",
+    "answerCount": "{count, plural, one {# answer} other {# answers}}",
+    "enpsLine": "eNPS · {promoters} promoters, {passives} passives, {detractors} detractors",
+    "yesShare": "{share} said yes",
+    "anonymousNote": "Your answers are anonymous: they are kept without your name, and results are shown only when at least five people have answered.",
+    "submit": "Send my answers",
+    "yes": "Yes",
+    "no": "No",
+    "enpsHint": "0 = not at all likely, 10 = extremely likely to recommend working here.",
+    "scale": {
+      "1": "Strongly disagree",
+      "2": "Disagree",
+      "3": "Neutral",
+      "4": "Agree",
+      "5": "Strongly agree"
+    },
+    "mySurveys": "Surveys",
+    "thanks": "Thank you — your answers were sent anonymously.",
+    "nothingToAnswer": "No surveys waiting for you.",
+    "answerNow": "Answer now",
+    "alreadyAnswered": "You have already answered this survey. Thank you.",
+    "notOpen": "This survey is not open.",
+    "wallHint": "Thank a colleague for good work. Everyone in the organization sees the wall.",
+    "recognizeTitle": "Recognize a colleague",
+    "colleague": "Colleague",
+    "for": "For",
+    "message": "Message",
+    "recognize": "Send thanks",
+    "sent": "Your thanks are on the wall.",
+    "values": {
+      "TEAMWORK": "Teamwork",
+      "GUEST_SERVICE": "Guest service",
+      "FOOD_SAFETY": "Food safety",
+      "CLEANLINESS": "Cleanliness",
+      "LEADERSHIP": "Leadership",
+      "EXTRA_MILE": "Going the extra mile"
+    },
+    "noPosts": "No thanks posted yet.",
+    "from": "from {name}",
+    "hidden": "Hidden: {reason}",
+    "hide": "Hide",
+    "hideReason": "Why hide"
   }
 }
