@@ -11,7 +11,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       <ClearOfflinePages />
       <header className="flex items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" aria-label={t("appName")}>
-          <Logo className="h-9 w-auto" />
+          <Logo className="h-14 w-auto" />
         </Link>
         <LocaleSwitcher />
       </header>

@@ -368,7 +368,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
               closeLabel={t("closeMenu")}
             />
             <Link href={base} className="shrink-0 lg:hidden">
-              <Logo className="h-7 w-auto" />
+              <Logo className="h-12 w-auto" />
             </Link>
             <details className="relative min-w-0">
               <summary className="hover:bg-surface-muted flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 font-semibold">

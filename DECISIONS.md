@@ -1774,7 +1774,8 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
 
 ### ADR-077 Brand look: red, white and black, Supy-style shell — Accepted
 
-- The interface follows the brand logo (`public/brand/logo.webp`): crimson
+- The interface follows the brand logo (`public/brand/logo-en.webp`, and
+  `logo-ar.webp` in Arabic — the logo follows the interface language): crimson
   red (`--primary #a3151b`, lighter red in dark mode) for actions, links
   and the active page; black for the sidebar; white cards on a warm light
   grey. Colours are CSS tokens in `src/app/globals.css`, so the whole app

@@ -16,11 +16,11 @@ export default async function Home() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between px-4 py-3 sm:px-6">
-        <Logo className="h-9 w-auto" />
+        <Logo className="h-14 w-auto" />
         <LocaleSwitcher />
       </header>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-4 py-16">
-        <Logo className="mb-4 h-24 w-auto self-start" />
+        <Logo className="mb-4 h-40 w-auto self-start" />
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t("home.tagline")}</h1>
         <p className="text-muted max-w-2xl text-base">{t("home.description")}</p>
         <div className="mt-2 flex flex-wrap gap-3">

@@ -15,7 +15,7 @@ export default async function ClockPage({ params }: PageProps<"/clock/[token]">)
   const t = await getTranslations("attendance");
   return (
     <main className="flex min-h-dvh flex-col items-center gap-8 p-6">
-      <Logo className="h-16 w-auto" />
+      <Logo className="h-28 w-auto" />
       <header className="text-center">
         <h1 className="text-3xl font-bold">{t("clockTitle")}</h1>
         <p className="text-muted mt-1">

@@ -172,7 +172,7 @@ function Links({ sections, onNavigate }: { sections: NavSection[]; onNavigate?: 
 function BrandTile({ href }: { href: string }) {
   return (
     <Link href={href} className="mb-4 block rounded-lg bg-white px-3 py-2">
-      <Logo className="mx-auto h-10 w-auto" />
+      <Logo className="mx-auto h-24 w-auto" />
     </Link>
   );
 }
