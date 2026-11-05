@@ -1139,6 +1139,20 @@ Segments and feedback (C7c, ADR-118; migration `20270110090000_c7c_segments_feed
   check), `comment` (≤ 1 000), submitted at, reviewed at/by, review note,
   complaint. Rating and comment never change (trigger).
 
+AI assistant (I2a, ADR-122; migration `20270113090000_i2a_assistant`):
+
+- **assistant_settings** (one row per org): `api_key_sealed` (AES-256-GCM),
+  `api_key_hint`, `model` (claude-opus-5-5 | claude-sonnet-5-5 |
+  claude-haiku-5-5), `enabled`, `daily_question_limit` (1–1000, default
+  50), `tested_at`, `test_ok`, `test_error`. CHECK: enabled only with a key
+  and a passed test.
+- **assistant_conversations**: `user_id` (only its author reads it),
+  `title`; deleted after 90 days without use.
+- **assistant_messages**: `role` (USER | ASSISTANT), `text` (questions
+  without e-mail addresses or phone numbers), `tool_calls`, `sources`,
+  `model`, `stop_reason`, token counts. Never updated (trigger); deleted
+  with their conversation.
+
 Campaigns (C7d, ADR-119; migration `20270111090000_c7d_campaigns`):
 
 - **campaigns**: name, `channel` (`SMS` | `WHATSAPP` | `EMAIL`), segment,

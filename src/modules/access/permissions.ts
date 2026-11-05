@@ -60,6 +60,8 @@ export const PERMISSIONS = [
   "logistics.deliver",
   "pos.dispatch",
   "campaigns.send",
+  "assistant.use",
+  "assistant.manage",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -91,6 +93,7 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 /** Permissions that may be granted at branch or warehouse scope. All others are organization-wide only. */
 export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
+  "assistant.use",
   "branches.view",
   "branches.manage",
   "warehouses.view",
@@ -206,6 +209,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "assistant.use",
       "campaigns.send",
       "pos.dispatch",
       "logistics.view",
@@ -269,6 +273,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Procurement",
     description: "Purchasing and supplier management.",
     permissions: [
+      "assistant.use",
       "trade.view",
       "trade.manage",
       ...VIEW_SITES,
@@ -297,6 +302,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Warehouse",
     description: "Receiving, storage and stock movements.",
     permissions: [
+      "assistant.use",
       "logistics.view",
       "logistics.manage",
       "logistics.deliver",
@@ -324,6 +330,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Food Safety / Quality",
     description: "Quality control, food safety records and traceability.",
     permissions: [
+      "assistant.use",
       "logistics.view",
       ...VIEW_SITES,
       ...VIEW_STOCK,
@@ -349,6 +356,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
     permissions: [
+      "assistant.use",
       "trade.view",
       "budgets.view",
       "pnl.view",
@@ -386,6 +394,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "assistant.use",
       "pos.dispatch",
       "logistics.deliver",
       "logistics.view",

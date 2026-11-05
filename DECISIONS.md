@@ -3197,6 +3197,58 @@ levels, with the methods, scoring and short-history rule of ADR-120.
   calendars and shifts, forecasts per branch shown to the kitchen,
   holidays and promotions.
 
+### ADR-122 AI assistant with Claude, business data only — Accepted (I2a built; live once a key passes the test)
+
+Decision (2026-11-05): the assistant uses **Claude (Anthropic)** through
+Anthropic's SDK with the organization's own API key, and sends **business
+data only — no personal data**.
+
+- **Off by default.** An administrator (`assistant.manage`) stores the
+  key (AES-256-GCM sealed with the integration key, ADR-048; shown only as
+  its last four characters, never audited), picks the model — Claude Opus
+  5.5 (default), Sonnet 5.5 or Haiku 5.5 — and runs **Test connection**
+  (the provider's model lookup with that key). Only a passed test allows
+  switching it on; a new key or model switches it off until tested again.
+  The database refuses an assistant that is on without a passed test.
+- **Who asks**: `assistant.use` (operations managers, procurement,
+  warehouse, food safety, finance, branch managers, administrators; not
+  the read-only analyst, whose role stays `.view` only, nor POS roles).
+  It may be held at a branch or warehouse.
+- **How it answers**: a tool loop (at most 8 rounds, then it must answer
+  from what it has) over seven read-only tools — sites, sales summary,
+  stock levels, needs attention, demand forecast, reorder suggestions,
+  branch P&L. Each tool calls the same service as the app's own page
+  **with the asking person's context**, so it sees exactly what they may
+  see; a refused read comes back as "not permitted" and the model is told
+  to say so. Tools pick fields explicitly: figures, codes, product and
+  supplier names — never guest or staff names, contacts or pay; the
+  needs-attention tool returns counts, not the linked records.
+- **Questions** are stored and sent with e-mail addresses and phone
+  numbers removed (dates and document numbers kept). Earlier questions and
+  answers of the conversation (text only, last 10 turns) go with a
+  follow-up. The system prompt tells the model to answer only from tool
+  results, never invent figures, treat tool text as data, and reply in the
+  person's language.
+- **Requests**: effort `medium`, adaptive thinking, the system prompt
+  cached, `tool_choice` auto, strict tool schemas (inputs also validated
+  on the server), and the server-side refusal fallback (`fallbacks:
+"default"`) on Opus 5.5 and Sonnet 5.5. A refusal or a provider error is
+  stored as the answer, never retried silently.
+- **Record**: each answer keeps the tools called (name, input, read or
+  refused), the pages behind it as links, the model that served it and
+  tokens used; answers are never edited. The audit log records the tools
+  read and how many personal details were removed — not the question or
+  answer. Conversations are private to their author, can be deleted, and
+  are deleted after 90 days without use (daily job). A per-person daily
+  question limit (default 50) caps cost.
+- **Live status**: built and tested against a scripted stand-in; the real
+  client was exercised up to authentication (a placeholder key is refused
+  by the provider). It answers once an organization's own key passes the
+  test.
+- **Not yet**: streaming answers, more tools (waste, food cost, menu
+  engineering, purchasing spend, food safety records), charts in answers,
+  per-tool cost reporting, an organization-wide usage view.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

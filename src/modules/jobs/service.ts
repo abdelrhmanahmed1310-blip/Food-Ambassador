@@ -1,3 +1,4 @@
+import { purgeOldConversations } from "@/modules/assistant/service";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
@@ -118,6 +119,7 @@ const HANDLERS = {
   "attention.digest": attentionDigest,
   "deliveries.purge-contacts": async () => purgeDeliveryContacts(),
   "campaigns.send": async () => sendDueCampaigns(),
+  "assistant.purge": async () => purgeOldConversations(),
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -152,6 +154,11 @@ export async function scheduleRecurringJobs(now = new Date()) {
     added += await enqueueJobInTx(tx, {
       kind: "attachments.purge",
       dedupeKey: `attachments.purge:${now.toISOString().slice(0, 10)}`,
+    });
+    // Assistant conversations untouched for 90 days (ADR-122).
+    added += await enqueueJobInTx(tx, {
+      kind: "assistant.purge",
+      dedupeKey: `assistant.purge:${now.toISOString().slice(0, 10)}`,
     });
     // Customer contact details of own deliveries, 30 days after they end (ADR-117).
     added += await enqueueJobInTx(tx, {

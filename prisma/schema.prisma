@@ -49,6 +49,8 @@ model User {
   drivenTrips             Trip[]                   @relation("TripDriver")
   riddenDeliveries        HomeDelivery[]           @relation("HomeDeliveryRider")
 
+  assistantConversations AssistantConversation[]
+
   @@map("users")
 }
 
@@ -360,6 +362,10 @@ model Organization {
 
   campaigns          Campaign[]
   campaignRecipients CampaignRecipient[]
+
+  assistantSettings      AssistantSettings?
+  assistantConversations AssistantConversation[]
+  assistantMessages      AssistantMessage[]
 
   @@map("organizations")
 }
@@ -7490,4 +7496,76 @@ model CampaignRecipient {
   @@unique([organizationId, campaignId, customerId])
   @@index([organizationId, customerId, sentAt])
   @@map("campaign_recipients")
+}
+
+// ─── I2a AI assistant (ADR-122) ───
+
+/// The organization's assistant: provider key (sealed), model and limits. Off until a connection test passes.
+model AssistantSettings {
+  organizationId     String    @id @map("organization_id") @db.Uuid
+  /// Anthropic API key, AES-256-GCM sealed with the integration key (ADR-048).
+  apiKeySealed       String?   @map("api_key_sealed")
+  /// Last four characters, to recognise the key.
+  apiKeyHint         String?   @map("api_key_hint")
+  model              String    @default("claude-opus-5-5")
+  enabled            Boolean   @default(false)
+  /// Questions one person may ask a day.
+  dailyQuestionLimit Int       @default(50) @map("daily_question_limit")
+  testedAt           DateTime? @map("tested_at") @db.Timestamptz(3)
+  testOk             Boolean?  @map("test_ok")
+  testError          String?   @map("test_error")
+  updatedByUserId    String?   @map("updated_by_user_id") @db.Uuid
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("assistant_settings")
+}
+
+/// One person's conversation with the assistant; only its author reads it.
+model AssistantConversation {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  title          String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  messages     AssistantMessage[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, userId, updatedAt])
+  @@map("assistant_conversations")
+}
+
+enum AssistantRole {
+  USER
+  ASSISTANT
+}
+
+/// A question or an answer, with the tools called and the records cited. Never edited.
+model AssistantMessage {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  conversationId String        @map("conversation_id") @db.Uuid
+  role           AssistantRole
+  /// Questions are kept with e-mail addresses and phone numbers removed.
+  text           String
+  /// [{ name, input, ok }] — what the assistant read to answer.
+  toolCalls      Json          @default("[]") @map("tool_calls")
+  /// [{ label, href }] — the pages behind the answer.
+  sources        Json          @default("[]")
+  model          String?
+  stopReason     String?       @map("stop_reason")
+  inputTokens    Int?          @map("input_tokens")
+  outputTokens   Int?          @map("output_tokens")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  conversation AssistantConversation @relation(fields: [organizationId, conversationId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId, conversationId, createdAt])
+  @@map("assistant_messages")
 }

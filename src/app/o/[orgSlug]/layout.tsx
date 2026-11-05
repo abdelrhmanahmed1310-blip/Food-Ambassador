@@ -242,6 +242,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     settings.items.push({ href: `${base}/settings/roles`, label: t("roles") });
   if (hasPermission(ctx.grants, "audit.view"))
     settings.items.push({ href: `${base}/settings/audit`, label: t("audit") });
+  if (hasPermission(ctx.grants, "assistant.manage"))
+    settings.items.push({ href: `${base}/settings/assistant`, label: t("assistantSettings") });
   if (hasPermission(ctx.grants, "integrations.manage"))
     settings.items.push(
       { href: `${base}/settings/integrations`, label: t("integrations") },
@@ -266,6 +268,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );
   const reports: NavSection = { title: t("reportsSection"), icon: "reports", items: [] };
+  // AI assistant over the reports the person may see (ADR-122).
+  if (holdsAnyGrant(ctx.grants, "assistant.use"))
+    reports.items.push({ href: `${base}/assistant`, label: t("assistant") });
   // Sales analytics and targets (ADR-105).
   if (holdsAnyGrant(ctx.grants, "sales.view"))
     reports.items.push({ href: `${base}/reports/sales`, label: t("salesReport") });

@@ -188,7 +188,9 @@
     "segments": "Segments",
     "guestFeedback": "Guest feedback",
     "campaigns": "Campaigns",
-    "demandForecast": "Demand forecast"
+    "demandForecast": "Demand forecast",
+    "assistant": "Assistant",
+    "assistantSettings": "Assistant"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -327,7 +329,9 @@
     "subjectRequired": "An e-mail needs a subject.",
     "unknownPlaceholder": "Only '{name}' can be filled in.",
     "invalidReviewDays": "Enter a whole number of days from 1 to 90.",
-    "invalidCoverDays": "Enter a whole number of days from 1 to 14."
+    "invalidCoverDays": "Enter a whole number of days from 1 to 14.",
+    "invalidApiKey": "Enter an Anthropic API key (it starts with sk-ant-).",
+    "invalidQuestionLimit": "Enter a whole number from 1 to 1000."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -794,7 +798,11 @@
     "CAMPAIGN_NOT_DRAFT": "Only a draft campaign can change or be launched.",
     "CHANNEL_NOT_CONNECTED": "No provider is connected for this channel yet, so nothing can be sent.",
     "CAMPAIGN_NO_AUDIENCE": "Nobody in the segment can be reached on this channel.",
-    "CAMPAIGN_ALREADY_SENDING": "The campaign is already being sent."
+    "CAMPAIGN_ALREADY_SENDING": "The campaign is already being sent.",
+    "ASSISTANT_NOT_CONNECTED": "The assistant is not switched on.",
+    "ASSISTANT_NOT_TESTED": "Test the connection before switching the assistant on.",
+    "ASSISTANT_KEY_REQUIRED": "Enter the Anthropic API key.",
+    "ASSISTANT_DAILY_LIMIT": "You have reached today's question limit. Try again tomorrow."
   },
   "notFound": {
     "title": "Page not found",
@@ -1044,7 +1052,9 @@
       "logistics.manage": "Plan trips and manage vehicles",
       "logistics.deliver": "Drive trips: proof of delivery and temperatures",
       "pos.dispatch": "Dispatch own deliveries for delivery orders",
-      "campaigns.send": "Launch campaigns to customer segments"
+      "campaigns.send": "Launch campaigns to customer segments",
+      "assistant.use": "Ask the AI assistant",
+      "assistant.manage": "Set up the AI assistant"
     }
   },
   "audit": {
@@ -6260,5 +6270,52 @@
     "reviewDaysHint": "How often you order: a forecast order covers the lead time plus these days. 1 to 90.",
     "serviceLevel": "Service level for safety stock",
     "serviceLevelHint": "The chance of not running out before the next delivery. Higher keeps more safety stock."
+  },
+  "assistant": {
+    "title": "Assistant",
+    "hint": "Ask about sales, stock, forecasts, reorders, P&L and what needs attention. Answers come from the same reports you can open, with links to them.",
+    "off": "The assistant is not switched on.",
+    "offAdmin": "Add an Anthropic API key, test the connection and switch it on in Settings → Assistant.",
+    "offAsk": "Ask an administrator to switch it on.",
+    "conversations": "Conversations",
+    "newConversation": "New conversation",
+    "question": "Your question",
+    "questionHint": "For example: \"Which branch sold most last week?\" or \"What will run out at Main before Thursday?\" Do not type guests' or staff's personal details: e-mail addresses and phone numbers are removed.",
+    "ask": "Ask",
+    "thinking": "Working on it…",
+    "you": "You",
+    "assistantLabel": "Assistant",
+    "sources": "Sources:",
+    "readCount": "{count, plural, one {Read # report} other {Read # reports}}",
+    "notRead": "not permitted or not found",
+    "delete": "Delete conversation",
+    "deleteConfirm": "Delete this conversation? This cannot be undone.",
+    "governance": "Answers are worked out by Claude (Anthropic) from business figures only — no guest or staff names, contacts or pay are sent. It reads only what you may see. Check important figures in the linked reports. Conversations are private to you and deleted after 90 days without use.",
+    "settingsTitle": "Assistant",
+    "settingsHint": "The AI assistant answers staff questions with Claude, using your organization's Anthropic API key.",
+    "status": "Status",
+    "on": "On",
+    "offShort": "Off",
+    "notTested": "Connection not tested yet.",
+    "lastTestOk": "Connection tested {at}.",
+    "lastTestFailed": "Last test failed: {error}",
+    "test": "Test connection",
+    "testPassed": "The connection works.",
+    "testFailed": "The connection failed: {error}",
+    "switchOn": "Switch on",
+    "switchOff": "Switch off",
+    "provider": "Provider",
+    "apiKey": "Anthropic API key",
+    "apiKeyHint": "Starts with sk-ant-. Stored encrypted; never shown again.",
+    "apiKeyKept": "Stored key {hint}. Leave blank to keep it.",
+    "model": "Model",
+    "models": {
+      "claude-opus-5-5": "Claude Opus 5.5 (recommended)",
+      "claude-sonnet-5-5": "Claude Sonnet 5.5 (faster, lower cost)",
+      "claude-haiku-5-5": "Claude Haiku 5.5 (fastest, lowest cost)"
+    },
+    "dailyLimit": "Questions per person per day",
+    "dailyLimitHint": "1 to 1000. Limits cost on your Anthropic account.",
+    "governanceAdmin": "A new key or model switches the assistant off until the connection test passes. What is sent: the question (without e-mail addresses or phone numbers) and the business figures the assistant reads to answer it. Guest and staff names, contacts and pay are never sent. Each question is audited by the reports read, not by its text."
   }
 }
