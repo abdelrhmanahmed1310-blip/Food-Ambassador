@@ -65,6 +65,8 @@ export const PERMISSIONS = [
   "payroll.view",
   "payroll.manage",
   "payroll.approve",
+  "training.view",
+  "training.manage",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -96,6 +98,8 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 /** Permissions that may be granted at branch or warehouse scope. All others are organization-wide only. */
 export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
+  "training.view",
+  "training.manage",
   "assistant.use",
   "branches.view",
   "branches.manage",
@@ -212,6 +216,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "training.view",
+      "training.manage",
       "assistant.use",
       "campaigns.send",
       "pos.dispatch",
@@ -333,6 +339,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Food Safety / Quality",
     description: "Quality control, food safety records and traceability.",
     permissions: [
+      "training.view",
+      "training.manage",
       "assistant.use",
       "logistics.view",
       ...VIEW_SITES,
@@ -399,6 +407,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "training.view",
+      "training.manage",
       "assistant.use",
       "pos.dispatch",
       "logistics.deliver",
@@ -454,6 +464,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Read-only Analyst",
     description: "Read-only access to operational data.",
     permissions: [
+      "training.view",
       "logistics.view",
       "trade.view",
       "budgets.view",

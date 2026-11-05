@@ -1,3 +1,4 @@
+import { trainingAttentionInTx } from "@/modules/learning/service";
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { Decimal } from "@/lib/decimal";
@@ -55,6 +56,8 @@ export type AttentionKey =
   | "INSPECTIONS_WAITING"
   | "IMPORT_SHIPMENTS_LATE"
   | "TRADE_DOCUMENTS_EXPIRED"
+  | "TRAINING_LAPSED"
+  | "TRAINING_EXPIRING"
   | "TRADE_DOCUMENTS_EXPIRING"
   | "COLD_CHAIN_EXCURSIONS"
   | "LOW_RATINGS_TO_REVIEW";
@@ -658,6 +661,23 @@ export async function attentionItems(ctx: TenantContext): Promise<AttentionItem[
         count: expiring.length,
         href: "/trade/documents?state=EXPIRING",
         links: docLinks(expiring),
+      });
+    }
+
+    // Required training lapsed (expired or overdue) or expiring (ADR-125).
+    const training = await trainingAttentionInTx(tx, ctx);
+    if (training) {
+      push({
+        key: "TRAINING_LAPSED",
+        tone: "danger",
+        count: training.lapsed,
+        href: "/hr/learning?status=LAPSED",
+      });
+      push({
+        key: "TRAINING_EXPIRING",
+        tone: "warning",
+        count: training.expiring,
+        href: "/hr/learning?status=EXPIRING",
       });
     }
 

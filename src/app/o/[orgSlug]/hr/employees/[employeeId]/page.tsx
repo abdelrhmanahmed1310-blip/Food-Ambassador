@@ -20,6 +20,9 @@ import { employeeLeave } from "@/modules/hr/leave";
 import { employeeFormOptions, getEmployee } from "@/modules/hr/service";
 import { businessDate } from "@/modules/inventory/rules";
 import { canViewPayroll, employeePay } from "@/modules/payroll/service";
+import { canViewTraining, employeeTraining } from "@/modules/learning/service";
+import { TrainingSection } from "@/components/learning/training-section";
+import { getLocale } from "next-intl/server";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { moneyIn } from "@/server/fx-view";
 import { BankForm, SalaryForm } from "@/components/payroll/forms";
@@ -65,6 +68,11 @@ export default async function EmployeePage({
     e.can.manage && e.status !== "TERMINATED" ? await employeeFormOptions(ctx, e.id) : null;
   // Pay (ADR-123) is for payroll staff only.
   const pay = canViewPayroll(ctx) ? await employeePay(ctx, e.id) : null;
+  // Training (ADR-125) for those who see training at the employee's branch.
+  const training = canViewTraining(ctx)
+    ? await employeeTraining(ctx, e.id).catch(() => null)
+    : null;
+  const locale = await getLocale();
   const money = pay ? (await moneyIn([pay.currency]))(pay.currency).money : null;
   const base = `/o/${orgSlug}/hr`;
   return (
@@ -366,6 +374,18 @@ export default async function EmployeePage({
                 hireDate: day(e.hireDate),
                 userId: e.userId,
               }}
+            />
+          </Card>
+        ) : null}
+        {training ? (
+          <Card title={t("learning.training")}>
+            <TrainingSection
+              ctx={ctx}
+              data={training}
+              locale={locale}
+              orgSlug={orgSlug}
+              employeeId={e.id}
+              manage={training.canManage}
             />
           </Card>
         ) : null}

@@ -76,6 +76,10 @@
 > with bands and brackets, entered end-of-service rules with accruals and
 > settlements, salary changes split within a month, payroll in the branch
 > P&L. WPS / Mudad files wait for their specifications.
+> **HR5a built** (ADR-125): training courses, requirements by job,
+> department or branch, sessions with attendance and results, outside
+> certificates, and a compliance matrix with expiries in Needs attention.
+> HR5b (performance) and HR5c (engagement) follow.
 
 Date: 2026-11-02. Scope: the whole repository on `milestone-0-foundation`
 (commit after HR2b). Purpose: answer the "Master product development

@@ -192,7 +192,9 @@
     "assistant": "المساعد",
     "assistantSettings": "المساعد",
     "payroll": "الرواتب",
-    "myPayslips": "قسائم راتبي"
+    "myPayslips": "قسائم راتبي",
+    "training": "التدريب",
+    "myTraining": "تدريبي"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -335,7 +337,9 @@
     "invalidApiKey": "أدخل مفتاح Anthropic API (يبدأ بـ sk-ant-).",
     "invalidQuestionLimit": "أدخل عددًا صحيحًا من 1 إلى 1000.",
     "invalidIban": "أدخل رقم آيبان صحيحًا.",
-    "tiersFromZero": "يبدأ الصف الأول من 0 سنوات."
+    "tiersFromZero": "يبدأ الصف الأول من 0 سنوات.",
+    "invalidNumber": "أدخل عددًا صحيحًا.",
+    "resultNeedsAttendance": "النتيجة تتطلب الحضور."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -826,7 +830,13 @@
     "EOS_NOT_LEAVING": "الموظف لا يترك العمل في هذا الشهر.",
     "EOS_NO_SALARY": "لا يوجد راتب مسجل للموظف.",
     "EOS_NO_RULE": "لا توجد قاعدة نهاية خدمة تشمل هذا الموظف.",
-    "EOS_NOTHING_DUE": "لا يستحق شيء وفق القاعدة لهذه المدة."
+    "EOS_NOTHING_DUE": "لا يستحق شيء وفق القاعدة لهذه المدة.",
+    "TRAINING_SESSION_FULL": "الجلسة ممتلئة.",
+    "TRAINING_SESSION_CLOSED": "لم تعد الجلسة مفتوحة.",
+    "TRAINING_SESSION_EMPTY": "لا أحد في هذه الجلسة.",
+    "TRAINING_ATTENDANCE_MISSING": "سجّل حضور الجميع ونتيجة من حضر.",
+    "TRAINING_IN_FUTURE": "تاريخ الإتمام في المستقبل.",
+    "TRAINING_RECORD_VOIDED": "هذا السجل ملغى بالفعل."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1081,7 +1091,9 @@
       "assistant.manage": "إعداد المساعد الذكي",
       "payroll.view": "عرض الرواتب",
       "payroll.manage": "إعداد الرواتب وتحديدها",
-      "payroll.approve": "اعتماد الرواتب"
+      "payroll.approve": "اعتماد الرواتب",
+      "training.view": "عرض التدريب والشهادات",
+      "training.manage": "إدارة التدريب والشهادات"
     }
   },
   "audit": {
@@ -2800,7 +2812,9 @@
       "TRADE_DOCUMENTS_EXPIRED": "{count, plural, one {مستند تجاري منتهٍ} two {مستندان تجاريان منتهيان} few {# مستندات تجارية منتهية} other {# مستندًا تجاريًا منتهيًا}}",
       "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {مستند تجاري ينتهي قريبًا} two {مستندان تجاريان ينتهيان قريبًا} few {# مستندات تجارية تنتهي قريبًا} other {# مستندًا تجاريًا ينتهي قريبًا}}",
       "COLD_CHAIN_EXCURSIONS": "{count, plural, one {رحلة بخروج في الحرارة} two {رحلتان بخروج في الحرارة} few {# رحلات بخروج في الحرارة} other {# رحلة بخروج في الحرارة}}",
-      "LOW_RATINGS_TO_REVIEW": "{count, plural, one {تقييم منخفض للمراجعة} two {تقييمان منخفضان للمراجعة} few {# تقييمات منخفضة للمراجعة} other {# تقييمًا منخفضًا للمراجعة}}"
+      "LOW_RATINGS_TO_REVIEW": "{count, plural, one {تقييم منخفض للمراجعة} two {تقييمان منخفضان للمراجعة} few {# تقييمات منخفضة للمراجعة} other {# تقييمًا منخفضًا للمراجعة}}",
+      "TRAINING_LAPSED": "{count, plural, one {تدريب مطلوب واحد منتهٍ أو متأخر} other {# تدريبات مطلوبة منتهية أو متأخرة}}",
+      "TRAINING_EXPIRING": "{count, plural, one {شهادة واحدة تنتهي خلال 30 يومًا} other {# شهادات تنتهي خلال 30 يومًا}}"
     }
   },
   "production": {
@@ -6520,5 +6534,133 @@
     "shareShort": "من {from} س: {share}%",
     "resignationFull": "تُدفع كاملة",
     "capShort": "حد {months} أشهر"
+  },
+  "learning": {
+    "title": "التدريب",
+    "hint": "من يحمل التدريب الذي يتطلبه عمله: ساري، ينتهي خلال 30 يومًا، منتهٍ، مستحق بعد التعيين أو متأخر.",
+    "courses": "الدورات",
+    "sessions": "الجلسات",
+    "compliantShare": "ساري ومستوفى",
+    "branch": "الفرع",
+    "allBranches": "كل الفروع",
+    "show": "عرض",
+    "everyone": "الجميع",
+    "lapsed": "منتهٍ أو متأخر",
+    "apply": "تطبيق",
+    "export": "تصدير CSV",
+    "noRequirements": "لا يوجد تدريب مطلوب بعد.",
+    "noRequirementsHint": "أضف الدورات وحدد من يجب أن يحملها.",
+    "nobody": "لا أحد مطابق.",
+    "employee": "الموظف",
+    "statuses": {
+      "COMPLIANT": "ساري",
+      "EXPIRING": "ينتهي قريبًا",
+      "EXPIRED": "منتهٍ",
+      "DUE": "مستحق",
+      "OVERDUE": "متأخر"
+    },
+    "coursesTitle": "الدورات",
+    "coursesHint": "دورات المؤسسة ومدة صلاحية شهاداتها ومن يجب أن يحملها.",
+    "noCourses": "لا توجد دورات بعد.",
+    "categories": {
+      "FOOD_SAFETY": "سلامة الغذاء",
+      "ALLERGENS": "مسببات الحساسية",
+      "HYGIENE": "النظافة",
+      "HEALTH_SAFETY": "الصحة والسلامة",
+      "FIRE_SAFETY": "السلامة من الحرائق",
+      "FIRST_AID": "الإسعافات الأولية",
+      "EQUIPMENT": "المعدات",
+      "SERVICE": "الخدمة",
+      "ONBOARDING": "التهيئة",
+      "OTHER": "أخرى"
+    },
+    "deliveries": {
+      "IN_PERSON": "حضوري",
+      "ONLINE": "عن بُعد",
+      "ON_THE_JOB": "أثناء العمل"
+    },
+    "validFor": "صالحة {months} شهرًا",
+    "noExpiry": "بلا انتهاء",
+    "recordsCount": "{count, plural, =0 {لا أحد يحملها} one {سجل واحد} two {سجلان} few {# سجلات} other {# سجلًا}}",
+    "notRequired": "غير مطلوبة من أحد.",
+    "dueAfterHire": "مستحقة خلال {days} يومًا من التعيين",
+    "remove": "إزالة",
+    "archive": "أرشفة",
+    "addRequirement": "حدد من يجب أن يحملها",
+    "requiredOf": "مطلوبة من",
+    "scopes": {
+      "ALL": "الجميع",
+      "JOB_TITLE": "المسمى الوظيفي",
+      "DEPARTMENT": "القسم",
+      "BRANCH": "الفرع"
+    },
+    "jobTitle": "المسمى الوظيفي",
+    "jobTitleHint": "المطابقة دون اعتبار لحالة الأحرف.",
+    "department": "القسم",
+    "dueWithinDays": "مستحقة خلال أيام من التعيين",
+    "addCourse": "إضافة دورة",
+    "code": "الرمز",
+    "name": "الاسم",
+    "nameAr": "الاسم (عربي)",
+    "category": "الفئة",
+    "delivery": "طريقة التقديم",
+    "validityMonths": "صلاحية الشهادة (أشهر)",
+    "validityHint": "اتركه فارغًا إذا لم تنتهِ.",
+    "working": "جارٍ العمل…",
+    "sessionsTitle": "جلسات التدريب",
+    "noSessions": "لا توجد جلسات بعد.",
+    "number": "الرقم",
+    "course": "الدورة",
+    "date": "التاريخ",
+    "participants": "المشاركون",
+    "status": "الحالة",
+    "sessionStatuses": {
+      "SCHEDULED": "مجدولة",
+      "COMPLETED": "مكتملة",
+      "CANCELLED": "ملغاة"
+    },
+    "schedule": "جدولة جلسة",
+    "time": "الوقت",
+    "trainer": "المدرب",
+    "location": "المكان",
+    "capacity": "السعة",
+    "validity": "الشهادة",
+    "noParticipants": "لا أحد في هذه الجلسة بعد.",
+    "attendance": "الحضور",
+    "result": "النتيجة",
+    "attendances": {
+      "INVITED": "مدعو",
+      "ATTENDED": "حضر",
+      "ABSENT": "غائب"
+    },
+    "results": {
+      "PASSED": "ناجح",
+      "FAILED": "راسب"
+    },
+    "save": "حفظ",
+    "addParticipants": "إضافة مشاركين",
+    "chooseEmployees": "موظفو هذا الفرع",
+    "complete": "إكمال الجلسة",
+    "completeConfirm": "إكمال الجلسة؟ يحصل الناجحون على شهاداتهم ولا يمكن تغيير الحضور بعد ذلك.",
+    "completed": "{count, plural, =0 {اكتملت الجلسة؛ لم ينجح أحد.} one {اكتملت الجلسة؛ سُجلت شهادة واحدة.} two {اكتملت الجلسة؛ سُجلت شهادتان.} few {اكتملت الجلسة؛ سُجلت # شهادات.} other {اكتملت الجلسة؛ سُجلت # شهادة.}}",
+    "cancelSession": "إلغاء الجلسة",
+    "reason": "السبب",
+    "training": "التدريب",
+    "nothingRequired": "لا يوجد تدريب مطلوب من هذا الموظف.",
+    "expiresOn": "تنتهي {date}",
+    "dueOn": "مستحقة بحلول {date}",
+    "records": "سجلات التدريب",
+    "completedOn": "تاريخ الإتمام",
+    "expires": "الانتهاء",
+    "provider": "الجهة",
+    "actions": "إجراءات",
+    "voided": "ملغى: {reason}",
+    "void": "إلغاء",
+    "noRecords": "لا يوجد تدريب مسجل بعد.",
+    "certificateFor": "الشهادة — {course}، {date}",
+    "addRecord": "إضافة تدريب من جهة خارجية",
+    "certificateNumber": "رقم الشهادة",
+    "note": "ملاحظة",
+    "myTraining": "تدريبي"
   }
 }

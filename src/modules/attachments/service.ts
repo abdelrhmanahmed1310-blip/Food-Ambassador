@@ -43,6 +43,7 @@ export const ATTACHMENT_ENTITIES = [
   "IMPORT_SHIPMENT",
   "TRADE_DOCUMENT",
   "TRIP_STOP",
+  "TRAINING_RECORD",
 ] as const;
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
 
@@ -154,6 +155,26 @@ async function accessTo(
         (st.trip.driverUserId === ctx.userId ||
           hasPermission(ctx.grants, "logistics.manage", where));
       return { view: true, upload: st.trip.status === "IN_PROGRESS" && mayRecord };
+    }
+    case "TRAINING_RECORD": {
+      // A certificate on a training record (ADR-125): the employee's branch; the employee sees their own.
+      const r = await tx.trainingRecord.findFirst({
+        where: { organizationId: org, id: entityId },
+        select: { voidedAt: true, employee: { select: { branchId: true, userId: true } } },
+      });
+      const where = r ? { branchId: r.employee.branchId } : undefined;
+      const own = !!r && r.employee.userId === ctx.userId;
+      if (
+        !r ||
+        (!own &&
+          !hasPermission(ctx.grants, "training.view", where) &&
+          !hasPermission(ctx.grants, "training.manage", where))
+      )
+        throw notFound("Document");
+      return {
+        view: true,
+        upload: !r.voidedAt && hasPermission(ctx.grants, "training.manage", where),
+      };
     }
     case "TRADE_DOCUMENT": {
       // The scan of a trade document (ADR-114): its shipment's scope, or organization-wide for products.

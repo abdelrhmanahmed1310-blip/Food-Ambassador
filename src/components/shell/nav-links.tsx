@@ -15,6 +15,7 @@ import {
   Handshake,
   LayoutDashboard,
   Menu,
+  GraduationCap,
   Package,
   ReceiptText,
   Settings,
@@ -49,6 +50,7 @@ const ICONS = {
   clock: Clock,
   leave: CalendarDays,
   payslip: ReceiptText,
+  training: GraduationCap,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

@@ -192,7 +192,9 @@
     "assistant": "Assistant",
     "assistantSettings": "Assistant",
     "payroll": "Payroll",
-    "myPayslips": "My payslips"
+    "myPayslips": "My payslips",
+    "training": "Training",
+    "myTraining": "My training"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -335,7 +337,9 @@
     "invalidApiKey": "Enter an Anthropic API key (it starts with sk-ant-).",
     "invalidQuestionLimit": "Enter a whole number from 1 to 1000.",
     "invalidIban": "Enter a valid IBAN.",
-    "tiersFromZero": "The first row starts at 0 years."
+    "tiersFromZero": "The first row starts at 0 years.",
+    "invalidNumber": "Enter a whole number.",
+    "resultNeedsAttendance": "A result needs attendance."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -826,7 +830,13 @@
     "EOS_NOT_LEAVING": "The employee does not leave in this month.",
     "EOS_NO_SALARY": "The employee has no salary on record.",
     "EOS_NO_RULE": "No end-of-service rule covers this employee.",
-    "EOS_NOTHING_DUE": "Nothing is due under the rule for this length of service."
+    "EOS_NOTHING_DUE": "Nothing is due under the rule for this length of service.",
+    "TRAINING_SESSION_FULL": "The session is full.",
+    "TRAINING_SESSION_CLOSED": "The session is no longer open.",
+    "TRAINING_SESSION_EMPTY": "Nobody is on this session.",
+    "TRAINING_ATTENDANCE_MISSING": "Mark everyone's attendance, and a result for those who attended.",
+    "TRAINING_IN_FUTURE": "The completion date is in the future.",
+    "TRAINING_RECORD_VOIDED": "This record is already voided."
   },
   "notFound": {
     "title": "Page not found",
@@ -1081,7 +1091,9 @@
       "assistant.manage": "Set up the AI assistant",
       "payroll.view": "See payroll and salaries",
       "payroll.manage": "Prepare payroll and set salaries",
-      "payroll.approve": "Approve payroll"
+      "payroll.approve": "Approve payroll",
+      "training.view": "See training and certificates",
+      "training.manage": "Manage training and certificates"
     }
   },
   "audit": {
@@ -2800,7 +2812,9 @@
       "TRADE_DOCUMENTS_EXPIRED": "{count, plural, one {# trade document expired} other {# trade documents expired}}",
       "TRADE_DOCUMENTS_EXPIRING": "{count, plural, one {# trade document expiring soon} other {# trade documents expiring soon}}",
       "COLD_CHAIN_EXCURSIONS": "{count, plural, one {# trip with a temperature excursion} other {# trips with temperature excursions}}",
-      "LOW_RATINGS_TO_REVIEW": "{count, plural, one {# low rating to review} other {# low ratings to review}}"
+      "LOW_RATINGS_TO_REVIEW": "{count, plural, one {# low rating to review} other {# low ratings to review}}",
+      "TRAINING_LAPSED": "{count, plural, one {# required training expired or overdue} other {# required trainings expired or overdue}}",
+      "TRAINING_EXPIRING": "{count, plural, one {# certificate expiring within 30 days} other {# certificates expiring within 30 days}}"
     }
   },
   "production": {
@@ -6520,5 +6534,133 @@
     "shareShort": "from {from} y: {share}%",
     "resignationFull": "Paid in full",
     "capShort": "cap {months} months"
+  },
+  "learning": {
+    "title": "Training",
+    "hint": "Who holds the training their job requires: valid, expiring within 30 days, expired, due after hire or overdue.",
+    "courses": "Courses",
+    "sessions": "Sessions",
+    "compliantShare": "Held and valid",
+    "branch": "Branch",
+    "allBranches": "All branches",
+    "show": "Show",
+    "everyone": "Everyone",
+    "lapsed": "Expired or overdue",
+    "apply": "Apply",
+    "export": "Export CSV",
+    "noRequirements": "No required training yet.",
+    "noRequirementsHint": "Add courses and say who must hold them.",
+    "nobody": "Nobody matches.",
+    "employee": "Employee",
+    "statuses": {
+      "COMPLIANT": "Valid",
+      "EXPIRING": "Expiring",
+      "EXPIRED": "Expired",
+      "DUE": "Due",
+      "OVERDUE": "Overdue"
+    },
+    "coursesTitle": "Courses",
+    "coursesHint": "The organization's courses, how long their certificates last, and who must hold them.",
+    "noCourses": "No courses yet.",
+    "categories": {
+      "FOOD_SAFETY": "Food safety",
+      "ALLERGENS": "Allergens",
+      "HYGIENE": "Hygiene",
+      "HEALTH_SAFETY": "Health and safety",
+      "FIRE_SAFETY": "Fire safety",
+      "FIRST_AID": "First aid",
+      "EQUIPMENT": "Equipment",
+      "SERVICE": "Service",
+      "ONBOARDING": "Onboarding",
+      "OTHER": "Other"
+    },
+    "deliveries": {
+      "IN_PERSON": "In person",
+      "ONLINE": "Online",
+      "ON_THE_JOB": "On the job"
+    },
+    "validFor": "Valid {months} months",
+    "noExpiry": "No expiry",
+    "recordsCount": "{count, plural, =0 {No one holds it} one {# record} other {# records}}",
+    "notRequired": "Not required of anyone.",
+    "dueAfterHire": "due within {days} days of hire",
+    "remove": "Remove",
+    "archive": "Archive",
+    "addRequirement": "Say who must hold it",
+    "requiredOf": "Required of",
+    "scopes": {
+      "ALL": "Everyone",
+      "JOB_TITLE": "Job title",
+      "DEPARTMENT": "Department",
+      "BRANCH": "Branch"
+    },
+    "jobTitle": "Job title",
+    "jobTitleHint": "Matched without regard to case.",
+    "department": "Department",
+    "dueWithinDays": "Due within days of hire",
+    "addCourse": "Add course",
+    "code": "Code",
+    "name": "Name",
+    "nameAr": "Name (Arabic)",
+    "category": "Category",
+    "delivery": "Delivery",
+    "validityMonths": "Certificate valid (months)",
+    "validityHint": "Leave empty when it does not expire.",
+    "working": "Working…",
+    "sessionsTitle": "Training sessions",
+    "noSessions": "No sessions yet.",
+    "number": "Number",
+    "course": "Course",
+    "date": "Date",
+    "participants": "Participants",
+    "status": "Status",
+    "sessionStatuses": {
+      "SCHEDULED": "Scheduled",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "schedule": "Schedule a session",
+    "time": "Time",
+    "trainer": "Trainer",
+    "location": "Location",
+    "capacity": "Capacity",
+    "validity": "Certificate",
+    "noParticipants": "Nobody is on this session yet.",
+    "attendance": "Attendance",
+    "result": "Result",
+    "attendances": {
+      "INVITED": "Invited",
+      "ATTENDED": "Attended",
+      "ABSENT": "Absent"
+    },
+    "results": {
+      "PASSED": "Passed",
+      "FAILED": "Failed"
+    },
+    "save": "Save",
+    "addParticipants": "Add participants",
+    "chooseEmployees": "Staff of this branch",
+    "complete": "Complete session",
+    "completeConfirm": "Complete the session? Those who passed get their certificate; attendance can no longer change.",
+    "completed": "{count, plural, =0 {Session completed; nobody passed.} one {Session completed; # certificate recorded.} other {Session completed; # certificates recorded.}}",
+    "cancelSession": "Cancel session",
+    "reason": "Reason",
+    "training": "Training",
+    "nothingRequired": "No training is required of this employee.",
+    "expiresOn": "expires {date}",
+    "dueOn": "due by {date}",
+    "records": "Training records",
+    "completedOn": "Completed on",
+    "expires": "Expires",
+    "provider": "Provider",
+    "actions": "Actions",
+    "voided": "Voided: {reason}",
+    "void": "Void",
+    "noRecords": "No training recorded yet.",
+    "certificateFor": "Certificate — {course}, {date}",
+    "addRecord": "Add training done elsewhere",
+    "certificateNumber": "Certificate number",
+    "note": "Note",
+    "myTraining": "My training"
   }
 }

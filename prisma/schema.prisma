@@ -379,6 +379,12 @@ model Organization {
   payrollTaxTables PayrollTaxTable[]
   payrollEosRules  PayrollEosRule[]
 
+  trainingCourses      TrainingCourse[]
+  trainingRequirements TrainingRequirement[]
+  trainingSessions     TrainingSession[]
+  trainingParticipants TrainingParticipant[]
+  trainingRecords      TrainingRecord[]
+
   @@map("organizations")
 }
 
@@ -577,6 +583,8 @@ model Branch {
   homeDeliveries HomeDelivery[]
 
   guestFeedback GuestFeedback[]
+
+  trainingSessions TrainingSession[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -1343,6 +1351,7 @@ enum AttachmentEntity {
   IMPORT_SHIPMENT
   TRADE_DOCUMENT
   TRIP_STOP
+  TRAINING_RECORD
 }
 
 /// A file attached to a document (ADR-051, Q-08): at most 3 MB, kept until
@@ -6554,6 +6563,9 @@ model Employee {
   payrollLines       PayrollLine[]
   payrollAdjustments PayrollAdjustment[]
 
+  trainingParticipations TrainingParticipant[]
+  trainingRecords        TrainingRecord[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@unique([organizationId, userId])
@@ -7882,4 +7894,175 @@ model PayrollEosRule {
   @@unique([organizationId, id])
   @@index([organizationId, companyId, effectiveFrom])
   @@map("payroll_eos_rules")
+}
+
+// ─── HR5a learning (ADR-125) ───
+
+enum TrainingCategory {
+  FOOD_SAFETY
+  ALLERGENS
+  HYGIENE
+  HEALTH_SAFETY
+  FIRE_SAFETY
+  FIRST_AID
+  EQUIPMENT
+  SERVICE
+  ONBOARDING
+  OTHER
+}
+
+enum TrainingDelivery {
+  IN_PERSON
+  ONLINE
+  ON_THE_JOB
+}
+
+enum TrainingScope {
+  ALL
+  JOB_TITLE
+  DEPARTMENT
+  BRANCH
+}
+
+enum TrainingSessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum TrainingAttendance {
+  INVITED
+  ATTENDED
+  ABSENT
+}
+
+enum TrainingResult {
+  PASSED
+  FAILED
+}
+
+enum TrainingRecordSource {
+  SESSION
+  EXTERNAL
+}
+
+/// A course in the organization's catalogue; a certificate lasts validityMonths (none: no expiry).
+model TrainingCourse {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  nameAr         String?          @map("name_ar")
+  category       TrainingCategory
+  delivery       TrainingDelivery
+  validityMonths Int?             @map("validity_months")
+  description    String?
+  archivedAt     DateTime?        @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requirements TrainingRequirement[]
+  sessions     TrainingSession[]
+  records      TrainingRecord[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@map("training_courses")
+}
+
+/// Who must hold a course: everyone, a job title, a department or a branch; due within so many days of hire.
+model TrainingRequirement {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  courseId        String        @map("course_id") @db.Uuid
+  scope           TrainingScope
+  jobTitle        String?       @map("job_title")
+  departmentId    String?       @map("department_id") @db.Uuid
+  branchId        String?       @map("branch_id") @db.Uuid
+  dueWithinDays   Int           @map("due_within_days")
+  createdByUserId String        @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  course       TrainingCourse @relation(fields: [organizationId, courseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, courseId])
+  @@map("training_requirements")
+}
+
+/// A scheduled class at a branch.
+model TrainingSession {
+  id                String                @id @default(uuid(7)) @db.Uuid
+  organizationId    String                @map("organization_id") @db.Uuid
+  number            String
+  courseId          String                @map("course_id") @db.Uuid
+  branchId          String                @map("branch_id") @db.Uuid
+  startsAt          DateTime              @map("starts_at") @db.Timestamptz(3)
+  location          String?
+  trainer           String
+  capacity          Int?
+  status            TrainingSessionStatus @default(SCHEDULED)
+  createdByUserId   String                @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt       DateTime?             @map("completed_at") @db.Timestamptz(3)
+  completedByUserId String?               @map("completed_by_user_id") @db.Uuid
+  cancelReason      String?               @map("cancel_reason")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  course       TrainingCourse        @relation(fields: [organizationId, courseId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch                @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  participants TrainingParticipant[]
+  records      TrainingRecord[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, branchId, startsAt])
+  @@map("training_sessions")
+}
+
+model TrainingParticipant {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  sessionId      String             @map("session_id") @db.Uuid
+  employeeId     String             @map("employee_id") @db.Uuid
+  attendance     TrainingAttendance @default(INVITED)
+  result         TrainingResult?
+  note           String?
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  session      TrainingSession @relation(fields: [organizationId, sessionId], references: [organizationId, id], onDelete: Restrict)
+  employee     Employee        @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, sessionId, employeeId])
+  @@map("training_participants")
+}
+
+/// A course an employee passed, from a session or elsewhere. Fixed once recorded; mistakes are voided.
+model TrainingRecord {
+  id                String               @id @default(uuid(7)) @db.Uuid
+  organizationId    String               @map("organization_id") @db.Uuid
+  employeeId        String               @map("employee_id") @db.Uuid
+  courseId          String               @map("course_id") @db.Uuid
+  completedOn       DateTime             @map("completed_on") @db.Date
+  expiresOn         DateTime?            @map("expires_on") @db.Date
+  source            TrainingRecordSource
+  sessionId         String?              @map("session_id") @db.Uuid
+  provider          String?
+  certificateNumber String?              @map("certificate_number")
+  note              String?
+  recordedByUserId  String               @map("recorded_by_user_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  voidedAt          DateTime?            @map("voided_at") @db.Timestamptz(3)
+  voidedByUserId    String?              @map("voided_by_user_id") @db.Uuid
+  voidReason        String?              @map("void_reason")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee         @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  course       TrainingCourse   @relation(fields: [organizationId, courseId], references: [organizationId, id], onDelete: Restrict)
+  session      TrainingSession? @relation(fields: [organizationId, sessionId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, employeeId, courseId])
+  @@index([organizationId, expiresOn])
+  @@map("training_records")
 }

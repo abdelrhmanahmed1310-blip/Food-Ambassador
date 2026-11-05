@@ -3343,6 +3343,49 @@ provided.
   (year-to-date) tax methods; service years net of long unpaid leave;
   retro pay; overtime from rosters; a payroll journal for accounting.
 
+### ADR-125 Training and certification — Accepted (HR5a built)
+
+Decision (2026-11-05): HR5 is built in three parts — **HR5a learning**
+(this), HR5b performance (goals, reviews, ratings) and HR5c engagement
+(surveys, recognition). Learning comes first because food businesses must
+show that staff hold food-hygiene and safety training.
+
+- **Courses**: the organization's catalogue — code, name (English and
+  Arabic), category (food safety, allergens, hygiene, health and safety,
+  fire safety, first aid, equipment, service, onboarding, other), delivery,
+  and how long a certificate is valid in months (none: no expiry). Courses
+  are archived, never deleted.
+- **Requirements**: a course is required of everyone, a job title (matched
+  without regard to case), a department or a branch, due within N days of
+  hire (default 30). With several requirements for one course, the
+  shortest deadline counts.
+- **Sessions** (TRN-) at a branch: course, local date and time, trainer,
+  place, optional capacity. Participants are the branch's staff (others
+  only where the person may manage training too). Attendance is invited,
+  attended or absent, with passed or failed for those who attended.
+  Completing needs everyone marked; each pass becomes a training record
+  dated the session's day, expiring by the course's validity (same day N
+  months on, or the month's last day). A completed or cancelled session
+  no longer changes (trigger).
+- **Records from elsewhere**: an outside provider's course with its date
+  (not in the future), provider and certificate number; the certificate
+  scan is attached to the record (ADR-051). Records never change; a
+  mistake is voided with a reason (trigger).
+- **Compliance** per employee and required course: **valid** (through the
+  expiry day; no expiry stays valid), **expiring** within 30 days,
+  **expired**, **due** (none yet, before the deadline after hire) or
+  **overdue**. The record expiring last counts. The training page shows
+  the matrix with the share held and valid, filters by branch and by
+  lapsed or expiring, and exports CSV; Needs attention counts lapsed and
+  expiring trainings; the employee page and My training show the same.
+- **Access**: `training.view` and `training.manage`, per branch —
+  administrators, operations managers, branch managers and food safety
+  manage; analysts view. The catalogue and requirements need
+  organization-wide `training.manage`. Employees see their own.
+- **Not yet**: online course content, quizzes, reminders to the employee,
+  training cost, the food-safety compliance score taking training into
+  account, development plans (with HR5b).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

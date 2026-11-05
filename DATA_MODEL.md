@@ -1167,6 +1167,22 @@ Payroll (HR4a, ADR-123; migration `20270114090000_hr4a_payroll`):
   OTHER_DEDUCTION). Lines and adjustments change only in a draft run
   (trigger).
 
+Training (HR5a, ADR-125; migration `20270116090000_hr5a_learning`):
+
+- **training_courses**: UQ (org, code); `category`, `delivery`,
+  `validity_months` (1–120 or none), archived.
+- **training_requirements**: course × `scope` (ALL | JOB_TITLE |
+  DEPARTMENT | BRANCH, with exactly the matching field), `due_within_days`.
+- **training_sessions**: `number` (TRN-), course, branch, `starts_at`,
+  trainer, place, capacity, `status` (SCHEDULED | COMPLETED | CANCELLED).
+- **training_participants**: session × employee, `attendance` (INVITED |
+  ATTENDED | ABSENT), `result` (PASSED | FAILED, only when attended);
+  changes only while the session is scheduled (trigger).
+- **training_records**: employee × course, `completed_on`, `expires_on`,
+  `source` (SESSION | EXTERNAL), provider, certificate number; never
+  changed, only voided with a reason (trigger). Attachment entity
+  TRAINING_RECORD holds certificate scans.
+
 Payroll rules (HR4b, ADR-124; migration `20270115090000_hr4b_payroll_rules`):
 
 - **payroll_tax_tables**: per company — `code`, `name`, `applies_to`,
