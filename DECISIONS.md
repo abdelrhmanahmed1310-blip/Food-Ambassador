@@ -1765,8 +1765,14 @@ commission, fees, vat_on_fees, net`. Platforms' own statement formats are
   serving pages and the demo seed about 430 MB, too close to Starter's
   512 MB. The start and pre-deploy commands call `node`, `prisma` and
   `tsx` directly (an `npx` or `npm` wrapper costs about 80 MB each), and
-  the server's heap is capped at 1.5 GB. The build (about 3 GB at peak)
-  runs on Render's build machines, not the instance.
+  the server's heap is capped at 1.5 GB.
+- **Build memory (2026-11-05):** Render stopped a build at its 8 GB build
+  limit; here the build peaked at 4.5 GB during Next's own TypeScript
+  pass, and its workers grow with the machine's cores. Render builds with
+  `LOW_MEMORY_BUILD=1` (`next.config.ts`): no TypeScript pass inside the
+  build — CI and `pnpm check` typecheck every commit before it reaches the
+  branch — at most two workers, and no server or prerender source maps.
+  Measured here: 2.6 GB at peak. Local, CI and Docker builds are unchanged.
 - **Not production.** No real customer data goes on the demo. Production
   hosting and data residency stay open (Q-03); attachments are not
   virus-scanned there (no ClamAV), and payment, ZATCA and delivery
