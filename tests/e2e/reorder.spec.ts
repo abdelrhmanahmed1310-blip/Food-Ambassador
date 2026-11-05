@@ -66,5 +66,31 @@ test("categories and reorder: level → suggestion → draft order", async ({ br
   await page.getByRole("link", { name: /^PO-/ }).click();
   await expect(page.getByRole("heading", { name: /^PO-/ })).toBeVisible();
   await expect(page.getByText(/EGP\s?4,200\.00/).first()).toBeVisible();
+
+  // Forecasts (ADR-120): a new product has no history to forecast from yet.
+  await page.goto(`/o/${slug}/purchasing/reorder`);
+  await expect(row.getByText("Under 4 weeks of history")).toBeVisible();
+  await page.getByRole("link", { name: "Demand forecast" }).first().click();
+  await expect(page.getByRole("heading", { name: "Demand forecast" })).toBeVisible();
+  const forecastRow = page.locator("tr", { hasText: "RICE" });
+  await expect(forecastRow.getByText("Not enough history (0 days of 28)")).toBeVisible();
+  const csv = await page.request.get(
+    (await page.getByRole("link", { name: "Export CSV" }).getAttribute("href"))!,
+  );
+  expect(csv.status()).toBe(200);
+  expect(await csv.text()).toContain("RICE,Rice,kg,0,0,SHORT_HISTORY");
+
+  // The organization sets what a forecast order covers.
+  await page.goto(`/o/${slug}/settings/purchasing`);
+  await page.getByLabel("Review period for forecast orders (days)").fill("0");
+  await page.getByRole("button", { name: "Save" }).first().click();
+  await expect(page.getByText("Enter a whole number of days from 1 to 90.")).toBeVisible();
+  await page.getByLabel("Review period for forecast orders (days)").fill("14");
+  await page.getByLabel("Service level for safety stock").selectOption({ label: "98%" });
+  await page.getByRole("button", { name: "Save" }).first().click();
+  await expect(page.getByText("Changes saved.").first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Review period for forecast orders (days)")).toHaveValue("14");
+  await expect(page.getByLabel("Service level for safety stock")).toHaveValue("0.98");
   await context.close();
 });

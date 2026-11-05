@@ -187,7 +187,8 @@
     "myDeliveries": "My deliveries",
     "segments": "Segments",
     "guestFeedback": "Guest feedback",
-    "campaigns": "Campaigns"
+    "campaigns": "Campaigns",
+    "demandForecast": "Demand forecast"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -324,7 +325,8 @@
     "invalidSignature": "The signature could not be read; clear it and sign again.",
     "invalidRating": "Choose 1 to 5 stars.",
     "subjectRequired": "An e-mail needs a subject.",
-    "unknownPlaceholder": "Only '{name}' can be filled in."
+    "unknownPlaceholder": "Only '{name}' can be filled in.",
+    "invalidReviewDays": "Enter a whole number of days from 1 to 90."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -1674,11 +1676,24 @@
     "createOrders": "Create draft orders",
     "createOrdersHint": "One draft order per supplier for the ticked lines, at the supplier's last price. Review and submit them as usual.",
     "ordersCreated": "{count, plural, =0 {No orders created.} one {Created draft order:} other {Created # draft orders:}} {numbers}",
-    "skipped": "Skipped (no supplier or no known price): {skus}.",
+    "skipped": "Skipped (no supplier, no known price or no forecast quantity): {skus}.",
     "reasons": {
       "NO_SUPPLIER": "No supplier",
       "NO_PRICE": "No known price",
       "OK": "OK"
+    },
+    "basis": "Order quantities from",
+    "bases": {
+      "MIN_MAX": "Reorder levels (min – max)",
+      "FORECAST": "Forecast (lead time + review period)"
+    },
+    "byForecast": "By forecast",
+    "forecastNone": "No order needed",
+    "forecastCover": "{days} days cover, {safety} {unit} safety stock",
+    "forecastReasons": {
+      "SHORT_HISTORY": "Under 4 weeks of history",
+      "NO_SUPPLIER": "No supplier",
+      "NO_LEAD_TIME": "No lead time set"
     }
   },
   "shipments": {
@@ -6202,5 +6217,33 @@
     "question": "Stop receiving offers by message from us?",
     "confirm": "Stop offers",
     "done": "Done — you will not receive offers from us any more."
+  },
+  "forecast": {
+    "title": "Demand forecast",
+    "hint": "Demand per product from what left this warehouse in the last 8 weeks: use, customer deliveries and transfers to other warehouses. Each product is forecast with the method that would have been most accurate over the last 14 days.",
+    "empty": "No product left this warehouse in the last 8 weeks.",
+    "product": "Product",
+    "weeks": "Last 8 weeks",
+    "weeksLabel": "Weekly demand, oldest first: {values}",
+    "average": "Average a day (28 days)",
+    "method": "Method",
+    "error": "Error (WAPE)",
+    "bias": "Bias",
+    "next7": "Next 7 days",
+    "next28": "Next 28 days",
+    "shortHistory": "Not enough history ({days} days of 28)",
+    "noDemand": "No demand to score",
+    "methods": {
+      "MOVING_AVERAGE_28": "Average of the last 28 days",
+      "MOVING_AVERAGE_7": "Average of the last 7 days",
+      "SAME_WEEKDAY": "Same weekday, last 4 weeks"
+    },
+    "explain": "WAPE is the forecast error over the last 14 days as a share of actual demand; bias above 0 means the method forecast too much. Write-offs, returns, count differences and moves within the warehouse are not demand.",
+    "export": "Export CSV",
+    "toReorder": "Reorder plan",
+    "reviewDays": "Review period for forecast orders (days)",
+    "reviewDaysHint": "How often you order: a forecast order covers the lead time plus these days. 1 to 90.",
+    "serviceLevel": "Service level for safety stock",
+    "serviceLevelHint": "The chance of not running out before the next delivery. Higher keeps more safety stock."
   }
 }

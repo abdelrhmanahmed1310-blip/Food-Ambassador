@@ -31,6 +31,8 @@ export default async function PurchasingSettingsPage({
             overReceiptTolerancePercent: rules.overReceiptTolerance.times(100).toFixed(),
             invoicePriceTolerancePercent: rules.invoicePriceTolerance.times(100).toFixed(),
             supplierApprovalRequired: rules.supplierApprovalRequired,
+            forecastReviewDays: String(rules.forecastReviewDays),
+            forecastServiceLevel: rules.forecastServiceLevel,
           }}
         />
       </Card>

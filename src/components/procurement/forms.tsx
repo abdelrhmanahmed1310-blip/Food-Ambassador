@@ -390,6 +390,8 @@ export function ProcurementSettingsForm({
     overReceiptTolerancePercent: string;
     invoicePriceTolerancePercent: string;
     supplierApprovalRequired: boolean;
+    forecastReviewDays: string;
+    forecastServiceLevel: string;
   };
 }) {
   const t = useTranslations();
@@ -419,6 +421,26 @@ export function ProcurementSettingsForm({
         hint={t("suppliers.compliance.approvalRequiredHint")}
         defaultChecked={defaults.supplierApprovalRequired}
       />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          name="forecastReviewDays"
+          label={t("forecast.reviewDays")}
+          hint={t("forecast.reviewDaysHint")}
+          defaultValue={defaults.forecastReviewDays}
+          inputMode="numeric"
+          dir="ltr"
+        />
+        <SelectField
+          name="forecastServiceLevel"
+          label={t("forecast.serviceLevel")}
+          hint={t("forecast.serviceLevelHint")}
+          defaultValue={defaults.forecastServiceLevel}
+          options={["0.9", "0.95", "0.98", "0.99"].map((v) => ({
+            value: v,
+            label: `${Math.round(Number(v) * 100)}%`,
+          }))}
+        />
+      </div>
     </ActionForm>
   );
 }
@@ -616,6 +638,17 @@ export function CreateOrdersForm({ action, formId }: { action: Action; formId: s
       pendingLabel={t("common.saving")}
     >
       <p className="text-muted text-sm">{t("reorder.createOrdersHint")}</p>
+      <div className="sm:w-80">
+        <SelectField
+          name="basis"
+          label={t("reorder.basis")}
+          defaultValue="MIN_MAX"
+          options={(["MIN_MAX", "FORECAST"] as const).map((b) => ({
+            value: b,
+            label: t(`reorder.bases.${b}`),
+          }))}
+        />
+      </div>
     </ActionForm>
   );
 }

@@ -1,3 +1,4 @@
+import { SERVICE_LEVELS, type ServiceLevel } from "@/modules/forecasting/rules";
 import { z } from "zod";
 import { isCalendarDate } from "@/lib/dates";
 import { decimalString, toDecimal, type Decimal } from "@/lib/decimal";
@@ -94,6 +95,21 @@ export const settingsSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "on" || v === "true"),
+  /** Days a forecast-based order covers besides the lead time (ADR-120). */
+  forecastReviewDays: z
+    .string()
+    .optional()
+    .transform((v) => blank(v) ?? "7")
+    .refine((v) => /^\d{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 90, {
+      error: "invalidReviewDays",
+    })
+    .transform(Number),
+  forecastServiceLevel: z
+    .string()
+    .optional()
+    .transform((v) => blank(v) ?? "0.95")
+    .refine((v) => Object.hasOwn(SERVICE_LEVELS, v), { error: "invalidOption" })
+    .transform((v) => v as ServiceLevel),
 });
 
 // ─── Supplier compliance (ADR-091) ───

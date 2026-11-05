@@ -1601,6 +1601,10 @@ model ProcurementSettings {
   invoicePriceTolerance    Decimal  @default(0) @map("invoice_price_tolerance") @db.Decimal(9, 6)
   /// New suppliers wait for approval before orders can be sent to them (ADR-091).
   supplierApprovalRequired Boolean  @default(false) @map("supplier_approval_required")
+  /// Days between orders that a forecast-based order covers besides the lead time (ADR-120).
+  forecastReviewDays       Int      @default(7) @map("forecast_review_days")
+  /// Chance of not running out during the cover, for safety stock: 0.90, 0.95, 0.98 or 0.99 (ADR-120).
+  forecastServiceLevel     Decimal  @default(0.95) @map("forecast_service_level") @db.Decimal(3, 2)
   updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)

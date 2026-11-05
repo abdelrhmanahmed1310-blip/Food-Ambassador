@@ -251,6 +251,7 @@ export async function createOrdersFromPlanAction(
       ctx,
       warehouseId,
       formList(formData, "ruleId"),
+      formData.get("basis") === "FORECAST" ? "FORECAST" : "MIN_MAX",
     );
     const created = t("ordersCreated", {
       count: orders.length,

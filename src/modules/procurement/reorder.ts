@@ -8,7 +8,10 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { inSequence, withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, notFound, validationFailed } from "@/server/errors";
 import { addDraftLineInTx, canOnWarehouse, createDraftOrderInTx, recomputeTotal } from "./orders";
+import { demandHistoryInTx } from "@/modules/forecasting/demand";
+import { forecast, forecastOrder, type ForecastOrder } from "@/modules/forecasting/rules";
 import { suggestReorder } from "./rules";
+import { loadRules } from "./settings";
 import { reorderRuleSchema } from "./schemas";
 
 /**
@@ -132,9 +135,17 @@ async function buildPlan(tx: Tx, ctx: TenantContext, warehouseId: string) {
               preferred: true,
               lastUnitPrice: true,
               minOrderQuantity: true,
+              leadTimeDays: true,
               purchaseUom: { select: { id: true, code: true } },
               supplier: {
-                select: { id: true, code: true, name: true, nameAr: true, currency: true },
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  nameAr: true,
+                  currency: true,
+                  leadTimeDays: true,
+                },
               },
             },
           },
@@ -190,6 +201,16 @@ async function buildPlan(tx: Tx, ctx: TenantContext, warehouseId: string) {
     onOrder.set(l.productId, (onOrder.get(l.productId) ?? new Decimal(0)).plus(open));
   }
 
+  // Forecast-based orders alongside the par levels (ADR-120).
+  const settings = await loadRules(tx, ctx);
+  const histories = await demandHistoryInTx(
+    tx,
+    ctx,
+    { id: wh.id, timeZone: wh.branch.timeZone },
+    today,
+    productIds,
+  );
+
   const lines = [];
   for (const r of rules) {
     const links = r.product.supplierProducts;
@@ -214,9 +235,44 @@ async function buildPlan(tx: Tx, ctx: TenantContext, warehouseId: string) {
     });
     if (suggestion)
       reason = !source ? "NO_SUPPLIER" : source.lastUnitPrice === null ? "NO_PRICE" : "OK";
-    lines.push({ rule: r, source, availableBase, onOrderBase, suggestion, reason });
+    const history = histories.get(r.productId)!;
+    const predicted = forecast(history.series, history.historyDays, 120);
+    // The lead time is the supplier's own for the product, else the supplier's; never guessed.
+    const leadTimeDays = source?.leadTimeDays ?? source?.supplier.leadTimeDays ?? null;
+    let byForecast: ForecastOrder | null = null;
+    let forecastReason: "SHORT_HISTORY" | "NO_SUPPLIER" | "NO_LEAD_TIME" | null = null;
+    if (predicted.status !== "OK") forecastReason = "SHORT_HISTORY";
+    else if (!source) forecastReason = "NO_SUPPLIER";
+    else if (leadTimeDays === null) forecastReason = "NO_LEAD_TIME";
+    else
+      byForecast = forecastOrder({
+        daily: predicted.daily,
+        rmse: predicted.accuracy.rmse,
+        leadTimeDays,
+        reviewDays: settings.forecastReviewDays,
+        serviceLevel: settings.forecastServiceLevel,
+        availableBase,
+        onOrderBase,
+        basePerPurchaseUnit: basePerUnit,
+        minOrderPurchaseUnits: source.minOrderQuantity ? dec(source.minOrderQuantity) : null,
+      });
+    lines.push({
+      rule: r,
+      source,
+      availableBase,
+      onOrderBase,
+      suggestion,
+      reason,
+      forecast: {
+        method: predicted.status === "OK" ? predicted.method : null,
+        wape: predicted.status === "OK" ? predicted.accuracy.wape : null,
+        leadTimeDays,
+        order: byForecast,
+        reason: forecastReason,
+      },
+    });
   }
-  return { warehouse: wh, today, lines };
+  return { warehouse: wh, today, lines, settings };
 }
 
 export async function reorderPlan(ctx: TenantContext, warehouseId: string) {
@@ -229,16 +285,23 @@ export async function reorderPlan(ctx: TenantContext, warehouseId: string) {
   });
 }
 
+export const ORDER_BASES = ["MIN_MAX", "FORECAST"] as const;
+export type OrderBasis = (typeof ORDER_BASES)[number];
+
 /**
  * Create one draft order per supplier from the selected suggestions, priced
- * at each supplier's last price. Lines without a supplier or a known price
- * are skipped (never priced by guess) and reported back.
+ * at each supplier's last price, in the quantities of the par levels or of
+ * the forecast (ADR-120). Lines without a supplier, a known price or a
+ * quantity on that basis are skipped (never priced by guess) and reported.
  */
 export async function createOrdersFromPlan(
   ctx: TenantContext,
   warehouseId: string,
   ruleIds: string[],
+  basis: OrderBasis = "MIN_MAX",
 ) {
+  if (!ORDER_BASES.includes(basis))
+    throw businessRuleViolation("INVALID_ORDER_BASIS", "Unknown order basis");
   if (ruleIds.length === 0)
     throw businessRuleViolation("NOTHING_SELECTED", "Select at least one suggestion");
   return withTenantTx(ctx.organizationId, async (tx) => {
@@ -247,16 +310,28 @@ export async function createOrdersFromPlan(
       branchId: plan.warehouse.branchId,
       warehouseId: plan.warehouse.id,
     });
-    const selected = plan.lines.filter((l) => ruleIds.includes(l.rule.id) && l.suggestion);
-    const bySupplier = new Map<string, typeof selected>();
+    const units = (l: (typeof plan.lines)[number]) =>
+      basis === "FORECAST"
+        ? (l.forecast.order?.purchaseUnits ?? null)
+        : (l.suggestion?.purchaseUnits ?? null);
+    const selected = plan.lines.filter((l) => ruleIds.includes(l.rule.id));
+    const bySupplier = new Map<
+      string,
+      Array<{ line: (typeof selected)[number]; units: Decimal }>
+    >();
     const skipped: string[] = [];
     for (const l of selected) {
-      if (l.reason !== "OK" || !l.source) {
+      const quantity = units(l);
+      if (!quantity) {
+        if (basis === "FORECAST") skipped.push(l.rule.product.sku);
+        continue;
+      }
+      if (!l.source || l.source.lastUnitPrice === null) {
         skipped.push(l.rule.product.sku);
         continue;
       }
       const list = bySupplier.get(l.source.supplier.id) ?? [];
-      list.push(l);
+      list.push({ line: l, units: quantity });
       bySupplier.set(l.source.supplier.id, list);
     }
     const orders: Array<{ id: string; number: string }> = [];
@@ -264,14 +339,17 @@ export async function createOrdersFromPlan(
       const order = await createDraftOrderInTx(tx, ctx, {
         supplierId,
         warehouseId: plan.warehouse.id,
-        note: "Created from reorder suggestions",
+        note:
+          basis === "FORECAST"
+            ? "Created from forecast-based suggestions"
+            : "Created from reorder suggestions",
       });
       let lineNo = 0;
-      for (const l of list) {
+      for (const { line: l, units: quantity } of list) {
         await addDraftLineInTx(tx, ctx, order, ++lineNo, {
           productId: l.rule.productId,
           uomId: l.source!.purchaseUom.id,
-          quantity: l.suggestion!.purchaseUnits.toFixed(),
+          quantity: quantity.toFixed(),
           unitPrice: dec(l.source!.lastUnitPrice!).toFixed(),
         });
       }

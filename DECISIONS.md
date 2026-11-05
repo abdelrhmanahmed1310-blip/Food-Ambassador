@@ -3126,6 +3126,50 @@ customer's own account and credentials.
   e-mail HTML and sender domain set-up, quiet hours and frequency caps
   across all campaigns, A/B variants, coupon codes per recipient.
 
+### ADR-120 Transparent demand forecasts and forecast-based orders — Accepted (I1a built)
+
+Decision (2026-11-05): forecast demand per product × warehouse from the
+ledger with methods a buyer can check by hand, and offer a forecast-based
+order next to the par-level suggestion (ADR-025). Nothing is predicted by
+a model that cannot be explained, and no input is guessed.
+
+- **Demand** is what left the warehouse to be used: consumption (sales
+  and production), customer deliveries and transfers to another
+  warehouse, net of their reversals, by business day in the warehouse's
+  time zone. Write-offs, returns, count differences and moves between
+  locations of one warehouse are not demand. History is the last 56
+  days; an item with under 28 days since its first movement at the
+  warehouse gets no forecast.
+- **Methods**: average of the last 28 days, average of the last 7 days,
+  and the same weekday over the last 4 weeks. Each is scored over the
+  last 14 days by one-day-ahead forecasts from the days before: WAPE
+  (absolute error over actual demand), bias and RMSE. The item uses the
+  method with the lowest WAPE (ties: the steadier, in that order; no
+  demand in those days: the lowest RMSE). The page shows every item's
+  weekly demand, method, error, bias and the next 7 and 28 days; CSV and
+  Excel export.
+- **Forecast order**: forecast demand over the lead time plus a review
+  period, plus safety stock z × RMSE × √(those days), less usable stock
+  and open orders, rounded up to whole purchase units and the supplier's
+  minimum. z is the standard normal quantile of the organization's
+  service level: 90, 95 (default), 98 or 99 %. The review period is the
+  organization's (1–90 days, default 7). The lead time is the supplier's
+  for the product, else the supplier's own; **without one no forecast
+  order is offered** ("No lead time set").
+- **Ordering**: the reorder plan shows both suggestions; the buyer picks
+  min–max or forecast quantities when creating drafts. Quantities are
+  worked out again on the server; lines without a supplier, a known price
+  or a forecast quantity are skipped and named.
+- **Not stored**: forecasts are worked out when asked, so they always
+  match the ledger; only the two settings are kept
+  (`procurement_settings.forecast_review_days`, `forecast_service_level`).
+- **Known limit**: imported sales post their stock use when imported, so
+  a day imported late counts on the day it was imported.
+- **Not yet (I1b and later)**: production forecasts for the central
+  kitchen from branch demand, seasonality beyond the week, holidays and
+  promotions, forecasts for items without a reorder level on the plan,
+  storing forecasts to track their accuracy over time.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

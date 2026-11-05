@@ -549,6 +549,11 @@ tenant foreign keys and the `tenant_isolation` RLS policy.
 - **procurement_settings** (one row per org, optional): `over_receipt_tolerance`
   (fraction 0–1, default 0). Approval limits moved to `approval_layers`.
   `supplier_approval_required` (default false, ADR-091).
+  `forecast_review_days` (1–90, default 7) and `forecast_service_level`
+  (0.90, 0.95, 0.98 or 0.99, default 0.95) turn demand forecasts into
+  orders (I1a, ADR-120; migration `20270112090000_i1a_demand_forecasts`).
+  Forecasts themselves are not stored: they are worked out from
+  `inventory_ledger_entries` when asked.
 
 Supplier compliance (C1a, ADR-091; migration `20261219090000_c1a_supplier_compliance`):
 

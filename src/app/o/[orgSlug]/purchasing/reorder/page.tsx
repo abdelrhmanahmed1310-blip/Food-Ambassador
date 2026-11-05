@@ -91,6 +91,7 @@ export default async function ReorderPage({
                   <Th>{t("reorder.onOrder")}</Th>
                   <Th>{t("reorder.minMax")}</Th>
                   <Th>{t("reorder.suggested")}</Th>
+                  <Th>{t("reorder.byForecast")}</Th>
                   <Th>{t("purchasing.supplier")}</Th>
                   {plan.canManage ? <Th>{t("common.actions")}</Th> : null}
                 </tr>
@@ -99,17 +100,19 @@ export default async function ReorderPage({
                 {plan.lines.map((l) => {
                   const unit = l.rule.product.baseUom.code;
                   const orderable = l.suggestion && l.reason === "OK";
+                  const priced = l.source && l.source.lastUnitPrice !== null;
+                  const forecastUnits = l.forecast.order?.purchaseUnits ?? null;
                   return (
                     <tr key={l.rule.id}>
                       {plan.canManage ? (
                         <Td>
-                          {orderable ? (
+                          {orderable || (priced && forecastUnits) ? (
                             <input
                               type="checkbox"
                               name="ruleId"
                               value={l.rule.id}
                               form={FORM_ID}
-                              defaultChecked
+                              defaultChecked={Boolean(orderable)}
                               aria-label={l.rule.product.sku}
                             />
                           ) : null}
@@ -160,6 +163,30 @@ export default async function ReorderPage({
                         ) : (
                           <span className="text-muted">{t("reorder.enough")}</span>
                         )}
+                      </Td>
+                      <Td className="tabular-nums">
+                        {l.forecast.order ? (
+                          <>
+                            {forecastUnits ? (
+                              <span className="ltr-value font-medium whitespace-nowrap">
+                                {fmt(forecastUnits)} {l.source?.purchaseUom.code ?? unit}
+                              </span>
+                            ) : (
+                              <span className="text-muted">{t("reorder.forecastNone")}</span>
+                            )}
+                            <span className="text-muted block text-xs">
+                              {t("reorder.forecastCover", {
+                                days: l.forecast.order.coverDays,
+                                safety: fmt(l.forecast.order.safetyBase.toDecimalPlaces(3)),
+                                unit,
+                              })}
+                            </span>
+                          </>
+                        ) : l.forecast.reason ? (
+                          <Badge tone="muted">
+                            {t(`reorder.forecastReasons.${l.forecast.reason}`)}
+                          </Badge>
+                        ) : null}
                       </Td>
                       <Td>
                         {l.source

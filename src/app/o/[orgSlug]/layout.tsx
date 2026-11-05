@@ -134,6 +134,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/purchasing/receipts`, label: t("receipts") },
       { href: `${base}/purchasing/returns`, label: t("supplierReturns") },
       { href: `${base}/purchasing/reorder`, label: t("reorder") },
+      { href: `${base}/purchasing/forecast`, label: t("demandForecast") },
     );
   }
   if (hasPermission(ctx.grants, "invoices.view"))
