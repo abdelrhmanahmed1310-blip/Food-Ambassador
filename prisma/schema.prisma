@@ -367,6 +367,15 @@ model Organization {
   assistantConversations AssistantConversation[]
   assistantMessages      AssistantMessage[]
 
+  payrollSettings          PayrollSettings?
+  employeeSalaries         EmployeeSalary[]
+  employeeSalaryItems      EmployeeSalaryItem[]
+  employeeBankAccounts     EmployeeBankAccount[]
+  payrollContributionRules PayrollContributionRule[]
+  payrollRuns              PayrollRun[]
+  payrollLines             PayrollLine[]
+  payrollAdjustments       PayrollAdjustment[]
+
   @@map("organizations")
 }
 
@@ -6537,6 +6546,11 @@ model Employee {
   leaveAllocations LeaveAllocation[]
   leaveRequests    LeaveRequest[]
 
+  salaries           EmployeeSalary[]
+  bankAccount        EmployeeBankAccount?
+  payrollLines       PayrollLine[]
+  payrollAdjustments PayrollAdjustment[]
+
   @@unique([organizationId, id])
   @@unique([organizationId, number])
   @@unique([organizationId, userId])
@@ -6770,6 +6784,9 @@ model Company {
   apiClients       ApiClient[]
 
   importShipments ImportShipment[]
+
+  payrollContributionRules PayrollContributionRule[]
+  payrollRuns              PayrollRun[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -7568,4 +7585,224 @@ model AssistantMessage {
 
   @@index([organizationId, conversationId, createdAt])
   @@map("assistant_messages")
+}
+
+// ─── HR4a payroll (ADR-123) ───
+
+enum ProrationBasis {
+  CALENDAR_DAYS
+  THIRTY_DAYS
+}
+
+enum PayMethod {
+  BANK
+  CASH
+}
+
+enum ContributionAppliesTo {
+  ALL
+  NATIONALS
+  NON_NATIONALS
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum PayrollAdjustmentKind {
+  ADDITION
+  DEDUCTION
+}
+
+/// How a month is prorated; chosen by the organization before its first run.
+model PayrollSettings {
+  organizationId  String         @id @map("organization_id") @db.Uuid
+  prorationBasis  ProrationBasis @map("proration_basis")
+  updatedByUserId String         @map("updated_by_user_id") @db.Uuid
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("payroll_settings")
+}
+
+/// An employee's pay from a date. A change is a new record; records are never edited.
+model EmployeeSalary {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  employeeId      String    @map("employee_id") @db.Uuid
+  effectiveFrom   DateTime  @map("effective_from") @db.Date
+  /// Monthly basic, in the employing company's currency.
+  basic           Decimal   @db.Decimal(19, 4)
+  payMethod       PayMethod @map("pay_method")
+  note            String?
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee             @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  items        EmployeeSalaryItem[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, employeeId, effectiveFrom])
+  @@map("employee_salaries")
+}
+
+/// A fixed monthly allowance on a salary record (housing, transport…).
+model EmployeeSalaryItem {
+  id                 String  @id @default(uuid(7)) @db.Uuid
+  organizationId     String  @map("organization_id") @db.Uuid
+  salaryId           String  @map("salary_id") @db.Uuid
+  code               String
+  name               String
+  amount             Decimal @db.Decimal(19, 4)
+  /// Counted in the base that contributions are worked out on.
+  inContributionBase Boolean @map("in_contribution_base")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  salary       EmployeeSalary @relation(fields: [organizationId, salaryId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, salaryId, code])
+  @@map("employee_salary_items")
+}
+
+/// Where an employee is paid. The IBAN is sealed (ADR-048); only its last four characters show.
+model EmployeeBankAccount {
+  organizationId  String   @map("organization_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  bankName        String   @map("bank_name")
+  ibanSealed      String   @map("iban_sealed")
+  ibanLast4       String   @map("iban_last4")
+  updatedByUserId String   @map("updated_by_user_id") @db.Uuid
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@id([organizationId, employeeId])
+  @@map("employee_bank_accounts")
+}
+
+/// A social insurance or similar contribution, as the organization enters it for a company (Q-20: nothing preset).
+model PayrollContributionRule {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  organizationId  String                @map("organization_id") @db.Uuid
+  companyId       String                @map("company_id") @db.Uuid
+  code            String
+  name            String
+  appliesTo       ContributionAppliesTo @map("applies_to")
+  /// Fractions 0–1 of the contribution base.
+  employeeRate    Decimal               @map("employee_rate") @db.Decimal(9, 6)
+  employerRate    Decimal               @map("employer_rate") @db.Decimal(9, 6)
+  /// Monthly base limits, company currency.
+  baseMin         Decimal?              @map("base_min") @db.Decimal(19, 4)
+  baseMax         Decimal?              @map("base_max") @db.Decimal(19, 4)
+  effectiveFrom   DateTime              @map("effective_from") @db.Date
+  effectiveTo     DateTime?             @map("effective_to") @db.Date
+  /// Where the rule comes from (law, circular, adviser), as entered.
+  source          String
+  createdByUserId String                @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  company      Company      @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, companyId, effectiveFrom])
+  @@map("payroll_contribution_rules")
+}
+
+/// One company's pay for one month.
+model PayrollRun {
+  id                    String           @id @default(uuid(7)) @db.Uuid
+  organizationId        String           @map("organization_id") @db.Uuid
+  companyId             String           @map("company_id") @db.Uuid
+  number                String
+  /// First day of the pay month.
+  period                DateTime         @db.Date
+  status                PayrollRunStatus @default(DRAFT)
+  currency              String           @db.Char(3)
+  prorationBasis        ProrationBasis   @map("proration_basis")
+  gross                 Decimal          @default(0) @db.Decimal(19, 4)
+  deductions            Decimal          @default(0) @db.Decimal(19, 4)
+  net                   Decimal          @default(0) @db.Decimal(19, 4)
+  employerContributions Decimal          @default(0) @map("employer_contributions") @db.Decimal(19, 4)
+  employerCost          Decimal          @default(0) @map("employer_cost") @db.Decimal(19, 4)
+  /// Employees left out (no salary record), with why.
+  skipped               Json             @default("[]")
+  preparedByUserId      String           @map("prepared_by_user_id") @db.Uuid
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  approvedByUserId      String?          @map("approved_by_user_id") @db.Uuid
+  approvedAt            DateTime?        @map("approved_at") @db.Timestamptz(3)
+  paidOn                DateTime?        @map("paid_on") @db.Date
+  cancelledAt           DateTime?        @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason          String?          @map("cancel_reason")
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  company      Company             @relation(fields: [organizationId, companyId], references: [organizationId, id], onDelete: Restrict)
+  lines        PayrollLine[]
+  adjustments  PayrollAdjustment[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, number])
+  @@index([organizationId, companyId, period])
+  @@map("payroll_runs")
+}
+
+/// One employee's pay in a run, with every figure behind it.
+model PayrollLine {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  organizationId        String    @map("organization_id") @db.Uuid
+  runId                 String    @map("run_id") @db.Uuid
+  employeeId            String    @map("employee_id") @db.Uuid
+  salaryId              String    @map("salary_id") @db.Uuid
+  branchId              String    @map("branch_id") @db.Uuid
+  payMethod             PayMethod @map("pay_method")
+  basisDays             Int       @map("basis_days")
+  paidDays              Int       @map("paid_days")
+  unpaidLeaveDays       Decimal   @map("unpaid_leave_days") @db.Decimal(6, 2)
+  fixedPay              Decimal   @map("fixed_pay") @db.Decimal(19, 4)
+  additions             Decimal   @db.Decimal(19, 4)
+  gross                 Decimal   @db.Decimal(19, 4)
+  unpaidLeaveDeduction  Decimal   @map("unpaid_leave_deduction") @db.Decimal(19, 4)
+  employeeContributions Decimal   @map("employee_contributions") @db.Decimal(19, 4)
+  otherDeductions       Decimal   @map("other_deductions") @db.Decimal(19, 4)
+  net                   Decimal   @db.Decimal(19, 4)
+  employerContributions Decimal   @map("employer_contributions") @db.Decimal(19, 4)
+  employerCost          Decimal   @map("employer_cost") @db.Decimal(19, 4)
+  /// Components and contributions, as worked out.
+  details               Json
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  run          PayrollRun   @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, runId, employeeId])
+  @@index([organizationId, employeeId])
+  @@map("payroll_lines")
+}
+
+/// A one-off addition or deduction in a run (overtime, bonus, advance recovery…).
+model PayrollAdjustment {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  organizationId  String                @map("organization_id") @db.Uuid
+  runId           String                @map("run_id") @db.Uuid
+  employeeId      String                @map("employee_id") @db.Uuid
+  kind            PayrollAdjustmentKind
+  category        String
+  amount          Decimal               @db.Decimal(19, 4)
+  note            String?
+  createdByUserId String                @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  run          PayrollRun   @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, runId, employeeId])
+  @@map("payroll_adjustments")
 }

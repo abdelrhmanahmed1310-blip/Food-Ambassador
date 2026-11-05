@@ -19,7 +19,11 @@ import { employeePunches } from "@/modules/hr/attendance";
 import { employeeLeave } from "@/modules/hr/leave";
 import { employeeFormOptions, getEmployee } from "@/modules/hr/service";
 import { businessDate } from "@/modules/inventory/rules";
+import { canViewPayroll, employeePay } from "@/modules/payroll/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
+import { moneyIn } from "@/server/fx-view";
+import { BankForm, SalaryForm } from "@/components/payroll/forms";
+import { setBankAction, setSalaryAction } from "../../payroll/actions";
 import {
   addDocumentAction,
   changeStatusAction,
@@ -59,6 +63,9 @@ export default async function EmployeePage({
   const hours = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
   const options =
     e.can.manage && e.status !== "TERMINATED" ? await employeeFormOptions(ctx, e.id) : null;
+  // Pay (ADR-123) is for payroll staff only.
+  const pay = canViewPayroll(ctx) ? await employeePay(ctx, e.id) : null;
+  const money = pay ? (await moneyIn([pay.currency]))(pay.currency).money : null;
   const base = `/o/${orgSlug}/hr`;
   return (
     <>
@@ -360,6 +367,64 @@ export default async function EmployeePage({
                 userId: e.userId,
               }}
             />
+          </Card>
+        ) : null}
+        {pay && money ? (
+          <Card title={t("payroll.pay")}>
+            <div className="space-y-4" data-testid="employee-pay">
+              {pay.salaries.length === 0 ? (
+                <p className="text-muted text-sm">{t("payroll.noSalary")}</p>
+              ) : (
+                <Table label={t("payroll.pay")}>
+                  <thead>
+                    <tr>
+                      <Th>{t("payroll.effectiveFrom")}</Th>
+                      <Th>{t("payroll.basic")}</Th>
+                      <Th>{t("payroll.allowances")}</Th>
+                      <Th>{t("payroll.monthlyTotal")}</Th>
+                      <Th>{t("payroll.payMethod")}</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pay.salaries.map((s) => (
+                      <tr key={s.id}>
+                        <Td className="ltr-value">{s.effectiveFrom}</Td>
+                        <Td className="ltr-value tabular-nums">{money(s.basic)}</Td>
+                        <Td className="text-sm">
+                          {s.items.length === 0
+                            ? "—"
+                            : s.items.map((i) => (
+                                <span key={i.code} className="block">
+                                  {i.name}: <span className="ltr-value">{money(i.amount)}</span>
+                                  {i.inContributionBase ? " *" : ""}
+                                </span>
+                              ))}
+                        </Td>
+                        <Td className="ltr-value font-medium tabular-nums">{money(s.total)}</Td>
+                        <Td>{t(`payroll.methods.${s.payMethod}`)}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+              <p className="text-muted text-sm">
+                {pay.bank
+                  ? t("payroll.bankOnFile", { bank: pay.bank.bankName, last4: pay.bank.ibanLast4 })
+                  : t("payroll.noBank")}
+              </p>
+              {pay.canManage ? (
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold">{t("payroll.newSalary")}</h3>
+                    <SalaryForm action={setSalaryAction.bind(null, orgSlug, e.id)} />
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold">{t("payroll.bankAccount")}</h3>
+                    <BankForm action={setBankAction.bind(null, orgSlug, e.id)} />
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </Card>
         ) : null}
       </div>

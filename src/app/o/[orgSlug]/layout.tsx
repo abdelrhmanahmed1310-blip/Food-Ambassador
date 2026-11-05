@@ -45,6 +45,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
         ? [
             { href: `${base}/my/attendance`, label: t("myAttendance"), icon: "clock" as const },
             { href: `${base}/my/leave`, label: t("myLeave"), icon: "leave" as const },
+            { href: `${base}/my/payslips`, label: t("myPayslips"), icon: "payslip" as const },
           ]
         : []),
     ],
@@ -267,6 +268,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
       { href: `${base}/hr/departments`, label: t("departments") },
       { href: `${base}/hr/org-chart`, label: t("orgChart") },
     );
+  // Payroll (ADR-123): organization-level pay data.
+  if (hasPermission(ctx.grants, "payroll.view"))
+    hr.items.push({ href: `${base}/hr/payroll`, label: t("payroll") });
   const reports: NavSection = { title: t("reportsSection"), icon: "reports", items: [] };
   // AI assistant over the reports the person may see (ADR-122).
   if (holdsAnyGrant(ctx.grants, "assistant.use"))

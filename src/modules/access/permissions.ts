@@ -62,6 +62,9 @@ export const PERMISSIONS = [
   "campaigns.send",
   "assistant.use",
   "assistant.manage",
+  "payroll.view",
+  "payroll.manage",
+  "payroll.approve",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -356,6 +359,8 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
     permissions: [
+      "payroll.view",
+      "payroll.approve",
       "assistant.use",
       "trade.view",
       "budgets.view",

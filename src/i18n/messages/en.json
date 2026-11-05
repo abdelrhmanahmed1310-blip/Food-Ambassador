@@ -190,7 +190,9 @@
     "campaigns": "Campaigns",
     "demandForecast": "Demand forecast",
     "assistant": "Assistant",
-    "assistantSettings": "Assistant"
+    "assistantSettings": "Assistant",
+    "payroll": "Payroll",
+    "myPayslips": "My payslips"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -331,7 +333,8 @@
     "invalidReviewDays": "Enter a whole number of days from 1 to 90.",
     "invalidCoverDays": "Enter a whole number of days from 1 to 14.",
     "invalidApiKey": "Enter an Anthropic API key (it starts with sk-ant-).",
-    "invalidQuestionLimit": "Enter a whole number from 1 to 1000."
+    "invalidQuestionLimit": "Enter a whole number from 1 to 1000.",
+    "invalidIban": "Enter a valid IBAN."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -802,7 +805,22 @@
     "ASSISTANT_NOT_CONNECTED": "The assistant is not switched on.",
     "ASSISTANT_NOT_TESTED": "Test the connection before switching the assistant on.",
     "ASSISTANT_KEY_REQUIRED": "Enter the Anthropic API key.",
-    "ASSISTANT_DAILY_LIMIT": "You have reached today's question limit. Try again tomorrow."
+    "ASSISTANT_DAILY_LIMIT": "You have reached today's question limit. Try again tomorrow.",
+    "SALARY_ITEM_DUPLICATE": "Each allowance needs its own code (and not BASIC).",
+    "SALARY_PERIOD_SETTLED": "Pay for that month is already approved; start the new salary after it.",
+    "COMPANY_COUNTRY_REQUIRED": "Set the company's country first, to tell nationals from others.",
+    "RULE_DATE_BEFORE_CURRENT": "Start the new rule after the current one with this code.",
+    "RULE_ENDED": "This rule has already ended.",
+    "RULE_END_BEFORE_START": "End the rule on or after its start.",
+    "PRORATION_BASIS_REQUIRED": "Choose how part months are paid before the first run.",
+    "PAYROLL_RUN_NOT_DRAFT": "Only a draft run can change.",
+    "EMPLOYEE_NOT_ON_RUN": "This employee is not paid in this run.",
+    "PAYROLL_SELF_APPROVAL": "Someone other than the preparer approves the run.",
+    "PAYROLL_RUN_EMPTY": "Nobody is paid in this run.",
+    "PAYROLL_NEGATIVE_NET": "Net pay would be below zero for some employees.",
+    "PAYROLL_RUN_NOT_APPROVED": "Approve the run first.",
+    "PAYROLL_RUN_CLOSED": "A paid or cancelled run cannot be cancelled.",
+    "BANK_ACCOUNT_MISSING": "Some employees paid by bank have no bank account."
   },
   "notFound": {
     "title": "Page not found",
@@ -1054,7 +1072,10 @@
       "pos.dispatch": "Dispatch own deliveries for delivery orders",
       "campaigns.send": "Launch campaigns to customer segments",
       "assistant.use": "Ask the AI assistant",
-      "assistant.manage": "Set up the AI assistant"
+      "assistant.manage": "Set up the AI assistant",
+      "payroll.view": "See payroll and salaries",
+      "payroll.manage": "Prepare payroll and set salaries",
+      "payroll.approve": "Approve payroll"
     }
   },
   "audit": {
@@ -4084,7 +4105,7 @@
       },
       "payroll": {
         "title": "Payroll",
-        "text": "Salary, allowances, deductions, GOSI / social insurance and WPS files — needs your country rules confirmed."
+        "text": "Salaries, allowances, unpaid leave, contributions from your own dated rules, approval, payslips and a bank file. Income tax, end of service and WPS / Mudad files wait for your country rules."
       },
       "attendance": {
         "title": "Time and attendance",
@@ -6317,5 +6338,135 @@
     "dailyLimit": "Questions per person per day",
     "dailyLimitHint": "1 to 1000. Limits cost on your Anthropic account.",
     "governanceAdmin": "A new key or model switches the assistant off until the connection test passes. What is sent: the question (without e-mail addresses or phone numbers) and the business figures the assistant reads to answer it. Guest and staff names, contacts and pay are never sent. Each question is audited by the reports read, not by its text."
+  },
+  "payroll": {
+    "title": "Payroll",
+    "hint": "Monthly pay per company: salaries, allowances, unpaid leave, contributions and one-off additions or deductions, approved by a second person.",
+    "noPresets": "No statutory rate is built in. Social insurance and similar contributions are worked out only from the rules you enter on the Rules page, with their source. Income tax, end-of-service benefits and WPS / Mudad files are not yet part of payroll.",
+    "rules": "Contribution rules",
+    "noRuns": "No payroll runs yet.",
+    "number": "Number",
+    "period": "Month",
+    "periodHint": "YYYY-MM, e.g. 2026-11.",
+    "company": "Company",
+    "employees": "Employees",
+    "net": "Net pay",
+    "employerCost": "Cost to employer",
+    "status": "Status",
+    "statuses": {
+      "DRAFT": "Draft",
+      "APPROVED": "Approved",
+      "PAID": "Paid",
+      "CANCELLED": "Cancelled"
+    },
+    "newRun": "New payroll run",
+    "createRun": "Work out the month",
+    "working": "Working…",
+    "chooseBasisFirst": "Choose how part months are paid first.",
+    "settings": "Payroll settings",
+    "prorationBasis": "Part months",
+    "prorationHint": "How a joiner, leaver or unpaid day is paid: by the month's calendar days, or every month as 30 days.",
+    "choose": "Choose…",
+    "bases": {
+      "CALENDAR_DAYS": "Calendar days of the month",
+      "THIRTY_DAYS": "30-day month"
+    },
+    "gross": "Gross pay",
+    "deductions": "Deductions",
+    "employerContributions": "Employer contributions",
+    "skippedList": "Not paid in this run (no salary on record): {employees}.",
+    "lines": "Employees paid",
+    "employee": "Employee",
+    "paidDays": "Paid days",
+    "fixedPay": "Salary and allowances",
+    "additions": "Additions",
+    "unpaidLeave": "Unpaid leave",
+    "contributionsEmployee": "Contributions (employee)",
+    "otherDeductions": "Other deductions",
+    "payslip": "Payslip",
+    "payslipDraft": "Payslip (draft)",
+    "unpaidDays": "{days} unpaid days",
+    "adjustments": "Additions and deductions",
+    "remove": "Remove",
+    "addAdjustment": "Add an addition or deduction",
+    "kind": "Type",
+    "kinds": {
+      "ADDITION": "Addition",
+      "DEDUCTION": "Deduction"
+    },
+    "category": "Category",
+    "categoryHint": "Additions: overtime, bonus, commission, other. Deductions: advance recovery, income tax, penalty, other.",
+    "categories": {
+      "OVERTIME": "Overtime",
+      "BONUS": "Bonus",
+      "COMMISSION": "Commission",
+      "OTHER_ADDITION": "Other addition",
+      "ADVANCE_RECOVERY": "Advance recovery",
+      "INCOME_TAX": "Income tax",
+      "PENALTY": "Penalty",
+      "OTHER_DEDUCTION": "Other deduction"
+    },
+    "amount": "Amount",
+    "note": "Note",
+    "recalculate": "Work out again",
+    "approve": "Approve",
+    "approveConfirm": "Approve this payroll? Its figures can no longer change.",
+    "approverNote": "Someone other than the preparer, with payroll approval, approves this run.",
+    "bankFile": "Bank transfer file (CSV)",
+    "markPaid": "Mark as paid",
+    "paidOn": "Paid on",
+    "cancelRun": "Cancel run",
+    "cancelReason": "Reason",
+    "rulesTitle": "Contribution rules",
+    "rulesHint": "Social insurance and similar schemes per company, as you confirm them for its country: who they apply to, the rates, the base limits and from when.",
+    "noRules": "No contribution rules yet.",
+    "appliesTo": "Applies to",
+    "applies": {
+      "ALL": "Everyone",
+      "NATIONALS": "Nationals of the company's country",
+      "NON_NATIONALS": "Non-nationals"
+    },
+    "ruleCode": "Code",
+    "ruleCodeHint": "Capitals, e.g. GOSI_ANNUITY. A rule with the same code replaces the earlier one from its start date.",
+    "ruleName": "Name",
+    "employeeRate": "Employee rate (%)",
+    "employerRate": "Employer rate (%)",
+    "baseMin": "Monthly base minimum",
+    "baseMax": "Monthly base maximum",
+    "baseLimits": "Base limits",
+    "effective": "In force",
+    "effectiveFrom": "From",
+    "effectiveTo": "Until",
+    "source": "Source",
+    "sourceHint": "Where the rates come from: the law or circular and its date, or your adviser.",
+    "ruleIntro": "The base is the basic salary plus the allowances marked for it, for the days paid. Enter only rates you have confirmed.",
+    "addRule": "Add rule",
+    "endRule": "End",
+    "actions": "Actions",
+    "myPayslips": "My payslips",
+    "noPayslips": "No payslips yet.",
+    "pay": "Pay",
+    "noSalary": "No salary on record.",
+    "basic": "Basic salary",
+    "allowances": "Allowances",
+    "monthlyTotal": "Monthly total",
+    "payMethod": "Paid by",
+    "methods": {
+      "BANK": "Bank transfer",
+      "CASH": "Cash"
+    },
+    "bankOnFile": "Bank: {bank}, IBAN ending {last4}.",
+    "noBank": "No bank account on record.",
+    "newSalary": "New salary from a date",
+    "saveSalary": "Save salary",
+    "itemCode": "Code",
+    "itemName": "Allowance",
+    "inBase": "In contribution base",
+    "bankAccount": "Bank account",
+    "bankName": "Bank",
+    "saveBank": "Save bank account",
+    "item": "Item",
+    "unpaidLeaveLine": "Unpaid leave ({days} days)",
+    "employerNote": "Employer contributions this month: {amount} (not deducted from pay)."
   }
 }

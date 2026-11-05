@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Menu,
   Package,
+  ReceiptText,
   Settings,
   ShieldCheck,
   ShoppingCart,
@@ -47,6 +48,7 @@ const ICONS = {
   hr: Users,
   clock: Clock,
   leave: CalendarDays,
+  payslip: ReceiptText,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

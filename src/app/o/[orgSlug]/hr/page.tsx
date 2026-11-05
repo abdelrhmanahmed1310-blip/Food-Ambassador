@@ -15,7 +15,7 @@ const CAPABILITIES = [
   ["automation", "PARTIAL", "HR2"],
   ["recruitment", "PLANNED", "HR3"],
   ["workforce", "PLANNED", "HR3"],
-  ["payroll", "PLANNED", "HR4"],
+  ["payroll", "PARTIAL", "HR4"],
   ["performance", "PLANNED", "HR5"],
   ["engagement", "PLANNED", "HR5"],
   ["learning", "PLANNED", "HR5"],

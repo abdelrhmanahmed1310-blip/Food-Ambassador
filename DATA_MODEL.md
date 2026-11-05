@@ -1139,6 +1139,34 @@ Segments and feedback (C7c, ADR-118; migration `20270110090000_c7c_segments_feed
   check), `comment` (≤ 1 000), submitted at, reviewed at/by, review note,
   complaint. Rating and comment never change (trigger).
 
+Payroll (HR4a, ADR-123; migration `20270114090000_hr4a_payroll`):
+
+- **payroll_settings** (one row per org): `proration_basis` (CALENDAR_DAYS |
+  THIRTY_DAYS), chosen before the first run.
+- **employee_salaries** + **employee_salary_items**: dated pay records
+  (`effective_from`, `basic`, `pay_method` BANK | CASH; items with `code`,
+  `name`, `amount`, `in_contribution_base`). UQ (employee, effective_from).
+  Never updated or deleted (trigger).
+- **employee_bank_accounts** (one per employee): `bank_name`, `iban_sealed`
+  (AES-256-GCM), `iban_last4`.
+- **payroll_contribution_rules**: per company — `code`, `name`,
+  `applies_to` (ALL | NATIONALS | NON_NATIONALS), `employee_rate` and
+  `employer_rate` (fractions 0–1), `base_min` / `base_max`,
+  `effective_from` / `effective_to`, `source`. None preset.
+- **payroll_runs**: company, `number` (PAY-), `period` (first of month),
+  `status` (DRAFT → APPROVED → PAID; CANCELLED), currency, proration basis,
+  totals, `skipped`, preparer and approver (CHECK: different people). One
+  live run per company and month (partial unique index). Figures fixed
+  once approved (trigger).
+- **payroll_lines**: per employee — salary used, paid and basis days,
+  unpaid leave days, fixed pay, additions, gross, unpaid leave deduction,
+  employee contributions, other deductions, net, employer contributions,
+  employer cost, `details` (components and contributions).
+- **payroll_adjustments**: additions (OVERTIME, BONUS, COMMISSION,
+  OTHER_ADDITION) and deductions (ADVANCE_RECOVERY, INCOME_TAX, PENALTY,
+  OTHER_DEDUCTION). Lines and adjustments change only in a draft run
+  (trigger).
+
 AI assistant (I2a, ADR-122; migration `20270113090000_i2a_assistant`):
 
 - **assistant_settings** (one row per org): `api_key_sealed` (AES-256-GCM),
