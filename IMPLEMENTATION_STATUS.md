@@ -37,13 +37,13 @@ Rules: DECISIONS.md ADR-132. Operations: docs/NUTRITION_ENGINE.md.
 
 ### Check results (nutrition engine)
 
-| Check                                                    | Result           |
-| -------------------------------------------------------- | ---------------- |
-| `pnpm check` (format, lint, typecheck, unit, build)      | CHECK_RESULT     |
-| Integration — nutrition engine, API, recipes, quality    | NUTRI_INT_RESULT |
-| `pnpm test:integration` (all)                            | INT_RESULT       |
-| `pnpm test:e2e` (all, includes nutrition-engine.spec.ts) | E2E_RESULT       |
-| Performance (20,000 synthetic foods, separate database)  | PERF_RESULT      |
+| Check                                                    | Result                                                                                                                                                                                                                                             |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check` (format, lint, typecheck, unit, build)      | ✅ passed (unit 455/455, 91 files; build OK)                                                                                                                                                                                                       |
+| Integration — nutrition engine, API, recipes, quality    | ✅ 49/49 (engine, API, recipes, quality, existing nutrition and library, API v1, job runner)                                                                                                                                                       |
+| `pnpm test:integration` (all)                            | ✅ 626/626 (111 files)                                                                                                                                                                                                                             |
+| `pnpm test:e2e` (all, includes nutrition-engine.spec.ts) | ✅ 103/103                                                                                                                                                                                                                                         |
+| Performance (20,000 synthetic foods, separate database)  | ✅ local search P95 273 ms (target < 300), food details P95 15.6 ms (< 200), 10-item calculation P95 11.7 ms (< 100), 20-ingredient recipe P95 11.7 ms; bulk import 50 records/s. Run with `pnpm nutrition:bench` against a database named _bench_ |
 
 ### Defects found and fixed during the nutrition engine
 
@@ -52,6 +52,14 @@ Rules: DECISIONS.md ADR-132. Operations: docs/NUTRITION_ENGINE.md.
   test, fixed in `engine/recipes.ts`.
 - JSON Lines records containing arrays were mistaken for the wrapped
   download format. The wrapper detection was tightened.
+- Nutrition tests left queued runner jobs in the shared test database,
+  which the job-runner tests then picked up. The tests now remove their
+  own queued jobs.
+- The results of scan, import, refresh, queue and retry were not shown:
+  the quick-action button shows only errors. Those actions now use the
+  form component, which also shows the success message.
+- Local search ran its filter twice (once for the count, once for the
+  page). It now runs once, using a window count.
 - A library record of the organization's own was labelled "Wikidata" when
   linked to a product. It now says "Library entry".
 
