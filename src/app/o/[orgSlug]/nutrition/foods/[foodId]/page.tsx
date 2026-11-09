@@ -516,11 +516,14 @@ export default async function FoodProfilePage({
                 hidden={{ verified: food.verified ? "false" : "true" }}
               />
               {food.source === "USDA_FDC" ? (
-                <ConfirmActionButton
+                <ActionForm
                   action={refreshFoodAction.bind(null, orgSlug, food.id)}
-                  label={t("refreshNow")}
-                  variant="secondary"
-                />
+                  submitLabel={t("refreshNow")}
+                  submitVariant="secondary"
+                  className="inline-flex flex-col items-start gap-1"
+                >
+                  {null}
+                </ActionForm>
               ) : null}
               {food.archivedAt ? (
                 <ConfirmActionButton

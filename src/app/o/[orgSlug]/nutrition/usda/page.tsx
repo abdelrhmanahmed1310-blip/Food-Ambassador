@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { ActionForm, CheckboxField, TextField } from "@/components/forms/fields";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -121,18 +120,22 @@ export default async function UsdaPage({
                   />
                 </ActionForm>
                 <div className="flex flex-wrap gap-3">
-                  <ConfirmActionButton
+                  <ActionForm
                     action={requestSyncAction.bind(null, orgSlug)}
-                    label={t("queueRefresh")}
-                    variant="secondary"
-                    hidden={{ kind: "REFRESH" }}
-                  />
-                  <ConfirmActionButton
+                    submitLabel={t("queueRefresh")}
+                    submitVariant="secondary"
+                    className="inline-flex flex-col items-start gap-1"
+                  >
+                    <input type="hidden" name="kind" value="REFRESH" />
+                  </ActionForm>
+                  <ActionForm
                     action={requestSyncAction.bind(null, orgSlug)}
-                    label={t("queueReleaseCheck")}
-                    variant="secondary"
-                    hidden={{ kind: "RELEASE_CHECK" }}
-                  />
+                    submitLabel={t("queueReleaseCheck")}
+                    submitVariant="secondary"
+                    className="inline-flex flex-col items-start gap-1"
+                  >
+                    <input type="hidden" name="kind" value="RELEASE_CHECK" />
+                  </ActionForm>
                 </div>
               </div>
             </Card>
@@ -210,11 +213,14 @@ export default async function UsdaPage({
                         {manageAll &&
                         (j.status === "FAILED" || j.status === "PARTIAL") &&
                         j.kind !== "BULK_FILE" ? (
-                          <ConfirmActionButton
+                          <ActionForm
                             action={retrySyncAction.bind(null, orgSlug, j.id)}
-                            label={t("retry")}
-                            variant="secondary"
-                          />
+                            submitLabel={t("retry")}
+                            submitVariant="secondary"
+                            className="inline-flex flex-col items-start gap-1"
+                          >
+                            {null}
+                          </ActionForm>
                         ) : null}
                       </Td>
                     </tr>

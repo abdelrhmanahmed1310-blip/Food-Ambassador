@@ -13,6 +13,8 @@ test("nutrition engine: own food, serving calculator without guessing, quality a
     organization: "Engine Foods",
   });
   await page.goto(`/o/${slug}`);
+  // The menu entry sits in the Catalog section, which starts collapsed.
+  await page.getByText("Catalog", { exact: true }).first().click();
   await page.getByRole("link", { name: "Nutrition", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Nutrition", exact: true })).toBeVisible();
   // No USDA key in this environment: the library keeps working on its own.

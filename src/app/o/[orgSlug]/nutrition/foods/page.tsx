@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { ConfirmActionButton } from "@/components/forms/confirm-button";
+import { ActionForm } from "@/components/forms/fields";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Alert,
@@ -257,12 +257,14 @@ export default async function FoodsPage({
                       </Td>
                       <Td>
                         {manage ? (
-                          <ConfirmActionButton
+                          <ActionForm
                             action={importUsdaAction.bind(null, orgSlug)}
-                            label={t("import")}
-                            variant="secondary"
-                            hidden={{ fdcIds: f.fdcId }}
-                          />
+                            submitLabel={t("import")}
+                            submitVariant="secondary"
+                            className="inline-flex flex-col items-start gap-1"
+                          >
+                            <input type="hidden" name="fdcIds" value={f.fdcId} />
+                          </ActionForm>
                         ) : null}
                       </Td>
                     </tr>

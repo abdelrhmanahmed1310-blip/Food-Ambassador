@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
-import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { ActionForm, SelectField, TextField } from "@/components/forms/fields";
 import { Pagination } from "@/components/ui/pagination";
 import { Badge, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
@@ -39,11 +38,14 @@ export default async function QualityPage({
         description={t("qualityIntro")}
         actions={
           manage ? (
-            <ConfirmActionButton
+            <ActionForm
               action={scanQualityAction.bind(null, orgSlug)}
-              label={t("scan")}
-              variant="secondary"
-            />
+              submitLabel={t("scan")}
+              submitVariant="secondary"
+              className="inline-flex flex-col items-start gap-1"
+            >
+              {null}
+            </ActionForm>
           ) : null
         }
       />
