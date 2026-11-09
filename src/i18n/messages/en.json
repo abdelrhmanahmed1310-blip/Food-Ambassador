@@ -208,7 +208,7 @@
     "workforce": "Workforce plan",
     "myInterviews": "My interviews",
     "hrAnalytics": "HR analytics",
-    "consultant": "Food consultant",
+    "consultant": "Food Consultant Chatbot",
     "nutritionEngine": "Nutrition",
     "nutritionFoods": "Nutrition foods"
   },
@@ -7367,7 +7367,7 @@
     "ratingN": "Rated {rating}"
   },
   "consultant": {
-    "title": "Food consultant",
+    "title": "Food Consultant Chatbot",
     "hint": "Ask about food safety, recipes, costing, menus, waste and kitchen operations — in Arabic or English.",
     "withData": "It can also look up your own recipes, dish costs, allergens and nutrition as recorded in the app.",
     "generalOnly": "Your account cannot see recipes, so it answers from general food expertise only.",
