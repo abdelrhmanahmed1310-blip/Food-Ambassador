@@ -424,9 +424,7 @@ export async function searchFoods(ctx: TenantContext, raw: Record<string, unknow
                     ? Prisma.sql`(f."barcode" = ${q} OR f."source_id" = ${q}) DESC,
                         GREATEST(similarity(f."name", ${q}), similarity(COALESCE(f."name_ar", ''), ${q})) DESC, f."name" ASC`
                     : Prisma.sql`f."name" ASC`;
-          const [count] = await tx.$queryRaw<
-            Array<{ n: bigint }>
-          >`SELECT count(*) AS n FROM "reference_foods" f WHERE ${where}`;
+          // One pass: the page and the total together (count(*) OVER ()), not the filter twice.
           const rows = await tx.$queryRaw<
             Array<{
               id: string;
@@ -442,15 +440,28 @@ export async function searchFoods(ctx: TenantContext, raw: Record<string, unknow
               energy_kcal: Prisma.Decimal | null;
               verified_at: Date | null;
               last_fetched_at: Date | null;
+              total: bigint;
             }>
-          >`SELECT f."id", f."source"::text AS source, f."source_id", f."data_type", f."name", f."name_ar", f."brand",
+          >`SELECT count(*) OVER () AS total, f."id", f."source"::text AS source, f."source_id", f."data_type", f."name", f."name_ar", f."brand",
               f."barcode", c."name" AS category, c."name_ar" AS category_ar, f."energy_kcal", f."verified_at", f."last_fetched_at"
             FROM "reference_foods" f LEFT JOIN "food_categories" c ON c."id" = f."category_id"
             WHERE ${where} ORDER BY ${order}
             LIMIT ${p.pageSize} OFFSET ${(p.page - 1) * p.pageSize}`;
+          const total =
+            rows.length > 0
+              ? Number(rows[0].total)
+              : p.page > 1
+                ? Number(
+                    (
+                      await tx.$queryRaw<
+                        Array<{ n: bigint }>
+                      >`SELECT count(*) AS n FROM "reference_foods" f WHERE ${where}`
+                    )[0].n,
+                  )
+                : 0;
           const staleBefore = Date.now() - refreshDays * 86_400_000;
           return {
-            total: Number(count.n),
+            total,
             items: rows.map((r): LocalHit => ({
               origin: "LOCAL",
               id: r.id,

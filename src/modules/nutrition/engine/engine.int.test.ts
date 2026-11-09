@@ -150,6 +150,8 @@ beforeEach(() => {
 });
 
 afterAll(async () => {
+  // Jobs this file queued are not for the job-runner tests that share the database.
+  await getDb().job.deleteMany({ where: { organizationId: ctx.organizationId } });
   setTestProvider(null);
   setTestUsdaTransport(null);
   delete process.env.USDA_FDC_API_KEY;
@@ -443,6 +445,12 @@ describe("hybrid search, import and food profiles (ADR-132)", () => {
 });
 
 describe("synchronization (ADR-132)", () => {
+  // These tests run sync jobs themselves; the queued runner job is removed at once so a
+  // job-runner test in a parallel file never picks it up.
+  const unqueue = () =>
+    getDb().job.deleteMany({
+      where: { organizationId: ctx.organizationId, kind: "nutrition.sync" },
+    });
   it("runs a queued import job and logs it", async () => {
     await expectAppError(requestSync(analyst, { kind: "IMPORT", fdcIds: ["300002"] }), "FORBIDDEN");
     const job = await requestSync(ctx, { kind: "IMPORT", fdcIds: ["300002", "300001"] });
@@ -451,6 +459,7 @@ describe("synchronization (ADR-132)", () => {
         where: { kind: "nutrition.sync", dedupeKey: `nutrition.sync:${job.id}:0` },
       }),
     ).toBe(1);
+    await unqueue();
     await runSyncJob({ syncJobId: job.id });
     const done = (await listSyncJobs(ctx)).items.find((j) => j.id === job.id)!;
     expect([done.status, done.processed, done.unchanged, done.updated, done.failed]).toEqual([
@@ -468,6 +477,7 @@ describe("synchronization (ADR-132)", () => {
     for (const id of ids)
       catalog[id] = { ...grain(), fdcId: Number(id), description: `Bulk grain ${id}` };
     const job = await requestSync(ctx, { kind: "IMPORT", fdcIds: ids });
+    await unqueue();
     // The first batch (20) works, then USDA goes down.
     let batches = 0;
     const real = fake.foods;
@@ -485,6 +495,7 @@ describe("synchronization (ADR-132)", () => {
       data: { checkpoint: { next: 20 } },
     });
     await retrySyncJob(ctx, job.id);
+    await unqueue();
     calls.length = 0;
     await runSyncJob({ syncJobId: job.id });
     j = (await listSyncJobs(ctx)).items.find((x) => x.id === job.id)!;
@@ -499,10 +510,12 @@ describe("synchronization (ADR-132)", () => {
       data: { lastFetchedAt: new Date(Date.now() - 40 * 86_400_000) },
     });
     const refresh = await requestSync(ctx, { kind: "REFRESH", limit: "2" });
+    await unqueue();
     await runSyncJob({ syncJobId: refresh.id });
     const r = (await listSyncJobs(ctx)).items.find((x) => x.id === refresh.id)!;
     expect([r.status, r.processed]).toEqual(["SUCCEEDED", 2]);
     const check = await requestSync(ctx, { kind: "RELEASE_CHECK" });
+    await unqueue();
     await runSyncJob({ syncJobId: check.id });
     expect((await syncStatus(ctx)).settings.releases).toEqual({ Foundation: "2025-04-24" });
   });

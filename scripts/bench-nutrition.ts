@@ -20,7 +20,7 @@ import {
 } from "@/modules/nutrition/engine/foods";
 import { importRecordStream } from "@/modules/nutrition/engine/sync";
 import { getDb } from "@/server/db/client";
-import { createTenant } from "../test/support/factories";
+import { contextFor, createTenant } from "../test/support/factories";
 
 const url = process.env.DATABASE_URL ?? "";
 const dbName = /\/([^/?]+)(\?|$)/.exec(url)?.[1] ?? "";
@@ -109,13 +109,29 @@ async function time<T>(runs: number, fn: (i: number) => Promise<T>) {
 }
 
 async function main() {
-  const { ctx } = await createTenant("bench");
-  const t0 = performance.now();
-  const imported = await importRecordStream(ctx, records(), {
-    name: `synthetic-${N}.jsonl`,
-    size: N,
-  });
-  const importSeconds = (performance.now() - t0) / 1000;
+  // --reuse measures again on the dataset a previous run imported (no new import).
+  const reuse = process.argv.includes("--reuse");
+  let ctx;
+  let imported = { created: 0, failed: 0 };
+  let importSeconds = 0;
+  const existing = reuse
+    ? await getDb().referenceFood.findFirst({
+        where: { dataType: "Synthetic (benchmark)" },
+        select: {
+          organization: {
+            select: { slug: true, memberships: { select: { userId: true }, take: 1 } },
+          },
+        },
+      })
+    : null;
+  if (existing) {
+    ctx = await contextFor(existing.organization.memberships[0].userId, existing.organization.slug);
+  } else {
+    ({ ctx } = await createTenant("bench"));
+    const t0 = performance.now();
+    imported = await importRecordStream(ctx, records(), { name: `synthetic-${N}.jsonl`, size: N });
+    importSeconds = (performance.now() - t0) / 1000;
+  }
   const ids = (
     await getDb().referenceFood.findMany({
       where: { organizationId: ctx.organizationId },
@@ -139,8 +155,8 @@ async function main() {
   ];
   const results = {
     foods: N,
-    importSeconds: +importSeconds.toFixed(1),
-    importRecordsPerSecond: Math.round(N / importSeconds),
+    importSeconds: existing ? null : +importSeconds.toFixed(1),
+    importRecordsPerSecond: existing ? null : Math.round(N / importSeconds),
     imported: { created: imported.created, failed: imported.failed },
     localSearch: await time(100, (i) =>
       searchFoods(ctx, { q: queries[i % queries.length], mode: "LOCAL", pageSize: 25 }),

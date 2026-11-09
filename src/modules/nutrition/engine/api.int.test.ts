@@ -122,6 +122,8 @@ beforeEach(() => {
 });
 
 afterAll(async () => {
+  // Jobs this file queued are not for the job-runner tests that share the database.
+  await getDb().job.deleteMany({ where: { organizationId: ctx.organizationId } });
   setTestProvider(null);
   await getDb().$disconnect();
 });
@@ -364,6 +366,8 @@ describe("REST API v1 nutrition (ADR-132)", () => {
     });
     expect(queued.status).toBe(202);
     expect(queued.body).toMatchObject({ kind: "IMPORT", status: "QUEUED", total: 1 });
+    // Run by no one here: removed so a job-runner test in a parallel file never picks it up.
+    await getDb().job.deleteMany({ where: { organizationId: ctx.organizationId } });
     const jobs = await send(jobsRoute.GET, readKey, "/sync/jobs?pageSize=1");
     expect(jobs.body).toMatchObject({ total: 1, pageSize: 1 });
     const status = await send(statusRoute.GET, readKey, "/sync/status");
