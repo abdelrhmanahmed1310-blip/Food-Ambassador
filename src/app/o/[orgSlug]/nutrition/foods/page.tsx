@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/styles";
 import { hasPermission } from "@/modules/access/authorize";
-import { listCategories, searchFoods } from "@/modules/nutrition/engine/foods";
+import { listCategories, offPreview, searchFoods } from "@/modules/nutrition/engine/foods";
 import { USDA_DATA_TYPES } from "@/modules/nutrition/engine/providers";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { quantityFormatter } from "@/server/inventory-view";
-import { importUsdaAction } from "../actions";
+import { importOffAction, importUsdaAction } from "../actions";
 import { Tabs } from "../tabs";
 
 const str = (v: string | string[] | undefined) =>
@@ -51,6 +51,11 @@ export default async function FoodsPage({
     searchFoods(ctx, query),
     listCategories(ctx),
   ]);
+  // A barcode the library does not know: ask Open Food Facts too (crowd-sourced, a lead only).
+  const off =
+    query.q && /^\d{6,14}$/.test(query.q.trim()) && r.local.total === 0
+      ? await offPreview(ctx, query.q.trim())
+      : null;
   const base = `/o/${orgSlug}/nutrition/foods`;
   const manage = hasPermission(ctx.grants, "nutrition.manage");
   const select = (
@@ -212,6 +217,49 @@ export default async function FoodsPage({
               pageCount={pageCount}
               total={r.local.total}
             />
+          </Card>
+        ) : null}
+
+        {off ? (
+          <Card title={t("offTitle")}>
+            {off.status !== "OK" || !off.product ? (
+              <Alert tone="info">{t(`offStatus.${off.status}`)}</Alert>
+            ) : (
+              <div className="space-y-3 text-sm" data-testid="off-result">
+                <p>
+                  <bdi className="font-medium">
+                    {(locale === "ar" && off.product.nameAr) || off.product.name}
+                  </bdi>
+                  {off.product.brand ? (
+                    <span className="text-muted">
+                      {" · "}
+                      <bdi>{off.product.brand}</bdi>
+                    </span>
+                  ) : null}
+                  <span className="ltr-value text-muted font-mono"> · {off.product.barcode}</span>
+                </p>
+                <p className="ltr-value">
+                  {off.product.values.energyKcal
+                    ? `${fmt(off.product.values.energyKcal)} kcal`
+                    : "—"}
+                  {off.product.basis
+                    ? ` / ${off.product.basis === "PER_100ML" ? "100 ml" : "100 g"}`
+                    : ""}
+                </p>
+                <Alert tone="info">{t("offNote")}</Alert>
+                {manage ? (
+                  <ActionForm
+                    action={importOffAction.bind(null, orgSlug)}
+                    submitLabel={t("import")}
+                    submitVariant="secondary"
+                    className="inline-flex flex-col items-start gap-1"
+                  >
+                    <input type="hidden" name="barcode" value={off.product.barcode} />
+                  </ActionForm>
+                ) : null}
+                <p className="text-muted text-xs">{t("offAttribution")}</p>
+              </div>
+            )}
           </Card>
         ) : null}
 

@@ -3818,7 +3818,24 @@ on top. The existing tables are extended rather than duplicated:
   - The Arabic nutrient and category names need review by a nutrition
     professional before they appear on consumer labels.
   - Market label layouts (Q-02).
-  - Open Food Facts live lookup.
+- **Added the same day**:
+  - Foods entered by hand get kJ from kcal and salt from sodium, marked
+    CALCULATED, when the inputs are given and the result is not. An entered
+    value or "NA" always wins.
+  - A live Open Food Facts lookup by barcode. It runs only from the server,
+    with a generic client name, a 10 s timeout, 2 attempts, a budget shared
+    by all instances (`OPEN_FOOD_FACTS_REQUESTS_PER_MINUTE`, default 60) and
+    a switch (`OPEN_FOOD_FACTS_LOOKUP`, on by default; no key).
+    - It feeds the barcode lookup, a preview on the Foods page and an
+      import (page, and API `POST /nutrition/foods` with `offBarcode`).
+    - Records go through the file import's parser (ADR-041). Allergen tags
+      become CONTAINS or MAY_CONTAIN only; missing values stay missing.
+    - Records are stored unverified, with a source version, identifiers and
+      the declared ingredients as published. A record that changed after
+      it was verified goes back to awaiting verification.
+    - Open Food Facts is crowd-sourced, so a record is only a lead. It
+      never replaces a manufacturer specification (the existing linking
+      rule).
 
 ## Business assumptions (recorded, not invented rules)
 

@@ -421,6 +421,31 @@ describe("hybrid search, import and food profiles (ADR-132)", () => {
     ]);
     expect(f.nutrients.find((n) => n.code === "alcohol")?.status).toBe("NOT_APPLICABLE");
     expect(f.nutrients.find((n) => n.code === "protein")?.displayName).toBe("البروتين");
+    // kJ is calculated from the kcal entered (and marked so); salt is not, as no sodium was given.
+    expect(f.nutrients.find((n) => n.code === "energy_kj")).toMatchObject({
+      status: "CALCULATED",
+      amount: "669.44",
+    });
+    expect(f.nutrients.find((n) => n.code === "salt")).toBeUndefined();
+    expect(f.missingCore.map((m) => m.code)).toContain("salt");
+    const salted = await createFood(ctx, {
+      name: "Test brine",
+      values: { sodium: "400", salt: "NA", energy_kj: "10" },
+    });
+    const b = await getFood(ctx, salted.id);
+    // What the person entered wins over a calculation, including "not applicable".
+    expect(b.nutrients.find((n) => n.code === "salt")?.status).toBe("NOT_APPLICABLE");
+    expect(b.nutrients.find((n) => n.code === "energy_kj")?.status).toBe("REPORTED");
+    const sodiumOnly = await getFood(
+      ctx,
+      (await createFood(ctx, { name: "Test stock", values: { sodium: "400" } })).id,
+    );
+    expect(sodiumOnly.nutrients.find((n) => n.code === "salt")).toMatchObject({
+      status: "CALCULATED",
+      amount: "1",
+    });
+    await updateFood(ctx, salted.id, { archived: true, archiveReason: "Test" });
+    await updateFood(ctx, sodiumOnly.food.id, { archived: true, archiveReason: "Test" });
     const sources = await listSources(ctx);
     expect(sources.library.find((s) => s.source === "MANUAL")?.records).toBe(1);
     await updateFood(ctx, own.id, { archived: true, archiveReason: "Duplicate" });

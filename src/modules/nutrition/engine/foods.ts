@@ -14,6 +14,8 @@ import {
   analyzeRecipe,
   basisQuantity,
   CalcError,
+  kjFromKcal,
+  saltFromSodiumMg,
   scale,
   type QuantityUnit,
   type ValueIn,
@@ -25,6 +27,7 @@ import {
   type NormalizedFood,
   type SourceNutrient,
 } from "./normalize";
+import { lookupOpenFoodFacts } from "./off";
 import { ProviderError, usdaProvider } from "./providers";
 
 /**
@@ -1109,8 +1112,16 @@ export async function findByBarcode(ctx: TenantContext, code: string) {
       ORDER BY f."verified_at" DESC NULLS LAST, f."name" LIMIT 10`,
   );
   if (local.length)
-    return { barcode: digits, local, external: { status: "SKIPPED" as const, items: [] } };
-  const r = await searchFoods(ctx, { q: digits, mode: "USDA", dataType: "Branded", pageSize: 5 });
+    return {
+      barcode: digits,
+      local,
+      external: { status: "SKIPPED" as const, items: [] },
+      openFoodFacts: { status: "SKIPPED" as const, product: null },
+    };
+  const [r, off] = await Promise.all([
+    searchFoods(ctx, { q: digits, mode: "USDA", dataType: "Branded", pageSize: 5 }),
+    offPreview(ctx, digits),
+  ]);
   return {
     barcode: digits,
     local: [],
@@ -1118,7 +1129,28 @@ export async function findByBarcode(ctx: TenantContext, code: string) {
       ...r.external,
       items: r.external.items.filter((i) => i.barcode?.replace(/^0+/, "") === bare),
     },
+    openFoodFacts: off,
   };
+}
+
+/** Open Food Facts for a barcode: the record, or why there is none — never an error. */
+export async function offPreview(ctx: TenantContext, barcode: string) {
+  try {
+    return { status: "OK" as const, product: await lookupOpenFoodFacts(ctx, barcode) };
+  } catch (error) {
+    if (!(error instanceof ProviderError)) throw error;
+    return {
+      status:
+        error.code === "NOT_FOUND"
+          ? ("NOT_FOUND" as const)
+          : error.code === "NOT_CONFIGURED"
+            ? ("NOT_CONFIGURED" as const)
+            : error.code === "RATE_LIMITED"
+              ? ("RATE_LIMITED" as const)
+              : ("UNAVAILABLE" as const),
+      product: null,
+    };
+  }
 }
 
 // ─── Entering and editing foods ───
@@ -1173,7 +1205,7 @@ export async function createFood(ctx: TenantContext, raw: unknown) {
   const v = parsed.data;
   return withTenantTx(ctx.organizationId, async (tx) => {
     const dictionary = await tx.nutrient.findMany({
-      where: { code: { in: Object.keys(v.values) } },
+      where: { code: { in: [...Object.keys(v.values), "energy_kj", "salt"] } },
     });
     const unknownCodes = Object.keys(v.values).filter((c) => !dictionary.some((d) => d.code === c));
     if (unknownCodes.length)
@@ -1197,6 +1229,13 @@ export async function createFood(ctx: TenantContext, raw: unknown) {
         throw businessRuleViolation("NUTRIENT_IMPLAUSIBLE", "A value per 100 cannot exceed 100 g", {
           code: c,
         });
+    // Like USDA records: kJ from kcal and salt from sodium, marked CALCULATED, only when
+    // the person gave the input and left the result out (an entered value or "NA" wins).
+    const derived = new Map<string, Decimal>();
+    if (numbers.has("energy_kcal") && !("energy_kj" in v.values))
+      derived.set("energy_kj", kjFromKcal(numbers.get("energy_kcal")!).toDecimalPlaces(4));
+    if (numbers.has("sodium") && !("salt" in v.values))
+      derived.set("salt", saltFromSodiumMg(numbers.get("sodium")!).toDecimalPlaces(4));
     const sourceId = `M-${crypto.randomUUID().slice(0, 13)}`;
     const food = await tx.referenceFood.create({
       data: {
@@ -1211,7 +1250,7 @@ export async function createFood(ctx: TenantContext, raw: unknown) {
         categoryId: v.categoryId ?? null,
         basis: v.basis,
         ingredientsText: v.ingredientsText || null,
-        ...summaryFrom(numbers),
+        ...summaryFrom(new Map([...numbers, ...derived])),
         notes: v.reference ? [`reference: ${v.reference}`] : [],
         licence: "The organization's own data",
         attribution: ctx.organizationName,
@@ -1220,20 +1259,33 @@ export async function createFood(ctx: TenantContext, raw: unknown) {
     });
     if (Object.keys(v.values).length)
       await tx.foodNutrientValue.createMany({
-        data: Object.entries(v.values).map(([code, x]) => {
-          const d = dictionary.find((n) => n.code === code)!;
-          return {
+        data: [
+          ...[...derived].map(([code, x]) => ({
             organizationId: ctx.organizationId,
             foodId: food.id,
-            nutrientId: d.id,
-            status: x === "NA" ? ("NOT_APPLICABLE" as const) : ("REPORTED" as const),
-            originalAmount: x === "NA" ? null : x,
-            originalUnit: x === "NA" ? null : d.unit,
-            amount: x === "NA" ? null : x,
-            unit: d.unit,
-            note: "entered by hand",
-          };
-        }),
+            nutrientId: dictionary.find((n) => n.code === code)!.id,
+            status: "CALCULATED" as const,
+            amount: x.toFixed(),
+            unit: dictionary.find((n) => n.code === code)!.unit,
+            derivationDescription:
+              code === "salt" ? "Calculated: sodium (mg) × 2.5 ÷ 1000" : "Calculated: kcal × 4.184",
+            note: "calculated from values entered by hand",
+          })),
+          ...Object.entries(v.values).map(([code, x]) => {
+            const d = dictionary.find((n) => n.code === code)!;
+            return {
+              organizationId: ctx.organizationId,
+              foodId: food.id,
+              nutrientId: d.id,
+              status: x === "NA" ? ("NOT_APPLICABLE" as const) : ("REPORTED" as const),
+              originalAmount: x === "NA" ? null : x,
+              originalUnit: x === "NA" ? null : d.unit,
+              amount: x === "NA" ? null : x,
+              unit: d.unit,
+              note: "entered by hand",
+            };
+          }),
+        ],
       });
     if (v.barcode)
       await tx.foodIdentifier.create({

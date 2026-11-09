@@ -923,7 +923,12 @@
     "USDA_RATE_LIMITED": "استُنفد عدد طلبات USDA المسموح به في الساعة. أعيدوا المحاولة خلال الساعة.",
     "USDA_NOT_FOUND": "لا يوجد في USDA FoodData Central سجل بهذا الرقم.",
     "USDA_BAD_RESPONSE": "أرسلت USDA FoodData Central رداً تعذرت قراءته.",
-    "USDA_IMPORT_FAILED": "لم يُستورد شيء: تعذر جلب أي من هذه الأرقام من USDA."
+    "USDA_IMPORT_FAILED": "لم يُستورد شيء: تعذر جلب أي من هذه الأرقام من USDA.",
+    "OFF_NOT_FOUND": "لا يوجد في Open Food Facts منتج بهذا الباركود.",
+    "OFF_NOT_CONFIGURED": "البحث في Open Food Facts متوقف على هذا الخادم.",
+    "OFF_UNAVAILABLE": "لم تستجب Open Food Facts. أعيدوا المحاولة لاحقاً.",
+    "OFF_RATE_LIMITED": "عمليات بحث كثيرة في Open Food Facts خلال الدقيقة الماضية. أعيدوا المحاولة بعد قليل.",
+    "OFF_BAD_RESPONSE": "أرسلت Open Food Facts سجلاً تعذرت قراءته."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -7690,6 +7695,15 @@
       "NO_WEIGHT": "لا يوجد تحويل للوزن",
       "NEEDS_DENSITY": "يحتاج إلى كثافة"
     },
-    "fullProfile": "الملف الغذائي الكامل"
+    "fullProfile": "الملف الغذائي الكامل",
+    "offTitle": "من Open Food Facts",
+    "offStatus": {
+      "NOT_FOUND": "لا يوجد في Open Food Facts منتج بهذا الباركود.",
+      "NOT_CONFIGURED": "البحث في Open Food Facts متوقف على هذا الخادم.",
+      "UNAVAILABLE": "لم تستجب Open Food Facts. أعيدوا المحاولة لاحقاً.",
+      "RATE_LIMITED": "عمليات بحث كثيرة في Open Food Facts خلال الدقيقة الماضية. أعيدوا المحاولة بعد قليل."
+    },
+    "offNote": "يملأ المتطوعون بيانات Open Food Facts: استخدموها كدليل أولي، وراجعوا القيم مقابل العبوة وتحققوا منها قبل استخدامها على الملصقات. مسببات الحساسية غير المذكورة غير معروفة، وليست غائبة.",
+    "offAttribution": "البيانات: المساهمون في Open Food Facts (openfoodfacts.org)، رخصة قاعدة البيانات المفتوحة."
   }
 }

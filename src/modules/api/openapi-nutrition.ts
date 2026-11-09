@@ -340,11 +340,21 @@ export function nutritionPaths(errors: Record<string, unknown>) {
       post: op(
         {
           summary:
-            'Import USDA foods by FDC id (`{ fdcIds }`, up to 100; each stored in its own transaction) or create a manual food (values per 100 g/ml by nutrient code, or "NA" for not applicable).',
+            'Import USDA foods by FDC id (`{ fdcIds }`, up to 100; each stored in its own transaction) import one Open Food Facts product (`{ offBarcode }`), or create a manual food (values per 100 g/ml by nutrient code, or "NA" for not applicable).',
           scope: "nutrition:write",
           body: {
             oneOf: [
               props({ fdcIds: arr({ oneOf: [str, int] }) }, ["fdcIds"]),
+              props(
+                {
+                  offBarcode: {
+                    ...str,
+                    description:
+                      "Import this barcode from Open Food Facts (crowd-sourced; unverified)",
+                  },
+                },
+                ["offBarcode"],
+              ),
               props(
                 {
                   name: str,
@@ -503,13 +513,44 @@ export function nutritionPaths(errors: Record<string, unknown>) {
       get: op(
         {
           summary:
-            "Find a food by GTIN/UPC barcode (leading zeros ignored), in the library first, then USDA",
+            "Find a food by GTIN/UPC barcode (leading zeros ignored): the library first, else USDA Branded Foods and Open Food Facts. Outside sources being down never fails the lookup.",
           scope: "nutrition:read",
           params: [{ name: "code", in: "path", required: true, schema: str }],
           ok: props({
             barcode: str,
-            local: arr(ref("FoodHit")),
+            local: arr(props({ id, name: str, brand: nstr, source: str })),
             external: props({ status: str, items: arr(ref("UsdaFoodHit")) }),
+            openFoodFacts: props({
+              status: {
+                type: "string",
+                enum: [
+                  "OK",
+                  "NOT_FOUND",
+                  "NOT_CONFIGURED",
+                  "UNAVAILABLE",
+                  "RATE_LIMITED",
+                  "SKIPPED",
+                ],
+              },
+              product: {
+                oneOf: [
+                  { type: "null" },
+                  props({
+                    barcode: str,
+                    name: str,
+                    nameAr: nstr,
+                    brand: nstr,
+                    basis: nstr,
+                    values: { type: "object", additionalProperties: dec },
+                    allergens: arr(str),
+                    traces: arr(str),
+                    notes: arr(str),
+                    sourceUrl: str,
+                    licence: str,
+                  }),
+                ],
+              },
+            }),
           }),
         },
         errors,

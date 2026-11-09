@@ -40,6 +40,14 @@ const envSchema = z.object({
   USDA_FDC_BASE_URL: z.url().default("https://api.nal.usda.gov/fdc/v1"),
   // Calls per hour across all instances; USDA's default limit per key is 1,000.
   USDA_FDC_REQUESTS_PER_HOUR: z.coerce.number().int().min(1).max(100000).default(1000),
+  // Live Open Food Facts lookup by barcode (ADR-132): no key; "0" switches it off.
+  OPEN_FOOD_FACTS_LOOKUP: z
+    .enum(["0", "1"])
+    .default("1")
+    .transform((v) => v === "1"),
+  OPEN_FOOD_FACTS_BASE_URL: z.url().default("https://world.openfoodfacts.org"),
+  // Product reads per minute across all instances; Open Food Facts asks for at most 100.
+  OPEN_FOOD_FACTS_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).max(100).default(60),
 });
 
 export type Env = z.infer<typeof envSchema>;

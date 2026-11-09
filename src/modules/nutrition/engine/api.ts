@@ -21,6 +21,7 @@ import {
   updateFood,
 } from "./foods";
 import { ApiHttpError } from "@/server/routes/api-route";
+import { importOpenFoodFacts } from "./off";
 import { ProviderError, usdaProvider } from "./providers";
 import { listSyncJobs, requestSync, syncStatus } from "./sync";
 
@@ -40,22 +41,35 @@ export const apiSearchFoods = (api: ApiContext, q: URLSearchParams) =>
 /** POST /nutrition/foods: `{ fdcIds: [...] }` imports from USDA; anything else creates a manual food. */
 export async function apiCreateFoods(api: ApiContext, body: unknown) {
   if (isObject(body) && "fdcIds" in body) return upstream(importUsdaFoods(api.ctx, body.fdcIds));
+  if (isObject(body) && "offBarcode" in body)
+    return upstream(importOpenFoodFacts(api.ctx, String(body.offBarcode ?? "")), "OFF");
   return createFood(api.ctx, body);
 }
 
 /** USDA failures as HTTP: not configured or down → 503, over the hourly budget → 429, unknown id → 404. */
-async function upstream<T>(work: Promise<T>): Promise<T> {
+async function upstream<T>(work: Promise<T>, source: "USDA" | "OFF" = "USDA"): Promise<T> {
+  const name = source === "USDA" ? "USDA FoodData Central" : "Open Food Facts";
   try {
     return await work;
   } catch (error) {
     if (!(error instanceof ProviderError)) throw error;
     if (error.code === "NOT_FOUND")
-      throw new ApiHttpError(404, "NOT_FOUND", "Not found in USDA FoodData Central");
+      throw new ApiHttpError(404, "NOT_FOUND", `Not found in ${name}`);
     if (error.code === "RATE_LIMITED")
-      throw new ApiHttpError(429, "USDA_RATE_LIMITED", "The hourly USDA request budget is used up");
+      throw new ApiHttpError(
+        429,
+        `${source}_RATE_LIMITED`,
+        `The ${name} request budget is used up`,
+      );
     if (error.code === "NOT_CONFIGURED")
-      throw new ApiHttpError(503, "USDA_NOT_CONFIGURED", "USDA FoodData Central is not configured");
-    throw new ApiHttpError(503, "USDA_UNAVAILABLE", "USDA FoodData Central is not reachable");
+      throw new ApiHttpError(503, `${source}_NOT_CONFIGURED`, `${name} is not configured`);
+    if (error.code === "BAD_RESPONSE")
+      throw new ApiHttpError(
+        502,
+        `${source}_BAD_RESPONSE`,
+        `${name} sent an answer that could not be read`,
+      );
+    throw new ApiHttpError(503, `${source}_UNAVAILABLE`, `${name} is not reachable`);
   }
 }
 

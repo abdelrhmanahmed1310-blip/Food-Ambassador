@@ -923,7 +923,12 @@
     "USDA_RATE_LIMITED": "The hourly USDA request budget is used up. Try again within the hour.",
     "USDA_NOT_FOUND": "USDA FoodData Central has no record with this id.",
     "USDA_BAD_RESPONSE": "USDA FoodData Central sent an answer that could not be read.",
-    "USDA_IMPORT_FAILED": "Nothing was imported: none of these ids could be fetched from USDA."
+    "USDA_IMPORT_FAILED": "Nothing was imported: none of these ids could be fetched from USDA.",
+    "OFF_NOT_FOUND": "Open Food Facts has no product with this barcode.",
+    "OFF_NOT_CONFIGURED": "Open Food Facts lookup is switched off on this server.",
+    "OFF_UNAVAILABLE": "Open Food Facts did not answer. Try again later.",
+    "OFF_RATE_LIMITED": "Too many Open Food Facts lookups in the last minute. Try again shortly.",
+    "OFF_BAD_RESPONSE": "Open Food Facts sent a record that could not be read."
   },
   "notFound": {
     "title": "Page not found",
@@ -7690,6 +7695,15 @@
       "NO_WEIGHT": "No weight conversion",
       "NEEDS_DENSITY": "Needs density"
     },
-    "fullProfile": "Full nutrient profile"
+    "fullProfile": "Full nutrient profile",
+    "offTitle": "From Open Food Facts",
+    "offStatus": {
+      "NOT_FOUND": "Open Food Facts has no product with this barcode.",
+      "NOT_CONFIGURED": "Open Food Facts lookup is switched off on this server.",
+      "UNAVAILABLE": "Open Food Facts did not answer. Try again later.",
+      "RATE_LIMITED": "Too many Open Food Facts lookups in the last minute. Try again shortly."
+    },
+    "offNote": "Open Food Facts is filled in by volunteers: use it as a lead, check the values against the packaging and verify before using them on labels. Allergens it does not list are unknown, not absent.",
+    "offAttribution": "Data: Open Food Facts contributors (openfoodfacts.org), Open Database License."
   }
 }

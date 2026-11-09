@@ -34,6 +34,8 @@ test("nutrition engine: own food, serving calculator without guessing, quality a
   await expect(page.getByTestId("nutrient-protein")).toContainText("6 g");
   // Not given is shown as such — never as zero.
   await expect(page.getByTestId("missing-core")).toContainText("Carbohydrate");
+  // kJ is calculated from the kcal entered, and marked as calculated.
+  await expect(page.getByTestId("nutrient-energy_kj")).toContainText("669.44 kJ");
 
   // Serving calculator: grams scale; millilitres need the food's own density.
   await page.getByLabel("Quantity").fill("50");

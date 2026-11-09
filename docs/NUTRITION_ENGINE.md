@@ -31,6 +31,19 @@ bulk downloads, and what to do when something goes wrong. Rules and design:
 The key is sent only in the `X-Api-Key` header from the server. It never
 reaches browsers, the REST API's responses or the logs.
 
+## 1a. Open Food Facts (barcode lookup)
+
+No key is needed. When a barcode searched on Nutrition → Foods is not in
+the library, the server asks `world.openfoodfacts.org` and shows a preview
+that can be imported as an unverified record.
+
+- Switch it off with `OPEN_FOOD_FACTS_LOOKUP=0`.
+- Budget: `OPEN_FOOD_FACTS_REQUESTS_PER_MINUTE` (default 60; Open Food
+  Facts asks for at most 100 product reads per minute).
+- The server must reach `world.openfoodfacts.org` on port 443.
+- The data is crowd-sourced (ODbL): check it against the packaging before
+  verifying.
+
 ## 2. Day to day
 
 | Task                                    | Where                                                                             |

@@ -72,8 +72,6 @@ Rules: DECISIONS.md ADR-132. Operations: docs/NUTRITION_ENGINE.md.
   professional before they are used on consumer labels.
 - No hosted Swagger UI: its third-party scripts conflict with the strict
   CSP. The OpenAPI file and the in-app reference are provided instead.
-- Manual foods do not derive kJ or salt. Calculated values are added only
-  for USDA records, where the source gives the inputs.
 
 ## Food consultant chatbot — Arabic and English (built)
 
@@ -2495,9 +2493,22 @@ integration against `postgres:16-alpine`, build, Playwright E2E) in under
 2 minutes. Before this the workflow only triggered on `main`, so it had never
 run on the development branch.
 
-## Not started
+## Still open (updated 2026-11-09)
 
-M3c (requisitions, in-transit transfers, landed cost, par levels), M4–M8, proposed M9
-(central kitchen & B2B) and M10 (integrations), and the point of sale
-POS1–POS5 (ADR-022). See PROJECT_PLAN.md and the capability reviews in
-`docs/`.
+Every planned milestone (M0–M10, POS1–POS5, C1–C7, F1–F2, I1–I2, HR1–HR6
+and the nutrition engine) is built. What remains needs a decision, an
+account or a specification from outside, or a check against a live service
+that the build environment cannot reach:
+
+| Item                                                                                                                           | Waiting on                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Live checks: ZATCA (simplified and standard invoices), Moyasar (pay by QR, prepayment), USDA FoodData Central, Open Food Facts | Network access from the server; ZATCA sandbox credentials, Moyasar keys, `USDA_FDC_API_KEY` |
+| Email provider: invitations, password reset, notifications                                                                     | Q-10                                                                                        |
+| Production hosting and data residency                                                                                          | Q-03 (demo: Render, Frankfurt)                                                              |
+| Label layouts per market                                                                                                       | Q-02                                                                                        |
+| Payroll rules per country; WPS / Mudad files                                                                                   | Q-20 and the file specifications                                                            |
+| Native HungerStation, Jahez and Keeta adapters                                                                                 | Platform API specifications (plug-and-play intake works today)                              |
+| Named POS / accounting connectors                                                                                              | Q-06                                                                                        |
+| App store release                                                                                                              | Q-19 (app id and developer accounts)                                                        |
+| SSO, required 2FA, category hierarchy                                                                                          | Q-07, Q-13                                                                                  |
+| Penetration test; review of Arabic nutrient and category names                                                                 | Outside specialists                                                                         |

@@ -12,6 +12,7 @@ import {
   setCategoryArabic,
   updateFood,
 } from "@/modules/nutrition/engine/foods";
+import { importOpenFoodFacts } from "@/modules/nutrition/engine/off";
 import { ProviderError } from "@/modules/nutrition/engine/providers";
 import { resolveIssue, scanQuality } from "@/modules/nutrition/engine/quality";
 import {
@@ -28,12 +29,12 @@ import { tenantMutation } from "@/server/actions/tenant";
 type State = ActionState;
 
 /** USDA failures as rule violations the form can show in the person's language. */
-async function usda<T>(work: Promise<T>): Promise<T> {
+async function usda<T>(work: Promise<T>, prefix: "USDA" | "OFF" = "USDA"): Promise<T> {
   try {
     return await work;
   } catch (error) {
     if (error instanceof ProviderError)
-      throw businessRuleViolation(`USDA_${error.code}`, error.message);
+      throw businessRuleViolation(`${prefix}_${error.code}`, error.message);
     throw error;
   }
 }
@@ -239,4 +240,14 @@ export async function scanQualityAction(orgSlug: string, previous: State, formDa
     const r = await scanQuality(ctx);
     return { message: t("scanDone", { count: r.stale + r.duplicates + r.missingSource }) };
   });
+}
+
+export async function importOffAction(orgSlug: string, previous: State, formData: FormData) {
+  let id: string | null = null;
+  const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    id = (await usda(importOpenFoodFacts(ctx, String(formData.get("barcode") ?? "")), "OFF"))
+      .foodId;
+  });
+  if (state.ok && id) redirect(`/o/${orgSlug}/nutrition/foods/${id}`);
+  return state;
 }
