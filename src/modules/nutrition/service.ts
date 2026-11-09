@@ -484,7 +484,8 @@ export async function recipeNutrition(ctx: TenantContext, recipeId: string) {
   assertPermission(ctx.grants, "recipes.view");
   return withTenantTx(ctx.organizationId, async (tx) => {
     const { recipe, active } = await activeVersionOf(tx, ctx, recipeId);
-    if (!active) return { recipe, active: null, calc: null, blockers: [], names: new Map() };
+    if (!active)
+      return { recipe, active: null, calc: null, blockers: [], names: new Map(), units: new Map() };
     const units = await unitMap(tx, ctx);
     const calc = await calculateInTx(tx, ctx, active.id, units);
     const products = await tx.product.findMany({
@@ -497,6 +498,7 @@ export async function recipeNutrition(ctx: TenantContext, recipeId: string) {
       calc,
       blockers: labelBlockers(calc),
       names: new Map(products.map((p) => [p.id, p])),
+      units,
     };
   });
 }

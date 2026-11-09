@@ -1,3 +1,4 @@
+import { NUTRITION_API_PATHS, nutritionPaths, nutritionSchemas } from "./openapi-nutrition";
 import { API_SCOPES } from "./scopes";
 
 /**
@@ -26,7 +27,21 @@ const obj = (properties: Record<string, unknown>) => ({
 });
 
 const schemas = {
-  Error: obj({ error: obj({ code: str, message: str }) }),
+  Error: {
+    type: "object",
+    required: ["error"],
+    properties: {
+      error: {
+        type: "object",
+        required: ["code", "message"],
+        properties: {
+          code: str,
+          message: str,
+          rule: { ...str, description: "Which business rule, for BUSINESS_RULE_VIOLATION" },
+        },
+      },
+    },
+  },
   Company: obj({
     id,
     code: str,
@@ -229,6 +244,7 @@ export const API_PATHS = [
   "/supplier-invoices",
   "/sales-invoices",
   "/pos-orders",
+  ...NUTRITION_API_PATHS,
 ] as const;
 
 export function openApiDocument(origin: string) {
@@ -238,7 +254,7 @@ export function openApiDocument(origin: string) {
       title: "Food Ambassador API",
       version: "1.0.0",
       description:
-        "Read-only access to one organization's data. Create a key under Settings → API keys; send it as `Authorization: Bearer fa_…`. A key may be limited to one company. Amounts are decimal strings; quantities are in the product's base unit unless a unit is given; pages are ordered by id and continued with `after`.",
+        "Access to one organization's data: read-only, except the nutrition library (nutrition:write). Create a key under Settings → API keys; send it as `Authorization: Bearer fa_…`. A key may be limited to one company. Amounts are decimal strings; quantities are in the product's base unit unless a unit is given; pages are ordered by id and continued with `after`.",
     },
     servers: [{ url: `${origin}/api/v1` }],
     components: {
@@ -249,7 +265,7 @@ export function openApiDocument(origin: string) {
           description: `Scopes: ${Object.keys(API_SCOPES).join(", ")}`,
         },
       },
-      schemas,
+      schemas: { ...schemas, ...nutritionSchemas },
     },
     paths: {
       "/companies": list("Company", "sites:read", "Companies (legal entities)"),
@@ -299,6 +315,7 @@ export function openApiDocument(origin: string) {
           schema: { type: "string", format: "date" },
         },
       ]),
+      ...nutritionPaths(errors),
     } satisfies Record<(typeof API_PATHS)[number], unknown>,
   };
 }

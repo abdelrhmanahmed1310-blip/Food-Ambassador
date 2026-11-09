@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { CreateApiKeyForm } from "@/components/api/forms";
@@ -42,7 +43,11 @@ export default async function ApiKeysPage({ params }: PageProps<"/o/[orgSlug]/se
           {t("docs")}{" "}
           <a href="/api/v1/openapi.json" className="ltr-value text-primary underline">
             /api/v1/openapi.json
-          </a>
+          </a>{" "}
+          ·{" "}
+          <Link href={`/o/${orgSlug}/settings/api/reference`} className="text-primary underline">
+            {t("reference")}
+          </Link>
         </Alert>
         {clients.length === 0 ? (
           <EmptyState title={t("none")} />

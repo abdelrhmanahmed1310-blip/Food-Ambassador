@@ -37,12 +37,20 @@ export default async function ReferenceFoodPage({
         title={(locale === "ar" && food.nameAr) || food.name}
         description={`${t(`library.sources.${food.source}`)} · ${food.sourceId}${food.dataType ? ` · ${food.dataType}` : ""}`}
         actions={
-          <Link
-            href={`/o/${orgSlug}/catalog/library`}
-            className="text-primary text-sm hover:underline"
-          >
-            {t("common.back")}
-          </Link>
+          <>
+            <Link
+              href={`/o/${orgSlug}/nutrition/foods/${food.id}`}
+              className="text-primary text-sm hover:underline"
+            >
+              {t("nutritionEngine.fullProfile")}
+            </Link>
+            <Link
+              href={`/o/${orgSlug}/catalog/library`}
+              className="text-primary text-sm hover:underline"
+            >
+              {t("common.back")}
+            </Link>
+          </>
         }
       />
       <div className="space-y-6">
@@ -73,7 +81,9 @@ export default async function ReferenceFoodPage({
               },
               { label: t("library.licence"), value: food.licence },
               { label: t("library.attribution"), value: food.attribution },
-              { label: t("library.importedFrom"), value: <bdi>{food.import.fileName}</bdi> },
+              ...(food.import
+                ? [{ label: t("library.importedFrom"), value: <bdi>{food.import.fileName}</bdi> }]
+                : []),
               ...(food.linkedProduct
                 ? [
                     {

@@ -415,6 +415,17 @@ model Organization {
   applicationEvents   ApplicationEvent[]
   interviews          Interview[]
 
+  nutrients          Nutrient[]
+  foodNutrientValues FoodNutrientValue[]
+  foodPortions       FoodPortion[]
+  foodSourceVersions FoodSourceVersion[]
+  foodAliases        FoodAlias[]
+  foodIdentifiers    FoodIdentifier[]
+  foodCategories     FoodCategory[]
+  nutritionSyncJobs  NutritionSyncJob[]
+  foodDataIssues     FoodDataIssue[]
+  nutritionSettings  NutritionSettings?
+
   @@map("organizations")
 }
 
@@ -4583,58 +4594,86 @@ enum ReferenceSource {
   USDA_FDC
   OPEN_FOOD_FACTS
   WIKIDATA
+  /// Entered by the organization (ADR-132).
+  MANUAL
 }
 
 /// A record copied from a public food database, with its licence and
 /// provenance. Reference only: a product uses it after a person links it,
 /// and the copied values stay unverified until a second person checks them.
 model ReferenceFood {
-  id              String          @id @default(uuid(7)) @db.Uuid
-  organizationId  String          @map("organization_id") @db.Uuid
-  source          ReferenceSource
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  source           ReferenceSource
   /// FDC id, Open Food Facts barcode or Wikidata QID.
-  sourceId        String          @map("source_id")
+  sourceId         String          @map("source_id")
   /// e.g. "Foundation", "SR Legacy", "Branded".
-  dataType        String?         @map("data_type")
-  name            String
-  nameAr          String?         @map("name_ar")
-  description     String?
-  brand           String?
-  basis           NutritionBasis?
-  energyKcal      Decimal?        @map("energy_kcal") @db.Decimal(12, 4)
-  energyKj        Decimal?        @map("energy_kj") @db.Decimal(12, 4)
-  fat             Decimal?        @db.Decimal(12, 4)
-  saturatedFat    Decimal?        @map("saturated_fat") @db.Decimal(12, 4)
-  carbohydrate    Decimal?        @db.Decimal(12, 4)
-  sugars          Decimal?        @db.Decimal(12, 4)
-  fibre           Decimal?        @db.Decimal(12, 4)
-  protein         Decimal?        @db.Decimal(12, 4)
-  salt            Decimal?        @db.Decimal(12, 4)
-  sodium          Decimal?        @db.Decimal(12, 4)
+  dataType         String?         @map("data_type")
+  name             String
+  nameAr           String?         @map("name_ar")
+  description      String?
+  brand            String?
+  basis            NutritionBasis?
+  energyKcal       Decimal?        @map("energy_kcal") @db.Decimal(12, 4)
+  energyKj         Decimal?        @map("energy_kj") @db.Decimal(12, 4)
+  fat              Decimal?        @db.Decimal(12, 4)
+  saturatedFat     Decimal?        @map("saturated_fat") @db.Decimal(12, 4)
+  carbohydrate     Decimal?        @db.Decimal(12, 4)
+  sugars           Decimal?        @db.Decimal(12, 4)
+  fibre            Decimal?        @db.Decimal(12, 4)
+  protein          Decimal?        @db.Decimal(12, 4)
+  salt             Decimal?        @db.Decimal(12, 4)
+  sodium           Decimal?        @db.Decimal(12, 4)
   /// Allergen codes the source lists as present / as traces (Open Food Facts).
-  allergens       String[]        @default([])
-  traces          String[]        @default([])
+  allergens        String[]        @default([])
+  traces           String[]        @default([])
   /// Source tags not mapped to the 14 allergens, kept for review.
-  unmappedTags    String[]        @default([]) @map("unmapped_tags")
+  unmappedTags     String[]        @default([]) @map("unmapped_tags")
   /// How a value was chosen when the source has several (e.g. which energy figure).
-  notes           String[]        @default([])
-  licence         String
-  attribution     String
-  sourceUrl       String          @map("source_url")
+  notes            String[]        @default([])
+  licence          String
+  attribution      String
+  sourceUrl        String          @map("source_url")
   /// Product this record was linked to, if any.
-  linkedProductId String?         @map("linked_product_id") @db.Uuid
-  importId        String          @map("import_id") @db.Uuid
-  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  linkedProductId  String?         @map("linked_product_id") @db.Uuid
+  /// The file import it came from; null for records fetched from an API or entered by hand (ADR-132).
+  importId         String?         @map("import_id") @db.Uuid
+  /// GTIN/UPC barcode as the source gives it (branded foods).
+  barcode          String?
+  categoryId       String?         @map("category_id") @db.Uuid
+  /// The manufacturer's ingredient statement, verbatim and untranslated.
+  ingredientsText  String?         @map("ingredients_text")
+  /// The source's publication date of this record.
+  publicationDate  DateTime?       @map("publication_date") @db.Date
+  /// When the record was last fetched or re-read from its source.
+  lastFetchedAt    DateTime?       @map("last_fetched_at") @db.Timestamptz(3)
+  /// Hash of the source payload last applied.
+  contentHash      String?         @map("content_hash")
+  verifiedAt       DateTime?       @map("verified_at") @db.Timestamptz(3)
+  verifiedByUserId String?         @map("verified_by_user_id") @db.Uuid
+  /// Soft deletion: hidden from search, kept for links and history.
+  archivedAt       DateTime?       @map("archived_at") @db.Timestamptz(3)
+  archiveReason    String?         @map("archive_reason")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  import        ReferenceImport    @relation(fields: [organizationId, importId], references: [organizationId, id], onDelete: Restrict)
-  linkedProduct Product?           @relation("ReferenceLinkedProduct", fields: [organizationId, linkedProductId], references: [organizationId, id], onDelete: Restrict)
-  profiles      NutritionProfile[]
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  import         ReferenceImport?    @relation(fields: [organizationId, importId], references: [organizationId, id], onDelete: Restrict)
+  linkedProduct  Product?            @relation("ReferenceLinkedProduct", fields: [organizationId, linkedProductId], references: [organizationId, id], onDelete: Restrict)
+  category       FoodCategory?       @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  profiles       NutritionProfile[]
+  nutrientValues FoodNutrientValue[]
+  portions       FoodPortion[]
+  versions       FoodSourceVersion[]
+  aliases        FoodAlias[]
+  identifiers    FoodIdentifier[]
+  issues         FoodDataIssue[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, source, sourceId])
   @@index([organizationId, name])
+  @@index([organizationId, barcode])
+  @@index([organizationId, lastFetchedAt])
   @@map("reference_foods")
 }
 
@@ -8805,4 +8844,292 @@ model Interview {
   @@index([organizationId, interviewerUserId, status])
   @@index([organizationId, applicationId])
   @@map("interviews")
+}
+
+// ─── Nutrition engine (ADR-132) ───
+
+enum NutrientGroup {
+  ENERGY
+  PROXIMATES
+  CARBOHYDRATES
+  LIPIDS
+  MINERALS
+  VITAMINS
+  AMINO_ACIDS
+  OTHER
+}
+
+/// How a nutrient value is known. A nutrient with no row is missing; zero is never assumed.
+enum NutrientValueStatus {
+  /// As the source published it.
+  REPORTED
+  /// Worked out by the engine (e.g. salt from sodium, kJ from kcal), with how in `note`.
+  CALCULATED
+  /// The source marks it below its detection or quantification limit.
+  BELOW_DETECTION
+  /// Set by a person: the nutrient does not apply to this food.
+  NOT_APPLICABLE
+}
+
+enum NutritionSyncKind {
+  IMPORT
+  REFRESH
+  RELEASE_CHECK
+  BULK_FILE
+}
+
+enum NutritionSyncStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum FoodIssueKind {
+  MISSING_CORE_NUTRIENTS
+  IMPLAUSIBLE_VALUE
+  UNEXPECTED_UNIT
+  UNIT_MISMATCH
+  DUPLICATE_BARCODE
+  DUPLICATE_NAME
+  MISSING_SOURCE
+  STALE
+  CHANGED_AFTER_VERIFICATION
+}
+
+enum FoodIssueStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+/// The nutrient dictionary: USDA FoodData Central nutrient definitions with
+/// the app's own codes (organization null), plus an organization's custom
+/// nutrients. Sources' nutrients not yet known are added as they arrive.
+model Nutrient {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  /// Null: shared definition (USDA or the app's own); set: an organization's custom nutrient.
+  organizationId String?       @map("organization_id") @db.Uuid
+  /// The app's code (e.g. "protein"); null for source nutrients not mapped yet.
+  code           String?
+  usdaNutrientId Int?          @map("usda_nutrient_id")
+  usdaNumber     String?       @map("usda_number")
+  name           String
+  nameAr         String?       @map("name_ar")
+  /// Standard unit values are kept in: g, mg, µg, kcal, kJ or IU.
+  unit           String
+  group          NutrientGroup @default(OTHER)
+  rank           Int           @default(9999)
+  /// On nutrition labels.
+  isCore         Boolean       @default(false) @map("is_core")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  values       FoodNutrientValue[]
+
+  @@index([organizationId, rank])
+  @@map("nutrients")
+}
+
+/// One nutrient of one library food, per 100 g (or 100 ml) of the food as the source gives it.
+model FoodNutrientValue {
+  id                    String              @id @default(uuid(7)) @db.Uuid
+  organizationId        String              @map("organization_id") @db.Uuid
+  foodId                String              @map("food_id") @db.Uuid
+  nutrientId            String              @map("nutrient_id") @db.Uuid
+  status                NutrientValueStatus
+  /// The source's nutrient id and number, amount and unit, as published.
+  sourceNutrientId      Int?                @map("source_nutrient_id")
+  sourceNumber          String?             @map("source_number")
+  originalAmount        Decimal?            @map("original_amount") @db.Decimal(20, 6)
+  originalUnit          String?             @map("original_unit")
+  /// In the nutrient's standard unit; null when it cannot be converted (e.g. IU) or is below detection.
+  amount                Decimal?            @db.Decimal(20, 6)
+  unit                  String
+  derivationCode        String?             @map("derivation_code")
+  derivationDescription String?             @map("derivation_description")
+  dataPoints            Int?                @map("data_points")
+  note                  String?
+  /// The source record (version) the value was read from; null for calculated or manual values.
+  versionId             String?             @map("version_id") @db.Uuid
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  food         ReferenceFood      @relation(fields: [organizationId, foodId], references: [organizationId, id], onDelete: Cascade)
+  nutrient     Nutrient           @relation(fields: [nutrientId], references: [id], onDelete: Restrict)
+  version      FoodSourceVersion? @relation(fields: [organizationId, versionId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, foodId, nutrientId])
+  @@index([organizationId, nutrientId])
+  @@map("food_nutrient_values")
+}
+
+/// A serving or household measure of a library food with its weight.
+model FoodPortion {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  foodId          String   @map("food_id") @db.Uuid
+  sequence        Int      @default(0)
+  amount          Decimal? @db.Decimal(14, 4)
+  measure         String?
+  description     String
+  descriptionAr   String?  @map("description_ar")
+  gramWeight      Decimal? @map("gram_weight") @db.Decimal(14, 4)
+  /// Volume of the portion in ml, when the source says so (gives a density).
+  millilitres     Decimal? @db.Decimal(14, 4)
+  /// From the source, or added by a person.
+  manual          Boolean  @default(false)
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  food         ReferenceFood @relation(fields: [organizationId, foodId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, foodId, sequence])
+  @@map("food_portions")
+}
+
+/// Every source payload applied to a food, kept as published (history; never edited).
+model FoodSourceVersion {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  foodId          String          @map("food_id") @db.Uuid
+  source          ReferenceSource
+  sourceId        String          @map("source_id")
+  dataType        String?         @map("data_type")
+  publicationDate DateTime?       @map("publication_date") @db.Date
+  payload         Json
+  payloadHash     String          @map("payload_hash")
+  /// API, BULK_FILE or FILE.
+  via             String
+  syncJobId       String?         @map("sync_job_id") @db.Uuid
+  fetchedAt       DateTime        @default(now()) @map("fetched_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  food         ReferenceFood       @relation(fields: [organizationId, foodId], references: [organizationId, id], onDelete: Cascade)
+  values       FoodNutrientValue[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, foodId, payloadHash])
+  @@index([organizationId, foodId, fetchedAt])
+  @@map("food_source_versions")
+}
+
+/// Other names a food is searched by, in English or Arabic.
+model FoodAlias {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  foodId         String   @map("food_id") @db.Uuid
+  name           String
+  locale         String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  food         ReferenceFood @relation(fields: [organizationId, foodId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, foodId, locale, name])
+  @@map("food_aliases")
+}
+
+/// Identifiers of a food in its source and elsewhere: FDC id, GTIN/UPC, NDB number, FNDDS food code…
+model FoodIdentifier {
+  id             String @id @default(uuid(7)) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  foodId         String @map("food_id") @db.Uuid
+  kind           String
+  value          String
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  food         ReferenceFood @relation(fields: [organizationId, foodId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, foodId, kind, value])
+  @@index([organizationId, kind, value])
+  @@map("food_identifiers")
+}
+
+/// A food category as the source names it, with an Arabic name an organization may add.
+model FoodCategory {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  nameAr         String?  @map("name_ar")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  foods        ReferenceFood[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, name])
+  @@map("food_categories")
+}
+
+/// An organization's library policy: how often USDA records are refreshed and the last release seen.
+model NutritionSettings {
+  organizationId     String    @id @map("organization_id") @db.Uuid
+  autoRefresh        Boolean   @default(false) @map("auto_refresh")
+  /// A USDA record older than this is stale and refreshed by the scheduled job.
+  refreshDays        Int       @default(90) @map("refresh_days")
+  /// Latest publication date seen per USDA data type, e.g. {"Foundation": "2025-04-24"}.
+  releases           Json      @default("{}")
+  lastReleaseCheckAt DateTime? @map("last_release_check_at") @db.Timestamptz(3)
+  updatedByUserId    String?   @map("updated_by_user_id") @db.Uuid
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("nutrition_settings")
+}
+
+/// A synchronization run with its progress, checkpoint and errors (the sync log).
+model NutritionSyncJob {
+  id                String              @id @default(uuid(7)) @db.Uuid
+  organizationId    String              @map("organization_id") @db.Uuid
+  kind              NutritionSyncKind
+  status            NutritionSyncStatus @default(QUEUED)
+  /// What to do: FDC ids, a data type, a file name…
+  request           Json                @default("{}")
+  total             Int                 @default(0)
+  processed         Int                 @default(0)
+  created           Int                 @default(0)
+  updated           Int                 @default(0)
+  unchanged         Int                 @default(0)
+  failed            Int                 @default(0)
+  /// Where a rerun resumes (e.g. the last record done).
+  checkpoint        Json                @default("{}")
+  /// [{ ref, message }] — at most 200 kept.
+  errors            Json                @default("[]")
+  attempts          Int                 @default(0)
+  requestedByUserId String?             @map("requested_by_user_id") @db.Uuid
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt         DateTime?           @map("started_at") @db.Timestamptz(3)
+  finishedAt        DateTime?           @map("finished_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, createdAt])
+  @@map("nutrition_sync_jobs")
+}
+
+/// A data-quality finding on a library food, investigated and closed by a person.
+model FoodDataIssue {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  foodId           String          @map("food_id") @db.Uuid
+  kind             FoodIssueKind
+  status           FoodIssueStatus @default(OPEN)
+  detail           String
+  data             Json            @default("{}")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedByUserId String?         @map("resolved_by_user_id") @db.Uuid
+  resolvedAt       DateTime?       @map("resolved_at") @db.Timestamptz(3)
+  resolutionNote   String?         @map("resolution_note")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  food         ReferenceFood @relation(fields: [organizationId, foodId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status, kind])
+  @@map("food_data_issues")
 }

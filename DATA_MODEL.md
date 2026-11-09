@@ -810,6 +810,45 @@ per organization, created / updated / skipped counts, problems; insert-only).
 `nutrition_profiles.reference_food_id` links copied values (CK source =
 DATABASE).
 
+**Nutrition engine** (migration `20270122090000_nutrition_engine`,
+ADR-132). `reference_foods` gains source `MANUAL`, a nullable `import_id`,
+`barcode`, `category_id`, `ingredients_text`, `publication_date`,
+`last_fetched_at`, `content_hash`, verification (`verified_at`, by) and
+archiving (`archived_at`, reason); indexes on barcode, on last fetch and
+trigram GIN indexes on name, Arabic name and brand. New tables, all with
+row-level security:
+
+- **nutrients**: the dictionary. `organization_id` NULL = shared (read by
+  all, written only by the system); `code` (UQ shared, UQ per
+  organization), `usda_nutrient_id` (UQ shared), `usda_number`, names
+  (English, Arabic), `unit` (CK g | mg | µg | kcal | kJ | IU), `group`,
+  `rank`, `is_core` (label nutrient). Seeded with 57 nutrients.
+- **food_nutrient_values**: food × nutrient (UQ), `status` REPORTED |
+  CALCULATED | BELOW_DETECTION | NOT_APPLICABLE, `amount` and `unit`
+  (standardized; NULL when below detection), `original_amount` and
+  `original_unit` as published, source nutrient id and number, derivation
+  code and description, data points, note, source version. CK amounts ≥ 0.
+  A missing nutrient has no row: it is never stored as 0.
+- **food_portions**: servings (sequence, amount, description in English
+  and Arabic, `gram_weight`, `millilitres` only when the source gives a
+  volume, `manual`).
+- **food_source_versions**: the raw payload (JSONB) per content hash (UQ
+  food × hash), `via` (CK API | BULK_FILE | FILE), data type, publication
+  date, sync job; a trigger refuses updates.
+- **food_aliases** (CK locale en | ar; trigram index), **food_identifiers**
+  (CK kind FDC_ID | GTIN_UPC | NDB_NUMBER | FOOD_CODE | OFF_CODE |
+  WIKIDATA_QID; UQ food × kind × value), **food_categories** (name UQ per
+  organization, Arabic name).
+- **nutrition_settings**: one row per organization, `auto_refresh`,
+  `refresh_days` (CK 1–3650, default 90), latest USDA releases seen, last
+  release check.
+- **nutrition_sync_jobs**: kind IMPORT | REFRESH | RELEASE_CHECK |
+  BULK_FILE, status QUEUED | RUNNING | SUCCEEDED | PARTIAL | FAILED,
+  request, counters, `checkpoint`, errors, attempts, requester, times.
+- **food_data_issues**: food, kind, detail, data, status (CK OPEN |
+  RESOLVED | IGNORED), resolution note, by and at; partial UQ one open
+  finding per food and kind.
+
 ## 8. Food safety and traceability (Milestone 6)
 
 - **food_safety_records**: type (temperature, hygiene, cleaning, pest control),

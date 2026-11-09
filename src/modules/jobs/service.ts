@@ -1,6 +1,7 @@
 import { purgeOldConversations } from "@/modules/assistant/service";
 import "server-only";
 import { purgeCandidates } from "@/modules/recruitment/service";
+import { runSyncJob, scheduleNutritionRefresh } from "@/modules/nutrition/engine/sync";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { hasPermission } from "@/modules/access/authorize";
@@ -122,6 +123,8 @@ const HANDLERS = {
   "campaigns.send": async () => sendDueCampaigns(),
   "assistant.purge": async () => purgeOldConversations(),
   "recruitment.purge": async () => purgeCandidates(),
+  "nutrition.sync": (payload) => runSyncJob(payload),
+  "nutrition.schedule": async () => scheduleNutritionRefresh(),
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -161,6 +164,11 @@ export async function scheduleRecurringJobs(now = new Date()) {
     added += await enqueueJobInTx(tx, {
       kind: "assistant.purge",
       dedupeKey: `assistant.purge:${now.toISOString().slice(0, 10)}`,
+    });
+    // Nightly USDA refresh for organizations that switched it on (ADR-132).
+    added += await enqueueJobInTx(tx, {
+      kind: "nutrition.schedule",
+      dedupeKey: `nutrition.schedule:${now.toISOString().slice(0, 10)}`,
     });
     // Candidates past the organization's retention days (ADR-129).
     added += await enqueueJobInTx(tx, {

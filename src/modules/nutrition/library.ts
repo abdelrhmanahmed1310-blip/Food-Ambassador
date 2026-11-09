@@ -274,7 +274,7 @@ export async function linkReferenceFood(
     });
     if (!product) throw notFound("Product");
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`nutrition:${ctx.organizationId}:${product.id}`}))`;
-    const reference = `${food.source === "USDA_FDC" ? "USDA FDC" : food.source === "OPEN_FOOD_FACTS" ? "Open Food Facts" : "Wikidata"} ${food.sourceId}${food.dataType ? ` (${food.dataType})` : ""}`;
+    const reference = `${food.source === "USDA_FDC" ? "USDA FDC" : food.source === "OPEN_FOOD_FACTS" ? "Open Food Facts" : food.source === "MANUAL" ? "Library entry" : "Wikidata"} ${food.sourceId}${food.dataType ? ` (${food.dataType})` : ""}`;
     const result = {
       nutrition: false,
       allergens: [] as string[],

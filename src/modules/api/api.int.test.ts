@@ -139,7 +139,7 @@ describe("REST API v1 (ADR-090)", () => {
     const doc = openApiDocument("https://example.test");
     expect(Object.keys(doc.paths).sort()).toEqual([...API_PATHS].sort());
     for (const p of API_PATHS) {
-      const file = `src/app/api/v1${p.replace("{id}", "[id]")}/route.ts`;
+      const file = `src/app/api/v1${p.replace(/\{(\w+)\}/g, "[$1]")}/route.ts`;
       expect(existsSync(file), file).toBe(true);
     }
     expect(doc.servers[0].url).toBe("https://example.test/api/v1");

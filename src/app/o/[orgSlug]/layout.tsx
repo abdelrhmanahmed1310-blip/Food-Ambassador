@@ -235,7 +235,11 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     );
   }
   if (hasPermission(ctx.grants, "nutrition.view"))
-    catalog.items.push({ href: `${base}/catalog/library`, label: t("ingredientLibrary") });
+    catalog.items.push(
+      { href: `${base}/nutrition`, label: t("nutritionEngine"), exact: true },
+      { href: `${base}/nutrition/foods`, label: t("nutritionFoods") },
+      { href: `${base}/catalog/library`, label: t("ingredientLibrary") },
+    );
   if (
     hasPermission(ctx.grants, "catalog.manage") ||
     holdsAnyGrant(ctx.grants, "inventory.adjust")

@@ -3682,6 +3682,144 @@ audit.
 - **Not yet**: a public guest chat, photos of dishes or labels, voice,
   answers from the organization's own SOP documents.
 
+### ADR-132 Nutrition engine with USDA FoodData Central — Accepted (built)
+
+Decision (2026-11-09): the ingredient library (ADR-041) becomes a full
+nutrition engine. Foods come from USDA FoodData Central (live API or bulk
+downloads) and from the organization's own entries. Every nutrient is
+stored with its source and status. Search is local, USDA, or both.
+Calculations scale servings and recipes. A REST API and admin pages sit
+on top. The existing tables are extended rather than duplicated:
+
+- `reference_foods` stays the food record, now with barcode, category,
+  declared ingredients, last fetch, content hash, verification and
+  archiving.
+- Product nutrition profiles stay the override layer.
+- Allergen declarations stay as they are.
+
+- **Storage.** Shared nutrient dictionary (`nutrients`):
+  - 57 seeded nutrients, mapped to USDA nutrient ids and numbers; 13 are
+    label nutrients and 36 have Arabic names.
+  - Each organization can add nutrients of its own.
+  - Nutrients USDA publishes that are not in the dictionary are learned as
+    shared rows.
+
+  Per food:
+  - `food_nutrient_values`: status REPORTED, CALCULATED, BELOW_DETECTION
+    or NOT_APPLICABLE, with the amount and unit as published, the
+    standardized amount, the derivation and the number of data points.
+  - `food_portions`: servings, with gram weight and, only when the source
+    gives one, millilitres.
+  - `food_source_versions`: the raw payload, kept once per content hash and
+    never updated.
+  - `food_aliases` (English or Arabic).
+  - `food_identifiers`: FDC id, GTIN/UPC, NDB number, food code.
+  - `food_categories`, with an Arabic name.
+  - `nutrition_sync_jobs`.
+  - `food_data_issues`.
+  - `nutrition_settings`.
+
+  All tables are tenant-owned with row-level security. Shared nutrients
+  can be read by every organization but are written only by the system.
+
+- **Never inventing values.**
+  - A nutrient the source does not give is MISSING, never 0. Totals are
+    null unless every ingredient reports the nutrient; the known part is
+    shown separately.
+  - Below-detection values have no figure.
+  - Only mass units are converted. Millilitres become grams only through a
+    density taken from the food's own serving that has both weight and
+    volume; otherwise the request fails with `NUTRITION_NEEDS_DENSITY`.
+  - Salt from sodium (× 2.5) and kJ from kcal (× 4.184) are added only
+    when the source gives none, and are marked CALCULATED.
+  - All arithmetic uses Decimal.
+- **Precedence.** USDA data never overwrites a product's verified
+  nutrition profile (laboratory analysis, manufacturer specification or
+  verified label):
+  - Linking a library food to a product that has a specification is
+    refused.
+  - The recipe panel uses the profile for the nutrients it gives and the
+    library food only for the rest.
+  - When a refresh changes a verified library record, the record returns
+    to awaiting verification and a finding is raised.
+  - Declared ingredients and scientific names are shown as published and
+    not translated.
+- **USDA access.**
+  - The key is `USDA_FDC_API_KEY`, server-side only. It is sent in the
+    `X-Api-Key` header and never to browsers or clients.
+  - Each call has a 15 s timeout and up to 3 attempts with exponential
+    backoff and jitter, honouring Retry-After.
+  - An hourly budget shared by all instances is enforced through the rate
+    limiter (`USDA_FDC_REQUESTS_PER_HOUR`, default 1,000).
+  - USDA search answers are cached for 10 minutes.
+  - Without a key, or when USDA is down, a HYBRID search still returns the
+    library's results and says why USDA was skipped.
+- **Search modes.**
+  - LOCAL: names in either language, brand and aliases by similarity
+    (trigram); FDC id and barcode by exact match.
+  - USDA: FoodData Central only.
+  - HYBRID (default): library matches first, then USDA results not already
+    in the library.
+- **Sync.**
+  - Imports by id run either immediately (up to 100) or as a job (up to
+    5,000, in batches of 20 with a checkpoint).
+  - Refresh re-fetches stale records, oldest first; a record is stale after
+    `refresh_days`, default 90.
+  - A weekly release check records USDA's latest publication dates.
+  - A nightly schedule runs for organizations that turn auto-refresh on.
+  - Jobs run on the job runner (ADR-087) as the person who asked for them,
+    and only while that person still holds `nutrition.manage`.
+  - A failed or partly failed job is retried from its checkpoint.
+  - Bulk downloads are imported by `pnpm nutrition:import-usda`. It streams
+    the file (wrapped JSON, a bare array or JSON Lines) in transactions of
+    200 records, falls back to one record at a time when a chunk fails,
+    and resumes the same file from its checkpoint.
+- **Quality.**
+  - Raised on import: missing label nutrients, implausible values (more
+    than 100 g per 100 g, more than 900 kcal, proximates summing above
+    105 g), unexpected or unconvertible units, duplicate barcodes, values
+    changed after verification.
+  - Raised by a scan: stale records, duplicate name and brand, records
+    without a source.
+  - Only one open finding of each kind per food. A person closes it as
+    resolved or ignored, with a note.
+- **REST API.** Seventeen endpoints under `/api/v1/nutrition`: search,
+  create or import, read, update, nutrition of an amount, servings,
+  refresh, calculate, compare, barcode, nutrients, categories, sources,
+  recipe analysis, sync status, jobs, request sync, health.
+  - They use the ADR-090 framework.
+  - New scopes: `nutrition:read`, and `nutrition:write` (the first scope
+    that allows changes).
+  - Write routes take JSON bodies of at most 1 MB and answer 415, 413 or
+    400 for a wrong content type, too large a body or invalid JSON.
+  - Validation errors list their fields. Business rule errors carry their
+    `rule`. USDA failures map to 503, 429 or 404.
+  - Every endpoint is described in OpenAPI 3.1 at `/api/v1/openapi.json`
+    and in an in-app reference at Settings → API keys → Endpoint
+    reference. A hosted Swagger UI was not added because its third-party
+    scripts conflict with the strict CSP (ADR-074).
+- **Pages** (English and Arabic, right to left): Nutrition overview,
+  Foods (search and import), food profile, new food, USDA, Nutrients, Data
+  quality, Sources.
+  - The food profile has a serving calculator, every nutrient grouped with
+    its status, the label nutrients missing (with "not applicable"),
+    servings, names and aliases, verification, archiving, refresh and
+    source versions.
+  - The recipe nutrition page gains a full nutrient panel: total, per
+    portion and per 100 g finished, with the source of each ingredient.
+  - The existing file import at Catalog → Ingredient library stays and
+    links to the profile.
+- **Permissions**: the existing `nutrition.view` and `nutrition.manage`.
+  Sync jobs and settings need organization-wide `nutrition.manage`.
+- **Not yet / to confirm**:
+  - Live USDA has not been verified from the build environment because
+    its network policy blocks the USDA hosts. It works once
+    `USDA_FDC_API_KEY` is set on the server.
+  - The Arabic nutrient and category names need review by a nutrition
+    professional before they appear on consumer labels.
+  - Market label layouts (Q-02).
+  - Open Food Facts live lookup.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

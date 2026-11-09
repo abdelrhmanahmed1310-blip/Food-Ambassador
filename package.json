@@ -21,6 +21,8 @@
     "postinstall": "prisma generate",
     "db:seed": "tsx --conditions=react-server --tsconfig tsconfig.json prisma/seed.ts",
     "library:import": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import-library.ts",
+    "nutrition:import-usda": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/import-usda.ts",
+    "nutrition:bench": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/bench-nutrition.ts",
     "db:backup": "bash scripts/backup.sh",
     "db:restore": "bash scripts/restore.sh",
     "db:verify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/verify-integrity.ts",

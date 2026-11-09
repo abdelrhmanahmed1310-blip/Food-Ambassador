@@ -55,3 +55,7 @@ services:
         value: "true"
       - key: TRUSTED_PROXY_HOPS
         value: "1"
+      # USDA FoodData Central key (free, api.data.gov; ADR-132). Entered in the Render
+      # dashboard, never committed; without it the nutrition library works locally only.
+      - key: USDA_FDC_API_KEY
+        sync: false

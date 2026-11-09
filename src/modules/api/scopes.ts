@@ -1,8 +1,9 @@
 import type { Permission } from "@/modules/access/permissions";
 
 /**
- * REST API v1 scopes (DECISIONS.md ADR-090). Read-only: each scope maps to
- * the permissions of the pages that show the same data.
+ * REST API v1 scopes (DECISIONS.md ADR-090, ADR-132). Each scope maps to the
+ * permissions of the pages that show or change the same data. Only
+ * nutrition:write allows changes (importing and maintaining library foods).
  */
 export const API_SCOPES = {
   "sites:read": ["branches.view", "warehouses.view"],
@@ -12,6 +13,8 @@ export const API_SCOPES = {
   "purchasing:read": ["purchasing.view"],
   "invoices:read": ["invoices.view"],
   "sales:read": ["b2b.view", "pos.view"],
+  "nutrition:read": ["nutrition.view"],
+  "nutrition:write": ["nutrition.view", "nutrition.manage"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type ApiScope = keyof typeof API_SCOPES;

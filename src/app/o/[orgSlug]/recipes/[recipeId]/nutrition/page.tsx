@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { AllergenStatusBadge, LabelStatusBadge } from "@/components/nutrition/badges";
+import { FullNutrientPanel } from "@/components/nutrition/full-panel";
 import { Alert, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
 import type { Decimal } from "@/lib/decimal";
 import { isUuid } from "@/lib/uuid";
 import { hasPermission } from "@/modules/access/authorize";
 import { ALLERGEN_CODES } from "@/modules/nutrition/allergens";
 import { NUTRIENTS } from "@/modules/nutrition/rules";
+import { recipeFullNutrition } from "@/modules/nutrition/engine/recipes";
 import { listLabels, recipeNutrition } from "@/modules/nutrition/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -22,12 +24,13 @@ export default async function RecipeNutritionPage({
   if (!isUuid(recipeId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const r = await notFoundOnAppError(recipeNutrition(ctx, recipeId));
-  const [t, locale, format, fmt, labels] = await Promise.all([
+  const [t, locale, format, fmt, labels, full] = await Promise.all([
     getTranslations(),
     getLocale(),
     getFormatter(),
     quantityFormatter(),
     listLabels(ctx, recipeId),
+    recipeFullNutrition(ctx, recipeId),
   ]);
   const name = (id: string) => {
     const p = r.names.get(id);
@@ -215,6 +218,7 @@ export default async function RecipeNutritionPage({
               </ul>
             )}
           </Card>
+          {full.panel ? <FullNutrientPanel panel={full.panel} orgSlug={orgSlug} /> : null}
         </div>
       )}
     </>
