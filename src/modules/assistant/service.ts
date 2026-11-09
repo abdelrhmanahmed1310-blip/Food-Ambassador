@@ -33,7 +33,11 @@ import {
   uniqueSources,
   type AssistantModel,
   type Source,
+  ASSISTANT_MODES,
+  consultantPrompt,
+  type AssistantModeKey,
 } from "./rules";
+import { CONSULTANT_TOOL_DEFINITIONS, runConsultantTool } from "./consultant-tools";
 import { runTool, TOOL_DEFINITIONS } from "./tools";
 
 /**
@@ -194,12 +198,18 @@ export async function setAssistantEnabled(ctx: TenantContext, enabled: boolean) 
  * the person's own scope for what it reads.
  */
 export const canUseAssistant = (ctx: TenantContext) => holdsAnyGrant(ctx.grants, "assistant.use");
-function assertCanUse(ctx: TenantContext) {
-  if (!canUseAssistant(ctx)) throw forbidden();
+/** The food consultant has its own right (ADR-131). */
+export const canUseConsultant = (ctx: TenantContext) => holdsAnyGrant(ctx.grants, "consultant.use");
+const canUseMode = (ctx: TenantContext, mode: AssistantModeKey) =>
+  mode === "CONSULTANT" ? canUseConsultant(ctx) : canUseAssistant(ctx);
+function assertCanUse(ctx: TenantContext, mode: AssistantModeKey = "BUSINESS") {
+  if (!canUseMode(ctx, mode)) throw forbidden();
 }
 
 const askSchema = z.object({
   conversationId: optionalUuidSchema,
+  /** For a new conversation: the business assistant (default) or the food consultant (ADR-131). */
+  mode: z.enum(ASSISTANT_MODES).optional(),
   question: z
     .string()
     .transform((v) => v.trim())
@@ -224,9 +234,11 @@ export async function askAssistant(
   rawInput: unknown,
   options: { locale?: "en" | "ar" } = {},
 ) {
-  assertCanUse(ctx);
+  if (!canUseAssistant(ctx) && !canUseConsultant(ctx)) throw forbidden();
   const parsed = askSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
+  // A new conversation needs the right for its mode; an existing one, for the mode it was started in.
+  if (!parsed.data.conversationId) assertCanUse(ctx, parsed.data.mode ?? "BUSINESS");
   const { text: question, removed } = scrubPersonalData(parsed.data.question);
   const today = businessDate(ctx.timeZone);
 
@@ -258,11 +270,13 @@ export async function askAssistant(
         },
       });
       if (!conversation) throw notFound("Conversation");
+      assertCanUse(ctx, conversation.mode as AssistantModeKey);
     } else {
       conversation = await tx.assistantConversation.create({
         data: {
           organizationId: ctx.organizationId,
           userId: ctx.userId,
+          mode: parsed.data.mode ?? "BUSINESS",
           title: titleFrom(question),
         },
       });
@@ -291,6 +305,11 @@ export async function askAssistant(
   // 2. The tool loop, outside any transaction (each tool opens its own).
   const client = assistantClient(decryptSecret(start.settings.apiKeySealed!, key()));
   const model = start.settings.model;
+  // The conversation's mode picks the prompt and the tools (ADR-131).
+  const consultant = (start.conversation.mode as AssistantModeKey) === "CONSULTANT";
+  const promptFor = consultant ? consultantPrompt : systemPrompt;
+  const toolDefinitions = consultant ? CONSULTANT_TOOL_DEFINITIONS : TOOL_DEFINITIONS;
+  const run = consultant ? runConsultantTool : runTool;
   const messages: BetaMessageParam[] = [];
   for (const h of start.history) {
     const role = h.role === "USER" ? "user" : "assistant";
@@ -310,7 +329,7 @@ export async function askAssistant(
     system: [
       {
         type: "text",
-        text: systemPrompt({
+        text: promptFor({
           organizationName: ctx.organizationName,
           today,
           timeZone: ctx.timeZone,
@@ -320,7 +339,7 @@ export async function askAssistant(
         cache_control: { type: "ephemeral" },
       },
     ],
-    tools: TOOL_DEFINITIONS,
+    tools: toolDefinitions,
     tool_choice: { type: "auto" },
     messages,
     // A declined request is re-run on Anthropic's recommended fallback model.
@@ -385,7 +404,7 @@ export async function askAssistant(
         break;
       }
       // All results of one turn go back in one message, recorded in call order.
-      const ran = await Promise.all(uses.map((u) => runTool(ctx, u.name, u.input)));
+      const ran = await Promise.all(uses.map((u) => run(ctx, u.name, u.input)));
       const results = uses.map((u, k): BetaToolResultBlockParam => {
         const r = ran[k];
         toolCalls.push({ name: u.name, input: u.input, ok: r.ok });
@@ -433,6 +452,7 @@ export async function askAssistant(
       entityType: "assistant_conversation",
       entityId: start.conversation.id,
       changes: {
+        mode: start.conversation.mode,
         tools: toolCalls.map((c) => c.name),
         model: servedBy,
         personalDataRemoved: removed,
@@ -443,6 +463,7 @@ export async function askAssistant(
   });
   return {
     conversationId: start.conversation.id,
+    mode: start.conversation.mode,
     messageId: stored.id,
     answer: text,
     sources: uniqueSources(sources),
@@ -462,12 +483,12 @@ function textOf(content: BetaContentBlock[]): string {
 
 // ─── Reading conversations (their author only) ───
 
-export async function listConversations(ctx: TenantContext) {
-  assertCanUse(ctx);
+export async function listConversations(ctx: TenantContext, mode: AssistantModeKey = "BUSINESS") {
+  assertCanUse(ctx, mode);
   return withTenantTx(ctx.organizationId, async (tx) => ({
     enabled: Boolean((await loadSettings(tx, ctx))?.enabled),
     conversations: await tx.assistantConversation.findMany({
-      where: { organizationId: ctx.organizationId, userId: ctx.userId },
+      where: { organizationId: ctx.organizationId, userId: ctx.userId, mode },
       orderBy: { updatedAt: "desc" },
       take: 50,
       select: { id: true, title: true, updatedAt: true },
@@ -476,13 +497,14 @@ export async function listConversations(ctx: TenantContext) {
 }
 
 export async function getConversation(ctx: TenantContext, conversationId: string) {
-  assertCanUse(ctx);
+  if (!canUseAssistant(ctx) && !canUseConsultant(ctx)) throw forbidden();
   return withTenantTx(ctx.organizationId, async (tx) => {
     const c = await tx.assistantConversation.findFirst({
       where: { organizationId: ctx.organizationId, id: conversationId, userId: ctx.userId },
       select: {
         id: true,
         title: true,
+        mode: true,
         messages: {
           orderBy: { createdAt: "asc" },
           select: {
@@ -497,6 +519,7 @@ export async function getConversation(ctx: TenantContext, conversationId: string
       },
     });
     if (!c) throw notFound("Conversation");
+    assertCanUse(ctx, c.mode as AssistantModeKey);
     return {
       ...c,
       messages: c.messages.map((m) => ({
@@ -509,7 +532,8 @@ export async function getConversation(ctx: TenantContext, conversationId: string
 }
 
 export async function deleteConversation(ctx: TenantContext, conversationId: string) {
-  assertCanUse(ctx);
+  // Only the author's own conversations are deleted, in either mode.
+  if (!canUseAssistant(ctx) && !canUseConsultant(ctx)) throw forbidden();
   await withTenantTx(ctx.organizationId, async (tx) => {
     const r = await tx.assistantConversation.deleteMany({
       where: { organizationId: ctx.organizationId, id: conversationId, userId: ctx.userId },

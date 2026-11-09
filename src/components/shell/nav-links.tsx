@@ -13,6 +13,7 @@ import {
   CalendarClock,
   ListChecks,
   UserSearch,
+  Salad,
   ChevronDown,
   Clock,
   Handshake,
@@ -63,6 +64,7 @@ const ICONS = {
   roster: CalendarClock,
   onboarding: ListChecks,
   interviews: UserSearch,
+  consultant: Salad,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

@@ -6,7 +6,7 @@ import { ActionForm, SelectField, TextField, useFormState } from "@/components/f
 
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
-function QuestionBox() {
+function QuestionBox({ hint }: { hint?: string }) {
   const t = useTranslations("assistant");
   const state = useFormState();
   const error = state.fieldErrors?.question;
@@ -17,6 +17,7 @@ function QuestionBox() {
         // A fresh box after each answer; the text is kept when asking failed.
         key={state.seq ?? 0}
         name="question"
+        dir="auto"
         rows={3}
         maxLength={2000}
         required
@@ -24,16 +25,16 @@ function QuestionBox() {
         aria-invalid={error ? true : undefined}
         className="border-border bg-surface w-full rounded-lg border p-2"
       />
-      <span className="text-muted mt-1 block text-xs">{t("questionHint")}</span>
+      <span className="text-muted mt-1 block text-xs">{hint ?? t("questionHint")}</span>
     </label>
   );
 }
 
-export function AskForm({ action }: { action: Action }) {
+export function AskForm({ action, hint }: { action: Action; hint?: string }) {
   const t = useTranslations("assistant");
   return (
     <ActionForm action={action} submitLabel={t("ask")} pendingLabel={t("thinking")}>
-      <QuestionBox />
+      <QuestionBox hint={hint} />
     </ActionForm>
   );
 }

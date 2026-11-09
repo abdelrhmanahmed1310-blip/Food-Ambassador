@@ -15,8 +15,13 @@ import { tenantMutation } from "@/server/actions/tenant";
 
 type S = ActionState;
 
+/** Where each helper lives: the business assistant (ADR-122) and the food consultant (ADR-131). */
+const PAGE = { BUSINESS: "assistant", CONSULTANT: "consultant" } as const;
+type Mode = keyof typeof PAGE;
+
 export async function askAction(
   orgSlug: string,
+  mode: Mode,
   conversationId: string | null,
   previous: S,
   formData: FormData,
@@ -26,17 +31,22 @@ export async function askAction(
   const result = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
     const r = await askAssistant(
       ctx,
-      { conversationId: conversationId ?? undefined, question: formValues(formData).question },
+      {
+        conversationId: conversationId ?? undefined,
+        question: formValues(formData).question,
+        mode,
+      },
       { locale },
     );
     id = r.conversationId;
   });
-  if (id && !conversationId) redirect(`/o/${orgSlug}/assistant?c=${id}`);
+  if (id && !conversationId) redirect(`/o/${orgSlug}/${PAGE[mode]}?c=${id}`);
   return result;
 }
 
 export async function deleteConversationAction(
   orgSlug: string,
+  mode: Mode,
   id: string,
   previous: S,
   formData: FormData,
@@ -44,7 +54,7 @@ export async function deleteConversationAction(
   const result = await tenantMutation(orgSlug, previous, formData, (ctx) =>
     deleteConversation(ctx, id),
   );
-  if (result.ok) redirect(`/o/${orgSlug}/assistant`);
+  if (result.ok) redirect(`/o/${orgSlug}/${PAGE[mode]}`);
   return result;
 }
 

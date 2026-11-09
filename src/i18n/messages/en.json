@@ -207,7 +207,8 @@
     "recruitment": "Recruitment",
     "workforce": "Workforce plan",
     "myInterviews": "My interviews",
-    "hrAnalytics": "HR analytics"
+    "hrAnalytics": "HR analytics",
+    "consultant": "Food consultant"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -1168,7 +1169,8 @@
       "recruitment": {
         "view": "See openings and candidates",
         "manage": "Request openings and run candidates through interviews"
-      }
+      },
+      "consultant.use": "Ask the food consultant"
     }
   },
   "audit": {
@@ -6438,7 +6440,11 @@
     },
     "dailyLimit": "Questions per person per day",
     "dailyLimitHint": "1 to 1000. Limits cost on your Anthropic account.",
-    "governanceAdmin": "A new key or model switches the assistant off until the connection test passes. What is sent: the question (without e-mail addresses or phone numbers) and the business figures the assistant reads to answer it. Guest and staff names, contacts and pay are never sent. Each question is audited by the reports read, not by its text."
+    "governanceAdmin": "A new key or model switches the assistant off until the connection test passes. What is sent: the question (without e-mail addresses or phone numbers) and the business figures the assistant reads to answer it. Guest and staff names, contacts and pay are never sent. Each question is audited by the reports read, not by its text.",
+    "consultantLabel": "Food consultant",
+    "tryAsking": "Try asking",
+    "consultantGovernance": "The food consultant runs on Claude (Anthropic) with the key in the assistant settings. It reads only the recipes, costs, allergens and nutrition you may see, sends no guest or staff details, and is a guide, not a replacement for your food-safety plan, local regulations or a qualified professional. Your conversations are kept 90 days and only you can read them.",
+    "consultantQuestionHint": "Ask in Arabic or English. Do not include guests' or staff members' personal details: e-mail addresses and phone numbers are removed."
   },
   "payroll": {
     "title": "Payroll",
@@ -7322,5 +7328,16 @@
     "performance": "Performance ratings",
     "noRatings": "No rated reviews in cycles ending in this range.",
     "ratingN": "Rated {rating}"
+  },
+  "consultant": {
+    "title": "Food consultant",
+    "hint": "Ask about food safety, recipes, costing, menus, waste and kitchen operations — in Arabic or English.",
+    "withData": "It can also look up your own recipes, dish costs, allergens and nutrition as recorded in the app.",
+    "generalOnly": "Your account cannot see recipes, so it answers from general food expertise only.",
+    "example1": "How should we cool and store a large batch of cooked rice safely?",
+    "example2": "Which of our dishes contain sesame?",
+    "example3": "Which dishes are above their food cost target, and what price would fix them?",
+    "example4": "كيف نقلل الهدر في تحضير الخضروات؟",
+    "example5": "What should a HACCP plan for a central kitchen cover?"
   }
 }

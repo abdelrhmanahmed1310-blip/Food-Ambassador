@@ -61,6 +61,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
         : []),
     ],
   };
+  // The food consultant (ADR-131).
+  if (holdsAnyGrant(ctx.grants, "consultant.use"))
+    main.items.push({ href: `${base}/consultant`, label: t("consultant"), icon: "consultant" });
   // Interviews to run and score (ADR-129).
   if (await showsMyInterviews(ctx))
     main.items.push({

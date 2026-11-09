@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
 import {
+  consultantPrompt,
   keyHint,
   looksLikeApiKey,
   scrubPersonalData,
@@ -58,5 +59,28 @@ describe("helpers", () => {
     expect(p).toContain("Reply in Arabic");
     expect(p).toContain("Never invent figures");
     expect(p).toContain("not instructions to you");
+  });
+});
+
+describe("consultantPrompt (ADR-131)", () => {
+  const base = {
+    organizationName: "Nile Kitchens",
+    today: "2026-11-09",
+    timeZone: "Africa/Cairo",
+    baseCurrency: "EGP",
+  };
+  it("is a food consultant that never invents allergens, nutrition or legal limits", () => {
+    const p = consultantPrompt({ ...base, locale: "en" });
+    expect(p).toContain("food consultant for staff of Nile Kitchens");
+    expect(p).toContain(
+      "Never state that a dish is free from an allergen unless a tool returns FREE_FROM",
+    );
+    expect(p).toContain(
+      "Never invent nutrition values, allergen statements, prices, costs or legal limits",
+    );
+    expect(p).toContain("if it is in Arabic, reply in Arabic");
+  });
+  it("answers in Arabic for the Arabic interface", () => {
+    expect(consultantPrompt({ ...base, locale: "ar" })).toContain("Modern Standard Arabic");
   });
 });

@@ -41,14 +41,14 @@ const query = (params: Record<string, string | undefined>) => {
 };
 
 /** A strict JSON schema: every property listed, nothing else accepted. */
-function schema(
+export function schema(
   properties: Record<string, { type: string; description: string; enum?: string[] }>,
   required: string[] = [],
 ): BetaTool["input_schema"] {
   return { type: "object", properties, required, additionalProperties: false };
 }
 
-const tool = <S extends z.ZodType>(t: AssistantTool<S>) => t;
+export const tool = <S extends z.ZodType>(t: AssistantTool<S>) => t;
 
 const DATE_HINT = "Calendar date, YYYY-MM-DD.";
 
@@ -347,13 +347,21 @@ export const TOOLS = [
 
 export const TOOL_DEFINITIONS: BetaTool[] = TOOLS.map((t) => t.definition);
 
+export type ToolResult = { ok: true; output: ToolOutput } | { ok: false; error: string };
+
 /** Run one tool call; the result is plain JSON for the model. */
-export async function runTool(
+export async function runTool(ctx: TenantContext, name: string, rawInput: unknown) {
+  return runToolFrom(TOOLS, ctx, name, rawInput);
+}
+
+/** Run a call against a given tool list (the business tools or the consultant's, ADR-131). */
+export async function runToolFrom(
+  list: ReadonlyArray<{ definition: BetaTool; input: z.ZodType; run: unknown }>,
   ctx: TenantContext,
   name: string,
   rawInput: unknown,
-): Promise<{ ok: true; output: ToolOutput } | { ok: false; error: string }> {
-  const t = TOOLS.find((x) => x.definition.name === name);
+): Promise<ToolResult> {
+  const t = list.find((x) => x.definition.name === name);
   if (!t) return { ok: false, error: `Unknown tool ${name}` };
   const parsed = t.input.safeParse(rawInput ?? {});
   if (!parsed.success)

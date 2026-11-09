@@ -74,6 +74,7 @@ export const PERMISSIONS = [
   "rosters.manage",
   "recruitment.view",
   "recruitment.manage",
+  "consultant.use",
   "pnl.consolidated.view",
   "budgets.manage",
   "nutrition.view",
@@ -105,6 +106,7 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 /** Permissions that may be granted at branch or warehouse scope. All others are organization-wide only. */
 export const SCOPABLE_PERMISSIONS: ReadonlySet<Permission> = new Set([
+  "consultant.use",
   "recruitment.view",
   "recruitment.manage",
   "rosters.manage",
@@ -230,6 +232,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Operations Manager",
     description: "Oversees branches and warehouses.",
     permissions: [
+      "consultant.use",
       "recruitment.view",
       "recruitment.manage",
       "rosters.manage",
@@ -303,6 +306,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Procurement",
     description: "Purchasing and supplier management.",
     permissions: [
+      "consultant.use",
       "assistant.use",
       "trade.view",
       "trade.manage",
@@ -332,6 +336,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Warehouse",
     description: "Receiving, storage and stock movements.",
     permissions: [
+      "consultant.use",
       "assistant.use",
       "logistics.view",
       "logistics.manage",
@@ -360,6 +365,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Food Safety / Quality",
     description: "Quality control, food safety records and traceability.",
     permissions: [
+      "consultant.use",
       "training.view",
       "training.manage",
       "assistant.use",
@@ -388,6 +394,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Finance",
     description: "Invoices, settlements and cost reporting.",
     permissions: [
+      "consultant.use",
       "payroll.view",
       "payroll.approve",
       "assistant.use",
@@ -428,6 +435,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Branch Manager",
     description: "Manages a branch and its warehouses (usually granted at branch scope).",
     permissions: [
+      "consultant.use",
       "recruitment.view",
       "recruitment.manage",
       "rosters.manage",
@@ -538,7 +546,7 @@ export const SYSTEM_ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: "Kitchen",
     description:
       "Works the kitchen screens: sees tickets and bumps them when ready (usually granted at branch scope).",
-    permissions: ["pos.kitchen"],
+    permissions: ["consultant.use", "pos.kitchen"],
     organizationScopeOnly: false,
   },
   {

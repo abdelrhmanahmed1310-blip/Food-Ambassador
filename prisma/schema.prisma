@@ -7609,14 +7609,21 @@ model AssistantSettings {
   @@map("assistant_settings")
 }
 
+/// Which helper a conversation is with (ADR-131): the business assistant or the food consultant.
+enum AssistantMode {
+  BUSINESS
+  CONSULTANT
+}
+
 /// One person's conversation with the assistant; only its author reads it.
 model AssistantConversation {
-  id             String   @id @default(uuid(7)) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  userId         String   @map("user_id") @db.Uuid
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  mode           AssistantMode @default(BUSINESS)
   title          String
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user         User               @relation(fields: [userId], references: [id], onDelete: Restrict)

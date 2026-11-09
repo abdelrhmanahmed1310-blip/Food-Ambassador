@@ -1719,6 +1719,12 @@ Migration `20261209090000_f1a_companies_brands`.
 - **branches** gains `company_id` (required; backfilled to the default
   company) and `brand_id` (optional), both with composite tenant keys.
 
+### Food consultant (ADR-131)
+
+Migration `20270121090000_food_consultant`: **assistant_conversations**
+gain `mode` (BUSINESS | CONSULTANT, default BUSINESS); the consultant
+otherwise uses the assistant's tables (ADR-122).
+
 ### HR analytics (HR6, ADR-130)
 
 No tables: the page reads employees, leave, rosters, recruitment, payroll,
