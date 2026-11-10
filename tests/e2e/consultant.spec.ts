@@ -19,7 +19,7 @@ test("food consultant: in the menu in English and Arabic, off until the assistan
 
   // Arabic interface: the same page in Arabic, right to left.
   await page.getByRole("button", { name: "العربية" }).click();
-  await expect(page.getByRole("heading", { name: "روبوت محادثة مستشار الأغذية" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "المستشار الغذائي الآلي" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await context.close();
 });
