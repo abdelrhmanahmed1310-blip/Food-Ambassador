@@ -109,6 +109,13 @@ const channelSchema = z
       ])
       .optional()
       .transform((v) => (v === "" || v === undefined ? null : v)),
+    // Menu boards (ADR-133): colours, and seconds per page (0 = everything on one page).
+    boardTheme: z.enum(["LIGHT", "DARK"], { error: "invalidOption" }).catch("LIGHT"),
+    boardPageSeconds: z.coerce
+      .number()
+      .int()
+      .refine((v) => v === 0 || (v >= 5 && v <= 300), { error: "invalid" })
+      .default(0),
   })
   .refine((v) => v.kind !== "WEB" || v.channels.every((c) => c !== "DINE_IN"), {
     error: "webNoDineIn",
@@ -200,6 +207,8 @@ export async function createOrderingChannel(ctx: TenantContext, rawInput: unknow
         leadMinutes: v.leadMinutes,
         daysAhead: v.daysAhead,
         slotCapacity: v.slotCapacity,
+        boardTheme: v.boardTheme,
+        boardPageSeconds: v.kind === "BOARD" ? v.boardPageSeconds : 0,
         publicToken: token(),
         createdByUserId: ctx.userId,
       },
@@ -345,6 +354,8 @@ export async function publicMenu(publicToken: string) {
   return {
     kind: c.kind,
     name: c.name,
+    boardTheme: c.boardTheme as "LIGHT" | "DARK",
+    boardPageSeconds: c.boardPageSeconds,
     organizationName: c.organization.name,
     branchName: c.branch.name,
     currency: ctx.baseCurrency,

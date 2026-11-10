@@ -862,6 +862,16 @@ row-level security:
   characters, 1–64.
 - `OrderingChannelKind` gains `BOARD`.
 
+Migration `20270124090000_board_options_extra_photos`:
+
+- **item_photos**: more photos, at most four per product or menu item
+  (enforced in the service). `product_id` or `menu_item_id` (CK exactly
+  one), `image_id`, `sort_order`. Row-level security.
+- `ordering_channels.board_theme` (CK LIGHT | DARK) and
+  `board_page_seconds` (CK 0 or 5–300).
+- `menu_categories.board_from` and `board_to`: HH:MM, both or neither,
+  never equal.
+
 ## 8. Food safety and traceability (Milestone 6)
 
 - **food_safety_records**: type (temperature, hygiene, cleaning, pest control),

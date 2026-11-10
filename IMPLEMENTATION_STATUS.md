@@ -23,13 +23,15 @@ Last updated: 2026-11-10 (Product and menu item photos on the till, kiosks, onli
 
 Rules: DECISIONS.md ADR-133.
 
-| Area        | What works                                                                                                                                                              | Where                                   |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Photos      | Upload on products and menu items (JPEG/PNG/WebP up to 5 MB), re-encoded to WebP ≤ 1200 px without metadata; item falls back to its product's photo; replace and remove | Product page, menu item page            |
-| Shown on    | Till item tiles, self-order kiosk, online ordering page, menu board                                                                                                     | POS, `/kiosk/…`, `/order/…`, `/board/…` |
-| Barcodes    | Product barcodes (existing) plus an optional menu item barcode with check-digit validation; one item per code                                                           | Product page, menu item form            |
-| Scanning    | Scan field at the till and the kiosk; matched on the device (works offline); UPC-A/EAN-13 leading zero tolerated; unknown codes reported                                | Till, kiosk                             |
-| Menu boards | New channel type "Menu board (screen)": a public address to open full screen on any TV or tablet, refreshing every minute; takes no orders, needs no floor              | Point of sale → Online ordering setup   |
+| Area        | What works                                                                                                                                                                                                  | Where                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Photos      | Upload on products and menu items (JPEG/PNG/WebP up to 5 MB), re-encoded to WebP ≤ 1200 px without metadata; item falls back to its product's photo; replace and remove                                     | Product page, menu item page            |
+| Shown on    | Till item tiles, self-order kiosk, online ordering page, menu board                                                                                                                                         | POS, `/kiosk/…`, `/order/…`, `/board/…` |
+| Barcodes    | Product barcodes (existing) plus an optional menu item barcode with check-digit validation; one item per code                                                                                               | Product page, menu item form            |
+| Scanning    | Scan field at the till and the kiosk; matched on the device (works offline); UPC-A/EAN-13 leading zero tolerated; unknown codes reported                                                                    | Till, kiosk                             |
+| Menu boards | New channel type "Menu board (screen)": a public address to open full screen on any TV or tablet, refreshing every minute; takes no orders, needs no floor; light or dark theme; pages turning every 8–60 s | Point of sale → Online ordering setup   |
+| More photos | Up to four more photos per product or menu item, shown in turn on boards                                                                                                                                    | Product page, menu item page            |
+| Time of day | Menu categories can be shown on boards only between set hours (e.g. breakfast 06:00–11:00, branch time)                                                                                                     | Menu → Edit category                    |
 
 ## Nutrition engine — USDA FoodData Central (built)
 
@@ -2524,3 +2526,4 @@ that the build environment cannot reach:
 | App store release                                                                                                              | Q-19 (app id and developer accounts)                                                        |
 | SSO, required 2FA, category hierarchy                                                                                          | Q-07, Q-13                                                                                  |
 | Penetration test; review of Arabic nutrient and category names                                                                 | Outside specialists                                                                         |
+| Videos on boards and kiosks                                                                                                    | Object storage for large files (hosting decision, Q-03)                                     |

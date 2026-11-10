@@ -3885,10 +3885,19 @@ screen show. Menu items can be scanned at the till and kiosk by barcode.
     sign-in, no floor and no register.
   - It takes no orders: placing one is refused, and payment, kitchen and
     pick-up settings are ignored for it.
-- **Not yet**:
-  - Several photos per item and videos.
-  - Board layouts and themes (rotation, prices only).
-  - Scheduled boards (breakfast and lunch menus).
+- **Added (2026-11-10)**:
+  - **More photos**: up to four after the main one, on a product or a
+    menu item. A menu item uses its own set of photos when it has any,
+    otherwise its product's. Boards show the photos in turn; the till,
+    kiosk and ordering page show the main photo.
+  - **Board options**: a light or dark theme, independent of the screen's
+    own setting, and pages that turn every 8–60 seconds for long menus.
+    Pages keep a category together where it fits.
+  - **Board hours per menu category**: for example breakfast from 06:00
+    to 11:00, in the branch's time zone. A window may run past midnight.
+    One screen therefore changes its menu through the day.
+- **Not yet**: videos. They need file storage outside the database
+  (object storage), which is a hosting decision (Q-03).
 
 ## Business assumptions (recorded, not invented rules)
 

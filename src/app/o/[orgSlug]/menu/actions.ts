@@ -9,6 +9,7 @@ import {
   addModifierOption,
   attachModifierGroup,
   createMenuCategory,
+  updateMenuCategory,
   createMenuItem,
   createModifierGroup,
   detachModifierGroup,
@@ -20,6 +21,7 @@ import {
 } from "@/modules/menu/service";
 import { formValues } from "@/server/actions/handle";
 import { setMenuItemImage } from "@/modules/media/images";
+import { addExtraPhoto, removeExtraPhoto } from "@/modules/media/images";
 import { photoFrom } from "@/server/actions/photo";
 import { tenantMutation } from "@/server/actions/tenant";
 
@@ -28,6 +30,17 @@ type S = ActionState;
 export async function createMenuCategoryAction(orgSlug: string, previous: S, formData: FormData) {
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await createMenuCategory(ctx, formValues(formData));
+  });
+}
+
+export async function updateMenuCategoryAction(
+  orgSlug: string,
+  categoryId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await updateMenuCategory(ctx, categoryId, formValues(formData));
   });
 }
 
@@ -185,6 +198,33 @@ export async function removeMenuItemPhotoAction(
   const t = await getTranslations("photos");
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await setMenuItemImage(ctx, itemId, null);
+    return { message: t("removed") };
+  });
+}
+
+/** One more photo after the main one (ADR-133). */
+export async function addMenuItemExtraPhotoAction(
+  orgSlug: string,
+  itemId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await addExtraPhoto(ctx, { menuItemId: itemId }, await photoFrom(formData));
+    return { message: t("saved") };
+  });
+}
+
+export async function removeMenuItemExtraPhotoAction(
+  orgSlug: string,
+  photoId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await removeExtraPhoto(ctx, photoId);
     return { message: t("removed") };
   });
 }

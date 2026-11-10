@@ -163,6 +163,7 @@ model Organization {
   units                        UnitOfMeasure[]
   products                     Product[]
   mediaImages                  MediaImage[]
+  itemPhotos                   ItemPhoto[]
   barcodes                     ProductBarcode[]
   conversions                  ProductUomConversion[]
   lots                         InventoryLot[]
@@ -887,6 +888,7 @@ model Product {
 
   organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   image                MediaImage?               @relation("ProductImage", fields: [organizationId, imageId], references: [organizationId, id], onDelete: Restrict)
+  extraPhotos          ItemPhoto[]
   purchaseTaxCode      TaxCode?                  @relation("ProductPurchaseTaxCode", fields: [organizationId, purchaseTaxCodeId], references: [organizationId, id], onDelete: Restrict)
   baseUom              UnitOfMeasure             @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
   category             ProductCategory?          @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
@@ -5190,6 +5192,9 @@ model MenuCategory {
   name           String
   nameAr         String?   @map("name_ar")
   sortOrder      Int       @default(0) @map("sort_order")
+  /// Shown on menu boards only between these times (HH:MM, branch time; ADR-133), e.g. breakfast.
+  boardFrom      String?   @map("board_from")
+  boardTo        String?   @map("board_to")
   archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -5232,6 +5237,7 @@ model MenuItem {
   product        Product?                @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
   taxCode        TaxCode?                @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
   image          MediaImage?             @relation("MenuItemImage", fields: [organizationId, imageId], references: [organizationId, id], onDelete: Restrict)
+  extraPhotos    ItemPhoto[]
   prices         MenuItemPrice[]
   modifierGroups MenuItemModifierGroup[]
   components     ComboComponent[]        @relation("Combo")
@@ -5728,35 +5734,38 @@ enum GuestPaymentMode {
 }
 
 model OrderingChannel {
-  id              String              @id @default(uuid(7)) @db.Uuid
-  organizationId  String              @map("organization_id") @db.Uuid
-  kind            OrderingChannelKind
-  name            String
-  branchId        String              @map("branch_id") @db.Uuid
+  id               String              @id @default(uuid(7)) @db.Uuid
+  organizationId   String              @map("organization_id") @db.Uuid
+  kind             OrderingChannelKind
+  name             String
+  branchId         String              @map("branch_id") @db.Uuid
   /// Eat in and/or take away (kiosk), take away for pick-up (web).
-  channels        SalesChannel[]
+  channels         SalesChannel[]
   /// Send to the kitchen as soon as the guest orders, without a person accepting.
-  autoSend        Boolean             @default(false) @map("auto_send")
-  maxOrderTotal   Decimal?            @map("max_order_total") @db.Decimal(19, 4)
+  autoSend         Boolean             @default(false) @map("auto_send")
+  maxOrderTotal    Decimal?            @map("max_order_total") @db.Decimal(19, 4)
   /// How guests pay (ADR-071): at the counter, online before the kitchen starts, or their choice.
-  paymentMode     GuestPaymentMode    @default(COUNTER) @map("payment_mode")
+  paymentMode      GuestPaymentMode    @default(COUNTER) @map("payment_mode")
   /// The register whose open shift records online payments (needed unless COUNTER).
-  registerId      String?             @map("register_id") @db.Uuid
-  register        PosRegister?        @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
+  registerId       String?             @map("register_id") @db.Uuid
+  register         PosRegister?        @relation(fields: [organizationId, registerId], references: [organizationId, id], onDelete: Restrict)
   /// Pick-up times: offered between these local times, in slots, at least this long from now.
-  scheduling      Boolean             @default(false)
-  openFrom        String?             @map("open_from")
-  openTo          String?             @map("open_to")
-  slotMinutes     Int                 @default(15) @map("slot_minutes")
-  leadMinutes     Int                 @default(20) @map("lead_minutes")
-  daysAhead       Int                 @default(0) @map("days_ahead")
+  scheduling       Boolean             @default(false)
+  /// Menu boards (ADR-133): LIGHT or DARK, and seconds per page when the menu is shown in pages (0 = one page).
+  boardTheme       String              @default("LIGHT") @map("board_theme")
+  boardPageSeconds Int                 @default(0) @map("board_page_seconds")
+  openFrom         String?             @map("open_from")
+  openTo           String?             @map("open_to")
+  slotMinutes      Int                 @default(15) @map("slot_minutes")
+  leadMinutes      Int                 @default(20) @map("lead_minutes")
+  daysAhead        Int                 @default(0) @map("days_ahead")
   /// Most orders per pick-up slot (kitchen capacity); null = no limit.
-  slotCapacity    Int?                @map("slot_capacity")
+  slotCapacity     Int?                @map("slot_capacity")
   /// Random id in the public address; never the database id.
-  publicToken     String              @unique @map("public_token")
-  createdByUserId String              @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  archivedAt      DateTime?           @map("archived_at") @db.Timestamptz(3)
+  publicToken      String              @unique @map("public_token")
+  createdByUserId  String              @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  archivedAt       DateTime?           @map("archived_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
@@ -9163,7 +9172,29 @@ model MediaImage {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   products     Product[]    @relation("ProductImage")
   menuItems    MenuItem[]   @relation("MenuItemImage")
+  extraPhotos  ItemPhoto[]
 
   @@unique([organizationId, id])
   @@map("media_images")
+}
+
+/// More photos of a product or a menu item, after its main photo (ADR-133); at most four.
+model ItemPhoto {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  productId      String?  @map("product_id") @db.Uuid
+  menuItemId     String?  @map("menu_item_id") @db.Uuid
+  imageId        String   @map("image_id") @db.Uuid
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product?     @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+  menuItem     MenuItem?    @relation(fields: [organizationId, menuItemId], references: [organizationId, id], onDelete: Cascade)
+  image        MediaImage   @relation(fields: [organizationId, imageId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, productId])
+  @@index([organizationId, menuItemId])
+  @@map("item_photos")
 }

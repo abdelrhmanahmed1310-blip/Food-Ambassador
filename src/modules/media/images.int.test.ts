@@ -7,6 +7,7 @@ import {
   createMenuCategory,
   createMenuItem,
   getMenuItem,
+  updateMenuCategory,
   updateMenuItem,
 } from "@/modules/menu/service";
 import { createOrderingChannel, placeGuestOrder, publicMenu } from "@/modules/pos/ordering";
@@ -15,7 +16,14 @@ import { createBranch } from "@/modules/sites/branches";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
 import { addMember, createTenant, expectAppError } from "../../../test/support/factories";
-import { imageForServing, processImage, setMenuItemImage, setProductImage } from "./images";
+import {
+  addExtraPhoto,
+  imageForServing,
+  processImage,
+  removeExtraPhoto,
+  setMenuItemImage,
+  setProductImage,
+} from "./images";
 
 /** Product and menu item photos, menu item barcodes (ADR-133). */
 
@@ -202,5 +210,91 @@ describe("product and menu item photos (ADR-133)", () => {
       ),
       "NOT_FOUND",
     );
+  });
+
+  it("adds up to four more photos, main photo first; the item's own set replaces the product's", async () => {
+    const water = (
+      await getDb().product.findFirstOrThrow({
+        where: { organizationId: ctx.organizationId, sku: "WATER" },
+      })
+    ).id;
+    const item = (
+      await getDb().menuItem.findFirstOrThrow({
+        where: {
+          organizationId: ctx.organizationId,
+          code: { equals: "water", mode: "insensitive" },
+        },
+      })
+    ).id;
+    await expectAppError(
+      addExtraPhoto(analyst, { productId: water }, await png(50, 50)),
+      "FORBIDDEN",
+    );
+    const added = [];
+    for (let i = 0; i < 4; i++)
+      added.push(await addExtraPhoto(ctx, { productId: water }, await png(60 + i, 60)));
+    await expectAppError(
+      addExtraPhoto(ctx, { productId: water }, await png(70, 60)),
+      "BUSINESS_RULE_VIOLATION",
+    );
+    const photosOnTill = async () =>
+      (await sellableMenu(ctx, branch, businessDate(ctx.timeZone)))
+        .find((c) => c.channel === "TAKEAWAY")!
+        .items.find((i) => i.id === item)!.photos;
+    const main = (await getDb().product.findUniqueOrThrow({ where: { id: water } })).imageId;
+    expect(await photosOnTill()).toEqual([
+      `/media/${main}`,
+      ...added.map((a) => `/media/${a.imageId}`),
+    ]);
+    // An extra photo on the item itself: the item's set is used, not the product's.
+    const own = await addExtraPhoto(ctx, { menuItemId: item }, await png(80, 60));
+    expect(await photosOnTill()).toEqual([`/media/${own.imageId}`]);
+    await removeExtraPhoto(ctx, own.id);
+    expect(await imageForServing(own.imageId)).toBeNull();
+    expect((await photosOnTill())[0]).toBe(`/media/${main}`);
+    await expectAppError(removeExtraPhoto(analyst, added[0].id), "FORBIDDEN");
+    const other = (await createTenant("photos-extra-other")).ctx;
+    await expectAppError(removeExtraPhoto(other, added[0].id), "NOT_FOUND");
+  });
+
+  it("keeps board hours on categories whole, and board options on the channel", async () => {
+    await expectAppError(
+      updateMenuCategory(ctx, category, { name: "Drinks", boardFrom: "06:00" }),
+      "VALIDATION_FAILED",
+    );
+    await expectAppError(
+      updateMenuCategory(ctx, category, { name: "Drinks", boardFrom: "06:00", boardTo: "06:00" }),
+      "VALIDATION_FAILED",
+    );
+    await updateMenuCategory(ctx, category, {
+      name: "Drinks",
+      boardFrom: "06:00",
+      boardTo: "11:00",
+    });
+    const board = await createOrderingChannel(ctx, {
+      kind: "BOARD",
+      name: "Dark screen",
+      branchId: branch,
+      channels: ["TAKEAWAY"],
+      boardTheme: "DARK",
+      boardPageSeconds: "12",
+    });
+    const menu = (await publicMenu(board.publicToken))!;
+    expect([menu.boardTheme, menu.boardPageSeconds]).toEqual(["DARK", 12]);
+    expect(menu.channels[0].items[0].category).toMatchObject({
+      boardFrom: "06:00",
+      boardTo: "11:00",
+    });
+    await expectAppError(
+      createOrderingChannel(ctx, {
+        kind: "BOARD",
+        name: "x",
+        branchId: branch,
+        channels: ["TAKEAWAY"],
+        boardPageSeconds: "3",
+      }),
+      "VALIDATION_FAILED",
+    );
+    await updateMenuCategory(ctx, category, { name: "Drinks", boardFrom: "", boardTo: "" });
   });
 });

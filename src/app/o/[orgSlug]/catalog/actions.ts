@@ -17,6 +17,7 @@ import { createCategory, setCategoryArchived, updateCategory } from "@/modules/c
 import { importOpeningBalances, importProducts, type ImportResult } from "@/modules/inventory/csv";
 import { formValues } from "@/server/actions/handle";
 import { setProductImage } from "@/modules/media/images";
+import { addExtraPhoto, removeExtraPhoto } from "@/modules/media/images";
 import { photoFrom } from "@/server/actions/photo";
 import { tenantMutation } from "@/server/actions/tenant";
 import { translateRowErrors } from "@/server/actions/import-errors";
@@ -227,6 +228,33 @@ export async function removeProductPhotoAction(
   const t = await getTranslations("photos");
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await setProductImage(ctx, productId, null);
+    return { message: t("removed") };
+  });
+}
+
+/** One more photo after the main one (ADR-133). */
+export async function addProductExtraPhotoAction(
+  orgSlug: string,
+  productId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await addExtraPhoto(ctx, { productId: productId }, await photoFrom(formData));
+    return { message: t("saved") };
+  });
+}
+
+export async function removeProductExtraPhotoAction(
+  orgSlug: string,
+  photoId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await removeExtraPhoto(ctx, photoId);
     return { message: t("removed") };
   });
 }

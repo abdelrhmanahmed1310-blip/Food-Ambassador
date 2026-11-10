@@ -86,11 +86,28 @@ const barcodeField = z
 
 // ─── Categories ───
 
-const categorySchema = z.object({
-  name: requiredText(120),
-  nameAr: optionalText(120),
-  sortOrder,
-});
+const hhmm = z
+  .union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, { error: "invalid" }), z.literal("")])
+  .optional()
+  .transform((v) => (v ? v : null));
+
+const categorySchema = z
+  .object({
+    name: requiredText(120),
+    nameAr: optionalText(120),
+    sortOrder,
+    // Shown on menu boards only between these times (ADR-133); both or neither.
+    boardFrom: hhmm,
+    boardTo: hhmm,
+  })
+  .refine((v) => (v.boardFrom === null) === (v.boardTo === null), {
+    error: "required",
+    path: ["boardTo"],
+  })
+  .refine((v) => v.boardFrom === null || v.boardFrom !== v.boardTo, {
+    error: "invalid",
+    path: ["boardTo"],
+  });
 
 export async function createMenuCategory(ctx: TenantContext, rawInput: unknown) {
   assertPermission(ctx.grants, "menu.manage");
@@ -742,7 +759,17 @@ export async function menuForBranch(
         unavailable: { none: { branchId: at.branchId } },
       },
       include: {
-        category: { select: { id: true, name: true, nameAr: true, sortOrder: true } },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            nameAr: true,
+            sortOrder: true,
+            boardFrom: true,
+            boardTo: true,
+          },
+        },
+        extraPhotos: { select: { imageId: true }, orderBy: [{ sortOrder: "asc" }] },
         prices: {
           where: {
             channel: at.channel,
@@ -769,7 +796,13 @@ export async function menuForBranch(
           include: { component: { select: { id: true, code: true, name: true, nameAr: true } } },
         },
         // Photo and barcodes for the till, kiosk and boards (ADR-133).
-        product: { select: { imageId: true, barcodes: { select: { barcode: true } } } },
+        product: {
+          select: {
+            imageId: true,
+            barcodes: { select: { barcode: true } },
+            extraPhotos: { select: { imageId: true }, orderBy: [{ sortOrder: "asc" }] },
+          },
+        },
       },
       orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { code: "asc" }],
     });

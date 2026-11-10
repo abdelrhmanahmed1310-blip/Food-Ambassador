@@ -9,23 +9,55 @@ import { inputClass } from "@/components/ui/styles";
 type Option = { value: string; label: string };
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
-export function MenuCategoryForm({ action }: { action: Action }) {
+export function MenuCategoryForm({
+  action,
+  defaults,
+  submitLabel,
+}: {
+  action: Action;
+  defaults?: Record<string, string | undefined>;
+  submitLabel?: string;
+}) {
   const t = useTranslations();
+  const opt = t("common.optional");
   return (
     <ActionForm
       action={action}
-      submitLabel={t("menu.addCategory")}
+      submitLabel={submitLabel ?? t("menu.addCategory")}
       pendingLabel={t("common.saving")}
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <TextField name="name" label={t("menu.name")} required />
-        <TextField name="nameAr" label={t("menu.nameAr")} optionalLabel={t("common.optional")} />
+        <TextField name="name" label={t("menu.name")} defaultValue={defaults?.name} required />
+        <TextField
+          name="nameAr"
+          label={t("menu.nameAr")}
+          defaultValue={defaults?.nameAr}
+          optionalLabel={opt}
+        />
         <TextField
           name="sortOrder"
           label={t("menu.sortOrder")}
+          defaultValue={defaults?.sortOrder}
           inputMode="numeric"
           dir="ltr"
-          optionalLabel={t("common.optional")}
+          optionalLabel={opt}
+        />
+        <TextField
+          name="boardFrom"
+          label={t("menu.boardFrom")}
+          hint={t("menu.boardHoursHint")}
+          defaultValue={defaults?.boardFrom}
+          type="time"
+          dir="ltr"
+          optionalLabel={opt}
+        />
+        <TextField
+          name="boardTo"
+          label={t("menu.boardTo")}
+          defaultValue={defaults?.boardTo}
+          type="time"
+          dir="ltr"
+          optionalLabel={opt}
         />
       </div>
     </ActionForm>

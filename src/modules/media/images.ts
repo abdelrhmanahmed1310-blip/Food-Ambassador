@@ -85,11 +85,12 @@ async function storeInTx(tx: Tx, ctx: TenantContext, img: ProcessedImage) {
 /** Delete an image no product or menu item uses any more. */
 async function dropIfUnusedInTx(tx: Tx, ctx: TenantContext, imageId: string | null) {
   if (!imageId) return;
-  const [p, m] = await Promise.all([
+  const [p, m, x] = await Promise.all([
     tx.product.count({ where: { organizationId: ctx.organizationId, imageId } }),
     tx.menuItem.count({ where: { organizationId: ctx.organizationId, imageId } }),
+    tx.itemPhoto.count({ where: { organizationId: ctx.organizationId, imageId } }),
   ]);
-  if (p + m === 0)
+  if (p + m + x === 0)
     await tx.mediaImage.deleteMany({ where: { organizationId: ctx.organizationId, id: imageId } });
 }
 
@@ -148,6 +149,83 @@ export async function setMenuItemImage(
     });
     return { imageId: created?.id ?? null };
   });
+}
+
+export const MAX_EXTRA_PHOTOS = 4;
+
+type Owner = { productId: string } | { menuItemId: string };
+
+/**
+ * Add one more photo to a product or menu item, after its main photo (at most
+ * four). Menu boards show them in turn; the main photo stays the first.
+ */
+export async function addExtraPhoto(ctx: TenantContext, owner: Owner, upload: Uint8Array) {
+  const isProduct = "productId" in owner;
+  assertPermission(ctx.grants, isProduct ? "catalog.manage" : "menu.manage");
+  const img = await processImage(upload);
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const org = ctx.organizationId;
+    const exists = isProduct
+      ? await tx.product.findFirst({ where: { organizationId: org, id: owner.productId } })
+      : await tx.menuItem.findFirst({ where: { organizationId: org, id: owner.menuItemId } });
+    if (!exists) throw notFound(isProduct ? "Product" : "Menu item");
+    const where = isProduct
+      ? { organizationId: org, productId: owner.productId }
+      : { organizationId: org, menuItemId: owner.menuItemId };
+    const count = await tx.itemPhoto.count({ where });
+    if (count >= MAX_EXTRA_PHOTOS)
+      throw businessRuleViolation("TOO_MANY_PHOTOS", "At most four more photos", {
+        field: "photo",
+        max: MAX_EXTRA_PHOTOS,
+      });
+    const created = await storeInTx(tx, ctx, img);
+    const photo = await tx.itemPhoto.create({
+      data: { ...where, imageId: created.id, sortOrder: count + 1 },
+      select: { id: true },
+    });
+    await recordAudit(tx, actorOf(ctx), {
+      action: isProduct ? "product.photo_added" : "menu_item.photo_added",
+      entityType: isProduct ? "product" : "menu_item",
+      entityId: exists.id,
+      changes: { photoId: photo.id },
+    });
+    return { id: photo.id, imageId: created.id };
+  });
+}
+
+export async function removeExtraPhoto(ctx: TenantContext, photoId: string) {
+  const id = uuidSchema.safeParse(photoId);
+  if (!id.success) throw notFound("Photo");
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const photo = await tx.itemPhoto.findFirst({
+      where: { organizationId: ctx.organizationId, id: id.data },
+    });
+    if (!photo) throw notFound("Photo");
+    assertPermission(ctx.grants, photo.productId ? "catalog.manage" : "menu.manage");
+    await tx.itemPhoto.delete({ where: { id: photo.id } });
+    await dropIfUnusedInTx(tx, ctx, photo.imageId);
+    await recordAudit(tx, actorOf(ctx), {
+      action: photo.productId ? "product.photo_removed" : "menu_item.photo_removed",
+      entityType: photo.productId ? "product" : "menu_item",
+      entityId: (photo.productId ?? photo.menuItemId)!,
+      changes: { photoId: photo.id },
+    });
+  });
+}
+
+/** Extra photos of products and menu items, in order. */
+export async function listExtraPhotos(ctx: TenantContext, owner: Owner) {
+  assertPermission(ctx.grants, "productId" in owner ? "catalog.view" : "menu.view");
+  return withTenantTx(ctx.organizationId, (tx) =>
+    tx.itemPhoto.findMany({
+      where:
+        "productId" in owner
+          ? { organizationId: ctx.organizationId, productId: owner.productId }
+          : { organizationId: ctx.organizationId, menuItemId: owner.menuItemId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, imageId: true },
+    }),
+  );
 }
 
 /**

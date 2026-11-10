@@ -1668,12 +1668,25 @@ export async function sellableMenu(ctx: TenantContext, branchId: string, date: s
       description: i.description,
       // The item's own photo, else its product's (ADR-133).
       imageUrl: imageUrl(i.imageId ?? i.product?.imageId),
+      // All its photos, main first: the item's own set if it has one, else its product's.
+      photos: (i.imageId || i.extraPhotos.length > 0
+        ? [i.imageId, ...i.extraPhotos.map((p) => p.imageId)]
+        : [i.product?.imageId, ...(i.product?.extraPhotos.map((p) => p.imageId) ?? [])]
+      )
+        .filter((x): x is string => Boolean(x))
+        .map((x) => imageUrl(x)!),
       // What a scan at the till or kiosk answers to: the item's barcode and its product's.
       barcodes: [
         ...(i.barcode ? [i.barcode] : []),
         ...(i.product?.barcodes.map((b) => b.barcode) ?? []),
       ],
-      category: { id: i.category.id, name: i.category.name, nameAr: i.category.nameAr },
+      category: {
+        id: i.category.id,
+        name: i.category.name,
+        nameAr: i.category.nameAr,
+        boardFrom: i.category.boardFrom,
+        boardTo: i.category.boardTo,
+      },
       price: i.price.price.toFixed(),
       includesTax: i.price.includesTax,
       taxRate: rates.get(i.id) ?? null,

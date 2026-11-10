@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
+import { ExtraPhotos } from "@/components/media/extra-photos";
 import { PhotoForm } from "@/components/media/photo-form";
 import {
   AttachGroupForm,
@@ -23,7 +24,7 @@ import { isUuid } from "@/lib/uuid";
 import { hasPermission } from "@/modules/access/authorize";
 import { businessDate } from "@/modules/inventory/rules";
 import { SALES_CHANNELS } from "@/modules/menu/rules";
-import { imageUrl } from "@/modules/media/images";
+import { imageUrl, listExtraPhotos, MAX_EXTRA_PHOTOS } from "@/modules/media/images";
 import { getMenuItem, menuFormOptions } from "@/modules/menu/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -37,6 +38,8 @@ import {
   setItemAvailabilityAction,
   setMenuItemArchivedAction,
   removeMenuItemPhotoAction,
+  addMenuItemExtraPhotoAction,
+  removeMenuItemExtraPhotoAction,
   setMenuItemPhotoAction,
   updateMenuItemAction,
 } from "../../actions";
@@ -52,6 +55,7 @@ export default async function MenuItemPage({
   if (!hasPermission(ctx.grants, "menu.view")) notFound();
   const item = await notFoundOnAppError(getMenuItem(ctx, itemId));
   const manage = hasPermission(ctx.grants, "menu.manage");
+  const extraPhotos = await listExtraPhotos(ctx, { menuItemId: item.id });
   const [t, locale, money, o] = await Promise.all([
     getTranslations(),
     getLocale(),
@@ -106,6 +110,19 @@ export default async function MenuItemPage({
           ) : (
             <p className="text-muted text-sm">{t("photos.none")}</p>
           )}
+          {manage ? (
+            <div className="mt-6">
+              <ExtraPhotos
+                max={MAX_EXTRA_PHOTOS}
+                add={addMenuItemExtraPhotoAction.bind(null, orgSlug, item.id)}
+                photos={extraPhotos.map((p) => ({
+                  id: p.id,
+                  url: imageUrl(p.imageId)!,
+                  remove: removeMenuItemExtraPhotoAction.bind(null, orgSlug, p.id),
+                }))}
+              />
+            </div>
+          ) : null}
         </Card>
         <Card>
           <DescriptionList

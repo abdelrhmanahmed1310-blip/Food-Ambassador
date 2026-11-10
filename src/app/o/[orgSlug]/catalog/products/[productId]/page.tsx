@@ -5,8 +5,9 @@ import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { BarcodeForm, ConversionForm, ProductForm } from "@/components/inventory/forms";
+import { ExtraPhotos } from "@/components/media/extra-photos";
 import { PhotoForm } from "@/components/media/photo-form";
-import { imageUrl } from "@/modules/media/images";
+import { imageUrl, listExtraPhotos, MAX_EXTRA_PHOTOS } from "@/modules/media/images";
 import {
   Badge,
   Card,
@@ -39,6 +40,8 @@ import {
 import {
   addBarcodeAction,
   removeProductPhotoAction,
+  addProductExtraPhotoAction,
+  removeProductExtraPhotoAction,
   setProductPhotoAction,
   addConversionAction,
   removeBarcodeAction,
@@ -65,6 +68,7 @@ export default async function ProductPage({
     ? await productStockSummary(ctx, productId)
     : null;
   const canManage = hasPermission(ctx.grants, "catalog.manage");
+  const extraPhotos = await listExtraPhotos(ctx, { productId });
   const costsVisible = hasPermission(ctx.grants, "recipes.costs.view");
   const [standardCosts, money] = costsVisible
     ? await Promise.all([listStandardCosts(ctx, productId), moneyFormatter(ctx.baseCurrency)])
@@ -268,6 +272,19 @@ export default async function ProductPage({
           ) : (
             <p className="text-muted text-sm">{t("photos.none")}</p>
           )}
+          {canManage ? (
+            <div className="mt-6">
+              <ExtraPhotos
+                max={MAX_EXTRA_PHOTOS}
+                add={addProductExtraPhotoAction.bind(null, orgSlug, productId)}
+                photos={extraPhotos.map((p) => ({
+                  id: p.id,
+                  url: imageUrl(p.imageId)!,
+                  remove: removeProductExtraPhotoAction.bind(null, orgSlug, p.id),
+                }))}
+              />
+            </div>
+          ) : null}
         </Card>
 
         <Card title={t("catalog.barcodes")}>

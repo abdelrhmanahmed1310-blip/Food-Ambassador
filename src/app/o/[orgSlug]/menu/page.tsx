@@ -17,7 +17,7 @@ import { SALES_CHANNELS } from "@/modules/menu/rules";
 import { listMenu } from "@/modules/menu/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { moneyFormatter } from "@/server/inventory-view";
-import { createMenuCategoryAction } from "./actions";
+import { createMenuCategoryAction, updateMenuCategoryAction } from "./actions";
 
 export default async function MenuPage({ params }: PageProps<"/o/[orgSlug]/menu">) {
   const { orgSlug } = await params;
@@ -57,6 +57,31 @@ export default async function MenuPage({ params }: PageProps<"/o/[orgSlug]/menu"
         ) : null}
         {menu.map((c) => (
           <Card key={c.id} title={name(c)}>
+            {c.boardFrom && c.boardTo ? (
+              <p className="text-muted mb-3 text-sm">
+                {t("menu.boardHoursShown", { from: c.boardFrom, to: c.boardTo })}
+              </p>
+            ) : null}
+            {manage ? (
+              <details className="mb-4">
+                <summary className="text-primary cursor-pointer text-sm">
+                  {t("menu.editCategory")}
+                </summary>
+                <div className="mt-3">
+                  <MenuCategoryForm
+                    action={updateMenuCategoryAction.bind(null, orgSlug, c.id)}
+                    submitLabel={t("common.save")}
+                    defaults={{
+                      name: c.name,
+                      nameAr: c.nameAr ?? undefined,
+                      sortOrder: String(c.sortOrder),
+                      boardFrom: c.boardFrom ?? undefined,
+                      boardTo: c.boardTo ?? undefined,
+                    }}
+                  />
+                </div>
+              </details>
+            ) : null}
             {c.items.length === 0 ? (
               <p className="text-muted text-sm">{t("menu.noItems")}</p>
             ) : (

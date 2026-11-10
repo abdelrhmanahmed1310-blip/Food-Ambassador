@@ -33,6 +33,10 @@ test("product photo and barcode: shown and scanned at the till, shown on a menu 
   const src = await page.getByTestId("photo").getAttribute("src");
   const served = await page.request.get(src!);
   expect(served.headers()["content-type"]).toBe("image/webp");
+  // One more photo, shown in turn on menu boards.
+  await page.locator("#extra-photo-file").setInputFiles(file);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByTestId("extra-photos").locator("img")).toHaveCount(1);
   await page.getByLabel("Barcode", { exact: true }).fill("6281000000014");
   await page.getByLabel("Barcode type").selectOption("EAN13");
   await page.getByRole("button", { name: "Add barcode" }).click();
@@ -60,6 +64,8 @@ test("product photo and barcode: shown and scanned at the till, shown on a menu 
   await page.getByLabel("Type").selectOption("BOARD");
   await page.getByLabel("Name", { exact: true }).fill("Front screen");
   await page.getByRole("checkbox", { name: "Eat in" }).check();
+  await page.getByLabel("Colours").selectOption("DARK");
+  await page.getByLabel("Pages").selectOption("8");
   await page.getByRole("button", { name: "Add a page or kiosk" }).click();
   const channel = page.getByTestId("ordering-channel").filter({ hasText: "Front screen" });
   await expect(channel).toBeVisible();
@@ -68,9 +74,10 @@ test("product photo and barcode: shown and scanned at the till, shown on a menu 
   const screen = await browser.newContext();
   const tv = await screen.newPage();
   await tv.goto(boardPath);
+  await expect(tv.getByTestId("menu-board")).toHaveAttribute("data-theme", "DARK");
   const item = tv.getByTestId("board-item").filter({ hasText: "Cola" });
   await expect(item).toContainText(/EGP\s?25\.00/);
-  await expect(item.locator("img")).toHaveAttribute("src", src!);
+  await expect(item.locator("img")).toHaveAttribute("src", /^\/media\//);
   await screen.close();
   await context.close();
 });

@@ -50,6 +50,24 @@
   }
 }
 
+/* Menu boards (ADR-133): the board's own theme, whatever the screen prefers. */
+.board-light {
+  --background: #f5f5f4;
+  --surface: #ffffff;
+  --border: #e7e5e4;
+  --foreground: #1c1917;
+  --muted: #57534e;
+  --primary: #c62828;
+}
+.board-dark {
+  --background: #0f0f0f;
+  --surface: #181717;
+  --border: #322e2e;
+  --foreground: #f5f5f4;
+  --muted: #b5afab;
+  --primary: #f06a6e;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);

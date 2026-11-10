@@ -932,7 +932,8 @@
     "OFF_BAD_RESPONSE": "Open Food Facts sent a record that could not be read.",
     "IMAGE_INVALID": "Upload a JPEG, PNG or WebP photo.",
     "IMAGE_TOO_LARGE": "A photo can be at most 5 MB.",
-    "MENU_BARCODE_OF_OTHER_PRODUCT": "This barcode belongs to another product."
+    "MENU_BARCODE_OF_OTHER_PRODUCT": "This barcode belongs to another product.",
+    "TOO_MANY_PHOTOS": "At most four more photos. Remove one first."
   },
   "notFound": {
     "title": "Page not found",
@@ -3361,7 +3362,12 @@
     "edit": "Edit item",
     "barcode": "Barcode",
     "barcodeHint": "Scanned at the till or kiosk. Items sold from a product also answer to the product's barcodes.",
-    "barcodes": "Barcodes"
+    "barcodes": "Barcodes",
+    "boardFrom": "Shown on menu boards from",
+    "boardTo": "until",
+    "boardHoursHint": "Optional, e.g. 06:00–11:00 for breakfast. Branch time. Leave empty to show it all day.",
+    "boardHoursShown": "On menu boards {from}–{to} only.",
+    "editCategory": "Edit category"
   },
   "pos": {
     "title": "Point of sale",
@@ -4185,7 +4191,17 @@
     "scan": "Scan a barcode",
     "scanPlaceholder": "Scan the barcode",
     "scanAdd": "Add",
-    "scanNotFound": "We could not find this item. Please choose it from the menu."
+    "scanNotFound": "We could not find this item. Please choose it from the menu.",
+    "boardOptions": "Menu board",
+    "boardOptionsHint": "For the Menu board (screen) type only.",
+    "boardTheme": "Colours",
+    "boardThemes": {
+      "LIGHT": "Light",
+      "DARK": "Dark"
+    },
+    "boardPageSeconds": "Pages",
+    "boardOnePage": "Everything on one page",
+    "boardSeconds": "New page every {n} s"
   },
   "dashboard": {
     "title": "Sales dashboard",
@@ -7735,6 +7751,9 @@
     "inherited": "Showing the photo of the linked product. Upload one to use a different photo for this item.",
     "productHint": "Shown on the till, self-order kiosks, the online ordering page and menu boards for menu items sold from this product.",
     "itemHint": "Shown on the till, self-order kiosks, the online ordering page and menu boards. Without its own photo, an item shows its product's photo.",
-    "barcodeHint": "These barcodes can be scanned at the till and at self-order kiosks to add the menu item sold from this product."
+    "barcodeHint": "These barcodes can be scanned at the till and at self-order kiosks to add the menu item sold from this product.",
+    "extraTitle": "More photos ({count} of {max}) — shown in turn on menu boards",
+    "extraAdd": "Add a photo",
+    "add": "Add"
   }
 }

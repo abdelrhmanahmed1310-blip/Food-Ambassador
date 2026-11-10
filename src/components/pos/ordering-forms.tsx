@@ -67,6 +67,30 @@ export function OrderingChannelForm({
       </div>
       <CheckboxField name="autoSend" label={t("ordering.autoSend")} />
       <fieldset className="border-border space-y-3 rounded-md border p-3">
+        <legend className="px-1 text-sm font-medium">{t("ordering.boardOptions")}</legend>
+        <p className="text-muted text-sm">{t("ordering.boardOptionsHint")}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            name="boardTheme"
+            label={t("ordering.boardTheme")}
+            defaultValue="LIGHT"
+            options={(["LIGHT", "DARK"] as const).map((m) => ({
+              value: m,
+              label: t(`ordering.boardThemes.${m}`),
+            }))}
+          />
+          <SelectField
+            name="boardPageSeconds"
+            label={t("ordering.boardPageSeconds")}
+            defaultValue="0"
+            options={[0, 8, 12, 20, 30, 60].map((n) => ({
+              value: String(n),
+              label: n === 0 ? t("ordering.boardOnePage") : t("ordering.boardSeconds", { n }),
+            }))}
+          />
+        </div>
+      </fieldset>
+      <fieldset className="border-border space-y-3 rounded-md border p-3">
         <legend className="px-1 text-sm font-medium">{t("ordering.payment")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField

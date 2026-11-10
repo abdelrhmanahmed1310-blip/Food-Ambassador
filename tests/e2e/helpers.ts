@@ -45,7 +45,9 @@ export async function signUp(
   await page.getByLabel("Base currency").selectOption(opts.baseCurrency ?? "EGP");
   await page.getByLabel("Time zone").selectOption(opts.timeZone ?? "Africa/Cairo");
   await page.getByRole("button", { name: "Create organization" }).click();
-  await expect(page).toHaveURL(/\/o\/[a-z0-9-]+$/);
+  // The first sign-up after the server starts also warms its database pool and
+  // password hashing; allow for that instead of the default 5 s.
+  await expect(page).toHaveURL(/\/o\/[a-z0-9-]+$/, { timeout: 20_000 });
   return new URL(page.url()).pathname.split("/")[2];
 }
 
