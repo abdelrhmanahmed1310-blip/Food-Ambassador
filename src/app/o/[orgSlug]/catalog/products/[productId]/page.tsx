@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { BarcodeForm, ConversionForm, ProductForm } from "@/components/inventory/forms";
+import { PhotoForm } from "@/components/media/photo-form";
+import { imageUrl } from "@/modules/media/images";
 import {
   Badge,
   Card,
@@ -36,6 +38,8 @@ import {
 } from "@/server/inventory-view";
 import {
   addBarcodeAction,
+  removeProductPhotoAction,
+  setProductPhotoAction,
   addConversionAction,
   removeBarcodeAction,
   removeConversionAction,
@@ -245,7 +249,29 @@ export default async function ProductPage({
           </Card>
         ) : null}
 
+        <Card title={t("photos.title")}>
+          <p className="text-muted mb-3 text-sm">{t("photos.productHint")}</p>
+          {canManage ? (
+            <PhotoForm
+              imageUrl={imageUrl(product.imageId)}
+              alt={product.nameEn}
+              upload={setProductPhotoAction.bind(null, orgSlug, productId)}
+              remove={removeProductPhotoAction.bind(null, orgSlug, productId)}
+            />
+          ) : product.imageId ? (
+            // eslint-disable-next-line @next/next/no-img-element -- served from /media with long-lived caching
+            <img
+              src={imageUrl(product.imageId)!}
+              alt={product.nameEn}
+              className="size-40 rounded-xl object-cover"
+            />
+          ) : (
+            <p className="text-muted text-sm">{t("photos.none")}</p>
+          )}
+        </Card>
+
         <Card title={t("catalog.barcodes")}>
+          <p className="text-muted mb-3 text-sm">{t("photos.barcodeHint")}</p>
           {product.barcodes.length === 0 ? (
             <p className="text-muted mb-4 text-sm">{t("catalog.noBarcodes")}</p>
           ) : null}

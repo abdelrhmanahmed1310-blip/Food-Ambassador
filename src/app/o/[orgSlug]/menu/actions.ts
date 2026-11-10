@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import type { ActionState } from "@/components/forms/action-state";
 import {
   addComboComponent,
@@ -18,6 +19,8 @@ import {
   updateMenuItem,
 } from "@/modules/menu/service";
 import { formValues } from "@/server/actions/handle";
+import { setMenuItemImage } from "@/modules/media/images";
+import { photoFrom } from "@/server/actions/photo";
 import { tenantMutation } from "@/server/actions/tenant";
 
 type S = ActionState;
@@ -157,4 +160,31 @@ export async function setModifierOptionArchivedAction(
   return tenantMutation(orgSlug, previous, formData, (ctx) =>
     setModifierOptionArchived(ctx, optionId, archived),
   );
+}
+
+/** Upload or replace the photo (ADR-133). */
+export async function setMenuItemPhotoAction(
+  orgSlug: string,
+  itemId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await setMenuItemImage(ctx, itemId, await photoFrom(formData));
+    return { message: t("saved") };
+  });
+}
+
+export async function removeMenuItemPhotoAction(
+  orgSlug: string,
+  itemId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await setMenuItemImage(ctx, itemId, null);
+    return { message: t("removed") };
+  });
 }

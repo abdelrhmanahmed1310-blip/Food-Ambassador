@@ -179,6 +179,7 @@ export async function findProduct(tx: Tx, ctx: TenantContext, productId: string)
       shelfLifeDays: true,
       baseUomId: true,
       hsCode: true,
+      imageId: true,
       originCountry: true,
       baseUom: { select: unitSelect },
       barcodes: {

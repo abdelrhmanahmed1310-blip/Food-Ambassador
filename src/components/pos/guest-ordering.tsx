@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { Decimal } from "@/lib/decimal";
 import { promotionFor, saleMoment } from "@/modules/pos/discounts";
+import { matchBarcode } from "@/modules/pos/barcode-match";
 import { lineAmounts } from "@/modules/pos/rules";
 import type { PublicMenu } from "@/modules/pos/ordering";
 import type { GuestOrderResult } from "@/app/order/actions";
@@ -61,6 +62,9 @@ export function GuestOrdering({
   const [pending, start] = useTransition();
   const key = useRef<string | null>(null);
   const kiosk = mode === "KIOSK";
+  // A kiosk with a scanner: the guest scans a packed item (ADR-133).
+  const [scan, setScan] = useState("");
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
   // Pick-up: as soon as possible (when open) or one of the offered slots.
   const [pickupAt, setPickupAt] = useState<string>(menu.asap ? "" : (menu.slots[0] ?? ""));
   const [payOnline, setPayOnline] = useState(menu.paymentMode === "ONLINE");
@@ -249,6 +253,44 @@ export function GuestOrdering({
             </button>
           ))}
         </div>
+        {kiosk ? (
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const item = matchBarcode(items, scan);
+              setScan("");
+              if (!item) {
+                setScanMessage(t("scanNotFound"));
+                return;
+              }
+              setScanMessage(null);
+              if (item.groups.length > 0) setChoosing(item);
+              else add(item);
+            }}
+          >
+            <label htmlFor="kiosk-scan" className="sr-only">
+              {t("scan")}
+            </label>
+            <input
+              id="kiosk-scan"
+              value={scan}
+              onChange={(e) => setScan(e.target.value)}
+              placeholder={t("scanPlaceholder")}
+              autoComplete="off"
+              dir="ltr"
+              className={`${inputClass} max-w-xs`}
+            />
+            <button type="submit" className={buttonClass("secondary")}>
+              {t("scanAdd")}
+            </button>
+            {scanMessage ? (
+              <span role="alert" className="text-danger text-sm">
+                {scanMessage}
+              </span>
+            ) : null}
+          </form>
+        ) : null}
         <ul
           className={`grid gap-2 ${kiosk ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"}`}
         >
@@ -259,6 +301,15 @@ export function GuestOrdering({
                 className={`border-border bg-surface hover:border-primary flex w-full flex-col items-start justify-between rounded-lg border p-3 text-start ${kiosk ? "min-h-28 text-lg" : "min-h-20"}`}
                 onClick={() => (i.groups.length > 0 ? setChoosing(i) : add(i))}
               >
+                {i.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- photos come from /media with long-lived caching
+                  <img
+                    src={i.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="mb-2 aspect-[4/3] w-full rounded-md object-cover"
+                  />
+                ) : null}
                 <span className="font-medium">
                   <bdi>{named(i, locale)}</bdi>
                 </span>

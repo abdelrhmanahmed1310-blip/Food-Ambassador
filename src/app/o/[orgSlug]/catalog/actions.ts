@@ -16,6 +16,8 @@ import {
 import { createCategory, setCategoryArchived, updateCategory } from "@/modules/catalog/categories";
 import { importOpeningBalances, importProducts, type ImportResult } from "@/modules/inventory/csv";
 import { formValues } from "@/server/actions/handle";
+import { setProductImage } from "@/modules/media/images";
+import { photoFrom } from "@/server/actions/photo";
 import { tenantMutation } from "@/server/actions/tenant";
 import { translateRowErrors } from "@/server/actions/import-errors";
 
@@ -200,4 +202,31 @@ export async function setCategoryArchivedAction(
   return tenantMutation(orgSlug, previous, formData, (ctx) =>
     setCategoryArchived(ctx, categoryId, archived),
   );
+}
+
+/** Upload or replace the photo (ADR-133). */
+export async function setProductPhotoAction(
+  orgSlug: string,
+  productId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await setProductImage(ctx, productId, await photoFrom(formData));
+    return { message: t("saved") };
+  });
+}
+
+export async function removeProductPhotoAction(
+  orgSlug: string,
+  productId: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations("photos");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await setProductImage(ctx, productId, null);
+    return { message: t("removed") };
+  });
 }

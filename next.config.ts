@@ -36,9 +36,9 @@ const nextConfig: NextConfig = {
   // The PDF fonts travel with the standalone server.
   outputFileTracingIncludes: { "/o/**": ["./assets/fonts/*.ttf"] },
   experimental: {
-    // Attachments up to 3 MB (ADR-051, Q-08) plus multipart overhead. Other
-    // uploads keep their own, lower limits in their actions.
-    serverActions: { bodySizeLimit: "4mb" },
+    // Photos up to 5 MB (ADR-133) and attachments up to 3 MB (ADR-051, Q-08),
+    // plus multipart overhead. Other uploads keep their own, lower limits.
+    serverActions: { bodySizeLimit: "6mb" },
     ...(lowMemoryBuild ? { cpus: 2 } : {}),
   },
   turbopack: {

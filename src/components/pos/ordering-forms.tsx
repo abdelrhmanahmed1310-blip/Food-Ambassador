@@ -39,6 +39,7 @@ export function OrderingChannelForm({
           options={[
             { value: "WEB", label: t("ordering.kinds.WEB") },
             { value: "KIOSK", label: t("ordering.kinds.KIOSK") },
+            { value: "BOARD", label: t("ordering.kinds.BOARD") },
           ]}
           required
         />

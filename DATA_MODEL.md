@@ -849,6 +849,19 @@ row-level security:
   RESOLVED | IGNORED), resolution note, by and at; partial UQ one open
   finding per food and kind.
 
+**Photos and menu item barcodes** (migration
+`20270123090000_item_photos_barcodes`, ADR-133):
+
+- **media_images**: `content_type` (CK image/webp), `width`, `height` (CK
+  1–1200), `size_bytes` (CK ≤ 2 MB and equal to the data's length),
+  `sha256`, `data` BYTEA, uploader, time. Row-level security; insert and
+  delete only.
+- `products.image_id` and `menu_items.image_id` reference it (composite FK
+  with the organization).
+- `menu_items.barcode`: partial UQ per organization when set; CK printable
+  characters, 1–64.
+- `OrderingChannelKind` gains `BOARD`.
+
 ## 8. Food safety and traceability (Milestone 6)
 
 - **food_safety_records**: type (temperature, hygiene, cleaning, pest control),

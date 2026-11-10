@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ConfirmActionButton } from "@/components/forms/confirm-button";
+import { PhotoForm } from "@/components/media/photo-form";
 import {
   AttachGroupForm,
   ComboComponentForm,
@@ -22,6 +23,7 @@ import { isUuid } from "@/lib/uuid";
 import { hasPermission } from "@/modules/access/authorize";
 import { businessDate } from "@/modules/inventory/rules";
 import { SALES_CHANNELS } from "@/modules/menu/rules";
+import { imageUrl } from "@/modules/media/images";
 import { getMenuItem, menuFormOptions } from "@/modules/menu/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
@@ -34,6 +36,8 @@ import {
   removeComboComponentAction,
   setItemAvailabilityAction,
   setMenuItemArchivedAction,
+  removeMenuItemPhotoAction,
+  setMenuItemPhotoAction,
   updateMenuItemAction,
 } from "../../actions";
 
@@ -82,6 +86,27 @@ export default async function MenuItemPage({
         }
       />
       <div className="space-y-6">
+        <Card title={t("photos.title")}>
+          <p className="text-muted mb-3 text-sm">{t("photos.itemHint")}</p>
+          {manage ? (
+            <PhotoForm
+              imageUrl={imageUrl(item.imageId ?? item.product?.imageId)}
+              inherited={!item.imageId && !!item.product?.imageId}
+              alt={item.name}
+              upload={setMenuItemPhotoAction.bind(null, orgSlug, item.id)}
+              remove={removeMenuItemPhotoAction.bind(null, orgSlug, item.id)}
+            />
+          ) : (item.imageId ?? item.product?.imageId) ? (
+            // eslint-disable-next-line @next/next/no-img-element -- served from /media with long-lived caching
+            <img
+              src={imageUrl(item.imageId ?? item.product?.imageId)!}
+              alt={item.name}
+              className="size-40 rounded-xl object-cover"
+            />
+          ) : (
+            <p className="text-muted text-sm">{t("photos.none")}</p>
+          )}
+        </Card>
         <Card>
           <DescriptionList
             items={[
@@ -98,6 +123,13 @@ export default async function MenuItemPage({
                     : t("menu.comboHint"),
               },
               { label: t("menu.taxCode"), value: item.taxCode?.code ?? t("menu.taxDefault") },
+              {
+                label: t("menu.barcodes"),
+                value:
+                  [item.barcode, ...(item.product?.barcodes.map((b) => b.barcode) ?? [])]
+                    .filter(Boolean)
+                    .join(", ") || "—",
+              },
               ...(item.archivedAt
                 ? [
                     {
@@ -314,6 +346,7 @@ export default async function MenuItemPage({
                 productId: item.productId ?? undefined,
                 productQuantity: item.productQuantity?.toFixed(),
                 taxCodeId: item.taxCodeId ?? undefined,
+                barcode: item.barcode ?? undefined,
                 sortOrder: String(item.sortOrder),
               }}
             />

@@ -14,6 +14,7 @@ import {
   uuidSchema,
 } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
+import { hasValidGs1CheckDigit } from "@/modules/catalog/barcodes";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, conflict, notFound, validationFailed } from "@/server/errors";
@@ -58,10 +59,30 @@ async function audit(
 }
 
 function codeTaken(error: unknown): never {
+  if (isUniqueViolation(error, "menu_items_barcode_key"))
+    throw conflict("This barcode is already used", {
+      reason: "menuBarcodeTaken",
+      field: "barcode",
+    });
   if (isUniqueViolation(error))
     throw conflict("This code is already used", { reason: "codeTaken", field: "code" });
   throw error;
 }
+
+/**
+ * A menu item barcode (ADR-133): EAN-8, UPC-A, EAN-13 or GTIN-14 digits with a
+ * valid check digit, or any printable code (Code 128, QR, in-house labels).
+ */
+const barcodeField = z
+  .string()
+  .trim()
+  .max(64)
+  .optional()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || /^[\x21-\x7e]{1,64}$/.test(v), { error: "invalidBarcode" })
+  .refine((v) => v === null || !/^(\d{8}|\d{12,14})$/.test(v) || hasValidGs1CheckDigit(v), {
+    error: "invalidCheckDigit",
+  });
 
 // ─── Categories ───
 
@@ -120,6 +141,7 @@ const itemSchema = z
     productId: optionalUuidSchema,
     productQuantity: optionalQuantity,
     taxCodeId: optionalUuidSchema,
+    barcode: barcodeField,
     sortOrder,
   })
   .superRefine((v, c) => {
@@ -164,6 +186,19 @@ async function itemLinks(tx: Tx, ctx: TenantContext, v: z.infer<typeof itemSchem
     });
     if (!t) throw notFound("Tax code");
   }
+  // One scan, one item: a barcode of another product would make the scan ambiguous.
+  if (v.barcode) {
+    const owner = await tx.productBarcode.findFirst({
+      where: { organizationId: org, barcode: v.barcode },
+      select: { productId: true },
+    });
+    if (owner && !(v.kind === "ITEM" && owner.productId === v.productId))
+      throw businessRuleViolation(
+        "MENU_BARCODE_OF_OTHER_PRODUCT",
+        "This barcode belongs to another product",
+        { field: "barcode" },
+      );
+  }
   return {
     code: v.code,
     name: v.name,
@@ -176,6 +211,7 @@ async function itemLinks(tx: Tx, ctx: TenantContext, v: z.infer<typeof itemSchem
     // A product item uses 1 base unit unless told otherwise.
     productQuantity: v.kind === "ITEM" && v.productId ? (v.productQuantity ?? "1") : null,
     taxCodeId: v.taxCodeId ?? null,
+    barcode: v.barcode,
     sortOrder: v.sortOrder,
   };
 }
@@ -624,7 +660,14 @@ export async function getMenuItem(ctx: TenantContext, itemId: string) {
         category: { select: { id: true, name: true, nameAr: true } },
         recipe: { select: { id: true, code: true, name: true } },
         product: {
-          select: { id: true, sku: true, nameEn: true, baseUom: { select: { code: true } } },
+          select: {
+            id: true,
+            sku: true,
+            nameEn: true,
+            imageId: true,
+            baseUom: { select: { code: true } },
+            barcodes: { select: { barcode: true } },
+          },
         },
         taxCode: { select: { id: true, code: true } },
         prices: {
@@ -725,6 +768,8 @@ export async function menuForBranch(
         components: {
           include: { component: { select: { id: true, code: true, name: true, nameAr: true } } },
         },
+        // Photo and barcodes for the till, kiosk and boards (ADR-133).
+        product: { select: { imageId: true, barcodes: { select: { barcode: true } } } },
       },
       orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { code: "asc" }],
     });

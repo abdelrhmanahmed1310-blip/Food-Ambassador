@@ -162,6 +162,14 @@ export function MenuItemForm({
           placeholder="—"
         />
         <TextField
+          name="barcode"
+          label={t("menu.barcode")}
+          hint={t("menu.barcodeHint")}
+          defaultValue={defaults?.barcode}
+          dir="ltr"
+          optionalLabel={opt}
+        />
+        <TextField
           name="sortOrder"
           label={t("menu.sortOrder")}
           defaultValue={defaults?.sortOrder}

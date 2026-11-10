@@ -162,6 +162,7 @@ model Organization {
   idempotencyKeys              IdempotencyKey[]
   units                        UnitOfMeasure[]
   products                     Product[]
+  mediaImages                  MediaImage[]
   barcodes                     ProductBarcode[]
   conversions                  ProductUomConversion[]
   lots                         InventoryLot[]
@@ -881,8 +882,11 @@ model Product {
 
   /// Purchase tax code for supplier invoices; null = the organization's default.
   purchaseTaxCodeId String? @map("purchase_tax_code_id") @db.Uuid
+  /// Photo shown on the till, kiosk, online ordering and menu boards (ADR-133).
+  imageId           String? @map("image_id") @db.Uuid
 
   organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  image                MediaImage?               @relation("ProductImage", fields: [organizationId, imageId], references: [organizationId, id], onDelete: Restrict)
   purchaseTaxCode      TaxCode?                  @relation("ProductPurchaseTaxCode", fields: [organizationId, purchaseTaxCodeId], references: [organizationId, id], onDelete: Restrict)
   baseUom              UnitOfMeasure             @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
   category             ProductCategory?          @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
@@ -5213,6 +5217,10 @@ model MenuItem {
   productQuantity Decimal?     @map("product_quantity") @db.Decimal(20, 6)
   /// Sales tax code; null = the recipe's, else the organization's default.
   taxCodeId       String?      @map("tax_code_id") @db.Uuid
+  /// Own photo (ADR-133); without one, the linked product's photo is shown.
+  imageId         String?      @map("image_id") @db.Uuid
+  /// Scanned at the till or kiosk (ADR-133); a product item also answers to its product's barcodes.
+  barcode         String?
   sortOrder       Int          @default(0) @map("sort_order")
   archivedAt      DateTime?    @map("archived_at") @db.Timestamptz(3)
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -5223,6 +5231,7 @@ model MenuItem {
   recipe         Recipe?                 @relation(fields: [organizationId, recipeId], references: [organizationId, id], onDelete: Restrict)
   product        Product?                @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
   taxCode        TaxCode?                @relation(fields: [organizationId, taxCodeId], references: [organizationId, id], onDelete: Restrict)
+  image          MediaImage?             @relation("MenuItemImage", fields: [organizationId, imageId], references: [organizationId, id], onDelete: Restrict)
   prices         MenuItemPrice[]
   modifierGroups MenuItemModifierGroup[]
   components     ComboComponent[]        @relation("Combo")
@@ -5707,6 +5716,8 @@ enum PosTabSource {
 enum OrderingChannelKind {
   WEB
   KIOSK
+  /// A menu board on a screen: shows items, photos and prices; takes no orders (ADR-133).
+  BOARD
 }
 
 /// A public ordering page for one branch: the online ordering site or a self-order kiosk (ADR-070).
@@ -9132,4 +9143,27 @@ model FoodDataIssue {
   @@unique([organizationId, id])
   @@index([organizationId, status, kind])
   @@map("food_data_issues")
+}
+
+/// A photo for products and menu items (ADR-133). Uploads are decoded and
+/// re-encoded as WebP (at most 1200 px, metadata removed), so only image
+/// data is ever stored or served.
+model MediaImage {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  contentType      String   @map("content_type")
+  width            Int
+  height           Int
+  sizeBytes        Int      @map("size_bytes")
+  sha256           String
+  data             Bytes
+  uploadedByUserId String   @map("uploaded_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products     Product[]    @relation("ProductImage")
+  menuItems    MenuItem[]   @relation("MenuItemImage")
+
+  @@unique([organizationId, id])
+  @@map("media_images")
 }

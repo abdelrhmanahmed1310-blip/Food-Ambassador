@@ -59,7 +59,7 @@ export default async function OnlineSetupPage({
                   </div>
                   {c.archivedAt ? null : (
                     <CopyField
-                      value={`${base}/${c.kind === "WEB" ? "order" : "kiosk"}/${c.publicToken}`}
+                      value={`${base}/${c.kind === "WEB" ? "order" : c.kind === "KIOSK" ? "kiosk" : "board"}/${c.publicToken}`}
                       label={t("ordering.address")}
                       copyLabel={t("integrations.copy")}
                       copiedLabel={t("integrations.copied")}

@@ -398,7 +398,8 @@
     "consignmentOnTrip": "This is already on a trip.",
     "deliveryExists": "This order is already sent for delivery.",
     "feedbackGiven": "This order has already been rated.",
-    "nameTaken": "This name is already used."
+    "nameTaken": "This name is already used.",
+    "menuBarcodeTaken": "Another menu item already has this barcode."
   },
   "rules": {
     "BRANCH_HAS_ACTIVE_WAREHOUSES": "Archive this branch's warehouses first.",
@@ -928,7 +929,10 @@
     "OFF_NOT_CONFIGURED": "Open Food Facts lookup is switched off on this server.",
     "OFF_UNAVAILABLE": "Open Food Facts did not answer. Try again later.",
     "OFF_RATE_LIMITED": "Too many Open Food Facts lookups in the last minute. Try again shortly.",
-    "OFF_BAD_RESPONSE": "Open Food Facts sent a record that could not be read."
+    "OFF_BAD_RESPONSE": "Open Food Facts sent a record that could not be read.",
+    "IMAGE_INVALID": "Upload a JPEG, PNG or WebP photo.",
+    "IMAGE_TOO_LARGE": "A photo can be at most 5 MB.",
+    "MENU_BARCODE_OF_OTHER_PRODUCT": "This barcode belongs to another product."
   },
   "notFound": {
     "title": "Page not found",
@@ -3354,7 +3358,10 @@
     "notOffered": "Not offered",
     "offer": "Offer here",
     "stopOffering": "Stop offering here",
-    "edit": "Edit item"
+    "edit": "Edit item",
+    "barcode": "Barcode",
+    "barcodeHint": "Scanned at the till or kiosk. Items sold from a product also answer to the product's barcodes.",
+    "barcodes": "Barcodes"
   },
   "pos": {
     "title": "Point of sale",
@@ -3702,7 +3709,11 @@
     "platformPayments": "Paid to delivery platforms",
     "payWithGiftCard": "Pay with a gift card",
     "rateUs": "Rate your order:",
-    "rateUsLink": "Scan or tap to rate this order"
+    "rateUsLink": "Scan or tap to rate this order",
+    "scan": "Scan a barcode",
+    "scanPlaceholder": "Scan or type a barcode",
+    "scanAdd": "Add",
+    "scanNotFound": "No item on sale here has the barcode {code}."
   },
   "zatca": {
     "title": "E-invoicing (ZATCA)",
@@ -4108,7 +4119,8 @@
     },
     "kinds": {
       "WEB": "Web",
-      "KIOSK": "Kiosk"
+      "KIOSK": "Kiosk",
+      "BOARD": "Menu board (screen)"
     },
     "setupTitle": "Online ordering and kiosks",
     "setupIntro": "A public page per branch: the web page for pick-up orders, or a kiosk in the restaurant. Share the web address with guests; open the kiosk address on the kiosk device. Payment is at the counter.",
@@ -4169,7 +4181,11 @@
     "pickupWindow": "pick-up {from}–{to}",
     "paymentProblem": "Paid online but not recorded:",
     "slotCapacity": "Orders per slot",
-    "slotCapacityHint": "What the kitchen can prepare for one pick-up time; full slots are not offered."
+    "slotCapacityHint": "What the kitchen can prepare for one pick-up time; full slots are not offered.",
+    "scan": "Scan a barcode",
+    "scanPlaceholder": "Scan the barcode",
+    "scanAdd": "Add",
+    "scanNotFound": "We could not find this item. Please choose it from the menu."
   },
   "dashboard": {
     "title": "Sales dashboard",
@@ -7705,5 +7721,20 @@
     },
     "offNote": "Open Food Facts is filled in by volunteers: use it as a lead, check the values against the packaging and verify before using them on labels. Allergens it does not list are unknown, not absent.",
     "offAttribution": "Data: Open Food Facts contributors (openfoodfacts.org), Open Database License."
+  },
+  "photos": {
+    "title": "Photo",
+    "none": "No photo yet",
+    "choose": "Photo file",
+    "hint": "JPEG, PNG or WebP, up to 5 MB. It is resized to at most 1200 px and saved without camera or location data.",
+    "upload": "Upload photo",
+    "uploading": "Saving…",
+    "remove": "Remove photo",
+    "saved": "Photo saved.",
+    "removed": "Photo removed.",
+    "inherited": "Showing the photo of the linked product. Upload one to use a different photo for this item.",
+    "productHint": "Shown on the till, self-order kiosks, the online ordering page and menu boards for menu items sold from this product.",
+    "itemHint": "Shown on the till, self-order kiosks, the online ordering page and menu boards. Without its own photo, an item shows its product's photo.",
+    "barcodeHint": "These barcodes can be scanned at the till and at self-order kiosks to add the menu item sold from this product."
   }
 }

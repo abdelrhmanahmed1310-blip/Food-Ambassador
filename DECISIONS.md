@@ -3837,6 +3837,59 @@ on top. The existing tables are extended rather than duplicated:
       never replaces a manufacturer specification (the existing linking
       rule).
 
+### ADR-133 Product photos, menu item barcodes and menu boards — Accepted (built)
+
+Decision (2026-11-10): products and menu items carry a photo, which the
+till, self-order kiosks, the online ordering page and a new menu board
+screen show. Menu items can be scanned at the till and kiosk by barcode.
+
+- **Photos.**
+  - One photo per product and per menu item. An item without its own photo
+    shows its product's photo.
+  - Upload: JPEG, PNG or WebP, at most 5 MB. The format is checked from the
+    file's content, never its name. A decompression-bomb limit applies.
+  - The server re-encodes every photo with sharp: turned upright, at most
+    1200 px a side, saved as WebP without metadata (no camera or location
+    data). Only these re-encoded images are stored (`media_images`, with a
+    CHECK on type, size and dimensions) and served, so an uploaded file is
+    never sent back as it came.
+  - Photos are served at `/media/{id}` without sign-in, because the
+    ordering page, kiosks and boards are public. Ids are random UUIDs and
+    the response is the image only, with `nosniff` and a sandboxing CSP.
+    A new photo gets a new id, so the response can be cached forever.
+  - Replacing or removing a photo deletes the old image once nothing uses
+    it.
+  - Permissions: `catalog.manage` for products, `menu.manage` for menu
+    items.
+- **Barcodes.**
+  - Product barcodes already existed (catalog, with GS1 check digits).
+  - A menu item may now have its own barcode, e.g. a packed sandwich made
+    from a recipe. It accepts EAN-8, UPC-A, EAN-13 or GTIN-14 with a valid
+    check digit, or any printable code (Code 128, QR, in-house labels). It
+    is unique among menu items, and it is refused if it is another
+    product's barcode, so a scan always names one item.
+  - The menu feed (`sellableMenu`) gives each item its barcodes: its own
+    and its product's.
+  - The till and the kiosk match scans on the device, from the menu they
+    already hold, so scanning works offline. A UPC-A scanned as EAN-13
+    (with a leading zero) still matches.
+  - Barcode scanners act as keyboards: the code plus Enter adds the item,
+    or opens its options when it has any. An unknown code is reported and
+    adds nothing.
+- **Menu boards** ("plug and play" screens).
+  - A new ordering channel kind, `BOARD`, under Point of sale → Online
+    ordering setup. Its address `/board/{token}` is opened full screen on
+    any TV, tablet or signage player.
+  - The board shows the branch's menu by category, with photos, English
+    and Arabic names and prices, and refreshes every minute. It needs no
+    sign-in, no floor and no register.
+  - It takes no orders: placing one is refused, and payment, kitchen and
+    pick-up settings are ignored for it.
+- **Not yet**:
+  - Several photos per item and videos.
+  - Board layouts and themes (rotation, prices only).
+  - Scheduled boards (breakfast and lunch menus).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

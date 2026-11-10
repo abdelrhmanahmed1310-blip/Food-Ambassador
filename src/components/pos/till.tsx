@@ -14,6 +14,7 @@ import {
   sellGiftCardAction,
 } from "@/app/o/[orgSlug]/pos/tables-actions";
 import { promotionFor, saleMoment } from "@/modules/pos/discounts";
+import { matchBarcode } from "@/modules/pos/barcode-match";
 import { lineAmounts } from "@/modules/pos/rules";
 import type { TillData } from "@/modules/pos/service";
 import {
@@ -107,6 +108,7 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
   const [gift, setGift] = useState<TillGiftCard | null>(null);
   // Promotions depend on the time of day: re-evaluated every half minute and at payment.
   const [clock, setClock] = useState(now);
+  const [scan, setScan] = useState("");
   const register = data.register.id;
   const cashier = data.cashierUserId;
 
@@ -343,6 +345,18 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
     );
 
   const shown = category ? items.filter((i) => i.category.id === category) : items;
+  // Barcode scanners type the code and press Enter (ADR-133); found on this device's menu.
+  const scanned = (code: string) => {
+    const item = matchBarcode(items, code);
+    setScan("");
+    if (!item) {
+      setError(t("pos.scanNotFound", { code: code.trim() }));
+      return;
+    }
+    setError(null);
+    if (item.groups.length > 0) setChoosing(item);
+    else add(item);
+  };
   const inCart = (itemId: string) =>
     cart.reduce((n, l) => (l.item.id === itemId ? n + l.quantity : n), 0);
   const chip = (active: boolean) =>
@@ -409,6 +423,30 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
             </button>
           ))}
         </div>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (scan.trim()) scanned(scan);
+          }}
+        >
+          <label htmlFor="till-scan" className="sr-only">
+            {t("pos.scan")}
+          </label>
+          <input
+            id="till-scan"
+            value={scan}
+            onChange={(e) => setScan(e.target.value)}
+            placeholder={t("pos.scanPlaceholder")}
+            autoComplete="off"
+            inputMode="text"
+            dir="ltr"
+            className={`${inputClass} max-w-xs`}
+          />
+          <button type="submit" className={buttonClass("secondary")}>
+            {t("pos.scanAdd")}
+          </button>
+        </form>
         {items.length === 0 ? <p className="text-muted text-sm">{t("pos.nothingOnSale")}</p> : null}
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3">
           {shown.map((i) => (
@@ -418,6 +456,15 @@ export function Till({ orgSlug, data }: { orgSlug: string; data: TillData }) {
                 className="border-border bg-surface hover:border-primary active:bg-surface-muted relative flex min-h-28 w-full touch-manipulation flex-col items-start justify-between rounded-xl border p-3.5 text-start shadow-sm transition active:scale-[0.97]"
                 onClick={() => (i.groups.length > 0 ? setChoosing(i) : add(i))}
               >
+                {i.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- photos come from /media, cached by the device
+                  <img
+                    src={i.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="mb-2 aspect-[4/3] w-full rounded-lg object-cover"
+                  />
+                ) : null}
                 <span className="pe-7 text-base leading-snug font-semibold">
                   <bdi>{named(i, locale)}</bdi>
                 </span>

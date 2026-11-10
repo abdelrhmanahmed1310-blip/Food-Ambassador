@@ -63,7 +63,8 @@ const optionalTime = z
 
 const channelSchema = z
   .object({
-    kind: z.enum(["WEB", "KIOSK"], { error: "invalidOption" }),
+    // BOARD: a menu board on a screen; shows the menu, takes no orders (ADR-133).
+    kind: z.enum(["WEB", "KIOSK", "BOARD"], { error: "invalidOption" }),
     name: requiredText(120),
     branchId: uuidSchema,
     channels: z
@@ -109,7 +110,7 @@ const channelSchema = z
       .optional()
       .transform((v) => (v === "" || v === undefined ? null : v)),
   })
-  .refine((v) => v.kind === "KIOSK" || v.channels.every((c) => c !== "DINE_IN"), {
+  .refine((v) => v.kind !== "WEB" || v.channels.every((c) => c !== "DINE_IN"), {
     error: "webNoDineIn",
     path: ["channels"],
   })
@@ -127,7 +128,19 @@ export async function createOrderingChannel(ctx: TenantContext, rawInput: unknow
   assertPermission(ctx.grants, "pos.manage");
   const parsed = channelSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const v = parsed.data;
+  const parsedValues = parsed.data;
+  // A menu board takes no orders (ADR-133): no payments, kitchen sending or pick-up times.
+  const board = parsedValues.kind === "BOARD";
+  const v = board
+    ? {
+        ...parsedValues,
+        paymentMode: "COUNTER" as const,
+        autoSend: false,
+        maxOrderTotal: null,
+        registerId: null,
+        scheduling: false,
+      }
+    : parsedValues;
   if (v.paymentMode !== "COUNTER" && !(await paymentProvider(ctx)))
     throw businessRuleViolation("PAYMENT_PROVIDER_MISSING", "Set up online payments first", {
       field: "paymentMode",
@@ -137,7 +150,7 @@ export async function createOrderingChannel(ctx: TenantContext, rawInput: unknow
       where: { organizationId: ctx.organizationId, id: v.branchId, archivedAt: null },
     });
     if (!branch) throw notFound("Branch");
-    if (!hasPermission(ctx.grants, "pos.tables", { branchId: branch.id }))
+    if (!board && !hasPermission(ctx.grants, "pos.tables", { branchId: branch.id }))
       throw businessRuleViolation(
         "ORDERING_CREATOR_LACKS_ACCESS",
         "You cannot open checks at this branch",
@@ -149,7 +162,7 @@ export async function createOrderingChannel(ctx: TenantContext, rawInput: unknow
     const floor = await tx.posFloor.findFirst({
       where: { organizationId: ctx.organizationId, branchId: branch.id, archivedAt: null },
     });
-    if (!floor)
+    if (!floor && !board)
       throw businessRuleViolation("ORDERING_NEEDS_FLOOR", "Set up a floor at this branch first", {
         field: "branchId",
       });
@@ -390,7 +403,8 @@ export async function placeGuestOrder(
   fetchImpl: Fetch = fetch,
 ) {
   const r = await resolveChannel(publicToken);
-  if (!r) throw notFound("Ordering page");
+  // A menu board only shows the menu (ADR-133).
+  if (!r || r.channel.kind === "BOARD") throw notFound("Ordering page");
   const { channel: c } = r;
   const ctx = await contextForBranch(r.ctx, c.branchId);
   const [byGuest, byChannel] = await Promise.all([
@@ -492,7 +506,7 @@ export async function placeGuestOrder(
       guests: 1,
     },
     {
-      source: c.kind,
+      source: c.kind as "WEB" | "KIOSK",
       channelId: c.id,
       key: v.key,
       channel: v.channel,

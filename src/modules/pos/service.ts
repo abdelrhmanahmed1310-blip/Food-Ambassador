@@ -1,4 +1,5 @@
 import "server-only";
+import { imageUrl } from "@/modules/media/images";
 import { companyContext } from "@/modules/fx/service";
 import { z } from "zod";
 import { Decimal, decimalString, toDecimal } from "@/lib/decimal";
@@ -1664,6 +1665,14 @@ export async function sellableMenu(ctx: TenantContext, branchId: string, date: s
       id: i.id,
       name: i.name,
       nameAr: i.nameAr,
+      description: i.description,
+      // The item's own photo, else its product's (ADR-133).
+      imageUrl: imageUrl(i.imageId ?? i.product?.imageId),
+      // What a scan at the till or kiosk answers to: the item's barcode and its product's.
+      barcodes: [
+        ...(i.barcode ? [i.barcode] : []),
+        ...(i.product?.barcodes.map((b) => b.barcode) ?? []),
+      ],
       category: { id: i.category.id, name: i.category.name, nameAr: i.category.nameAr },
       price: i.price.price.toFixed(),
       includesTax: i.price.includesTax,
