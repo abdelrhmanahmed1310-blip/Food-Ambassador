@@ -1,4 +1,5 @@
 import "server-only";
+import { categoryWithSubcategoriesInTx } from "./categories";
 import type { Prisma } from "@/generated/prisma/client";
 import { toCsv } from "@/lib/csv";
 import { assertPermission } from "@/modules/access/authorize";
@@ -138,6 +139,7 @@ export async function listProducts(
   const status = options.status ?? "active";
   const where: Prisma.ProductWhereInput = {
     organizationId: ctx.organizationId,
+    // A category includes its subcategories (ADR-134); filled in below.
     ...(options.categoryId ? { categoryId: options.categoryId } : {}),
     ...(status === "active"
       ? { archivedAt: null }
@@ -156,6 +158,8 @@ export async function listProducts(
       : {}),
   };
   return withTenantTx(ctx.organizationId, async (tx) => {
+    if (options.categoryId)
+      where.categoryId = { in: await categoryWithSubcategoriesInTx(tx, ctx, options.categoryId) };
     const [total, items] = await inSequence([
       tx.product.count({ where }),
       tx.product.findMany({

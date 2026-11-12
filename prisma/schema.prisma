@@ -2089,16 +2089,21 @@ model ProductCategory {
   code           String
   name           String
   nameAr         String?   @map("name_ar")
+  /// Parent category (ADR-134): at most three levels, no loops.
+  parentId       String?   @map("parent_id") @db.Uuid
   archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  products     Product[]
-  putawayRules PutawayRule[]
+  organization  Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  parent        ProductCategory?  @relation("CategoryTree", fields: [organizationId, parentId], references: [organizationId, id], onDelete: Restrict)
+  subcategories ProductCategory[] @relation("CategoryTree")
+  products      Product[]
+  putawayRules  PutawayRule[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
+  @@index([organizationId, parentId])
   @@map("product_categories")
 }
 

@@ -872,6 +872,11 @@ Migration `20270124090000_board_options_extra_photos`:
 - `menu_categories.board_from` and `board_to`: HH:MM, both or neither,
   never equal.
 
+**Subcategories** (migration `20270125090000_category_tree`, ADR-134):
+`product_categories.parent_id` references a category of the same
+organization (composite FK; CK not itself; index on organization and
+parent). A trigger refuses loops and a fourth level.
+
 ## 8. Food safety and traceability (Milestone 6)
 
 - **food_safety_records**: type (temperature, hygiene, cleaning, pest control),

@@ -3899,6 +3899,43 @@ screen show. Menu items can be scanned at the till and kiosk by barcode.
 - **Not yet**: videos. They need file storage outside the database
   (object storage), which is a hosting decision (Q-03).
 
+### ADR-134 Subcategories and bulk upload of product categories — Accepted (built)
+
+Decision (2026-11-12, answers Q-13): product categories form a tree, and
+they can be uploaded in bulk.
+
+- **Tree.**
+  - A category may have a parent, at most three levels deep, e.g.
+    Beverages › Hot drinks › Coffee.
+  - A category cannot sit under itself or one of its own subcategories.
+  - The service checks loops and depth, including the depth of the
+    subtree being moved, with the reason shown on the field. A database
+    trigger and a CHECK enforce the same rules.
+  - Lists show the tree indented, parents first. Product pickers show the
+    full path.
+- **Uses of the tree.**
+  - Filtering products by a category includes its subcategories.
+  - A put-away rule on a category also applies to products in its
+    subcategories.
+  - Reports keep grouping by the product's own category.
+- **Archiving.**
+  - A category with active subcategories is not archived; archive or move
+    them first.
+  - A subcategory is not restored while its parent is archived.
+- **Bulk upload** (Catalog → Categories, and Catalog → Import).
+  - A CSV file with columns code, name, name_ar and parent_code, plus a
+    template to download.
+  - A parent may be an existing category or another row of the file, in
+    any order (a parent is created before its subcategories).
+  - Like the product import, it only adds categories: an existing code is
+    an error, never an update.
+  - Every row is checked before anything is written, covering unknown
+    parents, duplicates, loops through the file and a fourth level. Each
+    error is reported with its row and column, and nothing is written
+    unless every row is valid.
+- Permissions are unchanged: `catalog.view` to see categories,
+  `catalog.manage` to change or upload them.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
@@ -3930,7 +3967,7 @@ screen show. Menu items can be scanned at the till and kiosk by barcode.
 | Q-10 | Which email provider should send invitations, password resets and notifications? Until then there is **no self-service password reset**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | M2 (before pilot)         |
 | Q-11 | ~~Changeable base currency~~ — **Decided:** fixed at creation; documents in other currencies are converted to the base currency for all reporting (ADR-050).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Q-12 | ~~Count approval~~ — **Decided:** stock counts use the approval matrix like purchase orders, by value of differences; counter never approves (ADR-049).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Q-13 | Product categories — **default in place** (ADR-025): flat list, optional per product. Confirm, or ask for a hierarchy.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | M3                        |
+| Q-13 | ~~Product categories~~ — **Decided:** a tree of up to three levels with bulk upload (ADR-134).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | M3                        |
 | Q-14 | ~~Scope versus Foodics~~ — **Decided:** option C, full point of sale in scope (ADR-022, milestones POS1–POS5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | —                         |
 | Q-15 | ~~Payment provider and card terminals~~ — **Decided for Saudi Arabia:** acquirer mada terminals recorded on the till (ECR integration per acquirer when known), pay by QR with Moyasar (ADR-066). Other markets open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | POS3                      |
 | Q-16 | ~~POS devices~~ — **Decided:** tablets, web app and mobile app from one installable web app; store apps by wrapping it (ADR-057). Printers: 80 mm via the browser until hardware is chosen.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |

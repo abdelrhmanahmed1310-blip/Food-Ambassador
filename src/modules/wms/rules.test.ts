@@ -28,6 +28,27 @@ const rule = (r: Partial<RuleCandidate> & Pick<RuleCandidate, "id" | "priority" 
   ({ productId: null, categoryId: null, storageRequirement: null, ...r }) as RuleCandidate;
 
 describe("put-away suggestion (ADR-101)", () => {
+  it("applies a rule on a parent category to products in its subcategories (ADR-134)", () => {
+    const rules = [
+      rule({ id: "dairy", priority: 10, categoryId: "DAIRY", location: chilledShelf }),
+    ];
+    const yoghurt = {
+      id: "P2",
+      categoryId: "DAIRY-YOG",
+      storageRequirement: "CHILLED",
+      categoryLineage: ["DAIRY-YOG", "DAIRY"],
+    } as const;
+    expect(suggestLocation(rules, yoghurt)).toEqual({
+      source: "RULE",
+      ruleId: "dairy",
+      locationId: "L1",
+    });
+    // Without its parent, the subcategory alone does not match.
+    expect(suggestLocation(rules, { ...yoghurt, categoryLineage: ["DAIRY-YOG"] }).source).toBe(
+      "NONE",
+    );
+  });
+
   it("takes the first matching rule by priority", () => {
     const rules = [
       rule({ id: "any", priority: 50, location: chilledShelf }),

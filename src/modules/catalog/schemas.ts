@@ -112,4 +112,6 @@ export const categorySchema = z.object({
   code: codeSchema,
   name: requiredText(120),
   nameAr: optionalText(120),
+  /** Parent category (ADR-134); empty = top level. */
+  parentId: optionalUuidSchema,
 });

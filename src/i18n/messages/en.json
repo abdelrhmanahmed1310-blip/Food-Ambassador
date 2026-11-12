@@ -360,7 +360,10 @@
     "invalidTime": "Enter a time as HH:MM.",
     "shiftTooLong": "A shift cannot start and end at the same time.",
     "overtimePayIncomplete": "Enter the overtime multiplier and the pay it is based on together.",
-    "retentionRange": "Enter between 30 and 3650 days, or leave empty."
+    "retentionRange": "Enter between 30 and 3650 days, or leave empty.",
+    "categoryCodeTaken": "A category with this code already exists.",
+    "categoryDuplicateInFile": "This code appears more than once in the file.",
+    "categoryUnknownParent": "No category has this parent code."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -933,7 +936,10 @@
     "IMAGE_INVALID": "Upload a JPEG, PNG or WebP photo.",
     "IMAGE_TOO_LARGE": "A photo can be at most 5 MB.",
     "MENU_BARCODE_OF_OTHER_PRODUCT": "This barcode belongs to another product.",
-    "TOO_MANY_PHOTOS": "At most four more photos. Remove one first."
+    "TOO_MANY_PHOTOS": "At most four more photos. Remove one first.",
+    "CATEGORY_LOOP": "A category cannot be placed under its own subcategory.",
+    "CATEGORY_TOO_DEEP": "Categories are at most three levels deep.",
+    "CATEGORY_HAS_SUBCATEGORIES": "Archive or move its subcategories first."
   },
   "notFound": {
     "title": "Page not found",
@@ -1345,7 +1351,12 @@
     "inspectOnReceipt": "Inspect on receipt (received goods wait in quarantine)",
     "hsCode": "HS code",
     "hsCodeHint": "The tariff code your customs broker uses, 6 to 12 digits.",
-    "originCountry": "Country of origin"
+    "originCountry": "Country of origin",
+    "parentCategory": "Parent category",
+    "parentCategoryHint": "Leave empty for a main category. Up to three levels, e.g. Beverages › Hot drinks › Coffee.",
+    "topLevel": "— Main category —",
+    "subcategories": "Subcategories",
+    "underParent": "under {parent}"
   },
   "import": {
     "title": "Import",
@@ -1362,7 +1373,9 @@
     "row": "Row",
     "column": "Column",
     "problem": "Problem",
-    "allOrNothing": "Files are validated completely first; nothing is imported unless every row is valid."
+    "allOrNothing": "Files are validated completely first; nothing is imported unless every row is valid.",
+    "categoriesTitle": "Bulk upload categories",
+    "categoriesHint": "CSV with columns code, name, name_ar, parent_code. A parent can be an existing category or another row in the file. Existing codes are not changed."
   },
   "inventory": {
     "overviewTitle": "Inventory",

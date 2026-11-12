@@ -4,7 +4,11 @@ import { ImportForm } from "@/components/inventory/forms";
 import { Alert, PageHeader } from "@/components/ui/primitives";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { importOpeningBalancesAction, importProductsAction } from "../actions";
+import {
+  importCategoriesAction,
+  importOpeningBalancesAction,
+  importProductsAction,
+} from "../actions";
 
 export default async function ImportPage({ params }: PageProps<"/o/[orgSlug]/catalog/import">) {
   const { orgSlug } = await params;
@@ -19,6 +23,14 @@ export default async function ImportPage({ params }: PageProps<"/o/[orgSlug]/cat
       <PageHeader title={t("title")} />
       <div className="space-y-6">
         <Alert tone="info">{t("allOrNothing")}</Alert>
+        {canProducts ? (
+          <ImportForm
+            action={importCategoriesAction.bind(null, orgSlug)}
+            title={t("categoriesTitle")}
+            hint={t("categoriesHint")}
+            templateHref={template("categories")}
+          />
+        ) : null}
         {canProducts ? (
           <ImportForm
             action={importProductsAction.bind(null, orgSlug)}

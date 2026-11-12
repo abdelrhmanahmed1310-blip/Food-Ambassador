@@ -14,6 +14,7 @@ import {
   updateProduct,
 } from "@/modules/catalog/service";
 import { createCategory, setCategoryArchived, updateCategory } from "@/modules/catalog/categories";
+import { importCategories } from "@/modules/catalog/category-import";
 import { importOpeningBalances, importProducts, type ImportResult } from "@/modules/inventory/csv";
 import { formValues } from "@/server/actions/handle";
 import { setProductImage } from "@/modules/media/images";
@@ -166,6 +167,15 @@ export async function importOpeningBalancesAction(
   formData: FormData,
 ): Promise<ActionState> {
   return importAction(orgSlug, previous, formData, importOpeningBalances);
+}
+
+/** Bulk upload of categories and subcategories (ADR-134). */
+export async function importCategoriesAction(
+  orgSlug: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return importAction(orgSlug, previous, formData, importCategories);
 }
 
 export async function createCategoryAction(

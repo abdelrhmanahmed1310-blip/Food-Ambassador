@@ -50,11 +50,23 @@ export function categoryName(c: { name: string; nameAr: string | null }, locale:
   return (locale === "ar" && c.nameAr) || c.name;
 }
 
-export function categoryOptions(
-  categories: Array<{ id: string; code: string; name: string; nameAr: string | null }>,
+type CategoryLabel = { id: string; code: string; name: string; nameAr: string | null };
+
+/** "Beverages › Hot drinks" for a category in the tree (ADR-134). */
+export function categoryPath(
+  c: CategoryLabel & { path?: ReadonlyArray<{ name: string; nameAr: string | null }> },
   locale: string,
 ) {
-  return categories.map((c) => ({ value: c.id, label: `${c.code} — ${categoryName(c, locale)}` }));
+  return (c.path ?? [c]).map((p) => categoryName(p, locale)).join(" › ");
+}
+
+export function categoryOptions(
+  categories: Array<
+    CategoryLabel & { path?: ReadonlyArray<{ name: string; nameAr: string | null }> }
+  >,
+  locale: string,
+) {
+  return categories.map((c) => ({ value: c.id, label: `${c.code} — ${categoryPath(c, locale)}` }));
 }
 
 export function productName(p: { nameEn: string; nameAr: string | null }, locale: string) {

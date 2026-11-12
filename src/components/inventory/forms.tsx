@@ -213,15 +213,18 @@ export function CategoryForm({
   action,
   submitLabel,
   defaults = {},
+  parents = [],
 }: {
   action: Action;
   submitLabel: string;
   defaults?: Record<string, string | undefined>;
+  /** Categories this one may be placed under (ADR-134). */
+  parents?: Option[];
 }) {
   const t = useTranslations();
   return (
     <ActionForm action={action} submitLabel={submitLabel} pendingLabel={t("common.saving")}>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TextField
           name="code"
           label={t("catalog.categoryCode")}
@@ -241,6 +244,14 @@ export function CategoryForm({
           defaultValue={defaults.nameAr}
           dir="rtl"
           optionalLabel={t("common.optional")}
+        />
+        <SelectField
+          name="parentId"
+          label={t("catalog.parentCategory")}
+          hint={t("catalog.parentCategoryHint")}
+          options={parents}
+          defaultValue={defaults.parentId ?? ""}
+          placeholder={t("catalog.topLevel")}
         />
       </div>
     </ActionForm>

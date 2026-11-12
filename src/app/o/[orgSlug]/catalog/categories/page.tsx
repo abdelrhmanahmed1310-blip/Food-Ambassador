@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { CategoryForm } from "@/components/inventory/forms";
+import { CategoryForm, ImportForm } from "@/components/inventory/forms";
 import { Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
 import { listCategories } from "@/modules/catalog/categories";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { categoryName } from "@/server/inventory-view";
-import { createCategoryAction } from "../actions";
+import { MAX_CATEGORY_DEPTH } from "@/modules/catalog/category-tree";
+import { categoryName, categoryOptions } from "@/server/inventory-view";
+import { createCategoryAction, importCategoriesAction } from "../actions";
 
 export default async function CategoriesPage({
   params,
@@ -34,27 +35,42 @@ export default async function CategoriesPage({
               <tr>
                 <Th>{t("catalog.categoryCode")}</Th>
                 <Th>{t("catalog.categoryName")}</Th>
+                <Th>{t("catalog.subcategories")}</Th>
                 <Th>{t("nav.products")}</Th>
                 <Th>{t("common.status")}</Th>
               </tr>
             </thead>
             <tbody>
               {categories.map((c) => (
-                <tr key={c.id}>
+                <tr key={c.id} data-testid={`category-${c.code}`}>
                   <Td>
                     <span className="ltr-value font-mono text-xs">{c.code}</span>
                   </Td>
                   <Td>
-                    {canManage ? (
-                      <Link
-                        href={`${base}/categories/${c.id}`}
-                        className="text-primary font-medium hover:underline"
-                      >
-                        {categoryName(c, locale)}
-                      </Link>
-                    ) : (
-                      categoryName(c, locale)
-                    )}
+                    {/* Indented under its parent (ADR-134). */}
+                    <span
+                      style={{ paddingInlineStart: `${c.depth * 1.25}rem` }}
+                      className="inline-block"
+                    >
+                      {c.depth > 0 ? (
+                        <span className="text-muted me-1" aria-hidden="true">
+                          ↳
+                        </span>
+                      ) : null}
+                      {canManage ? (
+                        <Link
+                          href={`${base}/categories/${c.id}`}
+                          className="text-primary font-medium hover:underline"
+                        >
+                          {categoryName(c, locale)}
+                        </Link>
+                      ) : (
+                        categoryName(c, locale)
+                      )}
+                    </span>
+                  </Td>
+                  <Td className="tabular-nums">
+                    {categories.filter((x) => x.parentId === c.id).length || "—"}
                   </Td>
                   <Td className="tabular-nums">
                     <Link
@@ -81,8 +97,20 @@ export default async function CategoriesPage({
             <CategoryForm
               action={createCategoryAction.bind(null, orgSlug)}
               submitLabel={t("common.create")}
+              parents={categoryOptions(
+                categories.filter((c) => !c.archivedAt && c.depth < MAX_CATEGORY_DEPTH - 1),
+                locale,
+              )}
             />
           </Card>
+        ) : null}
+        {canManage ? (
+          <ImportForm
+            action={importCategoriesAction.bind(null, orgSlug)}
+            title={t("import.categoriesTitle")}
+            hint={t("import.categoriesHint")}
+            templateHref={`/o/${orgSlug}/catalog/import/template?kind=categories`}
+          />
         ) : null}
       </div>
     </>

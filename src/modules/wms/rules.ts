@@ -23,12 +23,16 @@ export interface ProductFacts {
   id: string;
   categoryId: string | null;
   storageRequirement: TemperatureZone;
+  /** The product's category and its parent categories (ADR-134); a rule on a parent covers them. */
+  categoryLineage?: readonly string[];
 }
 
 export function ruleMatches(rule: RuleCandidate, p: ProductFacts): boolean {
   return (
     (rule.productId === null || rule.productId === p.id) &&
-    (rule.categoryId === null || rule.categoryId === p.categoryId) &&
+    (rule.categoryId === null ||
+      rule.categoryId === p.categoryId ||
+      (p.categoryLineage?.includes(rule.categoryId) ?? false)) &&
     (rule.storageRequirement === null || rule.storageRequirement === p.storageRequirement)
   );
 }

@@ -9,6 +9,8 @@ import { optionalUuidSchema, uuidSchema } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, notFound, validationFailed } from "@/server/errors";
+import { categoryParentsInTx } from "@/modules/catalog/categories";
+import { lineage } from "@/modules/catalog/category-tree";
 import { locationFits, PUTAWAY_TARGET_ZONES, suggestLocation, type RuleCandidate } from "./rules";
 
 /**
@@ -206,6 +208,8 @@ export async function putawayWorklist(ctx: TenantContext, warehouseId: string) {
     const hasStorage = locations.some(
       (l) => !l.archivedAt && PUTAWAY_TARGET_ZONES.includes(l.zone),
     );
+    // A put-away rule on a category also covers its subcategories (ADR-134).
+    const parents = await categoryParentsInTx(tx, ctx);
     const balances = await tx.stockBalance.findMany({
       where: {
         organizationId: ctx.organizationId,
@@ -272,7 +276,14 @@ export async function putawayWorklist(ctx: TenantContext, warehouseId: string) {
         return {
           ...b,
           location: b.locationId ? (byId.get(b.locationId) ?? null) : null,
-          suggestion: suggestLocation(candidates, b.product, holding),
+          suggestion: suggestLocation(
+            candidates,
+            {
+              ...b.product,
+              categoryLineage: b.product.categoryId ? lineage(b.product.categoryId, parents) : [],
+            },
+            holding,
+          ),
           /** Places this product may go to. */
           targets: locations.filter((l) => locationFits(fact(l), b.product)),
         };

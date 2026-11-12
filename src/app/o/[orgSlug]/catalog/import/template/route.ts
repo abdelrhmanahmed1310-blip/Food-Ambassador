@@ -1,3 +1,4 @@
+import { CATEGORY_TEMPLATE } from "@/modules/catalog/category-import";
 import { OPENING_TEMPLATE, PRODUCT_TEMPLATE } from "@/modules/inventory/csv";
 import { csvResponse, tenantForRoute } from "@/server/routes/tenant-route";
 
@@ -10,5 +11,7 @@ export async function GET(
   const kind = new URL(request.url).searchParams.get("kind");
   return kind === "opening"
     ? csvResponse(OPENING_TEMPLATE, "opening-balances-template.csv")
-    : csvResponse(PRODUCT_TEMPLATE, "products-template.csv");
+    : kind === "categories"
+      ? csvResponse(CATEGORY_TEMPLATE, "categories-template.csv")
+      : csvResponse(PRODUCT_TEMPLATE, "products-template.csv");
 }
