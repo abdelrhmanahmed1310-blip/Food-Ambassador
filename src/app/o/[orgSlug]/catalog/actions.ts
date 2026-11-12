@@ -175,7 +175,22 @@ export async function importCategoriesAction(
   previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  return importAction(orgSlug, previous, formData, importCategories);
+  const t = await getTranslations();
+  const text = await readUpload(formData);
+  if (text === null)
+    return { ok: false, seq: (previous.seq ?? 0) + 1, formError: t("import.fileRequired") };
+  return tenantMutation(orgSlug, previous, formData, async (ctx): Promise<Partial<ActionState>> => {
+    const result = await importCategories(ctx, text);
+    if (!result.ok)
+      return {
+        ok: false,
+        formError: t("import.rejected", { count: result.errors.length }),
+        data: { errors: JSON.stringify(await translateRowErrors(result.errors)) },
+      };
+    return {
+      message: t("import.categoriesDone", { created: result.created, updated: result.updated }),
+    };
+  });
 }
 
 export async function createCategoryAction(

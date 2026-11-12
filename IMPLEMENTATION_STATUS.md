@@ -23,12 +23,12 @@ Last updated: 2026-11-12 (Product subcategories (three levels) and bulk upload o
 
 Rules: DECISIONS.md ADR-134 (answers Q-13).
 
-| Area              | What works                                                                                                                                                        | Where                                  |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Tree              | Parent category, up to three levels; loops and a fourth level refused (service and database); tree shown indented; full path in product pickers                   | Catalog → Categories                   |
-| Filters and rules | Products filtered by a category include its subcategories; put-away rules on a category cover its subcategories                                                   | Products list, warehouse put-away      |
-| Archiving         | A category with active subcategories is not archived; a subcategory is not restored under an archived parent                                                      | Category page                          |
-| Bulk upload       | CSV (code, name, name_ar, parent_code) with template; parents in the file in any order; all-or-nothing with row and column errors; existing codes are not changed | Catalog → Categories, Catalog → Import |
+| Area              | What works                                                                                                                                                                                    | Where                                  |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Tree              | Parent category, up to three levels; loops and a fourth level refused (service and database); tree shown indented; full path in product pickers                                               | Catalog → Categories                   |
+| Filters and rules | Products filtered by a category include its subcategories; put-away rules on a category cover its subcategories                                                                               | Products list, warehouse put-away      |
+| Archiving         | A category with active subcategories is not archived; a subcategory is not restored under an archived parent                                                                                  | Category page                          |
+| Bulk upload       | CSV (code, name, name_ar, parent_code) with template; parents in the file in any order; new codes added, existing codes updated (names and parent); all-or-nothing with row and column errors | Catalog → Categories, Catalog → Import |
 
 ## Photos, barcodes and menu boards (built)
 

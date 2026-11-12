@@ -86,7 +86,13 @@ describe("category tree (ADR-134)", () => {
       "DAI-CHEESE,Cheese,,dairy",
       "HOT-TEA,Tea,شاي,HOT",
     ].join("\n");
-    expect(await importCategories(ctx, good)).toEqual({ ok: true, imported: 4, errors: [] });
+    expect(await importCategories(ctx, good)).toEqual({
+      ok: true,
+      imported: 4,
+      created: 4,
+      updated: 0,
+      errors: [],
+    });
     const tree = await listCategories(ctx);
     const milk = tree.find((c) => c.code === "DAI-MILK")!;
     expect([milk.depth, milk.nameAr, milk.path.map((p) => p.code)]).toEqual([
@@ -105,7 +111,7 @@ describe("category tree (ADR-134)", () => {
     });
     const bad = [
       "code,name,parent_code",
-      "DAIRY,Dairy again,", // exists
+      "DAIRY,Dairy again,", // exists: an update, not an error
       "NEW1,New,NOPE", // unknown parent
       "LOOP-A,A,LOOP-B",
       "LOOP-B,B,LOOP-A",
@@ -115,7 +121,6 @@ describe("category tree (ADR-134)", () => {
     const r = await importCategories(ctx, bad);
     expect(r.ok).toBe(false);
     expect(r.errors.map((e) => `${e.row}:${e.message}`)).toEqual([
-      "1:categoryCodeTaken",
       "6:categoryDuplicateInFile",
       "2:categoryUnknownParent",
     ]);
@@ -135,6 +140,40 @@ describe("category tree (ADR-134)", () => {
     expect((await importCategories(ctx, "name\nX")).errors[0]).toMatchObject({
       message: "csvMissingColumn",
     });
+    // Nothing was changed by the rejected files.
+    expect((await listCategories(ctx)).find((c) => c.code === "DAIRY")!.name).toBe("Dairy");
+  });
+
+  it("updates existing categories: names, and moves within the tree in one file", async () => {
+    // Today: BEV › HOT › (COF, HOT-TEA); DAIRY › (DAI-MILK, DAI-CHEESE).
+    // Move HOT (with its subcategories) to the top, put DAIRY under a new FOOD, rename milk.
+    const r = await importCategories(
+      ctx,
+      [
+        "code,name,name_ar,parent_code",
+        "DAI-MILK,Fresh milk,حليب طازج,DAIRY",
+        "HOT,Hot drinks,مشروبات ساخنة,",
+        "DAIRY,Dairy,ألبان,FOOD",
+        "FOOD,Food,طعام,",
+        "DAI-CHEESE,Cheese,,DAIRY", // unchanged
+      ].join("\n"),
+    );
+    expect(r).toMatchObject({ ok: true, created: 1, updated: 3 });
+    const tree = await listCategories(ctx);
+    const path = (code: string) => tree.find((c) => c.code === code)!.path.map((p) => p.code);
+    expect(path("COF")).toEqual(["HOT", "COF"]);
+    expect(path("DAI-MILK")).toEqual(["FOOD", "DAIRY", "DAI-MILK"]);
+    expect(tree.find((c) => c.code === "DAI-MILK")).toMatchObject({
+      name: "Fresh milk",
+      nameAr: "حليب طازج",
+    });
+    // Moving HOT back under BEV is fine (three levels); moving FOOD under BEV is not (four).
+    const deep = await importCategories(ctx, "code,name,parent_code\nFOOD,Food,BEV");
+    expect(deep.errors.map((e) => `${e.row}:${e.message}`)).toEqual(["1:CATEGORY_TOO_DEEP"]);
+    // Without a parent_code column, an existing category keeps its place.
+    await importCategories(ctx, "code,name\nCOF,Coffee beans");
+    expect(path("COF")).toEqual(["HOT", "COF"]);
+    expect((await listCategories(ctx)).find((c) => c.code === "COF")!.name).toBe("Coffee beans");
   });
 
   it("keeps organizations apart", async () => {

@@ -5,15 +5,17 @@ import { actorOf, recordAudit } from "@/modules/audit/service";
 import type { ImportResult, RowError } from "@/modules/inventory/csv";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx } from "@/server/db/transactions";
-import { MAX_CATEGORY_DEPTH, placementProblem } from "./category-tree";
+import { lineage, placementProblem } from "./category-tree";
 import { categorySchema } from "./schemas";
 
 /**
  * Bulk upload of product categories and subcategories (DECISIONS.md
- * ADR-134). Columns: code, name, name_ar, parent_code. A parent may be an
- * existing category or another row of the file, in any order. Like the
- * product import, it only adds: an existing code is an error, never an
- * update, and nothing is written unless every row is valid.
+ * ADR-134). Columns: code, name, name_ar, parent_code. A row with a new code
+ * creates a category; a row with an existing code updates its names and its
+ * parent (an empty parent_code makes it a main category). A parent may be an
+ * existing category or another row of the file, in any order. The tree as
+ * it would be after the upload is checked first; nothing is written unless
+ * every row is valid.
  */
 
 export const MAX_CATEGORY_ROWS = 2000;
@@ -30,45 +32,56 @@ export const CATEGORY_TEMPLATE = toCsv(
 
 const COLUMN: Record<string, string> = { code: "code", name: "name", nameAr: "name_ar" };
 
-export async function importCategories(ctx: TenantContext, text: string): Promise<ImportResult> {
+export interface CategoryImportResult extends ImportResult {
+  created: number;
+  updated: number;
+}
+
+export async function importCategories(
+  ctx: TenantContext,
+  text: string,
+): Promise<CategoryImportResult> {
   assertPermission(ctx.grants, "catalog.manage");
+  const fail = (errors: RowError[]): CategoryImportResult => ({
+    ok: false,
+    imported: 0,
+    created: 0,
+    updated: 0,
+    errors,
+  });
   let parsed: ReturnType<typeof parseCsvRecords>;
   try {
     parsed = parseCsvRecords(text);
   } catch {
-    return { ok: false, imported: 0, errors: [{ row: 0, column: "", message: "csvMalformed" }] };
+    return fail([{ row: 0, column: "", message: "csvMalformed" }]);
   }
   const { headers, records } = parsed;
   if (records.length === 0 || records.length > MAX_CATEGORY_ROWS)
-    return {
-      ok: false,
-      imported: 0,
-      errors: [
-        { row: 0, column: "", message: records.length === 0 ? "csvEmpty" : "csvTooManyRows" },
-      ],
-    };
+    return fail([
+      { row: 0, column: "", message: records.length === 0 ? "csvEmpty" : "csvTooManyRows" },
+    ]);
   const missing = ["code", "name"].filter((c) => !headers.includes(c));
   if (missing.length)
-    return {
-      ok: false,
-      imported: 0,
-      errors: missing.map((column) => ({ row: 0, column, message: "csvMissingColumn" })),
-    };
+    return fail(missing.map((column) => ({ row: 0, column, message: "csvMissingColumn" })));
+  const hasParentColumn = headers.includes("parent_code");
 
   return withTenantTx(ctx.organizationId, async (tx) => {
     const existing = await tx.productCategory.findMany({
       where: { organizationId: ctx.organizationId },
-      select: { id: true, code: true, parentId: true, archivedAt: true },
+      select: { id: true, code: true, name: true, nameAr: true, parentId: true, archivedAt: true },
     });
     const byCode = new Map(existing.map((c) => [c.code, c]));
+    const codeOf = new Map(existing.map((c) => [c.id, c.code]));
     const errors: RowError[] = [];
-    const rows: Array<{
+    type Row = {
       row: number;
       code: string;
       name: string;
       nameAr: string | null;
       parentCode: string | null;
-    }> = [];
+      existingId: string | null;
+    };
+    const rows: Row[] = [];
     const seen = new Set<string>();
     records.forEach((r, i) => {
       const row = i + 1;
@@ -83,20 +96,24 @@ export async function importCategories(ctx: TenantContext, text: string): Promis
         return;
       }
       const code = result.data.code;
-      if (byCode.has(code)) errors.push({ row, column: "code", message: "categoryCodeTaken" });
-      else if (seen.has(code))
-        errors.push({ row, column: "code", message: "categoryDuplicateInFile" });
+      if (seen.has(code)) errors.push({ row, column: "code", message: "categoryDuplicateInFile" });
       seen.add(code);
-      const parentCode = (r.parent_code ?? "").trim().toUpperCase() || null;
+      const current = byCode.get(code) ?? null;
+      // Without a parent_code column, an existing category keeps its parent.
+      const parentCode = hasParentColumn
+        ? (r.parent_code ?? "").trim().toUpperCase() || null
+        : current?.parentId
+          ? (codeOf.get(current.parentId) ?? null)
+          : null;
       rows.push({
         row,
         code,
         name: result.data.name,
         nameAr: result.data.nameAr ?? null,
         parentCode,
+        existingId: current?.id ?? null,
       });
     });
-    // Parents: an existing, active category or a row of this file.
     const inFile = new Set(rows.map((r) => r.code));
     for (const r of rows) {
       if (!r.parentCode) continue;
@@ -107,54 +124,83 @@ export async function importCategories(ctx: TenantContext, text: string): Promis
       else if (byCode.get(r.parentCode)?.archivedAt)
         errors.push({ row: r.row, column: "parent_code", message: "CATEGORY_ARCHIVED" });
     }
-    if (errors.length) return { ok: false, imported: 0, errors };
+    if (errors.length) return fail(errors);
 
-    // Check the whole tree as it would be: loops through the file, at most three levels.
+    // The tree as it would be after the upload: loops and depth checked on it.
+    const idOf = (code: string) => byCode.get(code)?.id ?? `new:${code}`;
+    const rowFor = new Map(rows.map((r) => [r.code, r]));
     const nodes = [
-      ...existing.map((c) => ({ id: c.id, parentId: c.parentId })),
-      ...rows.map((r) => ({
-        id: `new:${r.code}`,
-        parentId: r.parentCode ? (byCode.get(r.parentCode)?.id ?? `new:${r.parentCode}`) : null,
-      })),
+      ...existing.map((c) => {
+        const r = rowFor.get(c.code);
+        return { id: c.id, parentId: r ? (r.parentCode ? idOf(r.parentCode) : null) : c.parentId };
+      }),
+      ...rows
+        .filter((r) => !r.existingId)
+        .map((r) => ({ id: idOf(r.code), parentId: r.parentCode ? idOf(r.parentCode) : null })),
     ];
     for (const r of rows) {
-      const node = nodes.find((n) => n.id === `new:${r.code}`)!;
-      const problem = placementProblem(
-        node.id,
-        node.parentId,
-        nodes.filter((n) => n.id !== node.id).concat([{ id: node.id, parentId: null }]),
-      );
+      const node = nodes.find((n) => n.id === idOf(r.code))!;
+      const detached = nodes.map((n) => (n.id === node.id ? { id: n.id, parentId: null } : n));
+      const problem = placementProblem(node.id, node.parentId, detached);
       if (problem) errors.push({ row: r.row, column: "parent_code", message: problem });
     }
-    if (errors.length) return { ok: false, imported: 0, errors };
+    if (errors.length) return fail(errors);
 
-    // Create parents before children.
+    // Detach moved categories first, then place everything from the top down, so
+    // no step passes through a loop or a fourth level.
+    const moved = rows.filter(
+      (r) =>
+        r.existingId &&
+        (byCode.get(r.code)!.parentId ?? null) !== (r.parentCode ? idOf(r.parentCode) : null),
+    );
+    if (moved.length)
+      await tx.productCategory.updateMany({
+        where: { organizationId: ctx.organizationId, id: { in: moved.map((r) => r.existingId!) } },
+        data: { parentId: null },
+      });
+    const parents = new Map(nodes.map((n) => [n.id, n.parentId]));
+    const depth = (r: Row) => lineage(idOf(r.code), parents).length;
     const ids = new Map(existing.map((c) => [c.code, c.id]));
-    const pending = [...rows];
-    let guard = 0;
-    while (pending.length && guard++ <= MAX_CATEGORY_DEPTH + 1) {
-      for (const r of [...pending]) {
-        if (r.parentCode && !ids.has(r.parentCode)) continue;
-        const created = await tx.productCategory.create({
+    let created = 0;
+    let updated = 0;
+    for (const r of [...rows].sort((a, b) => depth(a) - depth(b))) {
+      const parentId = r.parentCode ? ids.get(r.parentCode)! : null;
+      if (r.existingId) {
+        const before = byCode.get(r.code)!;
+        if (
+          before.name !== r.name ||
+          (before.nameAr ?? null) !== r.nameAr ||
+          (before.parentId ?? null) !== parentId
+        ) {
+          await tx.productCategory.update({
+            where: { id: r.existingId },
+            data: { name: r.name, nameAr: r.nameAr, parentId },
+          });
+          updated++;
+        } else if (moved.some((m) => m.code === r.code)) {
+          await tx.productCategory.update({ where: { id: r.existingId }, data: { parentId } });
+        }
+      } else {
+        const c = await tx.productCategory.create({
           data: {
             organizationId: ctx.organizationId,
             code: r.code,
             name: r.name,
             nameAr: r.nameAr,
-            parentId: r.parentCode ? ids.get(r.parentCode)! : null,
+            parentId,
           },
           select: { id: true },
         });
-        ids.set(r.code, created.id);
-        pending.splice(pending.indexOf(r), 1);
+        ids.set(r.code, c.id);
+        created++;
       }
     }
     await recordAudit(tx, actorOf(ctx), {
       action: "category.imported",
       entityType: "organization",
       entityId: ctx.organizationId,
-      changes: { count: rows.length },
+      changes: { created, updated, unchanged: rows.length - created - updated },
     });
-    return { ok: true, imported: rows.length, errors: [] };
+    return { ok: true, imported: created + updated, created, updated, errors: [] };
   });
 }

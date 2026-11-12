@@ -1375,7 +1375,8 @@
     "problem": "المشكلة",
     "allOrNothing": "يُتحقق من الملف بالكامل أولًا؛ لا يُستورد أي شيء ما لم تكن جميع الصفوف صحيحة.",
     "categoriesTitle": "رفع الفئات دفعة واحدة",
-    "categoriesHint": "ملف CSV بالأعمدة code وname وname_ar وparent_code. يمكن أن تكون الفئة الأم فئة موجودة أو صفاً آخر في الملف. لا تُغيَّر الرموز الموجودة."
+    "categoriesHint": "ملف CSV بالأعمدة code وname وname_ar وparent_code. الرمز الجديد يضيف فئة، والرمز الموجود يحدّث اسميها وفئتها الأم (parent_code الفارغ = فئة رئيسية). يمكن أن تكون الفئة الأم فئة موجودة أو صفاً آخر في الملف.",
+    "categoriesDone": "أُضيفت {created} فئة، وحُدّثت {updated}."
   },
   "inventory": {
     "overviewTitle": "المخزون",

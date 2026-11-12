@@ -3927,8 +3927,13 @@ they can be uploaded in bulk.
     template to download.
   - A parent may be an existing category or another row of the file, in
     any order (a parent is created before its subcategories).
-  - Like the product import, it only adds categories: an existing code is
-    an error, never an update.
+  - A new code adds a category. An existing code updates its English and
+    Arabic names and its parent; an empty parent_code makes it a main
+    category, and a file without the parent_code column leaves parents as
+    they are. The result reports how many were added and updated.
+  - Moves are checked on the tree as it would be after the upload, then
+    applied by detaching moved categories and placing everything from the
+    top down, so no step passes through a loop or a fourth level.
   - Every row is checked before anything is written, covering unknown
     parents, duplicates, loops through the file and a fourth level. Each
     error is reported with its row and column, and nothing is written

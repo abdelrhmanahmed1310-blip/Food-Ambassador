@@ -1375,7 +1375,8 @@
     "problem": "Problem",
     "allOrNothing": "Files are validated completely first; nothing is imported unless every row is valid.",
     "categoriesTitle": "Bulk upload categories",
-    "categoriesHint": "CSV with columns code, name, name_ar, parent_code. A parent can be an existing category or another row in the file. Existing codes are not changed."
+    "categoriesHint": "CSV with columns code, name, name_ar, parent_code. A new code adds a category; an existing code updates its names and parent (empty parent_code = main category). A parent can be an existing category or another row in the file.",
+    "categoriesDone": "{created, plural, one {# category} other {# categories}} added, {updated} updated."
   },
   "inventory": {
     "overviewTitle": "Inventory",

@@ -38,7 +38,7 @@ test("product categories: a subcategory by hand, more in bulk from a CSV, shown 
     .filter({ has: page.getByRole("button", { name: "Validate and import" }) });
   await upload.locator('input[type="file"]').setInputFiles(file);
   await upload.getByRole("button", { name: "Validate and import" }).click();
-  await expect(page.getByText("3 rows imported.")).toBeVisible();
+  await expect(page.getByText("3 categories added, 0 updated.")).toBeVisible();
   await page.reload();
   const order = await page
     .locator('[data-testid^="category-"]')
@@ -50,6 +50,20 @@ test("product categories: a subcategory by hand, more in bulk from a CSV, shown 
     "category-DAIRY",
     "category-DAI-MILK",
   ]);
+
+  // The same upload updates what exists: Coffee renamed and moved to the top.
+  const update = join(dir, "update.csv");
+  writeFileSync(update, "code,name,name_ar,parent_code\nCOF,Coffee beans,بن,\n");
+  await upload.locator('input[type="file"]').setInputFiles(update);
+  await upload.getByRole("button", { name: "Validate and import" }).click();
+  await expect(page.getByText("0 categories added, 1 updated.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("category-COF")).toContainText("Coffee beans");
+  await expect(page.getByTestId("category-COF")).not.toContainText("↳");
+  writeFileSync(update, "code,name,name_ar,parent_code\nCOF,Coffee,قهوة,HOT\n");
+  await upload.locator('input[type="file"]').setInputFiles(update);
+  await upload.getByRole("button", { name: "Validate and import" }).click();
+  await expect(page.getByText("0 categories added, 1 updated.")).toBeVisible();
 
   // A fourth level is refused, with the row and the reason.
   const deep = join(dir, "deep.csv");
