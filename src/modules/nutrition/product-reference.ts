@@ -750,7 +750,7 @@ const useSchema = z.union([
  * allergens and Arabic name where that is allowed (lenient; the result says
  * what was kept).
  */
-export async function useReferenceForProduct(
+export async function chooseProductReference(
   ctx: TenantContext,
   productId: string,
   raw: unknown,

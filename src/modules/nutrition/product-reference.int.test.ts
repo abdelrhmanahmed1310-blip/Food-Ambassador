@@ -13,7 +13,7 @@ import {
   referenceCoverage,
   unlinkProductReference,
   unmatchedProducts,
-  useReferenceForProduct,
+  chooseProductReference,
 } from "./product-reference";
 import { getProductNutrition, recordNutritionProfile } from "./service";
 
@@ -181,11 +181,11 @@ describe("product ↔ library food (ADR-136)", () => {
 
   it("links from the product's page, fetching a USDA record into the library first", async () => {
     const lentils = await product("TLENT", "Testlentils red");
-    const r = await useReferenceForProduct(ctx, lentils, { fdcId: "400003" });
+    const r = await chooseProductReference(ctx, lentils, { fdcId: "400003" });
     expect(r).toMatchObject({ reference: true, nutrition: true });
     expect((await productReference(ctx, lentils)).food).toMatchObject({ sourceId: "400003" });
     await expectAppError(
-      useReferenceForProduct(ctx, lentils, { fdcId: "499999" }),
+      chooseProductReference(ctx, lentils, { fdcId: "499999" }),
       "BUSINESS_RULE_VIOLATION",
     );
   });

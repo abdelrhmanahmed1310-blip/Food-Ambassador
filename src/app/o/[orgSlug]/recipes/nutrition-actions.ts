@@ -13,7 +13,7 @@ import {
 } from "@/modules/nutrition/service";
 import {
   unlinkProductReference,
-  useReferenceForProduct,
+  chooseProductReference,
 } from "@/modules/nutrition/product-reference";
 import { formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
@@ -100,7 +100,7 @@ export async function reviewLabelAction(
 }
 
 /** Use a library food (or USDA record) as the product's nutrition reference (ADR-136). */
-export async function useReferenceAction(
+export async function chooseReferenceAction(
   orgSlug: string,
   productId: string,
   previous: ActionState,
@@ -110,7 +110,7 @@ export async function useReferenceAction(
   const pick = String(formData.get("pick") ?? "");
   const [kind, id] = [pick.slice(0, pick.indexOf(":")), pick.slice(pick.indexOf(":") + 1)];
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
-    const r = await useReferenceForProduct(
+    const r = await chooseProductReference(
       ctx,
       productId,
       kind === "fdc" ? { fdcId: id } : { foodId: id },

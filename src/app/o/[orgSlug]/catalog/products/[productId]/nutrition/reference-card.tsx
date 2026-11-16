@@ -7,7 +7,10 @@ import { buttonClass, inputClass } from "@/components/ui/styles";
 import type { searchFoods } from "@/modules/nutrition/engine/foods";
 import type { productReference } from "@/modules/nutrition/product-reference";
 import { quantityFormatter } from "@/server/inventory-view";
-import { unlinkReferenceAction, useReferenceAction } from "../../../../recipes/nutrition-actions";
+import {
+  unlinkReferenceAction,
+  chooseReferenceAction,
+} from "../../../../recipes/nutrition-actions";
 
 const SOURCE_LABEL: Record<string, string> = {
   USDA_FDC: "USDA FDC",
@@ -165,7 +168,7 @@ export async function ReferenceCard({
             </form>
             {/* Always mounted, so the outcome stays on screen after the list changes. */}
             <ReferencePicker
-              action={useReferenceAction.bind(null, orgSlug, productId)}
+              action={chooseReferenceAction.bind(null, orgSlug, productId)}
               groups={groups}
               useLabel={t("productReference.use")}
             />
