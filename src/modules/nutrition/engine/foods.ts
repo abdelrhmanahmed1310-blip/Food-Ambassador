@@ -762,12 +762,13 @@ export async function getFood(ctx: TenantContext, foodId: string, opts: { lang?:
         orderBy: { createdAt: "desc" },
       }),
       tx.nutrient.findMany({ where: { isCore: true }, orderBy: { rank: "asc" } }),
-      food.linkedProductId
-        ? tx.product.findUnique({
-            where: { id: food.linkedProductId },
-            select: { id: true, sku: true, nameEn: true, nameAr: true },
-          })
-        : null,
+      // Products using this record for their nutrition (ADR-136).
+      tx.product.findMany({
+        where: { organizationId: ctx.organizationId, referenceFoodId: food.id },
+        select: { id: true, sku: true, nameEn: true, nameAr: true },
+        orderBy: { sku: "asc" },
+        take: 50,
+      }),
       refreshDaysInTx(tx, ctx.organizationId),
     ]);
     const rows = values
@@ -832,7 +833,9 @@ export async function getFood(ctx: TenantContext, foodId: string, opts: { lang?:
       aliases,
       versions,
       issues,
-      linkedProduct: linked,
+      /** The first product using it (kept for API clients); all of them in linkedProducts. */
+      linkedProduct: linked[0] ?? null,
+      linkedProducts: linked,
     };
   });
 }

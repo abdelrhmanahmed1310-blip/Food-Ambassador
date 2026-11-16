@@ -211,7 +211,8 @@
     "consultant": "Food Consultant Chatbot",
     "nutritionEngine": "Nutrition",
     "nutritionFoods": "Nutrition foods",
-    "posSimulator": "POS simulator"
+    "posSimulator": "POS simulator",
+    "nutritionMatch": "Match to library"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -364,7 +365,12 @@
     "retentionRange": "Enter between 30 and 3650 days, or leave empty.",
     "categoryCodeTaken": "A category with this code already exists.",
     "categoryDuplicateInFile": "This code appears more than once in the file.",
-    "categoryUnknownParent": "No category has this parent code."
+    "categoryUnknownParent": "No category has this parent code.",
+    "referenceIncomplete": "Give both reference_source and reference_id, or neither.",
+    "referenceSourceUnknown": "Unknown source: use USDA_FDC, OPEN_FOOD_FACTS, WIKIDATA or MANUAL.",
+    "referenceIdInvalid": "This ID does not fit the source (USDA: digits; Open Food Facts: 6–14 digit barcode; Wikidata: Q followed by digits).",
+    "referenceNotFound": "Not in the library, and it could not be fetched from its source.",
+    "referenceNeedsPermission": "Linking to the library needs the nutrition management permission."
   },
   "errors": {
     "UNAUTHENTICATED": "Please sign in to continue.",
@@ -940,7 +946,9 @@
     "TOO_MANY_PHOTOS": "At most four more photos. Remove one first.",
     "CATEGORY_LOOP": "A category cannot be placed under its own subcategory.",
     "CATEGORY_TOO_DEEP": "Categories are at most three levels deep.",
-    "CATEGORY_HAS_SUBCATEGORIES": "Archive or move its subcategories first."
+    "CATEGORY_HAS_SUBCATEGORIES": "Archive or move its subcategories first.",
+    "REFERENCE_ARCHIVED": "The library record is archived; choose another.",
+    "REFERENCE_NOT_FETCHED": "The USDA record could not be fetched. Try again later."
   },
   "notFound": {
     "title": "Page not found",
@@ -1362,7 +1370,7 @@
   "import": {
     "title": "Import",
     "productsTitle": "Import products",
-    "productsHint": "Columns: sku, name_en, name_ar, type, base_unit, lot_tracking, shelf_life_days, storage. Existing SKUs are not changed.",
+    "productsHint": "Columns: sku, name_en, name_ar, type, base_unit, lot_tracking, shelf_life_days, storage, and optionally reference_source and reference_id to link each product to a library food (e.g. USDA_FDC and its FDC ID). Existing SKUs are not changed.",
     "openingTitle": "Import opening balances",
     "openingHint": "Columns: warehouse_code, location_code, sku, lot_code, expires_on (YYYY-MM-DD), quantity, unit, unit_cost. One opening-balance document is posted per warehouse.",
     "file": "CSV file (UTF-8, max 900 KB)",
@@ -1377,7 +1385,8 @@
     "allOrNothing": "Files are validated completely first; nothing is imported unless every row is valid.",
     "categoriesTitle": "Bulk upload categories",
     "categoriesHint": "CSV with columns code, name, name_ar, parent_code. A new code adds a category; an existing code updates its names and parent (empty parent_code = main category). A parent can be an existing category or another row in the file.",
-    "categoriesDone": "{created, plural, one {# category} other {# categories}} added, {updated} updated."
+    "categoriesDone": "{created, plural, one {# category} other {# categories}} added, {updated} updated.",
+    "linkedToLibrary": "{count, plural, one {# linked to the library.} other {# linked to the library.}}"
   },
   "inventory": {
     "overviewTitle": "Inventory",
@@ -2854,7 +2863,14 @@
     "linkedName": "Arabic name filled in.",
     "conflicts": "Not applied because someone stated otherwise: {allergens}. Check them on the product.",
     "linkedNothing": "Nothing was changed.",
-    "fromLibraryRecord": "Copied from a library record"
+    "fromLibraryRecord": "Copied from a library record",
+    "useAsReference": "Use as the nutrition reference (full nutrient profile)",
+    "linkedReference": "Linked as the product's nutrition reference.",
+    "skipped": {
+      "NO_VALUES": "The record has no label values to copy.",
+      "IMPLAUSIBLE": "Its label values failed the plausibility checks and were not copied.",
+      "SPEC_KEPT": "The product's specification or lab values were kept."
+    }
   },
   "reports": {
     "wasteTitle": "Waste and stock differences",
@@ -7433,7 +7449,8 @@
       "usda": "USDA",
       "nutrients": "Nutrients",
       "quality": "Data quality",
-      "sources": "Sources"
+      "sources": "Sources",
+      "match": "Match products"
     },
     "usdaNotConfigured": "Live USDA FoodData Central is not connected: searches use your library only. An administrator sets USDA_FDC_API_KEY in the server environment (a free key from api.data.gov) to turn it on.",
     "usdaConfiguredNote": "Connected to USDA FoodData Central. The key is kept on the server and never sent to browsers.",
@@ -7595,7 +7612,7 @@
     "lastFetched": "Last fetched from source",
     "ingredientsDeclared": "Ingredients as declared",
     "notTranslated": "Shown as declared; not translated automatically.",
-    "linkedProduct": "Linked product",
+    "linkedProduct": "Linked products",
     "linkToProduct": "Link to a product…",
     "aliases": "Other names",
     "remove": "Remove",
@@ -7855,5 +7872,62 @@
     "exportCsv": "Download CSV",
     "clear": "Clear session",
     "clearConfirm": "Clear all test sales in this session?"
+  },
+  "productReference": {
+    "title": "Nutrition reference",
+    "intro": "The generic library food this product is, e.g. USDA \"Rice, white, raw\". Its full nutrient profile (vitamins, minerals and more) is used in recipe nutrition. Values from a supplier specification or lab always take priority.",
+    "none": "No library food is linked yet.",
+    "verified": "Verified record",
+    "notVerified": "Record not verified",
+    "archived": "Archived record",
+    "fullProfile": "Full profile: {count, plural, one {# nutrient} other {# nutrients}}",
+    "coreValues": "Main values",
+    "unlink": "Unlink",
+    "confirmUnlink": "Unlink this library food? Values copied from it are removed from the product's profile; values entered by people stay.",
+    "search": "Find a library food",
+    "change": "Change to another library food",
+    "searchPlaceholder": "e.g. rice white raw, or a USDA FDC ID",
+    "suggestions": "Suggested for this product",
+    "inLibrary": "In your library",
+    "fromUsda": "From USDA FoodData Central",
+    "noneFound": "Nothing found.",
+    "usda": {
+      "NOT_CONFIGURED": "USDA search is not set up (no API key).",
+      "UNAVAILABLE": "USDA is not reachable right now.",
+      "RATE_LIMITED": "USDA's request limit was reached; try again later.",
+      "SKIPPED": "USDA was not searched."
+    },
+    "use": "Use",
+    "barcodeMatch": "same barcode",
+    "nameMatch": "name match {score}%",
+    "nutrientCount": "{count, plural, one {# nutrient} other {# nutrients}}",
+    "matchTitle": "Match products to the library",
+    "matchIntro": "Link each food product to a generic library food so recipes get its full nutrient profile. Suggestions come from barcodes and names; nothing is linked until you confirm.",
+    "coverageLinked": "Products with a library food",
+    "coverageUnlinked": "Products without one",
+    "unlinkedTitle": "Products without a library food",
+    "filterType": "Type",
+    "allFoodTypes": "All food types",
+    "filterProduct": "Product",
+    "show": "Show",
+    "allLinked": "Every food product here has a library food.",
+    "takeBest": "Choose the first suggestion for every row",
+    "dontLink": "— Don't link —",
+    "noSuggestion": "No suggestion: search from the product's nutrition page.",
+    "confirmLinks": "Link the chosen foods",
+    "nothingChosen": "Choose a library food for at least one product.",
+    "bulkLinked": "{count, plural, one {# product linked.} other {# products linked.}}",
+    "bulkValues": "Label values copied for {count}.",
+    "bulkSpecKept": "Specification or lab values kept for {count}.",
+    "bulkConflicts": "Allergen statements to review for {count}.",
+    "uploadTitle": "Upload links",
+    "uploadHint": "Columns: sku, reference_source (USDA_FDC, OPEN_FOOD_FACTS, WIKIDATA or MANUAL), reference_id (e.g. the USDA FDC ID). USDA and Open Food Facts records not in the library yet are fetched. All rows must be valid.",
+    "pages": "Pages",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {count}",
+    "anyReference": "Any nutrition reference",
+    "withReference": "With a library food",
+    "withoutReference": "Without a library food"
   }
 }

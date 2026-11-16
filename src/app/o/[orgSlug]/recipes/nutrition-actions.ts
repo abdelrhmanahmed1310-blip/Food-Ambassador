@@ -11,6 +11,10 @@ import {
   verifyAllergenDeclarations,
   verifyNutritionProfile,
 } from "@/modules/nutrition/service";
+import {
+  unlinkProductReference,
+  useReferenceForProduct,
+} from "@/modules/nutrition/product-reference";
 import { formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
 
@@ -92,5 +96,50 @@ export async function reviewLabelAction(
 ) {
   return tenantMutation(orgSlug, previous, formData, (ctx) =>
     reviewLabel(ctx, labelId, formValues(formData)),
+  );
+}
+
+/** Use a library food (or USDA record) as the product's nutrition reference (ADR-136). */
+export async function useReferenceAction(
+  orgSlug: string,
+  productId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  const t = await getTranslations();
+  const pick = String(formData.get("pick") ?? "");
+  const [kind, id] = [pick.slice(0, pick.indexOf(":")), pick.slice(pick.indexOf(":") + 1)];
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    const r = await useReferenceForProduct(
+      ctx,
+      productId,
+      kind === "fdc" ? { fdcId: id } : { foodId: id },
+    );
+    const parts = [
+      t("library.linkedReference"),
+      r.nutrition ? t("library.linkedValues") : null,
+      r.nutritionSkipped ? t(`library.skipped.${r.nutritionSkipped}`) : null,
+      r.allergens.length > 0 ? t("library.linkedAllergens", { count: r.allergens.length }) : null,
+      r.arabicName ? t("library.linkedName") : null,
+      r.conflicts.length > 0
+        ? t("library.conflicts", {
+            allergens: r.conflicts
+              .map((c) => t(`nutrition.allergenNames.${c as "MILK"}`))
+              .join(", "),
+          })
+        : null,
+    ].filter(Boolean);
+    return { message: parts.join(" ") };
+  });
+}
+
+export async function unlinkReferenceAction(
+  orgSlug: string,
+  productId: string,
+  previous: ActionState,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, (ctx) =>
+    unlinkProductReference(ctx, productId),
   );
 }

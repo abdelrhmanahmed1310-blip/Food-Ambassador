@@ -3977,6 +3977,70 @@ branch's live menu, without recording anything.
   not refresh itself.
 - **No schema change.**
 
+### ADR-136 Products linked to a generic library food for the full nutrient profile — Accepted (built)
+
+Decision (2026-11-16): each food product points at one generic library food
+(for example a USDA FoodData Central record). That food's full nutrient set
+is the product's nutrition reference. The link can be set when a product is
+created, uploaded in bulk, or matched later.
+
+- **The link is on the product.**
+  - `products.reference_food_id` replaces `reference_foods.linked_product_id`.
+    Many products, such as two pack sizes of the same rice, can share one
+    library food.
+  - The migration carries existing links over. Where several records were
+    linked to one product, it keeps the one the recipe panel used: verified
+    first, then the most recently updated.
+  - Archived library records are not used for new links. An existing link
+    to one shows it as archived, and the recipe panel ignores it.
+- **What a link does.**
+  - The recipe panel uses the linked food's full nutrient values.
+  - The product's own verified supplier specification or lab profile still
+    wins for the nutrients it gives.
+  - Linking can also copy the label values as an unverified DATABASE
+    profile, never over a supplier or lab profile. It can copy listed
+    allergens as CONTAINS / MAY_CONTAIN where nothing is known yet; a
+    contradiction is reported, never applied. It can fill in a missing
+    Arabic name.
+  - Copying label values makes that record the reference. A record can also
+    be used only for allergens or an Arabic name without becoming the
+    reference.
+- **Changing or removing the link.** Unlinking, or linking another food,
+  supersedes the DATABASE profile copied from the old food, so a label
+  never shows one food's values under another food's name. Values entered
+  by people stay. Allergen statements copied earlier stay, for a person to
+  review.
+- **Where to link.**
+  - **Product page → Nutrition → Nutrition reference.** Shows the linked
+    food with its main values and the size of its full profile. Offers
+    suggestions and a search of the library and of USDA (when its key is
+    set). Choosing a USDA result fetches it into the library first.
+  - **Nutrition → Match products.** Lists active food products without a
+    link; packaging and consumables are left out. Each has up to three
+    suggestions: an exact barcode match first, then trigram word similarity
+    of the product's food words (pack sizes and pack words removed)
+    against names, Arabic names and aliases.
+  - Nothing is linked automatically. A person picks per row, or takes every
+    first suggestion with one button and reviews before confirming.
+  - The screen shows coverage: products with and without a link. The
+    nutrition dashboard shows the same counts.
+- **Uploads.**
+  - The product upload takes optional `reference_source` (USDA_FDC,
+    OPEN_FOOD_FACTS, WIKIDATA, MANUAL; aliases USDA, FDC, OFF, LIBRARY) and
+    `reference_id` columns.
+  - A links file (`sku, reference_source, reference_id`) links existing
+    products.
+  - Both are all or nothing, with row and column errors.
+  - A USDA or Open Food Facts record not in the library yet is fetched
+    first, when its lookup is set up, up to 200 per file. Fetched records
+    stay in the library even if the file is refused: they are copies of
+    public data, not changes to the organization's records.
+  - Linking needs `nutrition.manage`. In uploads, label values are copied
+    where allowed, and the result reports what was kept.
+- **Product list.** Filters by "with" or "without" a library food.
+- **API.** The food detail keeps `linkedProduct` (the first product) for
+  existing clients and adds `linkedProducts`.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

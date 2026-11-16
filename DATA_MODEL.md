@@ -804,11 +804,20 @@ PENDING → APPROVED | REJECTED and APPROVED → SUPERSEDED).
 ADR-041): **reference_foods** (source USDA_FDC | OPEN_FOOD_FACTS |
 WIKIDATA, `source_id` UQ per organization and source, data type, names,
 brand, basis, the ten nutrients, allergen and trace codes (CK subset of the
-14), unmapped tags, notes, licence, attribution, source URL, linked
-product, import) and **reference_imports** (source, file name, `sha256` UQ
+14), unmapped tags, notes, licence, attribution, source URL, import; the
+linked product moved to `products.reference_food_id`, ADR-136) and **reference_imports** (source, file name, `sha256` UQ
 per organization, created / updated / skipped counts, problems; insert-only).
 `nutrition_profiles.reference_food_id` links copied values (CK source =
 DATABASE).
+
+**Product nutrition reference** (migration
+`20270126090000_product_reference_food`, ADR-136):
+`products.reference_food_id` (nullable, composite FK to
+`reference_foods (organization_id, id)`, ON DELETE RESTRICT, indexed with
+`organization_id`). This is the generic library food whose full nutrient
+set the product uses; many products may share one. Existing
+`reference_foods.linked_product_id` values were carried over (verified,
+then most recently updated, first) and the column was dropped.
 
 **Nutrition engine** (migration `20270122090000_nutrition_engine`,
 ADR-132). `reference_foods` gains source `MANUAL`, a nullable `import_id`,

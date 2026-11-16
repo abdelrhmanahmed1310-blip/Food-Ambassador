@@ -186,9 +186,9 @@ describe("ingredient library", () => {
     expect(status("PEANUTS")?.status).toBe("MAY_CONTAIN");
     expect(status("MILK")?.status).toBe("FREE_FROM");
     expect(status("FISH")).toBeNull();
-    expect((await getReferenceFood(ctx, await find("0000000000031"))).linkedProduct?.id).toBe(
-      tahini,
-    );
+    expect(
+      (await getReferenceFood(ctx, await find("0000000000031"))).products.map((p) => p.id),
+    ).toEqual([tahini]);
 
     // A specification profile is not replaced by a database record.
     await recordNutritionProfile(ctx, tahini, {

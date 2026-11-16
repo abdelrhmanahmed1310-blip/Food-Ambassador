@@ -1,7 +1,14 @@
 import { getTranslations } from "next-intl/server";
 import { buttonClass, inputClass } from "./styles";
 
-/** GET form for search + status (+ optional extra select) on list pages. */
+interface ExtraSelect {
+  name: string;
+  label: string;
+  value?: string;
+  options: Array<{ value: string; label: string }>;
+}
+
+/** GET form for search + status (+ optional extra selects) on list pages. */
 export async function ListFilters({
   q,
   status,
@@ -9,14 +16,12 @@ export async function ListFilters({
 }: {
   q?: string;
   status: string;
-  extra?: {
-    name: string;
-    label: string;
-    value?: string;
-    options: Array<{ value: string; label: string }>;
-  };
+  extra?: ExtraSelect | Array<ExtraSelect | undefined>;
 }) {
   const t = await getTranslations("common");
+  const extras = (Array.isArray(extra) ? extra : [extra]).filter(
+    (e): e is ExtraSelect => e !== undefined,
+  );
   return (
     <form method="get" className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end" role="search">
       <div className="flex-1">
@@ -32,8 +37,8 @@ export async function ListFilters({
           className={inputClass}
         />
       </div>
-      {extra ? (
-        <div>
+      {extras.map((extra) => (
+        <div key={extra.name}>
           <label htmlFor={extra.name} className="sr-only">
             {extra.label}
           </label>
@@ -51,7 +56,7 @@ export async function ListFilters({
             ))}
           </select>
         </div>
-      ) : null}
+      ))}
       <div>
         <label htmlFor="status" className="sr-only">
           {t("status")}

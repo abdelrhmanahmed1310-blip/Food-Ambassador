@@ -165,6 +165,7 @@ export const nutritionSchemas = {
     ),
     issues: arr(props({ id, kind: str, status: str, detail: str })),
     linkedProduct: { oneOf: [{ type: "null" }, props({ id, sku: str, name: str })] },
+    linkedProducts: arr(props({ id, sku: str, nameEn: str, nameAr: nstr })),
   }),
   Serving: props({
     id,

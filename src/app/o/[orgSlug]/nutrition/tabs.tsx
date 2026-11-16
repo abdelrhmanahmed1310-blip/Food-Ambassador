@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { NutritionTabs } from "@/components/nutrition/engine-view";
 
-const TABS = ["", "foods", "usda", "nutrients", "quality", "sources"] as const;
+const TABS = ["", "foods", "match", "usda", "nutrients", "quality", "sources"] as const;
 
 /** Tabs across the nutrition section (ADR-132). */
 export async function Tabs({

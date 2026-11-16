@@ -885,6 +885,8 @@ model Product {
   purchaseTaxCodeId String? @map("purchase_tax_code_id") @db.Uuid
   /// Photo shown on the till, kiosk, online ordering and menu boards (ADR-133).
   imageId           String? @map("image_id") @db.Uuid
+  /// Generic library food giving the full nutrient profile (ADR-136); many products may share one.
+  referenceFoodId   String? @map("reference_food_id") @db.Uuid
 
   organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   image                MediaImage?               @relation("ProductImage", fields: [organizationId, imageId], references: [organizationId, id], onDelete: Restrict)
@@ -913,7 +915,7 @@ model Product {
   landedCostLines      LandedCostLine[]
   allergenDeclarations AllergenDeclaration[]
   nutritionProfiles    NutritionProfile[]
-  referenceLinks       ReferenceFood[]           @relation("ReferenceLinkedProduct")
+  referenceFood        ReferenceFood?            @relation("ProductReferenceFood", fields: [organizationId, referenceFoodId], references: [organizationId, id], onDelete: Restrict)
   producedBy           Recipe[]                  @relation("RecipeOutput")
   productionOrders     ProductionOrder[]
   salesOrderLines      SalesOrderLine[]
@@ -934,6 +936,7 @@ model Product {
   @@unique([organizationId, id])
   @@unique([organizationId, sku])
   @@index([organizationId, categoryId])
+  @@index([organizationId, referenceFoodId])
   /// Global search (ADR-088).
   @@index([sku(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_sku_trgm")
   @@index([nameEn(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_name_en_trgm")
@@ -4645,8 +4648,6 @@ model ReferenceFood {
   licence          String
   attribution      String
   sourceUrl        String          @map("source_url")
-  /// Product this record was linked to, if any.
-  linkedProductId  String?         @map("linked_product_id") @db.Uuid
   /// The file import it came from; null for records fetched from an API or entered by hand (ADR-132).
   importId         String?         @map("import_id") @db.Uuid
   /// GTIN/UPC barcode as the source gives it (branded foods).
@@ -4670,7 +4671,8 @@ model ReferenceFood {
 
   organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   import         ReferenceImport?    @relation(fields: [organizationId, importId], references: [organizationId, id], onDelete: Restrict)
-  linkedProduct  Product?            @relation("ReferenceLinkedProduct", fields: [organizationId, linkedProductId], references: [organizationId, id], onDelete: Restrict)
+  /// Products using this record for their nutrition (ADR-136).
+  products       Product[]           @relation("ProductReferenceFood")
   category       FoodCategory?       @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
   profiles       NutritionProfile[]
   nutrientValues FoodNutrientValue[]

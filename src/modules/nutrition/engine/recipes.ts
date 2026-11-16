@@ -40,14 +40,22 @@ export async function recipeFullNutrition(ctx: TenantContext, recipeId: string) 
   const calc = base.calc;
   const productIds = [...calc.exploded.usage.keys()];
   return withTenantTx(ctx.organizationId, async (tx) => {
+    // Each product's own library reference (ADR-136); an archived record is not used.
+    const links = await tx.product.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        id: { in: productIds },
+        referenceFoodId: { not: null },
+      },
+      select: { id: true, referenceFoodId: true },
+    });
     const [foods, profiles, dictionary] = await Promise.all([
       tx.referenceFood.findMany({
         where: {
           organizationId: ctx.organizationId,
-          linkedProductId: { in: productIds },
+          id: { in: links.map((l) => l.referenceFoodId!) },
           archivedAt: null,
         },
-        orderBy: [{ verifiedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
         select: {
           id: true,
           name: true,
@@ -56,7 +64,6 @@ export async function recipeFullNutrition(ctx: TenantContext, recipeId: string) 
           sourceId: true,
           basis: true,
           verifiedAt: true,
-          linkedProductId: true,
           nutrientValues: {
             select: {
               amount: true,
@@ -90,10 +97,12 @@ export async function recipeFullNutrition(ctx: TenantContext, recipeId: string) 
         orderBy: [{ rank: "asc" }, { name: "asc" }],
       }),
     ]);
-    // One food per product: the verified, most recently updated one.
+    const byId = new Map(foods.map((f) => [f.id, f]));
     const foodOf = new Map<string, (typeof foods)[number]>();
-    for (const f of foods)
-      if (f.linkedProductId && !foodOf.has(f.linkedProductId)) foodOf.set(f.linkedProductId, f);
+    for (const l of links) {
+      const f = byId.get(l.referenceFoodId!);
+      if (f) foodOf.set(l.id, f);
+    }
     const profileOf = new Map(profiles.map((p) => [p.productId, p]));
 
     const ingredients: IngredientIn[] = [];

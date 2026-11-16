@@ -2,10 +2,16 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { toDecimal } from "@/lib/decimal";
 import { parseCsvRecords, toCsv } from "@/lib/csv";
-import { assertPermission } from "@/modules/access/authorize";
+import { assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
 import { findProduct, loadUnits } from "@/modules/catalog/service";
 import { productSchema } from "@/modules/catalog/schemas";
+import {
+  applyUploadedReferencesInTx,
+  readReferenceColumns,
+  resolveReferences,
+} from "@/modules/nutrition/product-reference";
+import { referenceKey } from "@/modules/nutrition/reference-match";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { isUniqueViolation } from "@/server/db/errors";
 import { withTenantTx } from "@/server/db/transactions";
@@ -36,6 +42,8 @@ export interface ImportResult {
   imported: number;
   errors: RowError[];
   documents?: string[];
+  /** Products linked to a library food from the reference columns (ADR-136). */
+  linked?: number;
 }
 
 function fileTooLarge(count: number): ImportResult {
@@ -103,6 +111,11 @@ const PRODUCT_COLUMNS = {
  * Import new products. All rows are validated first; nothing is written
  * unless every row is valid (all-or-nothing). Existing SKUs are errors, not
  * updates, so an import can never silently change master data.
+ *
+ * Optional reference_source and reference_id columns link each product to a
+ * library food for its full nutrient profile (ADR-136), e.g. USDA_FDC 171287.
+ * A USDA or Open Food Facts record not in the library yet is fetched first;
+ * linking needs nutrition.manage.
  */
 export async function importProducts(ctx: TenantContext, text: string): Promise<ImportResult> {
   assertPermission(ctx.grants, "catalog.manage");
@@ -113,6 +126,28 @@ export async function importProducts(ctx: TenantContext, text: string): Promise<
   if (records.length === 0 || records.length > MAX_IMPORT_ROWS) return fileTooLarge(records.length);
   const missing = missingColumns(headers, ["sku", "name_en", "type", "base_unit"]);
   if (missing) return missing;
+  const refColumns = readReferenceColumns(records);
+  const refErrors: RowError[] = [...refColumns.errors];
+  if (!hasPermission(ctx.grants, "nutrition.manage"))
+    refColumns.refs.forEach((r, i) => {
+      if (r)
+        refErrors.push({
+          row: i + 1,
+          column: "reference_source",
+          message: "referenceNeedsPermission",
+        });
+    });
+  const foodIds =
+    refErrors.length === 0
+      ? await resolveReferences(
+          ctx,
+          refColumns.refs.filter((r) => r !== null),
+        )
+      : new Map<string, string>();
+  refColumns.refs.forEach((r, i) => {
+    if (r && refErrors.length === 0 && !foodIds.has(referenceKey(r)))
+      refErrors.push({ row: i + 1, column: "reference_id", message: "referenceNotFound" });
+  });
 
   return withTenantTx(ctx.organizationId, async (tx) => {
     const units = new Map((await loadUnits(tx, ctx)).map((u) => [u.code, u.id]));
@@ -124,9 +159,10 @@ export async function importProducts(ctx: TenantContext, text: string): Promise<
         })
       ).map((p) => p.sku),
     );
-    const errors: RowError[] = [];
+    const errors: RowError[] = [...refErrors];
     const seen = new Set<string>();
     const valid: Array<ReturnType<typeof productSchema.parse>> = [];
+    const foodForSku = new Map<string, string>();
     const columnFor = (path: string) =>
       PRODUCT_COLUMNS[path as keyof typeof PRODUCT_COLUMNS] ?? path;
 
@@ -156,23 +192,33 @@ export async function importProducts(ctx: TenantContext, text: string): Promise<
         errors.push({ row, column: "sku", message: "skuDuplicateInFile" });
       seen.add(result.data.sku);
       if (unitId) valid.push(result.data);
+      const ref = refColumns.refs[i];
+      const foodId = ref ? foodIds.get(referenceKey(ref)) : undefined;
+      if (foodId) foodForSku.set(result.data.sku, foodId);
     });
+    errors.sort((a, b) => a.row - b.row);
     if (errors.length > 0) return { ok: false, imported: 0, errors };
 
-    await tx.product.createMany({
+    const created = await tx.product.createManyAndReturn({
       data: valid.map((p) => ({
         ...p,
         organizationId: ctx.organizationId,
         createdByUserId: ctx.userId,
         updatedByUserId: ctx.userId,
       })),
+      select: { id: true, sku: true },
     });
     await recordAudit(tx, actorOf(ctx), {
       action: "product.imported",
       entityType: "product",
       changes: { count: valid.length },
     });
-    return { ok: true, imported: valid.length, errors: [] };
+    const links = created
+      .filter((p) => foodForSku.has(p.sku))
+      .map((p) => ({ productId: p.id, foodId: foodForSku.get(p.sku)! }));
+    if (links.length === 0) return { ok: true, imported: valid.length, errors: [] };
+    const linked = await applyUploadedReferencesInTx(tx, ctx, links);
+    return { ok: true, imported: valid.length, errors: [], linked: linked.linked };
   });
 }
 
@@ -460,8 +506,19 @@ export async function exportValuationsCsv(
 }
 
 export const PRODUCT_TEMPLATE = toCsv(
-  ["sku", "name_en", "name_ar", "type", "base_unit", "lot_tracking", "shelf_life_days", "storage"],
-  [["RICE-5KG", "Basmati rice", "أرز بسمتي", "RAW_MATERIAL", "kg", "NONE", "", "AMBIENT"]],
+  [
+    "sku",
+    "name_en",
+    "name_ar",
+    "type",
+    "base_unit",
+    "lot_tracking",
+    "shelf_life_days",
+    "storage",
+    "reference_source",
+    "reference_id",
+  ],
+  [["RICE-5KG", "Basmati rice", "أرز بسمتي", "RAW_MATERIAL", "kg", "NONE", "", "AMBIENT", "", ""]],
 );
 
 export const OPENING_TEMPLATE = toCsv(

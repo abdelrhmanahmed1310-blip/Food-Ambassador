@@ -5,6 +5,7 @@ import { StatTile } from "@/components/nutrition/engine-view";
 import { Alert, Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
 import { nutritionDashboard } from "@/modules/nutrition/engine/quality";
+import { referenceCoverage } from "@/modules/nutrition/product-reference";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { Tabs } from "./tabs";
 
@@ -15,10 +16,12 @@ export default async function NutritionDashboardPage({
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "nutrition.view")) notFound();
-  const [t, format, d] = await Promise.all([
+  const [t, tr, format, d, coverage] = await Promise.all([
     getTranslations("nutritionEngine"),
+    getTranslations("productReference"),
     getFormatter(),
     nutritionDashboard(ctx),
+    referenceCoverage(ctx),
   ]);
   const base = `/o/${orgSlug}/nutrition`;
   const when = (v: Date | null) =>
@@ -44,6 +47,12 @@ export default async function NutritionDashboardPage({
             href={`${base}/foods?mode=LOCAL&source=MANUAL`}
           />
           <StatTile label={t("stats.nutrients")} value={d.nutrients} href={`${base}/nutrients`} />
+          <StatTile label={tr("coverageLinked")} value={coverage.linked} href={`${base}/match`} />
+          <StatTile
+            label={tr("coverageUnlinked")}
+            value={coverage.unlinked}
+            href={`${base}/match`}
+          />
           <StatTile label={t("stats.foundation")} value={d.foundation} />
           <StatTile label={t("stats.srLegacy")} value={d.srLegacy} />
           <StatTile label={t("stats.fndds")} value={d.fndds} />

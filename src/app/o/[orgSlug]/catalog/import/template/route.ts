@@ -1,5 +1,6 @@
 import { CATEGORY_TEMPLATE } from "@/modules/catalog/category-import";
 import { OPENING_TEMPLATE, PRODUCT_TEMPLATE } from "@/modules/inventory/csv";
+import { LINKS_TEMPLATE } from "@/modules/nutrition/reference-match";
 import { csvResponse, tenantForRoute } from "@/server/routes/tenant-route";
 
 export async function GET(
@@ -13,5 +14,7 @@ export async function GET(
     ? csvResponse(OPENING_TEMPLATE, "opening-balances-template.csv")
     : kind === "categories"
       ? csvResponse(CATEGORY_TEMPLATE, "categories-template.csv")
-      : csvResponse(PRODUCT_TEMPLATE, "products-template.csv");
+      : kind === "links"
+        ? csvResponse(LINKS_TEMPLATE, "nutrition-links-template.csv")
+        : csvResponse(PRODUCT_TEMPLATE, "products-template.csv");
 }

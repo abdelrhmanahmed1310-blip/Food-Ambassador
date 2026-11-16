@@ -3,12 +3,10 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { assertPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
-import { setArabicNameIfEmptyInTx } from "@/modules/catalog/service";
 import { uuidSchema } from "@/modules/shared/schemas";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { withTenantTx } from "@/server/db/transactions";
 import { businessRuleViolation, notFound, validationFailed } from "@/server/errors";
-import { type AllergenCode } from "./allergens";
 import {
   LIBRARY_SOURCES,
   parseLibraryFile,
@@ -16,8 +14,8 @@ import {
   type LibrarySource,
   type ParseResult,
 } from "./library-parsers";
+import { applyReferenceInTx } from "./product-reference";
 import { NUTRIENTS } from "./rules";
-import { profileSchema } from "./service";
 
 /**
  * Ingredient library (DECISIONS.md ADR-041): records copied from USDA
@@ -193,7 +191,7 @@ export async function listReferenceFoods(
           basis: true,
           energyKcal: true,
           allergens: true,
-          linkedProduct: { select: { id: true, sku: true } },
+          _count: { select: { products: true } },
         },
         orderBy: [{ name: "asc" }, { id: "asc" }],
         skip: (page - 1) * LIBRARY_PAGE_SIZE,
@@ -221,7 +219,11 @@ export async function getReferenceFood(ctx: TenantContext, id: string) {
     const food = await tx.referenceFood.findFirst({
       where: { organizationId: ctx.organizationId, id },
       include: {
-        linkedProduct: { select: { id: true, sku: true, nameEn: true, nameAr: true } },
+        products: {
+          select: { id: true, sku: true, nameEn: true, nameAr: true },
+          orderBy: { sku: "asc" },
+          take: 50,
+        },
         import: { select: { fileName: true, createdAt: true } },
       },
     });
@@ -230,27 +232,25 @@ export async function getReferenceFood(ctx: TenantContext, id: string) {
   });
 }
 
+const flag = z
+  .string()
+  .optional()
+  .transform((v) => v === "on" || v === "true");
 const linkSchema = z.object({
   productId: uuidSchema,
-  nutrition: z
-    .string()
-    .optional()
-    .transform((v) => v === "on" || v === "true"),
-  allergens: z
-    .string()
-    .optional()
-    .transform((v) => v === "on" || v === "true"),
-  arabicName: z
-    .string()
-    .optional()
-    .transform((v) => v === "on" || v === "true"),
+  reference: flag,
+  nutrition: flag,
+  allergens: flag,
+  arabicName: flag,
 });
 
 /**
- * Use a library record for a product. Values become an unverified DATABASE
- * profile (refused over a supplier or lab profile); listed allergens become
- * CONTAINS / MAY_CONTAIN where nothing is known yet. A listed allergen that
- * contradicts someone's statement is reported, not applied.
+ * Use a library record for a product (ADR-041, ADR-136). It can become the
+ * product's nutrition reference (its full nutrient set feeds recipe panels);
+ * its label values can be copied as an unverified DATABASE profile (refused
+ * over a supplier or lab profile; copying makes it the reference); listed
+ * allergens become CONTAINS / MAY_CONTAIN where nothing is known yet. A listed
+ * allergen that contradicts someone's statement is reported, not applied.
  */
 export async function linkReferenceFood(
   ctx: TenantContext,
@@ -261,7 +261,7 @@ export async function linkReferenceFood(
   const parsed = linkSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const input = parsed.data;
-  if (!input.nutrition && !input.allergens && !input.arabicName)
+  if (!input.reference && !input.nutrition && !input.allergens && !input.arabicName)
     throw businessRuleViolation("NOTHING_TO_APPLY", "Choose what to use from the record");
   return withTenantTx(ctx.organizationId, async (tx) => {
     const food = await tx.referenceFood.findFirst({
@@ -273,119 +273,6 @@ export async function linkReferenceFood(
       select: { id: true },
     });
     if (!product) throw notFound("Product");
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`nutrition:${ctx.organizationId}:${product.id}`}))`;
-    const reference = `${food.source === "USDA_FDC" ? "USDA FDC" : food.source === "OPEN_FOOD_FACTS" ? "Open Food Facts" : food.source === "MANUAL" ? "Library entry" : "Wikidata"} ${food.sourceId}${food.dataType ? ` (${food.dataType})` : ""}`;
-    const result = {
-      nutrition: false,
-      allergens: [] as string[],
-      conflicts: [] as string[],
-      arabicName: false,
-    };
-
-    if (input.nutrition) {
-      const values = Object.fromEntries(
-        NUTRIENTS.map((n) => [n, food[n] === null ? undefined : food[n]!.toString()]),
-      );
-      if (!food.basis || Object.values(values).every((v) => v === undefined))
-        throw businessRuleViolation(
-          "REFERENCE_HAS_NO_VALUES",
-          "The record has no nutrition values",
-        );
-      const check = profileSchema.safeParse({
-        basis: food.basis,
-        source: "DATABASE",
-        reference,
-        ...values,
-      });
-      if (!check.success)
-        throw businessRuleViolation(
-          "REFERENCE_VALUES_IMPLAUSIBLE",
-          "The record's values fail the plausibility checks; enter them by hand",
-          { detail: check.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ") },
-        );
-      const current = await tx.nutritionProfile.findFirst({
-        where: { organizationId: ctx.organizationId, productId: product.id, supersededAt: null },
-      });
-      if (current && (current.source === "SUPPLIER_SPEC" || current.source === "LAB"))
-        throw businessRuleViolation(
-          "REFERENCE_WOULD_REPLACE_SPEC",
-          "The product has values from a specification or lab; a database record does not replace them",
-        );
-      if (current)
-        await tx.nutritionProfile.update({
-          where: { id: current.id },
-          data: { supersededAt: new Date() },
-        });
-      await tx.nutritionProfile.create({
-        data: {
-          organizationId: ctx.organizationId,
-          productId: product.id,
-          basis: food.basis,
-          source: "DATABASE",
-          reference,
-          note: food.notes.length > 0 ? food.notes.join("; ").slice(0, 500) : null,
-          referenceFoodId: food.id,
-          createdByUserId: ctx.userId,
-          ...Object.fromEntries(NUTRIENTS.map((n) => [n, food[n]])),
-        },
-      });
-      result.nutrition = true;
-    }
-
-    if (input.allergens) {
-      const current = await tx.allergenDeclaration.findMany({
-        where: { organizationId: ctx.organizationId, productId: product.id, supersededAt: null },
-      });
-      const listed: Array<[AllergenCode, "CONTAINS" | "MAY_CONTAIN"]> = [
-        ...food.allergens.map((c) => [c as AllergenCode, "CONTAINS"] as [AllergenCode, "CONTAINS"]),
-        ...food.traces.map(
-          (c) => [c as AllergenCode, "MAY_CONTAIN"] as [AllergenCode, "MAY_CONTAIN"],
-        ),
-      ];
-      for (const [allergen, status] of listed) {
-        const before = current.find((d) => d.allergen === allergen);
-        if (before && before.status !== "UNKNOWN") {
-          // A database never overrides a statement; a contradiction is for a person to resolve.
-          if (
-            before.status === "FREE_FROM" ||
-            (before.status === "MAY_CONTAIN" && status === "CONTAINS")
-          )
-            result.conflicts.push(allergen);
-          continue;
-        }
-        if (before)
-          await tx.allergenDeclaration.update({
-            where: { id: before.id },
-            data: { supersededAt: new Date() },
-          });
-        await tx.allergenDeclaration.create({
-          data: {
-            organizationId: ctx.organizationId,
-            productId: product.id,
-            allergen,
-            status,
-            source: "DATABASE",
-            reference,
-            declaredByUserId: ctx.userId,
-          },
-        });
-        result.allergens.push(allergen);
-      }
-    }
-
-    if (input.arabicName && food.nameAr)
-      result.arabicName = await setArabicNameIfEmptyInTx(tx, ctx, product.id, food.nameAr);
-
-    await tx.referenceFood.update({
-      where: { id: food.id },
-      data: { linkedProductId: product.id },
-    });
-    await recordAudit(tx, actorOf(ctx), {
-      action: "ingredient_library.linked",
-      entityType: "product",
-      entityId: product.id,
-      changes: { referenceFoodId: food.id, reference, ...result },
-    });
-    return result;
+    return applyReferenceInTx(tx, ctx, food, product.id, input, "strict");
   });
 }

@@ -115,16 +115,9 @@ export default async function LibraryPage({
                       .join(", ") || "—"}
                   </Td>
                   <Td className="text-xs">
-                    {f.linkedProduct ? (
-                      <Link
-                        href={`/o/${orgSlug}/catalog/products/${f.linkedProduct.id}/nutrition`}
-                        className="ltr-value text-primary font-mono hover:underline"
-                      >
-                        {f.linkedProduct.sku}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
+                    <span className="ltr-value tabular-nums">
+                      {f._count.products > 0 ? f._count.products : "—"}
+                    </span>
                   </Td>
                 </tr>
               ))}

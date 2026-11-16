@@ -84,17 +84,23 @@ export default async function ReferenceFoodPage({
               ...(food.import
                 ? [{ label: t("library.importedFrom"), value: <bdi>{food.import.fileName}</bdi> }]
                 : []),
-              ...(food.linkedProduct
+              ...(food.products.length > 0
                 ? [
                     {
                       label: t("library.linkedTo"),
                       value: (
-                        <Link
-                          href={`/o/${orgSlug}/catalog/products/${food.linkedProduct.id}/nutrition`}
-                          className="text-primary hover:underline"
-                        >
-                          {food.linkedProduct.sku} — {productName(food.linkedProduct, locale)}
-                        </Link>
+                        <ul className="space-y-0.5">
+                          {food.products.map((lp) => (
+                            <li key={lp.id}>
+                              <Link
+                                href={`/o/${orgSlug}/catalog/products/${lp.id}/nutrition`}
+                                className="text-primary hover:underline"
+                              >
+                                {lp.sku} — {productName(lp, locale)}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
                       ),
                     },
                   ]

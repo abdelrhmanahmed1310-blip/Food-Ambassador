@@ -46,15 +46,17 @@ that can be imported as an unverified record.
 
 ## 2. Day to day
 
-| Task                                    | Where                                                                             |
-| --------------------------------------- | --------------------------------------------------------------------------------- |
-| Find a food (library and USDA together) | Nutrition → Foods; mode HYBRID                                                    |
-| Bring a USDA food into the library      | Foods → a USDA result → Import; or USDA → Import by FDC id                        |
-| Enter a food from a label               | Foods → New food (empty = unknown, `NA` = not applicable)                         |
-| Check and verify a food                 | Food profile → Mark verified (records who and when)                               |
-| Use a food for a product                | Food profile → Link to a product… (never replaces a specification or lab profile) |
-| See a recipe's full panel               | Recipe → Nutrition → Full nutrient panel                                          |
-| Review findings                         | Nutrition → Data quality → close as resolved or ignored, with a note              |
+| Task                                    | Where                                                                            |
+| --------------------------------------- | -------------------------------------------------------------------------------- |
+| Find a food (library and USDA together) | Nutrition → Foods; mode HYBRID                                                   |
+| Bring a USDA food into the library      | Foods → a USDA result → Import; or USDA → Import by FDC id                       |
+| Enter a food from a label               | Foods → New food (empty = unknown, `NA` = not applicable)                        |
+| Check and verify a food                 | Food profile → Mark verified (records who and when)                              |
+| Use a food for a product                | Product → Nutrition → Nutrition reference (suggestions, library and USDA search) |
+| Link many products at once              | Nutrition → Match products (confirm suggestions), or upload a links file         |
+| Link products while uploading them      | Catalog → Import → products file with `reference_source` and `reference_id`      |
+| See a recipe's full panel               | Recipe → Nutrition → Full nutrient panel                                         |
+| Review findings                         | Nutrition → Data quality → close as resolved or ignored, with a note             |
 
 ## 3. Keeping the library current
 

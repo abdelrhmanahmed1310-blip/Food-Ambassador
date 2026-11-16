@@ -42,6 +42,7 @@ export async function linkReferenceAction(
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     const r = await linkReferenceFood(ctx, referenceId, formValues(formData));
     const parts = [
+      r.reference ? t("library.linkedReference") : null,
       r.nutrition ? t("library.linkedValues") : null,
       r.allergens.length > 0 ? t("library.linkedAllergens", { count: r.allergens.length }) : null,
       r.arabicName ? t("library.linkedName") : null,

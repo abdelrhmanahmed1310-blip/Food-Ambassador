@@ -416,16 +416,20 @@ export default async function FoodProfilePage({
             <div className="sm:col-span-2">
               <dt className="text-muted">{t("linkedProduct")}</dt>
               <dd>
-                {f.linkedProduct ? (
-                  <Link
-                    href={`/o/${orgSlug}/catalog/products/${f.linkedProduct.id}/nutrition`}
-                    className="text-primary hover:underline"
-                  >
-                    <span className="ltr-value font-mono">{f.linkedProduct.sku}</span> —{" "}
-                    <bdi>
-                      {(locale === "ar" && f.linkedProduct.nameAr) || f.linkedProduct.nameEn}
-                    </bdi>
-                  </Link>
+                {f.linkedProducts.length > 0 ? (
+                  <ul className="space-y-0.5" data-testid="linked-products">
+                    {f.linkedProducts.map((lp) => (
+                      <li key={lp.id}>
+                        <Link
+                          href={`/o/${orgSlug}/catalog/products/${lp.id}/nutrition`}
+                          className="text-primary hover:underline"
+                        >
+                          <span className="ltr-value font-mono">{lp.sku}</span> —{" "}
+                          <bdi>{(locale === "ar" && lp.nameAr) || lp.nameEn}</bdi>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
                   "—"
                 )}{" "}

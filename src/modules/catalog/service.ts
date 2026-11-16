@@ -131,7 +131,14 @@ const productListSelect = {
 
 export async function listProducts(
   ctx: TenantContext,
-  options: { q?: string; status?: ListStatus; categoryId?: string; page?: number } = {},
+  options: {
+    q?: string;
+    status?: ListStatus;
+    categoryId?: string;
+    /** Has a library food for its nutrition (ADR-136), or not. */
+    nutrition?: "linked" | "unlinked";
+    page?: number;
+  } = {},
 ) {
   assertPermission(ctx.grants, "catalog.view");
   const page = Math.max(1, options.page ?? 1);
@@ -141,6 +148,11 @@ export async function listProducts(
     organizationId: ctx.organizationId,
     // A category includes its subcategories (ADR-134); filled in below.
     ...(options.categoryId ? { categoryId: options.categoryId } : {}),
+    ...(options.nutrition === "linked"
+      ? { referenceFoodId: { not: null } }
+      : options.nutrition === "unlinked"
+        ? { referenceFoodId: null }
+        : {}),
     ...(status === "active"
       ? { archivedAt: null }
       : status === "archived"

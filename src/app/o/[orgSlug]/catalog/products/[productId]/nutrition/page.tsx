@@ -15,7 +15,10 @@ import {
   Th,
 } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
+import { ReferenceCard } from "./reference-card";
 import { hasPermission } from "@/modules/access/authorize";
+import { searchFoods } from "@/modules/nutrition/engine/foods";
+import { productReference } from "@/modules/nutrition/product-reference";
 import { getProductNutrition, SOURCES } from "@/modules/nutrition/service";
 import { NUTRIENTS } from "@/modules/nutrition/rules";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
@@ -30,11 +33,19 @@ import {
 
 export default async function ProductNutritionPage({
   params,
+  searchParams,
 }: PageProps<"/o/[orgSlug]/catalog/products/[productId]/nutrition">) {
   const { orgSlug, productId } = await params;
+  const sp = await searchParams;
   if (!isUuid(productId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const n = await notFoundOnAppError(getProductNutrition(ctx, productId));
+  const ref = await productReference(ctx, productId);
+  const refQuery = typeof sp.ref === "string" ? sp.ref.trim().slice(0, 100) : "";
+  const found =
+    refQuery && hasPermission(ctx.grants, "nutrition.manage")
+      ? await searchFoods(ctx, { q: refQuery, mode: "HYBRID", pageSize: 8 })
+      : null;
   const [t, locale, format, fmt] = await Promise.all([
     getTranslations(),
     getLocale(),
@@ -64,6 +75,14 @@ export default async function ProductNutritionPage({
       />
       <div className="space-y-6">
         <Alert tone="info">{t("nutrition.neverInferred")}</Alert>
+        <ReferenceCard
+          orgSlug={orgSlug}
+          productId={productId}
+          manage={manage}
+          reference={ref}
+          query={refQuery}
+          found={found}
+        />
         <Card title={t("nutrition.values")}>
           {!p ? (
             <EmptyState title={t("nutrition.noValues")} />

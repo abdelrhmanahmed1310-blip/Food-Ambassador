@@ -84,7 +84,12 @@ beforeAll(async () => {
     "BUSINESS_RULE_VIOLATION",
   );
   // …but it can be linked for the nutrients the specification does not give.
-  await getDb().referenceFood.update({ where: { id: oilFood.id }, data: { linkedProductId: oil } });
+  // As the product's reference only (ADR-136), the specification profile stays.
+  await linkReferenceFood(ctx, oilFood.id, { productId: oil, reference: "on" });
+  expect(
+    (await getDb().nutritionProfile.findFirst({ where: { productId: oil, supersededAt: null } }))
+      ?.source,
+  ).toBe("SUPPLIER_SPEC");
   waterFood = (
     await createFood(ctx, {
       name: "Test water",

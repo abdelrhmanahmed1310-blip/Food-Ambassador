@@ -241,6 +241,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     catalog.items.push(
       { href: `${base}/nutrition`, label: t("nutritionEngine"), exact: true },
       { href: `${base}/nutrition/foods`, label: t("nutritionFoods") },
+      { href: `${base}/nutrition/match`, label: t("nutritionMatch") },
       { href: `${base}/catalog/library`, label: t("ingredientLibrary") },
     );
   if (

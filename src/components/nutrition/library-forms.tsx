@@ -92,6 +92,7 @@ export function LinkReferenceForm({
         required
       />
       <div className="space-y-2">
+        <CheckboxField name="reference" label={t("library.useAsReference")} defaultChecked />
         {hasValues ? (
           <CheckboxField name="nutrition" label={t("library.useValues")} defaultChecked />
         ) : null}

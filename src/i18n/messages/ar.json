@@ -211,7 +211,8 @@
     "consultant": "المستشار الغذائي الآلي",
     "nutritionEngine": "التغذية",
     "nutritionFoods": "أغذية التغذية",
-    "posSimulator": "محاكي نقاط البيع"
+    "posSimulator": "محاكي نقاط البيع",
+    "nutritionMatch": "المطابقة مع المكتبة"
   },
   "home": {
     "tagline": "عمليات الغذاء، من المورّد إلى الطبق.",
@@ -364,7 +365,12 @@
     "retentionRange": "أدخل من 30 إلى 3650 يومًا، أو اتركه فارغًا.",
     "categoryCodeTaken": "توجد فئة بهذا الرمز بالفعل.",
     "categoryDuplicateInFile": "هذا الرمز مكرر في الملف.",
-    "categoryUnknownParent": "لا توجد فئة برمز الفئة الأم هذا."
+    "categoryUnknownParent": "لا توجد فئة برمز الفئة الأم هذا.",
+    "referenceIncomplete": "أدخل reference_source و reference_id معًا أو اتركهما فارغين.",
+    "referenceSourceUnknown": "مصدر غير معروف: استخدم USDA_FDC أو OPEN_FOOD_FACTS أو WIKIDATA أو MANUAL.",
+    "referenceIdInvalid": "هذا الرقم لا يناسب المصدر (USDA: أرقام؛ Open Food Facts: باركود من 6 إلى 14 رقمًا؛ Wikidata: الحرف Q ثم أرقام).",
+    "referenceNotFound": "غير موجود في المكتبة، وتعذّر جلبه من مصدره.",
+    "referenceNeedsPermission": "يتطلب الربط بالمكتبة صلاحية إدارة القيم الغذائية."
   },
   "errors": {
     "UNAUTHENTICATED": "يرجى تسجيل الدخول للمتابعة.",
@@ -940,7 +946,9 @@
     "TOO_MANY_PHOTOS": "الحد الأقصى أربع صور إضافية. احذفوا واحدة أولاً.",
     "CATEGORY_LOOP": "لا يمكن وضع فئة ضمن إحدى فئاتها الفرعية.",
     "CATEGORY_TOO_DEEP": "الفئات ثلاثة مستويات كحد أقصى.",
-    "CATEGORY_HAS_SUBCATEGORIES": "أرشفوا فئاتها الفرعية أو انقلوها أولاً."
+    "CATEGORY_HAS_SUBCATEGORIES": "أرشفوا فئاتها الفرعية أو انقلوها أولاً.",
+    "REFERENCE_ARCHIVED": "سجل المكتبة مؤرشف؛ اختر سجلًا آخر.",
+    "REFERENCE_NOT_FETCHED": "تعذّر جلب سجل USDA. حاول لاحقًا."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -1362,7 +1370,7 @@
   "import": {
     "title": "الاستيراد",
     "productsTitle": "استيراد المنتجات",
-    "productsHint": "الأعمدة: sku, name_en, name_ar, type, base_unit, lot_tracking, shelf_life_days, storage. لا تُعدَّل المنتجات الموجودة.",
+    "productsHint": "الأعمدة: sku, name_en, name_ar, type, base_unit, lot_tracking, shelf_life_days, storage، واختياريًا reference_source و reference_id لربط كل منتج بغذاء من المكتبة (مثل USDA_FDC ورقمه). لا تُعدَّل المنتجات الموجودة.",
     "openingTitle": "استيراد الأرصدة الافتتاحية",
     "openingHint": "الأعمدة: warehouse_code, location_code, sku, lot_code, expires_on (YYYY-MM-DD), quantity, unit, unit_cost. يُرحَّل مستند رصيد افتتاحي واحد لكل مستودع.",
     "file": "ملف CSV (UTF-8، بحد أقصى 900 كيلوبايت)",
@@ -1377,7 +1385,8 @@
     "allOrNothing": "يُتحقق من الملف بالكامل أولًا؛ لا يُستورد أي شيء ما لم تكن جميع الصفوف صحيحة.",
     "categoriesTitle": "رفع الفئات دفعة واحدة",
     "categoriesHint": "ملف CSV بالأعمدة code وname وname_ar وparent_code. الرمز الجديد يضيف فئة، والرمز الموجود يحدّث اسميها وفئتها الأم (parent_code الفارغ = فئة رئيسية). يمكن أن تكون الفئة الأم فئة موجودة أو صفاً آخر في الملف.",
-    "categoriesDone": "أُضيفت {created} فئة، وحُدّثت {updated}."
+    "categoriesDone": "أُضيفت {created} فئة، وحُدّثت {updated}.",
+    "linkedToLibrary": "{count, plural, one {رُبط منتج واحد بالمكتبة.} other {رُبط # منتجًا بالمكتبة.}}"
   },
   "inventory": {
     "overviewTitle": "المخزون",
@@ -2854,7 +2863,14 @@
     "linkedName": "مُلئ الاسم العربي.",
     "conflicts": "لم تُطبّق لأن أحدًا صرّح بخلافها: {allergens}. راجعها في المنتج.",
     "linkedNothing": "لم يتغير شيء.",
-    "fromLibraryRecord": "منسوخة من سجل في المكتبة"
+    "fromLibraryRecord": "منسوخة من سجل في المكتبة",
+    "useAsReference": "استخدامه مرجعًا غذائيًا (الملف الغذائي الكامل)",
+    "linkedReference": "تم ربطه مرجعًا غذائيًا للمنتج.",
+    "skipped": {
+      "NO_VALUES": "لا يحتوي السجل على قيم ملصق لنسخها.",
+      "IMPLAUSIBLE": "لم تجتز قيم الملصق فحوص المعقولية ولم تُنسخ.",
+      "SPEC_KEPT": "أُبقيت قيم المواصفات أو المختبر للمنتج."
+    }
   },
   "reports": {
     "wasteTitle": "الهدر وفروقات المخزون",
@@ -7433,7 +7449,8 @@
       "usda": "USDA",
       "nutrients": "العناصر الغذائية",
       "quality": "جودة البيانات",
-      "sources": "المصادر"
+      "sources": "المصادر",
+      "match": "مطابقة المنتجات"
     },
     "usdaNotConfigured": "الاتصال المباشر بقاعدة USDA FoodData Central غير مفعّل: يقتصر البحث على مكتبتكم. يضبط المسؤول المتغير USDA_FDC_API_KEY في بيئة الخادم (مفتاح مجاني من api.data.gov) لتفعيله.",
     "usdaConfiguredNote": "متصل بقاعدة USDA FoodData Central. يُحفظ المفتاح على الخادم ولا يُرسل إلى المتصفحات أبداً.",
@@ -7595,7 +7612,7 @@
     "lastFetched": "آخر جلب من المصدر",
     "ingredientsDeclared": "المكونات كما صُرّح بها",
     "notTranslated": "تُعرض كما صُرّح بها؛ لا تُترجم آلياً.",
-    "linkedProduct": "المنتج المرتبط",
+    "linkedProduct": "المنتجات المرتبطة",
     "linkToProduct": "ربط بمنتج…",
     "aliases": "أسماء أخرى",
     "remove": "إزالة",
@@ -7855,5 +7872,62 @@
     "exportCsv": "تنزيل CSV",
     "clear": "مسح الجلسة",
     "clearConfirm": "مسح جميع المبيعات التجريبية في هذه الجلسة؟"
+  },
+  "productReference": {
+    "title": "المرجع الغذائي",
+    "intro": "الغذاء العام في المكتبة الذي يمثل هذا المنتج، مثل «أرز أبيض نيء» من USDA. يُستخدم ملفه الغذائي الكامل (الفيتامينات والمعادن وغيرها) في القيم الغذائية للوصفات. القيم الواردة من مواصفات المورد أو المختبر لها الأولوية دائمًا.",
+    "none": "لم يُربط أي غذاء من المكتبة بعد.",
+    "verified": "سجل موثّق",
+    "notVerified": "السجل غير موثّق",
+    "archived": "سجل مؤرشف",
+    "fullProfile": "الملف الكامل: {count, plural, one {عنصر غذائي واحد} other {# عنصرًا غذائيًا}}",
+    "coreValues": "القيم الرئيسية",
+    "unlink": "إلغاء الربط",
+    "confirmUnlink": "إلغاء ربط غذاء المكتبة هذا؟ تُزال القيم المنسوخة منه من ملف المنتج، وتبقى القيم التي أدخلها الأشخاص.",
+    "search": "ابحث عن غذاء في المكتبة",
+    "change": "التغيير إلى غذاء آخر من المكتبة",
+    "searchPlaceholder": "مثال: rice white raw أو رقم USDA FDC",
+    "suggestions": "مقترحات لهذا المنتج",
+    "inLibrary": "في مكتبتك",
+    "fromUsda": "من USDA FoodData Central",
+    "noneFound": "لم يُعثر على شيء.",
+    "usda": {
+      "NOT_CONFIGURED": "البحث في USDA غير مُعد (لا يوجد مفتاح API).",
+      "UNAVAILABLE": "تعذّر الوصول إلى USDA حاليًا.",
+      "RATE_LIMITED": "بلغ USDA حد الطلبات؛ حاول لاحقًا.",
+      "SKIPPED": "لم يتم البحث في USDA."
+    },
+    "use": "استخدام",
+    "barcodeMatch": "نفس الباركود",
+    "nameMatch": "تطابق الاسم {score}%",
+    "nutrientCount": "{count, plural, one {عنصر غذائي واحد} other {# عنصرًا غذائيًا}}",
+    "matchTitle": "مطابقة المنتجات مع المكتبة",
+    "matchIntro": "اربط كل منتج غذائي بغذاء عام من المكتبة لتحصل الوصفات على ملفه الغذائي الكامل. تأتي المقترحات من الباركود والأسماء، ولا يُربط شيء حتى تؤكد.",
+    "coverageLinked": "منتجات لها غذاء في المكتبة",
+    "coverageUnlinked": "منتجات بدون غذاء",
+    "unlinkedTitle": "منتجات بدون غذاء في المكتبة",
+    "filterType": "النوع",
+    "allFoodTypes": "جميع الأنواع الغذائية",
+    "filterProduct": "المنتج",
+    "show": "عرض",
+    "allLinked": "كل منتج غذائي هنا مرتبط بغذاء من المكتبة.",
+    "takeBest": "اختيار أول اقتراح لكل صف",
+    "dontLink": "— بدون ربط —",
+    "noSuggestion": "لا يوجد اقتراح: ابحث من صفحة القيم الغذائية للمنتج.",
+    "confirmLinks": "ربط الأغذية المختارة",
+    "nothingChosen": "اختر غذاءً من المكتبة لمنتج واحد على الأقل.",
+    "bulkLinked": "{count, plural, one {تم ربط منتج واحد.} other {تم ربط # منتجًا.}}",
+    "bulkValues": "نُسخت قيم الملصق لـ {count}.",
+    "bulkSpecKept": "أُبقيت قيم المواصفات أو المختبر لـ {count}.",
+    "bulkConflicts": "بيانات مسببات الحساسية تحتاج مراجعة لـ {count}.",
+    "uploadTitle": "رفع الروابط",
+    "uploadHint": "الأعمدة: sku و reference_source (USDA_FDC أو OPEN_FOOD_FACTS أو WIKIDATA أو MANUAL) و reference_id (مثل رقم USDA FDC). تُجلب سجلات USDA و Open Food Facts غير الموجودة في المكتبة. يجب أن تكون جميع الصفوف صحيحة.",
+    "pages": "الصفحات",
+    "previous": "السابق",
+    "next": "التالي",
+    "pageOf": "صفحة {page} من {count}",
+    "anyReference": "أي مرجع غذائي",
+    "withReference": "مرتبط بغذاء من المكتبة",
+    "withoutReference": "بدون غذاء من المكتبة"
   }
 }

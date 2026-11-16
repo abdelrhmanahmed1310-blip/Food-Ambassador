@@ -34,10 +34,13 @@ export default async function ProductsPage({
   const page = pageSchema.parse(sp.page);
   const categoryId =
     typeof sp.categoryId === "string" && isUuid(sp.categoryId) ? sp.categoryId : undefined;
+  // Nutrition reference filter (ADR-136).
+  const nutrition =
+    sp.nutrition === "linked" || sp.nutrition === "unlinked" ? sp.nutrition : undefined;
   const [t, locale, result, categories] = await Promise.all([
     getTranslations(),
     getLocale(),
-    listProducts(ctx, { q, status, categoryId, page }),
+    listProducts(ctx, { q, status, categoryId, nutrition, page }),
     listCategories(ctx, { includeArchived: true }),
   ]);
   const canManage = hasPermission(ctx.grants, "catalog.manage");
@@ -70,7 +73,7 @@ export default async function ProductsPage({
       <ListFilters
         q={q}
         status={status}
-        extra={
+        extra={[
           categories.length > 0
             ? {
                 name: "categoryId",
@@ -78,8 +81,17 @@ export default async function ProductsPage({
                 value: categoryId,
                 options: categoryOptions(categories, locale),
               }
-            : undefined
-        }
+            : undefined,
+          {
+            name: "nutrition",
+            label: t("productReference.anyReference"),
+            value: nutrition,
+            options: [
+              { value: "linked", label: t("productReference.withReference") },
+              { value: "unlinked", label: t("productReference.withoutReference") },
+            ],
+          },
+        ]}
       />
       {result.total === 0 && !q && status === "active" ? (
         <EmptyState
@@ -136,7 +148,7 @@ export default async function ProductsPage({
       )}
       <Pagination
         basePath={base}
-        params={{ q, categoryId, status: status === "active" ? undefined : status }}
+        params={{ q, categoryId, nutrition, status: status === "active" ? undefined : status }}
         page={result.page}
         pageCount={result.pageCount}
         total={result.total}

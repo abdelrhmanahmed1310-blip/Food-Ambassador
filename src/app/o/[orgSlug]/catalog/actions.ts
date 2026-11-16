@@ -147,7 +147,9 @@ async function importAction(
       };
     }
     return {
-      message: t("import.done", { count: result.imported }),
+      message:
+        t("import.done", { count: result.imported }) +
+        (result.linked ? ` ${t("import.linkedToLibrary", { count: result.linked })}` : ""),
       data: { documents: (result.documents ?? []).join(", ") },
     };
   });
