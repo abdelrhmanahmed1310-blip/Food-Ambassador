@@ -3941,6 +3941,42 @@ they can be uploaded in bulk.
 - Permissions are unchanged: `catalog.view` to see categories,
   `catalog.manage` to change or upload them.
 
+### ADR-135 POS simulator for test sales and menu board previews — Accepted (built)
+
+Decision (2026-11-16): a POS simulator lets staff practise and test sales,
+by punching items or scanning barcodes, and preview menu boards, on a
+branch's live menu, without recording anything.
+
+- **Who and where.** POS → POS simulator, for people who sell at or manage
+  the point of sale, at the branches of their grants (a warehouse grant
+  counts for its branch). Others get "not found".
+- **Same menu as the till.** The menu each channel sells today, with prices,
+  options, VAT rates, photos, barcodes, the active promotions and the
+  person's discount right, all read from the same services as the till.
+  Pricing reuses the till's code: option prices, promotions, the order
+  discount and VAT.
+- **Entry.** Punch an item tile; or scan with a keyboard scanner into the
+  scan field, with the phone camera where the browser can read barcodes,
+  or with a "virtual scanner" listing the barcodes on sale. Unknown codes
+  are reported. Each sale records how it was entered: punched, scanned, or
+  both.
+- **Testing.** A "test at" date and time applies promotions as they would
+  be then. Payment by cash (with change), card or split.
+- **Nothing is recorded.**
+  - The server reads only. No order, payment, stock movement, shift total,
+    audit entry or ZATCA document is created.
+  - Test sales live in the page. They are lost on reload, unless downloaded
+    as CSV first.
+  - The receipt is marked "Simulation — not a tax invoice" and has no QR
+    code.
+  - A session summary shows totals, VAT, cash and card, voids, and splits by
+    channel, payment and entry. It can be downloaded as CSV.
+- **Menu boards.** The branch's boards are previewed inline, as the screen
+  shows them, at a chosen time of day. A board's page also takes `?at=HH:MM`
+  to preview another time of day, full screen; while previewing, it does
+  not refresh itself.
+- **No schema change.**
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

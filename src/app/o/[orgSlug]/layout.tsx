@@ -89,6 +89,9 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     hasPermission(ctx.grants, "pos.manage")
   )
     pos.items.push({ href: `${base}/pos/floor`, label: t("posFloor") });
+  // POS simulator (ADR-135): practice sales and board previews, nothing recorded.
+  if (holdsAnyGrant(ctx.grants, "pos.sell") || holdsAnyGrant(ctx.grants, "pos.manage"))
+    pos.items.push({ href: `${base}/pos/simulator`, label: t("posSimulator") });
   if (holdsAnyGrant(ctx.grants, "pos.sell"))
     pos.items.push({ href: `${base}/pos/delivery`, label: t("posDelivery") });
   // Own riders (ADR-117).

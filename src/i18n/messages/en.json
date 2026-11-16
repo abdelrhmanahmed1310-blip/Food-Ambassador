@@ -210,7 +210,8 @@
     "hrAnalytics": "HR analytics",
     "consultant": "Food Consultant Chatbot",
     "nutritionEngine": "Nutrition",
-    "nutritionFoods": "Nutrition foods"
+    "nutritionFoods": "Nutrition foods",
+    "posSimulator": "POS simulator"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -7769,5 +7770,90 @@
     "extraTitle": "More photos ({count} of {max}) — shown in turn on menu boards",
     "extraAdd": "Add a photo",
     "add": "Add"
+  },
+  "simulator": {
+    "title": "POS simulator",
+    "intro": "Practise and test sales by punching items or scanning barcodes, and preview menu boards at any time of day, using this branch's live menu, prices, options, VAT and promotions.",
+    "banner": "Simulation mode: nothing is recorded. No order, payment, stock movement, shift total or tax invoice is created.",
+    "branch": "Branch",
+    "show": "Show",
+    "noBranches": "There are no active branches to simulate.",
+    "tabs": {
+      "SALE": "Sale",
+      "BOARD": "Menu board",
+      "SESSION": "Session"
+    },
+    "items": "Items",
+    "channel": "Channel",
+    "all": "All",
+    "scan": "Scan or type a barcode",
+    "scanPlaceholder": "Scan here",
+    "scanAdd": "Add",
+    "camera": "Scan with camera",
+    "virtualScanner": "Virtual scanner",
+    "chooseBarcode": "Choose a barcode to scan",
+    "beep": "Scan",
+    "noBarcodes": "No item on this channel has a barcode. Add barcodes to menu items or products to test scanning.",
+    "scanNotFound": "No item on this channel has the barcode {code}.",
+    "scanned": "Scanned {code}: {name}",
+    "scannedMark": "scanned",
+    "nothingOnSale": "Nothing is on sale on this channel today.",
+    "order": "Order",
+    "empty": "Punch or scan items to start a sale.",
+    "less": "One less {name}",
+    "more": "One more {name}",
+    "testAt": "Test at (date and time)",
+    "testAtHint": "Leave empty to use now. Promotions are applied as they would be at this time.",
+    "discount": "Order discount",
+    "discountKind": "Discount type",
+    "savings": "Discounts",
+    "vat": "VAT",
+    "total": "Total",
+    "payment": "Payment",
+    "payments": {
+      "CASH": "Cash",
+      "CARD": "Card",
+      "SPLIT": "Split"
+    },
+    "cardPart": "Paid by card",
+    "tendered": "Cash tendered (empty = exact)",
+    "complete": "Complete test sale",
+    "change": "Change",
+    "receiptMark": "Simulation — not a tax invoice",
+    "saleNo": "Test sale #{no}",
+    "newSale": "New sale",
+    "problems": {
+      "SIM_NOTHING_TO_PAY": "There is nothing to pay.",
+      "SIM_TENDERED_TOO_LOW": "The cash tendered is less than the amount due.",
+      "SIM_SPLIT_INVALID": "Enter a card amount greater than zero and less than the total."
+    },
+    "entries": {
+      "PUNCH": "Punched",
+      "SCAN": "Scanned",
+      "MIXED": "Punched and scanned"
+    },
+    "board": "Board",
+    "boardAt": "Time of day",
+    "openFullScreen": "Open full screen",
+    "noBoards": "This branch has no menu board yet. Add one under Online and kiosk orders (type: Menu board).",
+    "boardEmpty": "No items are shown on this board at this time.",
+    "summary": {
+      "sales": "Sales",
+      "total": "Total",
+      "vat": "VAT",
+      "average": "Average sale",
+      "cash": "Cash",
+      "card": "Card",
+      "savings": "Discounts",
+      "voided": "Voided",
+      "byChannel": "By channel",
+      "byPayment": "By payment",
+      "byEntry": "By entry"
+    },
+    "noSales": "No test sales yet.",
+    "void": "Void",
+    "exportCsv": "Download CSV",
+    "clear": "Clear session",
+    "clearConfirm": "Clear all test sales in this session?"
   }
 }

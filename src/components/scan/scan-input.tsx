@@ -21,6 +21,9 @@ function detectorClass(): BarcodeDetectorCtor | null {
   return (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector ?? null;
 }
 
+/** Whether this browser can read barcodes from the camera. */
+export const cameraScanningAvailable = () => detectorClass() !== null;
+
 /**
  * The phone camera as a scanner: opens the rear camera and reports the
  * first barcode it reads. Shown only where the browser has a barcode reader.

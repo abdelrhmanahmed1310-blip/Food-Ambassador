@@ -14,11 +14,17 @@ export const dynamic = "force-dynamic";
  * morning). It re-reads the menu every minute, takes no orders and needs no
  * sign-in.
  */
-export default async function MenuBoardPage({ params }: PageProps<"/board/[token]">) {
+export default async function MenuBoardPage({
+  params,
+  searchParams,
+}: PageProps<"/board/[token]">) {
   const { token } = await params;
+  // ?at=HH:MM previews the board at another time of day (the POS simulator links it); display only.
+  const at = (await searchParams).at;
+  const previewAt = typeof at === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(at) ? at : null;
   const menu = await publicMenu(token);
   if (!menu || menu.kind !== "BOARD") notFound();
-  const now = clockIn(menu.timeZone);
+  const now = previewAt ?? clockIn(menu.timeZone);
   // One list: the first sales channel the board shows (eat in, take away…).
   const items = (menu.channels[0]?.items ?? []).filter((i) =>
     inWindow(now, i.category.boardFrom, i.category.boardTo),
@@ -29,7 +35,7 @@ export default async function MenuBoardPage({ params }: PageProps<"/board/[token
       data-testid="menu-board"
       data-theme={menu.boardTheme}
     >
-      <AutoRefresh seconds={60} />
+      {previewAt ? null : <AutoRefresh seconds={60} />}
       <header className="mb-6 flex items-baseline justify-between gap-4">
         <h1 className="text-4xl font-bold">{menu.organizationName}</h1>
         <p className="text-muted text-xl">{menu.branchName}</p>
