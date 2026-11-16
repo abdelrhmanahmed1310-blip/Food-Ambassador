@@ -14,10 +14,7 @@ export const dynamic = "force-dynamic";
  * morning). It re-reads the menu every minute, takes no orders and needs no
  * sign-in.
  */
-export default async function MenuBoardPage({
-  params,
-  searchParams,
-}: PageProps<"/board/[token]">) {
+export default async function MenuBoardPage({ params, searchParams }: PageProps<"/board/[token]">) {
   const { token } = await params;
   // ?at=HH:MM previews the board at another time of day (the POS simulator links it); display only.
   const at = (await searchParams).at;
