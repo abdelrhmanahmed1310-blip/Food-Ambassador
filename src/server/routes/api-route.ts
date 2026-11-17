@@ -1,5 +1,7 @@
 import "server-only";
 import { authenticateApiRequest, type ApiContext } from "@/modules/api/clients";
+import { featureOn } from "@/modules/features/access";
+import { featureForApi } from "@/modules/features/registry";
 import { AppError } from "@/server/errors";
 
 /**
@@ -21,6 +23,13 @@ export function apiError(
   return json(status, { error: { code, message } }, headers);
 }
 
+function apiAllowed(ctx: ApiContext["ctx"], pathname: string) {
+  if (!featureOn(ctx, "settings.api")) return false;
+  const resource = pathname.replace(/^\/api\/v1\/?/, "").split("/")[0] ?? "";
+  const key = featureForApi(resource);
+  return key === null || featureOn(ctx, key);
+}
+
 async function run(
   request: Request,
   handler: (api: ApiContext) => Promise<unknown>,
@@ -35,6 +44,9 @@ async function run(
       : apiError(401, "UNAUTHORIZED", "A valid API key is required (Authorization: Bearer fa_…)", {
           "WWW-Authenticate": "Bearer",
         });
+  // Module switches (ADR-137): the API itself, then the resource's function.
+  if (!apiAllowed(auth.api.ctx, new URL(request.url).pathname))
+    return apiError(404, "FEATURE_DISABLED", "This module is switched off for the organization");
   try {
     return json(status, await handler(auth.api));
   } catch (error) {

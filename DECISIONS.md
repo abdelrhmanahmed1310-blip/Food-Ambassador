@@ -4041,6 +4041,54 @@ created, uploaded in bulk, or matched later.
 - **API.** The food detail keeps `linkedProduct` (the first product) for
   existing clients and adds `linkedProducts`.
 
+### ADR-137 Switching modules and functions on or off per organization — Accepted (built)
+
+Decision (2026-11-17): Settings → Modules lets an organization switch whole
+modules, or single functions inside them, on or off.
+
+- **Registry.** `src/modules/features/registry.ts` lists 12 modules and
+  their functions.
+  - Each function owns route prefixes under `/o/{org}/`. The longest
+    prefix on whole path segments wins. A page no function claims (the
+    dashboard, notifications, search) is always on.
+  - Some functions also own REST API v1 resources.
+  - Functions name what they need (for example, the floor plan needs the
+    till, and the POS module needs the menu).
+  - Core functions cannot be switched off: branches and warehouses,
+    products, units and categories, and organization settings (which
+    include Settings → Modules, so a switch can always be turned back on).
+  - A unit test fails if any menu link or any page under the organization
+    is not claimed by a function.
+- **Storage.** `organizations.disabled_features` (text[]) holds
+  `module:<key>` entries and function keys. A module that is off turns off
+  all its functions, but each function keeps its own switch, so turning the
+  module back on restores them as they were. The service keeps only known
+  keys and refuses a save that leaves a function on without something it
+  needs, naming each pair. Each change is recorded in the audit log.
+- **Enforcement.**
+  - **Menu:** links to functions that are off are hidden; empty sections
+    disappear.
+  - **Pages and server actions:** `proxy.ts` passes the request path in a
+    header it always overwrites. `requireTenant` answers 404 for a path
+    whose function is off. A server action posts to its page's path, so it
+    is refused the same way.
+  - **REST API v1:** switching off the REST API refuses every request.
+    Switching off a function refuses its resources (404, `FEATURE_DISABLED`).
+  - **Public links:** online ordering, kiosk and menu board addresses, the
+    branch time clock, and guest feedback links stop working while their
+    function is off.
+- **Not permissions.** Switches decide what an organization uses; they
+  grant nothing, and every permission check stays as it was. They are not
+  a security boundary between members. A member who builds a request by
+  hand can still reach a server action of a function that is off from a
+  page that is on; such a request still passes every permission check, as
+  before.
+- **Data is kept.** Switching a function off hides it; nothing is deleted.
+  Work the function does in the background is not stopped by its switch:
+  scheduled campaigns, the USDA sync, deliveries to integrations and
+  stock use from sales already posted. Those are controlled by their own
+  settings.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

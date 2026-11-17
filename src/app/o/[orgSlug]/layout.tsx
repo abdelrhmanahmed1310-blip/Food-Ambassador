@@ -15,6 +15,7 @@ import { canSeeKitchenPerformance } from "@/modules/analytics/kitchen-performanc
 import { canSeeMenuEngineering } from "@/modules/analytics/menu-engineering";
 import { canSeeStockHealth } from "@/modules/analytics/stock";
 import { canSeeReports } from "@/modules/analytics/service";
+import { pathEnabled } from "@/modules/features/access";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { getCurrentUser } from "@/server/auth/session";
 import { signOutAction } from "../../(auth)/actions";
@@ -254,6 +255,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
   if (hasPermission(ctx.grants, "org.settings.manage"))
     settings.items.push(
       { href: `${base}/settings/organization`, label: t("organization") },
+      { href: `${base}/settings/modules`, label: t("modules") },
       { href: `${base}/settings/companies`, label: t("companies") },
       { href: `${base}/settings/brands`, label: t("brands") },
     );
@@ -364,7 +366,13 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/o
     reports,
     catalog,
     settings,
-  ].filter((section) => section.items.length > 0);
+  ]
+    // Modules and functions the organization switched off are not offered (ADR-137).
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((i) => pathEnabled(ctx, ctx.organizationSlug, i.href)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <div className="flex min-h-full flex-1">

@@ -810,6 +810,11 @@ per organization, created / updated / skipped counts, problems; insert-only).
 `nutrition_profiles.reference_food_id` links copied values (CK source =
 DATABASE).
 
+**Module switches** (migration `20270127090000_feature_switches`, ADR-137):
+`organizations.disabled_features` (text[], NOT NULL, default empty, CK at
+most 200 entries) holds `module:<key>` entries and function keys from the
+feature registry in code. The service keeps it to known keys.
+
 **Product nutrition reference** (migration
 `20270126090000_product_reference_food`, ADR-136):
 `products.reference_food_id` (nullable, composite FK to

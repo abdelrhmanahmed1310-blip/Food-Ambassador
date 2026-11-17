@@ -154,6 +154,7 @@ export async function authenticateApiRequest(authorization: string | null): Prom
             baseCurrency: true,
             timeZone: true,
             status: true,
+            disabledFeatures: true,
           },
         },
       },
@@ -199,6 +200,7 @@ export async function authenticateApiRequest(authorization: string | null): Prom
         userId: client.createdByUserId,
         membershipId: "",
         grants,
+        disabledFeatures: org.disabledFeatures,
       },
     },
   };

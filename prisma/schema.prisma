@@ -139,16 +139,18 @@ enum OrganizationStatus {
 }
 
 model Organization {
-  id              String             @id @default(uuid(7)) @db.Uuid
-  name            String
-  slug            String             @unique
-  baseCurrency    String             @map("base_currency") @db.Char(3)
-  timeZone        String             @map("time_zone")
-  defaultLocale   String             @default("en") @map("default_locale")
-  status          OrganizationStatus @default(ACTIVE)
-  createdByUserId String?            @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String             @id @default(uuid(7)) @db.Uuid
+  name             String
+  slug             String             @unique
+  baseCurrency     String             @map("base_currency") @db.Char(3)
+  timeZone         String             @map("time_zone")
+  defaultLocale    String             @default("en") @map("default_locale")
+  status           OrganizationStatus @default(ACTIVE)
+  /// Modules ("module:<key>") and functions switched off in Settings → Modules (ADR-137).
+  disabledFeatures String[]           @default([]) @map("disabled_features")
+  createdByUserId  String?            @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships                  OrganizationMembership[]
   roles                        Role[]

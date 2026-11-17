@@ -212,7 +212,8 @@
     "nutritionEngine": "Nutrition",
     "nutritionFoods": "Nutrition foods",
     "posSimulator": "POS simulator",
-    "nutritionMatch": "Match to library"
+    "nutritionMatch": "Match to library",
+    "modules": "Modules"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -948,7 +949,8 @@
     "CATEGORY_TOO_DEEP": "Categories are at most three levels deep.",
     "CATEGORY_HAS_SUBCATEGORIES": "Archive or move its subcategories first.",
     "REFERENCE_ARCHIVED": "The library record is archived; choose another.",
-    "REFERENCE_NOT_FETCHED": "The USDA record could not be fetched. Try again later."
+    "REFERENCE_NOT_FETCHED": "The USDA record could not be fetched. Try again later.",
+    "FEATURE_REQUIRED": "A function that stays on needs one that would be switched off."
   },
   "notFound": {
     "title": "Page not found",
@@ -7929,5 +7931,147 @@
     "anyReference": "Any nutrition reference",
     "withReference": "With a library food",
     "withoutReference": "Without a library food"
+  },
+  "features": {
+    "title": "Modules",
+    "intro": "Switch whole modules, or single functions inside them, on or off for the organization. What is off disappears from the menu, and its pages, actions, public links and API stop working. Data is kept: switching back on brings everything back.",
+    "notPermissions": "Switches decide what the organization uses; they do not grant anything. People still need their role's permissions.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved. The menu now shows only what is on.",
+    "unchanged": "Nothing changed.",
+    "core": "always on",
+    "moduleOff": "The module is off: its functions are off too, and come back as set below when it is switched on.",
+    "needs": "Needs: {names}",
+    "dependencyProblem": "Not saved:",
+    "pairProblem": "“{name}” needs “{needs}”.",
+    "modules": {
+      "general": "General",
+      "pos": "Point of sale",
+      "inventory": "Inventory & logistics",
+      "purchasing": "Purchasing",
+      "finance": "Finance",
+      "kitchen": "Recipes, menu & sales",
+      "b2b": "B2B sales",
+      "hr": "Human resources",
+      "safety": "Food safety & traceability",
+      "reports": "Reports & assistant",
+      "catalog": "Catalog & nutrition",
+      "settings": "Settings"
+    },
+    "functions": {
+      "general": {
+        "sites": "Branches and warehouses",
+        "attention": "Needs attention",
+        "consultant": "Food Consultant Chatbot",
+        "approvals": "Approval rules"
+      },
+      "pos": {
+        "till": "Till, registers, shifts and orders",
+        "floor": "Floor plan and tables",
+        "simulator": "POS simulator",
+        "delivery": "Delivery platforms",
+        "dispatch": "Own riders and dispatch",
+        "online": "Online ordering, kiosks and menu boards",
+        "kitchen": "Kitchen display",
+        "promotions": "Promotions and coupons",
+        "customers": "Customers and loyalty",
+        "crm": "Segments, guest feedback and campaigns",
+        "giftCards": "Gift cards",
+        "shortfalls": "Stock shortfalls",
+        "settlements": "Payment settlements"
+      },
+      "inventory": {
+        "stock": "Stock, movements and documents",
+        "shipments": "Transfers between warehouses",
+        "counts": "Stock counts",
+        "picking": "Pick lists and waves",
+        "loads": "Packing and loads",
+        "scanner": "Handheld scanner",
+        "inspections": "Receiving inspections",
+        "valuation": "Stock valuation",
+        "fleet": "Own fleet and trips"
+      },
+      "purchasing": {
+        "suppliers": "Suppliers",
+        "requisitions": "Purchase requisitions",
+        "rfqs": "Requests for quotation",
+        "orders": "Purchase orders and receiving",
+        "returns": "Supplier returns",
+        "reorder": "Reorder suggestions",
+        "forecast": "Demand forecast",
+        "payables": "Supplier invoices and payables",
+        "trade": "Import shipments and trade documents",
+        "exchangeRates": "Exchange rates"
+      },
+      "finance": {
+        "expenses": "Operating expenses",
+        "budgets": "Budgets",
+        "pnl": "Branch P&L",
+        "consolidated": "Consolidated P&L"
+      },
+      "kitchen": {
+        "recipes": "Recipes",
+        "menu": "Menu",
+        "sales": "Sales import and VAT summary",
+        "foodCost": "Food cost and price simulator",
+        "replace": "Replace an ingredient",
+        "production": "Production",
+        "allergens": "Allergen matrix and labels"
+      },
+      "b2b": {
+        "customers": "B2B customers",
+        "orders": "Sales orders",
+        "invoices": "Sales invoices",
+        "balances": "Customer balances"
+      },
+      "hr": {
+        "employees": "Employees, departments and org chart",
+        "attendance": "Attendance and time clock",
+        "rosters": "Rosters",
+        "leave": "Leave",
+        "onboarding": "Onboarding",
+        "workforce": "Workforce plan",
+        "recruitment": "Recruitment",
+        "engagement": "Surveys and recognition",
+        "performance": "Performance",
+        "learning": "Training",
+        "payroll": "Payroll",
+        "analytics": "HR analytics"
+      },
+      "safety": {
+        "records": "Food safety records",
+        "haccp": "HACCP plans",
+        "documents": "Document control",
+        "audits": "Audits and complaints",
+        "equipment": "Equipment and calibration",
+        "compliance": "Compliance score",
+        "checklists": "Checklists and checkpoints",
+        "nonConformances": "Non-conformances",
+        "traceability": "Traceability and recalls",
+        "mockRecalls": "Mock recalls"
+      },
+      "reports": {
+        "assistant": "AI assistant",
+        "sales": "Sales report",
+        "kitchen": "Kitchen performance",
+        "menuEngineering": "Menu engineering",
+        "stock": "Stock health",
+        "foodCost": "Food cost report",
+        "waste": "Waste report",
+        "purchasing": "Spend and price variance"
+      },
+      "catalog": {
+        "products": "Products, units and categories",
+        "nutrition": "Nutrition engine and ingredient library"
+      },
+      "settings": {
+        "organization": "Organization, members, roles and modules",
+        "zatca": "ZATCA e-invoicing",
+        "payments": "Online payments",
+        "integrations": "Integrations",
+        "api": "REST API"
+      }
+    }
   }
 }

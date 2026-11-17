@@ -23,6 +23,8 @@ export interface TenantContext {
   membershipId: string;
   grants: Grant[];
   requestId?: string;
+  /** Modules and functions the organization switched off (ADR-137); absent = none. */
+  disabledFeatures?: readonly string[];
 }
 
 function toScope(row: {
@@ -58,7 +60,14 @@ export async function resolveTenantContext(
     select: {
       id: true,
       organization: {
-        select: { id: true, slug: true, name: true, baseCurrency: true, timeZone: true },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          baseCurrency: true,
+          timeZone: true,
+          disabledFeatures: true,
+        },
       },
       roles: {
         select: {
@@ -91,6 +100,7 @@ export async function resolveTenantContext(
     membershipId: membership.id,
     grants,
     requestId,
+    disabledFeatures: org.disabledFeatures,
   };
 }
 

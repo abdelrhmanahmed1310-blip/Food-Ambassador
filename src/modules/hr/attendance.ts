@@ -1,4 +1,5 @@
 import "server-only";
+import { organizationFeatureOn } from "@/modules/features/service";
 import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { z } from "zod";
@@ -240,7 +241,7 @@ export type ClockResult =
 
 export async function terminalInfo(publicToken: string) {
   if (!TOKEN.test(publicToken)) return null;
-  return withSystemTx((tx) =>
+  const terminal = await withSystemTx((tx) =>
     tx.attendanceTerminal.findFirst({
       where: { publicToken, active: true },
       select: {
@@ -252,6 +253,10 @@ export async function terminalInfo(publicToken: string) {
       },
     }),
   );
+  // Attendance switched off (ADR-137): the branch tablet link stops working.
+  if (terminal && !(await organizationFeatureOn(terminal.organizationId, "hr.attendance")))
+    return null;
+  return terminal;
 }
 
 /** The branch tablet: employee number and PIN; wrong number or PIN look the same. */

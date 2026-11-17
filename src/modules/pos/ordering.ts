@@ -1,4 +1,5 @@
 import "server-only";
+import { featureOn } from "@/modules/features/access";
 import { contextForBranch } from "@/modules/fx/service";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -275,6 +276,8 @@ async function channelContext(c: ChannelRow) {
     resolveTenantContext(tx, c.createdByUserId, c.organization.slug),
   );
   if (!ctx || !hasPermission(ctx.grants, "pos.tables", { branchId: c.branchId })) return null;
+  // Online ordering, kiosks and boards switched off (ADR-137): the addresses stop working.
+  if (!featureOn(ctx, "pos.online")) return null;
   return ctx;
 }
 

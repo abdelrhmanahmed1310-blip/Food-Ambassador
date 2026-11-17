@@ -107,10 +107,11 @@ under `src/modules/`. CSV downloads are route handlers under the tenant path
 ```
 request
   → proxy.ts         sets x-request-id and x-client-ip (from trusted XFF hops, ADR-014);
-                     a per-request CSP script nonce (ADR-074);
+                     a per-request CSP script nonce (ADR-074); x-fa-path (always overwritten);
                      no session cookie on /o/* → redirect to /sign-in (UX only)
   → page / action    requireTenant(slug): session (Better Auth, DB-validated) → ACTIVE user
                      → ACTIVE membership in ACTIVE org → TenantContext with grants; else 404
+                     → the path's module/function switched off (ADR-137) → 404
   → service          Zod validation → authorize (permission + scope) → withTenantTx:
                        set_config('app.organization_id') + SET LOCAL ROLE fa_tenant (RLS)
                        → tenant-filtered queries → business rules → audit event → commit

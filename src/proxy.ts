@@ -2,20 +2,23 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { CLIENT_IP_HEADER, clientIpFrom, trustedHopsFromEnv } from "@/lib/client-ip";
 import { contentSecurityPolicy, newNonce } from "@/lib/csp";
+import { REQUEST_PATH_HEADER } from "@/lib/request-path";
 
 const REQUEST_ID_HEADER = "x-request-id";
 /** Routes that send their own, stricter policy (attachment downloads: sandboxed, ADR-051). */
 const OWN_POLICY = /^\/o\/[^/]+\/attachments\/[^/]+$/;
 
 /**
- * Runs before routing. Three jobs only:
+ * Runs before routing. Four jobs only:
  * 1. Attach a request ID (kept from the load balancer if present) for log correlation,
  *    and the client IP derived from trusted proxy hops (overwriting any value
  *    the client sent), used for rate limiting.
  * 2. Send visitors without a session cookie away from tenant pages early.
  *    This is a UX shortcut, NOT the security boundary: every page and action
  *    validates the session and membership on the server (requireTenant).
- * 3. Set the Content Security Policy with a fresh script nonce (ADR-074). Next.js
+ * 3. Pass the request path on (REQUEST_PATH_HEADER), so pages and actions can
+ *    refuse a module or function the organization switched off (ADR-137).
+ * 4. Set the Content Security Policy with a fresh script nonce (ADR-074). Next.js
  *    reads the nonce from the request header and puts it on its own scripts.
  */
 export function proxy(request: NextRequest) {
@@ -23,6 +26,8 @@ export function proxy(request: NextRequest) {
   const requestId = incoming && /^[\w-]{8,128}$/.test(incoming) ? incoming : crypto.randomUUID();
   const headers = new Headers(request.headers);
   headers.set(REQUEST_ID_HEADER, requestId);
+  // The page path, for module switches (ADR-137); always overwritten.
+  headers.set(REQUEST_PATH_HEADER, request.nextUrl.pathname);
   const csp = OWN_POLICY.test(request.nextUrl.pathname)
     ? null
     : contentSecurityPolicy(newNonce(), process.env.NODE_ENV === "development");

@@ -1,4 +1,5 @@
 import "server-only";
+import { organizationFeatureOn } from "@/modules/features/service";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { isUuid } from "@/lib/uuid";
@@ -48,7 +49,7 @@ function verify(token: string): string | null {
 async function orderForToken(token: string) {
   const orderId = verify(token);
   if (!orderId) return null;
-  return withSystemTx((tx) =>
+  const order = await withSystemTx((tx) =>
     tx.posOrder.findUnique({
       where: { id: orderId },
       select: {
@@ -65,6 +66,9 @@ async function orderForToken(token: string) {
       },
     }),
   );
+  // Guest feedback switched off (ADR-137): the receipt link stops working.
+  if (order && !(await organizationFeatureOn(order.organizationId, "pos.crm"))) return null;
+  return order;
 }
 
 const open = (o: {
