@@ -7,6 +7,7 @@ import { canSeeReports } from "@/modules/analytics/service";
 import { canSeeStockHealth } from "@/modules/analytics/stock";
 import { hasPermission, holdsAnyGrant } from "@/modules/access/authorize";
 import { pathEnabled } from "@/modules/features/access";
+import { canSeeAgents } from "@/modules/agents/service";
 import { hasEmployeeRecord } from "@/modules/hr/attendance";
 import { canViewValuation } from "@/modules/inventory/valuation-queries";
 import { canSeeSpend } from "@/modules/procurement/spend";
@@ -44,6 +45,14 @@ export async function navLinks(ctx: TenantContext): Promise<NavItem[]> {
         : []),
     ],
   };
+  // Agents (ADR-140): their proposals, runs and settings.
+  if (canSeeAgents(ctx))
+    main.items.push(
+      { href: `${base}/agents/inbox`, label: t("agentsInbox") },
+      { href: `${base}/agents/runs`, label: t("agentsRuns") },
+    );
+  if (hasPermission(ctx.grants, "org.settings.manage"))
+    main.items.push({ href: `${base}/agents`, label: t("agentsSettings") });
   // The food consultant (ADR-131).
   if (holdsAnyGrant(ctx.grants, "consultant.use"))
     main.items.push({ href: `${base}/consultant`, label: t("consultant"), icon: "consultant" });

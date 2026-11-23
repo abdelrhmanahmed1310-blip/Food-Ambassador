@@ -50,6 +50,8 @@ export const NAV_SECTIONS: NavSectionDef[] = [
           "pos/rider",
         ],
       },
+      // Agents (ADR-140): what they propose, their runs, their settings.
+      { key: "agents", icon: "agents", paths: ["agents/inbox", "agents/runs", "agents"] },
       // Kept in view for every member (ADR-131).
       { key: "consultant", icon: "consultant", paths: ["consultant"] },
     ],

@@ -27,6 +27,8 @@ export const NOTIFICATION_KINDS = [
   "SUPPLIER_BANK_ACCOUNT_ADDED",
   "ATTENTION_DIGEST",
   "JOB_FAILED",
+  "AGENT_PROPOSALS",
+  "AGENT_DAILY_CLOSE",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   BarChart3,
+  Bot,
   Bell,
   Boxes,
   Building2,
@@ -67,6 +68,7 @@ const ICONS = {
   interviews: UserSearch,
   consultant: Salad,
   finance: Landmark,
+  agents: Bot,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 

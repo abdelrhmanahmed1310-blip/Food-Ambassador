@@ -1,3 +1,4 @@
+import { dueAgents, runAgent } from "@/modules/agents/service";
 import { purgeOldConversations } from "@/modules/assistant/service";
 import "server-only";
 import { purgeCandidates } from "@/modules/recruitment/service";
@@ -125,6 +126,16 @@ const HANDLERS = {
   "recruitment.purge": async () => purgeCandidates(),
   "nutrition.sync": (payload) => runSyncJob(payload),
   "nutrition.schedule": async () => scheduleNutritionRefresh(),
+  // An agent's daily run (ADR-140): counts only, the run itself is recorded in agent_runs.
+  "agents.run": async (payload) => {
+    const r = await runAgent(
+      String(payload.organizationId),
+      String(payload.agentId),
+      "SCHEDULE",
+      String(payload.runAsUserId),
+    );
+    return { succeeded: r.status === "SUCCEEDED" ? 1 : 0, failed: r.status === "FAILED" ? 1 : 0 };
+  },
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -180,6 +191,19 @@ export async function scheduleRecurringJobs(now = new Date()) {
       kind: "deliveries.purge-contacts",
       dedupeKey: `deliveries.purge-contacts:${now.toISOString().slice(0, 10)}`,
     });
+    // Switched-on agents, once a day from their hour in the organization's time zone (ADR-140).
+    for (const a of await dueAgents(now, localDateHour))
+      added += await enqueueJobInTx(tx, {
+        organizationId: a.organizationId,
+        kind: "agents.run",
+        payload: {
+          organizationId: a.organizationId,
+          agentId: a.agentId,
+          runAsUserId: a.runAsUserId,
+        },
+        dedupeKey: `agents.run:${a.agentId}:${a.date}`,
+        maxAttempts: 1,
+      });
     const orgs = await tx.organization.findMany({
       where: { status: "ACTIVE" },
       select: { id: true, timeZone: true },

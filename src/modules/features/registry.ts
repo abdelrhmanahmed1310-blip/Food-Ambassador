@@ -43,6 +43,10 @@ export const MODULES: ModuleDef[] = [
     ],
   },
   {
+    key: "agents",
+    features: [{ key: "agents.center", paths: ["agents"] }],
+  },
+  {
     key: "pos",
     requires: ["kitchen.menu"],
     features: [

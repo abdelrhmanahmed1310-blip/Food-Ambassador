@@ -153,6 +153,9 @@ model Organization {
   updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships                  OrganizationMembership[]
+  agents                       Agent[]
+  agentRuns                    AgentRun[]
+  agentProposals               AgentProposal[]
   roles                        Role[]
   rolePermissions              RolePermission[]
   membershipRoles              MembershipRole[]
@@ -9206,4 +9209,123 @@ model ItemPhoto {
   @@index([organizationId, productId])
   @@index([organizationId, menuItemId])
   @@map("item_photos")
+}
+
+// ─── AgaaS Phase 0: agents (ADR-140) ───
+
+enum AgentKind {
+  /// Drafts purchase orders from reorder suggestions.
+  REPLENISHMENT
+  /// Checks the day's shifts, cash, voids and sales and reports what needs a look.
+  DAILY_CLOSE
+}
+
+enum AgentAutonomy {
+  /// Proposes only; a person creates anything.
+  SUGGEST
+  /// Prepares drafts (e.g. draft purchase orders); a person approves before they take effect.
+  DRAFT
+}
+
+enum AgentRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum AgentRunTrigger {
+  SCHEDULE
+  MANUAL
+}
+
+enum AgentProposalStatus {
+  OPEN
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+/// One agent of a kind per organization. It runs as the person who switched it on, with their access.
+model Agent {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  kind           AgentKind
+  enabled        Boolean       @default(false)
+  autonomy       AgentAutonomy @default(SUGGEST)
+  /// Local hour (0–23, the organization's time zone) of the daily run.
+  runHour        Int           @default(6) @map("run_hour")
+  /// Whose permissions the agent uses; set by the person who switches it on.
+  runAsUserId    String?       @map("run_as_user_id") @db.Uuid
+  /// Kind-specific options (warehouses, order basis…), validated by the service.
+  settings       Json          @default("{}")
+  lastRunAt      DateTime?     @map("last_run_at") @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  runs         AgentRun[]
+  proposals    AgentProposal[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, kind])
+  @@map("agents")
+}
+
+/// One run of an agent: what it looked at, found and proposed. Changes it made carry request id "agent-run:<id>".
+model AgentRun {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  agentId         String          @map("agent_id") @db.Uuid
+  trigger         AgentRunTrigger
+  status          AgentRunStatus  @default(RUNNING)
+  /// The business day the run is about (daily close: the day checked).
+  businessDate    DateTime?       @map("business_date") @db.Date
+  startedAt       DateTime        @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt      DateTime?       @map("finished_at") @db.Timestamptz(3)
+  durationMs      Int?            @map("duration_ms")
+  /// Service calls the run made (metering).
+  toolCalls       Int             @default(0) @map("tool_calls")
+  /// Counts for the run (e.g. warehouses checked, orders drafted).
+  summary         Json            @default("{}")
+  /// What needs a look: [{ severity, code, params, link, branchId }].
+  findings        Json            @default("[]")
+  error           String?
+  startedByUserId String?         @map("started_by_user_id") @db.Uuid
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  agent        Agent           @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
+  proposals    AgentProposal[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, agentId, startedAt])
+  @@map("agent_runs")
+}
+
+/// Something an agent proposes for a person to approve or reject.
+model AgentProposal {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  organizationId  String              @map("organization_id") @db.Uuid
+  agentId         String              @map("agent_id") @db.Uuid
+  runId           String              @map("run_id") @db.Uuid
+  /// e.g. PURCHASE_ORDER (a draft order) or REORDER (suggested lines, nothing created yet).
+  kind            String
+  status          AgentProposalStatus @default(OPEN)
+  title           String
+  detail          Json                @default("{}")
+  warehouseId     String?             @map("warehouse_id") @db.Uuid
+  /// The record it prepared, if any (a draft purchase order).
+  entityType      String?             @map("entity_type")
+  entityId        String?             @map("entity_id") @db.Uuid
+  decidedByUserId String?             @map("decided_by_user_id") @db.Uuid
+  decidedAt       DateTime?           @map("decided_at") @db.Timestamptz(3)
+  decisionNote    String?             @map("decision_note")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  agent        Agent        @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
+  run          AgentRun     @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status, createdAt])
+  @@map("agent_proposals")
 }

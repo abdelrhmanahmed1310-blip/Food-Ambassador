@@ -266,7 +266,8 @@
       "consultant": "Food Consultant Chatbot",
       "products": "Products",
       "nutrition": "Nutrition",
-      "settings": "Settings"
+      "settings": "Settings",
+      "agents": "Agents"
     },
     "allSettings": "All settings",
     "settingsIntro": "Everything you can set up for the organization, by subject.",
@@ -275,7 +276,10 @@
       "access": "People & access",
       "salesTax": "Sales, tax & approvals",
       "connections": "Connections & system"
-    }
+    },
+    "agentsInbox": "Inbox",
+    "agentsRuns": "Runs",
+    "agentsSettings": "Agents"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -1012,7 +1016,9 @@
     "CATEGORY_HAS_SUBCATEGORIES": "Archive or move its subcategories first.",
     "REFERENCE_ARCHIVED": "The library record is archived; choose another.",
     "REFERENCE_NOT_FETCHED": "The USDA record could not be fetched. Try again later.",
-    "FEATURE_REQUIRED": "A function that stays on needs one that would be switched off."
+    "FEATURE_REQUIRED": "A function that stays on needs one that would be switched off.",
+    "AGENT_RUN_AS_NO_ACCESS": "Switch the agent on as someone who can do its work (order for a warehouse, or see the POS).",
+    "PROPOSAL_DECIDED": "This proposal was already decided."
   },
   "notFound": {
     "title": "Page not found",
@@ -4711,7 +4717,9 @@
       "ATTENTION_DIGEST": "Today: {items, plural, one {# kind of item} other {# kinds of item}} need attention ({total} in all)",
       "JOB_FAILED": "A background job failed: {kind}",
       "SUPPLIER_APPROVAL_NEEDED": "Supplier {code} is waiting for your approval",
-      "SUPPLIER_BANK_ACCOUNT_ADDED": "A bank account ending {last4} was added to supplier {code} — verify it before paying"
+      "SUPPLIER_BANK_ACCOUNT_ADDED": "A bank account ending {last4} was added to supplier {code} — verify it before paying",
+      "AGENT_PROPOSALS": "{count, plural, one {An agent proposes # thing to decide} other {Agents propose # things to decide}}",
+      "AGENT_DAILY_CLOSE": "{count, plural, one {Daily close for {date}: # finding} other {Daily close for {date}: # findings}}"
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "Purchase orders waiting for my approval",
@@ -4725,7 +4733,9 @@
       "ATTENTION_DIGEST": "Daily summary of what needs attention",
       "JOB_FAILED": "Background jobs that failed",
       "SUPPLIER_APPROVAL_NEEDED": "Suppliers waiting for my approval",
-      "SUPPLIER_BANK_ACCOUNT_ADDED": "Supplier bank accounts added or changed"
+      "SUPPLIER_BANK_ACCOUNT_ADDED": "Supplier bank accounts added or changed",
+      "AGENT_PROPOSALS": "Agent proposals to decide",
+      "AGENT_DAILY_CLOSE": "Daily close report"
     },
     "outcomes": {
       "POSTED": "posted",
@@ -4736,7 +4746,8 @@
       "webhooks_deliver": "Webhook delivery",
       "zatca_report": "ZATCA reporting",
       "attachments_purge": "Attachment clean-up",
-      "attention_digest": "Daily attention summary"
+      "attention_digest": "Daily attention summary",
+      "agents_run": "Agent run"
     }
   },
   "jobs": {
@@ -8022,7 +8033,8 @@
       "safety": "Food safety & traceability",
       "reports": "Reports & assistant",
       "catalog": "Catalog & nutrition",
-      "settings": "Settings"
+      "settings": "Settings",
+      "agents": "Agents"
     },
     "functions": {
       "general": {
@@ -8136,6 +8148,9 @@
         "payments": "Online payments",
         "integrations": "Integrations",
         "api": "REST API"
+      },
+      "agents": {
+        "center": "Agents: inbox, runs and settings"
       }
     }
   },
@@ -8171,6 +8186,129 @@
       "PRICE_INVALID": "the price is not a number (use digits and a dot, e.g. 12.50)",
       "NOT_FOUND": "not found",
       "CONFLICT": "its code is taken"
+    }
+  },
+  "agents": {
+    "title": "Agents",
+    "intro": "Agents do routine work in the background with the app's own rules and permissions, and bring you what needs a decision.",
+    "draftOnly": "Agents prepare and propose; nothing they prepare takes effect until a person approves it. Each agent runs with the access of the person who switched it on.",
+    "on": "On",
+    "off": "Off",
+    "runsAs": "Runs as {name}",
+    "lastRun": "Last run {when}: {status}",
+    "openProposals": "{count, plural, one {# proposal waiting} other {# proposals waiting}}",
+    "kinds": {
+      "REPLENISHMENT": {
+        "name": "Replenishment agent",
+        "does": "Each day it checks the reorder plan of every warehouse with reorder rules (par levels or the demand forecast) and prepares the orders per supplier. Lines without a supplier or a known price are reported, never guessed."
+      },
+      "DAILY_CLOSE": {
+        "name": "Daily close agent",
+        "does": "Each morning it checks the previous day per branch: shifts left open, cash counted against expected, voids, refunds, sales against the same weekday last week and stock shortfalls not posted, and reports what needs a look."
+      }
+    },
+    "autonomyLabel": "How far it may go",
+    "autonomy": {
+      "REPLENISHMENT": {
+        "SUGGEST": "Suggest orders (you create them)",
+        "DRAFT": "Prepare draft purchase orders (you approve)"
+      },
+      "DAILY_CLOSE": {
+        "SUGGEST": "Report findings",
+        "DRAFT": "Report findings"
+      }
+    },
+    "enabled": "Switched on (runs every day)",
+    "runHour": "Runs daily at",
+    "basis": "Order quantities from",
+    "bases": {
+      "MIN_MAX": "Par levels (min/max)",
+      "FORECAST": "Demand forecast"
+    },
+    "warehouses": "Warehouses",
+    "warehousesHint": "None ticked: every warehouse with reorder rules it may order for.",
+    "branches": "Branches",
+    "branchesHint": "None ticked: every branch it may see.",
+    "cashTolerance": "Cash difference to report above",
+    "voidAlertPercent": "Voids warning above (% of sales)",
+    "salesDropPercent": "Sales drop warning above (% vs last week)",
+    "save": "Save",
+    "saving": "Saving…",
+    "runNow": "Run now",
+    "running": "Running…",
+    "runNowHint": "Runs once now with the same settings; the result appears under Runs.",
+    "ranOk": "Run finished. See Runs for the result.",
+    "ranFailed": "The run failed: {error}",
+    "inboxTitle": "Agent inbox",
+    "inboxIntro": "What the agents propose. Approving uses your own permissions; nothing is sent to a supplier without the normal approval chain.",
+    "inboxEmpty": "Nothing here.",
+    "proposalStatus": {
+      "OPEN": "Waiting",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "SUPERSEDED": "Replaced by a newer run"
+    },
+    "proposalKinds": {
+      "PURCHASE_ORDER": "Draft purchase order",
+      "REORDER": "Suggested order"
+    },
+    "draftOrder": "Draft order {number}",
+    "linesTotal": "{lines, plural, one {# line} other {# lines}}, {total} {currency}",
+    "approveSubmit": "Approve and send for approval",
+    "approveDraft": "Create the draft orders",
+    "reject": "Reject",
+    "rejectNote": "Reason (optional)",
+    "rejected": "Rejected.",
+    "approvedSubmitted": "Approved: the order went into the approval chain.",
+    "approvedDrafts": "{count, plural, one {# draft order created} other {# draft orders created}} for you to review.",
+    "runsTitle": "Agent runs",
+    "runsIntro": "Every run of every agent: what it looked at, found and proposed, and how much work it took.",
+    "noRuns": "No runs yet.",
+    "started": "Started",
+    "agent": "Agent",
+    "trigger": "Started by",
+    "statusLabel": "Status",
+    "findingsLabel": "Findings",
+    "proposalsLabel": "Proposals",
+    "work": "Work",
+    "workDetail": "{calls} service calls, {ms} ms",
+    "triggers": {
+      "SCHEDULE": "Schedule",
+      "MANUAL": "Run now"
+    },
+    "status": {
+      "RUNNING": "Running",
+      "SUCCEEDED": "Done",
+      "FAILED": "Failed"
+    },
+    "allRuns": "All runs",
+    "failed": "The run failed: {error}",
+    "day": "Day checked",
+    "figures": "The day per branch",
+    "branch": "Branch",
+    "orders": "Orders",
+    "sales": "Sales",
+    "voids": "Voids",
+    "refunds": "Refunds",
+    "noFindings": "Nothing needs a look.",
+    "open": "Open",
+    "toInbox": "Go to the agent inbox",
+    "severity": {
+      "CRITICAL": "Urgent",
+      "WARNING": "Check",
+      "INFO": "Note"
+    },
+    "findings": {
+      "SHIFT_LEFT_OPEN": "{branch}: the shift on {register} opened on {date} is still open.",
+      "CASH_SHORT": "{branch}: cash short by {amount} on {register} (shift {shift}).",
+      "CASH_OVER": "{branch}: cash over by {amount} on {register} (shift {shift}).",
+      "NO_SALES": "{branch}: no sales recorded for the day.",
+      "VOIDS": "{branch}: {count, plural, one {# void} other {# voids}} worth {amount} ({percent}% of sales).",
+      "REFUNDS": "{branch}: {count, plural, one {# refund} other {# refunds}} worth {amount}.",
+      "SALES_DROP": "{branch}: sales {percent}% lower than the same weekday last week.",
+      "SHORTFALLS": "{branch}: {count, plural, one {# stock shortfall} other {# stock shortfalls}} from sales not posted yet.",
+      "NO_SUPPLIER": "{warehouse}: {sku} needs ordering but has no preferred supplier.",
+      "NO_PRICE": "{warehouse}: {sku} needs ordering but its supplier has no known price."
     }
   }
 }

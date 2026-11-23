@@ -810,6 +810,12 @@ per organization, created / updated / skipped counts, problems; insert-only).
 `nutrition_profiles.reference_food_id` links copied values (CK source =
 DATABASE).
 
+**Agents** (migration `20270128090000_agents`, ADR-140, row-level security on all three):
+
+- **agents**: kind REPLENISHMENT | DAILY_CLOSE (UQ per organization), `enabled`, `autonomy` SUGGEST | DRAFT, `run_hour` (CK 0–23), `run_as_user_id` (CK required when enabled), `settings` JSONB, `last_run_at`.
+- **agent_runs**: agent, trigger SCHEDULE | MANUAL, status RUNNING | SUCCEEDED | FAILED (CK finished exactly when not running), `business_date`, start and finish, `duration_ms`, `tool_calls`, `summary`, `findings` JSONB, `error`, who started it. Never deleted.
+- **agent_proposals**: agent, run, kind (PURCHASE_ORDER, REORDER), status OPEN | APPROVED | REJECTED | SUPERSEDED (CK decided time set exactly when approved or rejected), title, detail JSONB, warehouse, the record prepared (`entity_type`, `entity_id`), decided by and at, note. Never deleted.
+
 **Module switches** (migration `20270127090000_feature_switches`, ADR-137):
 `organizations.disabled_features` (text[], NOT NULL, default empty, CK at
 most 200 entries) holds `module:<key>` entries and function keys from the

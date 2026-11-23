@@ -4180,6 +4180,87 @@ down from 137.
 - **Kept on purpose.** Approvals, second-person verifications and other
   business controls stay. They are controls, not administrative overhead.
 
+### ADR-140 AgaaS Phase 0: agent foundations, replenishment and daily close agents — Accepted (built)
+
+Decision (2026-11-23): agents start as background workers that use the
+app's own services. They get the same permission checks, rules and audit
+as a person. Phase 0 stops at drafts: an agent proposes or prepares, and a
+person approves before anything takes effect. Agents use the
+organization's own setup; there is no model-provider cost in Phase 0,
+because both agents are rule-based (see "Not yet").
+
+- **Identity.**
+  - An agent runs with the access of the person who last saved it
+    switched on. The run gets that person's access at that moment. If they
+    lost access, the run fails and says why; a stored old copy of their
+    access is never used.
+  - Switching an agent on requires being able to do its work: ordering for
+    a warehouse (replenishment) or seeing the POS (daily close).
+  - Every change made through services during a run carries request id
+    `agent-run:<run id>` in the audit log. `agent.updated`, `agent.ran` and
+    `agent.proposal_approved` / `agent.proposal_rejected` record the rest.
+- **Autonomy.**
+  - SUGGEST: proposals only.
+  - DRAFT: prepares drafts, such as draft purchase orders.
+  - "Act within limits" is not offered. The database stores only these two
+    values, and an agent cannot be on without a person to run as.
+- **Data.**
+  - `agents`: one per kind per organization. Holds on/off, autonomy, run
+    hour, run-as person and settings.
+  - `agent_runs`: trigger, status, day checked, start and end, duration,
+    service calls (metering), summary, findings and error.
+  - `agent_proposals`: kind, status OPEN / APPROVED / REJECTED /
+    SUPERSEDED, title, detail, warehouse, the record it prepared, and the
+    decision with who and when.
+  - Runs and proposals are never deleted. All three tables use row-level
+    security.
+- **Schedule.** The job runner (ADR-087) queues `agents.run` once a day per
+  agent that is on, from its hour in the organization's time zone (dedupe
+  key per agent and day), unless agents are switched off (ADR-137,
+  module "agents"). "Run now" runs it immediately.
+- **Replenishment agent.**
+  - For each warehouse with reorder rules it may order for, it reads the
+    reorder plan (par levels or the demand forecast, ADR-120) through the
+    same service as the reorder page.
+  - SUGGEST: one proposal per supplier with the lines. A newer run replaces
+    the last one's open suggestions for the warehouse.
+  - DRAFT: draft purchase orders per supplier, created by the existing
+    `createOrdersFromPlan` and priced at each supplier's last price. Drafts
+    count as on order, so the next run does not order the same again.
+  - Lines without a supplier or a known price are findings, never guessed.
+  - Approving a draft submits it into the normal approval chain. Approving
+    a suggestion creates the drafts for the approver. Rejecting cancels the
+    draft. All of this uses the approver's own permissions. Nothing reaches
+    a supplier without the approval chain.
+- **Daily close agent.**
+  - For the previous day (in the organization's time zone), per branch it
+    may see, it checks:
+    - shifts opened on or before that day and still open (urgent),
+    - cash counted against expected above a tolerance,
+    - voids (a warning above a share of sales),
+    - refunds,
+    - sales against the same weekday a week earlier (a warning above a
+      drop),
+    - POS stock shortfalls not posted.
+  - It only reads. Missing comparisons are not reported.
+  - It notifies branch POS managers and its person when something needs a
+    check.
+- **Where.** An Agents group in the menu with three tabs:
+  - Inbox: proposals to approve or reject, for the warehouses a person
+    orders for.
+  - Runs: every run, with findings, figures and proposals.
+  - Agents: settings and Run now, for settings managers.
+
+  New notification kinds: AGENT_PROPOSALS and AGENT_DAILY_CLOSE.
+
+- **Not yet (later phases).**
+  - A language-model layer (Claude) to explain findings and handle
+    exceptions.
+  - Acting within limits.
+  - More agents.
+  - Billing by agent or outcome.
+  - An MCP server for customers' own agents.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
