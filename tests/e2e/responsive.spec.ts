@@ -12,7 +12,11 @@ test("mobile layout uses the menu toggle and has no horizontal scroll", async ({
   const toggle = page.getByRole("button", { name: "Open menu" });
   await expect(toggle).toBeVisible();
   await toggle.click();
-  await page.locator("#mobile-nav").getByRole("link", { name: "Branches" }).click();
+  // Branches sit on the Settings page (ADR-139).
+  const mobileNav = page.locator("#mobile-nav");
+  await mobileNav.locator("summary", { hasText: /^Settings$/ }).click();
+  await mobileNav.getByRole("link", { name: "Settings", exact: true }).click();
+  await page.getByTestId("settings-organization").getByRole("link", { name: "Branches" }).click();
   await expect(page.getByRole("heading", { name: "Branches" })).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

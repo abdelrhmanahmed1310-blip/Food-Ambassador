@@ -71,7 +71,9 @@ test("leave: common types, entitlement, request, approval and balance (ADR-081)"
   // The owner, linked to an employee record, asks for their own leave and cannot approve it.
   await addEmployee("Amal", true);
   await page.goto(`/o/${slug}`);
-  await page.getByRole("link", { name: "My leave" }).click();
+  // My work, then its My leave tab (ADR-139).
+  await page.getByRole("link", { name: "My work" }).click();
+  await page.getByTestId("process-tabs").getByRole("link", { name: "My leave" }).click();
   await page.getByLabel("Leave type").selectOption({ label: "Unpaid leave" });
   await page.getByLabel("From").fill(`${nextYear}-06-01`);
   await page.getByLabel("To").fill(`${nextYear}-06-02`);

@@ -50,6 +50,8 @@ export const NAV_SECTIONS: NavSectionDef[] = [
           "pos/rider",
         ],
       },
+      // Kept in view for every member (ADR-131).
+      { key: "consultant", icon: "consultant", paths: ["consultant"] },
     ],
   },
   {
@@ -205,7 +207,6 @@ export const NAV_SECTIONS: NavSectionDef[] = [
         ],
       },
       { key: "assistant", paths: ["assistant"] },
-      { key: "consultant", paths: ["consultant"] },
     ],
   },
   {

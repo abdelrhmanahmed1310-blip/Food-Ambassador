@@ -69,7 +69,8 @@ test("attendance: branch tablet with number and PIN, phone clock-in, board and h
   // Phone clock-in for a signed-in employee (no branch location set: from anywhere).
   await addEmployee("Amal", true);
   await page.goto(`/o/${slug}`);
-  await page.getByRole("link", { name: "My attendance" }).click();
+  // My work opens on the person's attendance (ADR-139).
+  await page.getByRole("link", { name: "My work" }).click();
   await expect(page.getByTestId("my-state")).toHaveText("You are clocked out.");
   await page.getByRole("button", { name: "Clock in" }).click();
   await expect(page.getByText("Clocked in.").first()).toBeVisible();

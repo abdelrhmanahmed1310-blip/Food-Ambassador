@@ -19,8 +19,9 @@ test("HR: department, employees with a reporting line, documents, overview and o
 
   // The HR tab: overview with real (empty) figures and the capability map.
   const nav = page.getByRole("navigation", { name: "Main" });
-  await nav.locator("summary", { hasText: /^HR$/ }).click();
-  await nav.getByRole("link", { name: "HR overview" }).click();
+  // People › Employees opens on the HR overview (ADR-139).
+  await nav.locator("summary", { hasText: /^People$/ }).click();
+  await nav.getByRole("link", { name: "Employees" }).click();
   await expect(page.getByRole("heading", { name: "Human resources" })).toBeVisible();
   await expect(page.getByTestId("hr-kpis")).toContainText("Active employees");
   const capabilities = page.getByTestId("hr-capabilities");
