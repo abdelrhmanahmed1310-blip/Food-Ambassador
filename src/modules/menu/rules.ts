@@ -69,3 +69,25 @@ export function unitPrice(itemPrice: Decimal, deltas: readonly Decimal[]): Decim
     0,
   );
 }
+
+/**
+ * A menu item code from a product's SKU or a recipe's code (ADR-138): upper
+ * case, only A–Z, 0–9, "-" and "_", at most 20 characters, and not one already
+ * taken (a "-2", "-3"… suffix keeps it unique). `taken` is upper case.
+ */
+export function menuCodeFrom(source: string, taken: ReadonlySet<string>): string {
+  const clean =
+    source
+      .toUpperCase()
+      .replace(/[^A-Z0-9_-]+/g, "-")
+      .replace(/^[-_]+|-+$/g, "")
+      .replace(/-{2,}/g, "-")
+      .slice(0, 20)
+      .replace(/-+$/, "") || "ITEM";
+  if (!taken.has(clean)) return clean;
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`;
+    const candidate = clean.slice(0, 20 - suffix.length).replace(/-+$/, "") + suffix;
+    if (!taken.has(candidate)) return candidate;
+  }
+}

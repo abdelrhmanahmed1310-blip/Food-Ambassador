@@ -45,7 +45,12 @@ export default async function MenuPage({ params }: PageProps<"/o/[orgSlug]/menu"
                 {t("menu.modifiers")}
               </LinkButton>
               {menu.length > 0 ? (
-                <LinkButton href={`${base}/items/new`}>{t("menu.newItem")}</LinkButton>
+                <>
+                  <LinkButton href={`${base}/items/add`} variant="secondary">
+                    {t("menuBulk.title")}
+                  </LinkButton>
+                  <LinkButton href={`${base}/items/new`}>{t("menu.newItem")}</LinkButton>
+                </>
               ) : null}
             </>
           ) : null

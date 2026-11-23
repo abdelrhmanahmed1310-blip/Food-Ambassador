@@ -4089,6 +4089,45 @@ modules, or single functions inside them, on or off.
   stock use from sales already posted. Those are controlled by their own
   settings.
 
+### ADR-138 Every product type sells from the menu alike, and is added in bulk — Accepted (built)
+
+Decision (2026-11-23): the menu and the till treat every kind of product the
+same way. Any of these can sit side by side in the same menu category and be
+punched or scanned at the till, the self-order kiosk and the POS simulator:
+
+- ingredients (raw materials)
+- semi-finished products
+- finished goods (CPG)
+- packaging
+- consumables
+- dishes (recipes)
+
+- **What already held, now proven by tests.**
+  - A menu item can use any active product, whatever its type, or an
+    active dish recipe. Categories have no type rule.
+  - A product item sells one base unit of the product's own stock (or the
+    quantity set on the item). A dish uses its recipe's ingredients.
+  - Barcodes come from the item and from its product, so every type scans
+    the same way.
+  - A test sells one of each type, plus a dish, in a single paid order,
+    and checks the stock each one uses.
+- **Bulk add.** Menu → Add products and dishes.
+  - Lists active products (filter by type or search) and dishes, and marks
+    those already on the menu.
+  - Ticked rows get a price each, then are added to one category. They are
+    priced from today on the chosen channels, for all branches or one.
+  - The item code is derived from the SKU or the recipe code: upper case,
+    `A–Z 0–9 - _`, at most 20 characters, made unique with `-2`, `-3`….
+  - The item takes the product's English and Arabic names.
+  - Each item goes through the same checks and audit as one added by hand.
+  - Rows that are already on the menu, archived, refused or have a price
+    that is not a number are skipped and listed by name. The other rows
+    are added.
+- **Not changed.** Preparation recipes (sub-recipes) are still not sold
+  directly: their output is sold as a semi-finished product, or used
+  inside a dish. Product types still drive purchasing, production,
+  nutrition coverage and reports as before.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

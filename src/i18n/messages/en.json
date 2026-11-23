@@ -8073,5 +8073,39 @@
         "api": "REST API"
       }
     }
+  },
+  "menuBulk": {
+    "title": "Add products and dishes",
+    "intro": "Put any products and dishes on the menu at once: ingredients, semi-finished products, finished goods (CPG), packaging, consumables and dishes can share one category and sell the same way at the till, kiosk and POS simulator.",
+    "back": "Back to the menu",
+    "howItSells": "A product sells one base unit of its own stock per item (for example 1 kg or 1 each) and its barcodes scan at the till. A dish uses its recipe's ingredients. Leave a price empty to add the item without selling it yet.",
+    "search": "Search",
+    "type": "Type",
+    "allTypes": "All types",
+    "dish": "Dish (recipe)",
+    "show": "Show",
+    "nothingFound": "No products or dishes match.",
+    "limited": "Showing the first {count}; search or filter by type to find others.",
+    "perUnit": "sells per {unit}",
+    "barcode": "barcode {code}",
+    "submit": "Add to the menu",
+    "adding": "Adding…",
+    "selectAll": "Select all",
+    "price": "Price",
+    "onMenu": "Already on the menu",
+    "item": "Product or dish",
+    "chooseCategory": "Choose a category",
+    "channels": "Sold on",
+    "nothingChosen": "Tick at least one product or dish.",
+    "added": "{count, plural, =0 {Nothing added.} one {1 item added.} other {# items added.}}",
+    "skipped": "Not added: {list}.",
+    "reasons": {
+      "ALREADY_ON_MENU": "already on the menu",
+      "PRODUCT_ARCHIVED": "the product is archived",
+      "MENU_RECIPE_NOT_DISH": "only active dishes can be sold",
+      "PRICE_INVALID": "the price is not a number (use digits and a dot, e.g. 12.50)",
+      "NOT_FOUND": "not found",
+      "CONFLICT": "its code is taken"
+    }
   }
 }

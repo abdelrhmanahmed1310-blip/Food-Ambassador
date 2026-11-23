@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
-import { checkSelection, resolvePrice, unitPrice, type PriceRow } from "./rules";
+import { checkSelection, menuCodeFrom, resolvePrice, unitPrice, type PriceRow } from "./rules";
 
 const d = (v: string) => new Decimal(v);
 const row = (
@@ -57,5 +57,19 @@ describe("modifier choices (ADR-058)", () => {
     expect(unitPrice(d("50"), [d("10"), d("5.5")]).toFixed()).toBe("65.5");
     expect(unitPrice(d("50"), [d("-10")]).toFixed()).toBe("40");
     expect(unitPrice(d("5"), [d("-10")]).toFixed()).toBe("0");
+  });
+});
+
+describe("menu codes from products and recipes (ADR-138)", () => {
+  it("keeps the allowed characters, at most 20, unique", () => {
+    expect(menuCodeFrom("rice-5kg", new Set())).toBe("RICE-5KG");
+    expect(menuCodeFrom("Olive oil 1 L / tin", new Set())).toBe("OLIVE-OIL-1-L-TIN");
+    expect(menuCodeFrom("ABCDEFGHIJKLMNOPQRSTUVWXYZ", new Set())).toBe("ABCDEFGHIJKLMNOPQRST");
+    expect(menuCodeFrom("RICE-5KG", new Set(["RICE-5KG", "RICE-5KG-2"]))).toBe("RICE-5KG-3");
+    expect(menuCodeFrom("ABCDEFGHIJKLMNOPQRST", new Set(["ABCDEFGHIJKLMNOPQRST"]))).toBe(
+      "ABCDEFGHIJKLMNOPQR-2",
+    );
+    expect(menuCodeFrom("***", new Set())).toBe("ITEM");
+    expect(menuCodeFrom("-x-", new Set())).toBe("X");
   });
 });

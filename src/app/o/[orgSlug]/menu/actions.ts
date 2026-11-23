@@ -19,6 +19,7 @@ import {
   setModifierOptionArchived,
   updateMenuItem,
 } from "@/modules/menu/service";
+import { addToMenu } from "@/modules/menu/bulk";
 import { formValues } from "@/server/actions/handle";
 import { setMenuItemImage } from "@/modules/media/images";
 import { addExtraPhoto, removeExtraPhoto } from "@/modules/media/images";
@@ -226,5 +227,34 @@ export async function removeMenuItemExtraPhotoAction(
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await removeExtraPhoto(ctx, photoId);
     return { message: t("removed") };
+  });
+}
+
+/** Menu → Add products and dishes (ADR-138). */
+export async function addToMenuAction(orgSlug: string, previous: S, formData: FormData) {
+  const t = await getTranslations("menuBulk");
+  const picks = formData.getAll("pick").map(String);
+  if (picks.length === 0)
+    return { ok: false, seq: (previous.seq ?? 0) + 1, formError: t("nothingChosen") };
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    const r = await addToMenu(ctx, {
+      categoryId: String(formData.get("categoryId") ?? ""),
+      branchId: String(formData.get("branchId") ?? ""),
+      channels: formData.getAll("channel").map(String),
+      lines: picks.map((key) => {
+        const [source, id] = key.split(":");
+        return { source, id, price: String(formData.get(`price:${key}`) ?? "") };
+      }),
+    });
+    const skipped = r.skipped.map(
+      (s) =>
+        `${s.name || "—"}: ${t.has(`reasons.${s.reason}`) ? t(`reasons.${s.reason}` as "reasons.ALREADY_ON_MENU") : s.reason}`,
+    );
+    return {
+      message: [
+        t("added", { count: r.created.length }),
+        ...(skipped.length ? [t("skipped", { list: skipped.join("; ") })] : []),
+      ].join(" "),
+    };
   });
 }
