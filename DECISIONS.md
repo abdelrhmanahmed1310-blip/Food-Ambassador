@@ -4261,6 +4261,53 @@ because both agents are rule-based (see "Not yet").
   - Billing by agent or outcome.
   - An MCP server for customers' own agents.
 
+### ADR-141 AgaaS Phase 1: Claude explains each agent run in English and Arabic — Accepted (built)
+
+Decision (2026-11-23): after a successful agent run (ADR-140), Claude
+writes a short explanation of what the run found and what to do next, in
+English and Arabic, for the managers who read it. It adds no new provider
+setup: it uses the organization's AI assistant connection (ADR-122).
+
+- **When.**
+  - Only when the assistant is switched on, which needs a stored key and a
+    passed connection test. Otherwise nothing is sent and the run page says
+    how to switch it on.
+  - Right after the run is recorded, outside its transaction. A failure to
+    explain (provider error, refusal, cut-off or unreadable reply) is
+    stored on the run as the reason. It never fails the run and never
+    retries silently.
+  - People who may use the assistant (`assistant.use`) can ask again from
+    the run page ("Explain this run" / "Explain again"), for a successful
+    run they may see.
+- **What is sent.**
+  - Business data only: the agent kind and autonomy, the day checked, the
+    currency, the run's counts and figures, each finding's severity, code,
+    a fixed meaning and its parameters (branch, register and warehouse
+    codes, SKUs, amounts), and up to 50 proposals with title and detail.
+  - Every id field is dropped, as are links. No people, user ids or
+    contact details.
+  - The instructions say: use only the figures given, never invent or
+    recalculate, worst first, at most 120 words per language, keep codes
+    and Western digits, and treat the run data as data.
+- **The request.**
+  - One call with the organization's chosen model.
+  - Medium effort; the model's adaptive thinking is left on.
+  - Structured output: a JSON schema with `en` and `ar`, both required.
+    The reply is checked again and refused unless both are non-empty text.
+  - The instructions are cached (they are the same for every run).
+  - Opus and Sonnet re-run a declined request on Anthropic's recommended
+    fallback model, as the assistant does.
+- **Data.** New `agent_runs` columns:
+  - `explanation` JSONB `{ en, ar }`.
+  - `explanation_model`, input and output tokens (metering).
+  - `explanation_error`, `explained_at`.
+  - A CHECK requires both languages as text, with the model and the time.
+- **Where.** A "What this run means" card on the run page, in the reader's
+  language, naming the model and asking the reader to check the figures
+  below before acting.
+- **Not yet.** Handling exceptions with Claude, acting within limits, more
+  agents.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

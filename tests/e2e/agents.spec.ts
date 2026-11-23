@@ -44,5 +44,12 @@ test("agents: switch on, run now, see the run and the inbox (ADR-140)", async ({
   await expect(page.getByText("Done").first()).toBeVisible();
   await expect(page.getByText("Day checked")).toBeVisible();
   await expect(page.getByText(/service calls/)).toBeVisible();
+  // ADR-141: no explanation while the AI assistant is off; asking says so.
+  await expect(page.getByRole("heading", { name: "What this run means" })).toBeVisible();
+  await expect(page.getByText(/No explanation yet/)).toBeVisible();
+  await page.getByRole("button", { name: "Explain this run" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "The assistant is not switched on." }),
+  ).toBeVisible();
   await context.close();
 });

@@ -1018,7 +1018,8 @@
     "REFERENCE_NOT_FETCHED": "The USDA record could not be fetched. Try again later.",
     "FEATURE_REQUIRED": "A function that stays on needs one that would be switched off.",
     "AGENT_RUN_AS_NO_ACCESS": "Switch the agent on as someone who can do its work (order for a warehouse, or see the POS).",
-    "PROPOSAL_DECIDED": "This proposal was already decided."
+    "PROPOSAL_DECIDED": "This proposal was already decided.",
+    "AGENT_RUN_NOT_SUCCEEDED": "Only a run that finished successfully can be explained."
   },
   "notFound": {
     "title": "Page not found",
@@ -8309,6 +8310,16 @@
       "SHORTFALLS": "{branch}: {count, plural, one {# stock shortfall} other {# stock shortfalls}} from sales not posted yet.",
       "NO_SUPPLIER": "{warehouse}: {sku} needs ordering but has no preferred supplier.",
       "NO_PRICE": "{warehouse}: {sku} needs ordering but its supplier has no known price."
-    }
+    },
+    "explanationTitle": "What this run means",
+    "explanationBy": "Written by Claude ({model}) from this run's figures. Check the figures below before acting.",
+    "noExplanation": "No explanation yet. Explanations are written when the AI assistant is switched on in Settings.",
+    "explanationError": "No explanation: {error}",
+    "explain": "Explain this run",
+    "explainAgain": "Explain again",
+    "explaining": "Explaining…",
+    "explainHint": "Claude reads only this run's counts, codes and amounts, never personal details. It uses the organization's assistant key.",
+    "explained": "Explanation written.",
+    "explainFailed": "The explanation could not be written. The reason is shown above."
   }
 }

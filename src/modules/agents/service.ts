@@ -11,6 +11,8 @@ import { resolveTenantContext, type TenantContext } from "@/modules/tenancy/cont
 import { withSystemTx, withTenantTx } from "@/server/db/transactions";
 import { businessRuleViolation, forbidden, notFound, validationFailed } from "@/server/errors";
 import { canRunDailyClose, runDailyClose } from "./daily-close";
+import { explainRun, explainRunNow } from "./explain";
+import { readExplanation } from "./explain-rules";
 import { canRunReplenishment, runReplenishment } from "./replenishment";
 import {
   AGENT_AUTONOMY,
@@ -331,6 +333,8 @@ export async function runAgent(
     await withTenantTx(organizationId, (tx) =>
       tx.agent.update({ where: { id: agent.id }, data: { lastRunAt: new Date() } }),
     );
+    // Written by Claude when the assistant is on (ADR-141); never fails the run.
+    await explainRun(organizationId, run.id).catch(() => undefined);
     return { runId: run.id, status: "SUCCEEDED" as const };
   } catch (error) {
     await finish({ status: "FAILED", error: errorText(error) });
@@ -419,8 +423,16 @@ export async function getRun(ctx: TenantContext, runId: string) {
     }),
   );
   if (!run || !canSeeKind(ctx, run.agent.kind as AgentKindCode)) throw notFound("Agent run");
-  return { ...run, findings: run.findings as unknown as Finding[] };
+  return {
+    ...run,
+    findings: run.findings as unknown as Finding[],
+    explanation: readExplanation(run.explanation),
+  };
 }
+
+/** Explain a run (again) from its page (ADR-141). */
+export const explainAgentRun = (ctx: TenantContext, runId: string) =>
+  explainRunNow(ctx, runId, (kind) => canSeeKind(ctx, kind));
 
 /** Proposals the person may decide: those for warehouses they order for. */
 export async function listProposals(ctx: TenantContext, raw: { status?: string } = {}) {

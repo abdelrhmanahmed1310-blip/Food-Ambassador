@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import { ActionForm } from "@/components/forms/fields";
 import {
   Alert,
   Badge,
@@ -12,9 +13,11 @@ import {
   Th,
 } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
+import { canUseAssistant } from "@/modules/assistant/service";
 import { getRun } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
+import { explainRunAction } from "../../actions";
 
 type Figure = {
   branchId: string;
@@ -34,7 +37,13 @@ export default async function AgentRunPage({
   if (!isUuid(runId)) notFound();
   const ctx = await requireTenant(orgSlug);
   const run = await notFoundOnAppError(getRun(ctx, runId));
-  const [t, format] = await Promise.all([getTranslations("agents"), getFormatter()]);
+  const [t, format, locale] = await Promise.all([
+    getTranslations("agents"),
+    getFormatter(),
+    getLocale(),
+  ]);
+  const explanation = run.explanation ? run.explanation[locale === "ar" ? "ar" : "en"] : null;
+  const canExplain = run.status === "SUCCEEDED" && canUseAssistant(ctx);
   const base = `/o/${orgSlug}`;
   const summary = run.summary as Record<string, unknown>;
   const figures = (summary.figures as Figure[] | undefined) ?? [];
@@ -72,6 +81,35 @@ export default async function AgentRunPage({
             ]}
           />
         </Card>
+        {run.status === "SUCCEEDED" ? (
+          <Card title={t("explanationTitle")}>
+            {explanation ? (
+              <div className="space-y-2" data-testid="explanation">
+                <p className="text-sm leading-relaxed whitespace-pre-line">{explanation}</p>
+                <p className="text-muted text-xs">
+                  {t("explanationBy", { model: run.explanationModel ?? "" })}
+                </p>
+              </div>
+            ) : (
+              <p className="text-muted text-sm">
+                {run.explanationError
+                  ? t("explanationError", { error: run.explanationError })
+                  : t("noExplanation")}
+              </p>
+            )}
+            {canExplain ? (
+              <ActionForm
+                action={explainRunAction.bind(null, orgSlug, run.id)}
+                submitLabel={explanation ? t("explainAgain") : t("explain")}
+                pendingLabel={t("explaining")}
+                submitVariant="secondary"
+                className="mt-3 space-y-2"
+              >
+                <p className="text-muted text-xs">{t("explainHint")}</p>
+              </ActionForm>
+            ) : null}
+          </Card>
+        ) : null}
         {figures.length > 0 ? (
           <Card title={t("figures")}>
             <Table label={t("figures")}>

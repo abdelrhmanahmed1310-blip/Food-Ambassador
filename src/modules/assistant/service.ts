@@ -69,6 +69,22 @@ function settingsView(row: Awaited<ReturnType<typeof loadSettings>>) {
   };
 }
 
+/**
+ * The organization's Claude connection for work the app does on its own
+ * (agent run explanations, ADR-141): only when an administrator switched the
+ * assistant on after a passed connection test; otherwise null.
+ */
+export async function connectedAssistant(organizationId: string) {
+  const row = await withTenantTx(organizationId, (tx) =>
+    tx.assistantSettings.findUnique({ where: { organizationId } }),
+  );
+  if (!row?.enabled || !row.apiKeySealed || !row.testOk) return null;
+  return {
+    client: assistantClient(decryptSecret(row.apiKeySealed, key())),
+    model: row.model as AssistantModel,
+  };
+}
+
 // ─── Settings (assistant.manage) ───
 
 export async function getAssistantSettings(ctx: TenantContext) {

@@ -9291,6 +9291,15 @@ model AgentRun {
   findings        Json            @default("[]")
   error           String?
   startedByUserId String?         @map("started_by_user_id") @db.Uuid
+  /// What the run found, written by Claude in English and Arabic: { en, ar } (ADR-141).
+  explanation             Json?
+  /// The model that wrote it, and its tokens (metering).
+  explanationModel        String?   @map("explanation_model")
+  explanationInputTokens  Int?      @map("explanation_input_tokens")
+  explanationOutputTokens Int?      @map("explanation_output_tokens")
+  /// Why there is no explanation (provider error, declined); null when written.
+  explanationError        String?   @map("explanation_error")
+  explainedAt             DateTime? @map("explained_at") @db.Timestamptz(3)
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   agent        Agent           @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)

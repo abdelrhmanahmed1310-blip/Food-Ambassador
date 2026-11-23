@@ -3,7 +3,12 @@
 import { getTranslations } from "next-intl/server";
 import type { ActionState } from "@/components/forms/action-state";
 import type { AgentKindCode } from "@/modules/agents/rules";
-import { decideProposal, runAgentNow, updateAgent } from "@/modules/agents/service";
+import {
+  decideProposal,
+  explainAgentRun,
+  runAgentNow,
+  updateAgent,
+} from "@/modules/agents/service";
 import { tenantMutation } from "@/server/actions/tenant";
 
 type S = ActionState;
@@ -76,5 +81,19 @@ export async function decideProposalAction(
             ? t("approvedDrafts", { count: r.createdOrders.length })
             : t("approvedSubmitted"),
     };
+  });
+}
+
+/** Ask Claude to explain a run (again), in English and Arabic (ADR-141). */
+export async function explainRunAction(
+  orgSlug: string,
+  runId: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    const r = await explainAgentRun(ctx, runId);
+    return r.explained ? { message: t("explained") } : { ok: false, formError: t("explainFailed") };
   });
 }
