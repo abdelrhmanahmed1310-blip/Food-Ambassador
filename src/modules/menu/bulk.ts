@@ -222,3 +222,39 @@ export async function addToMenu(ctx: TenantContext, raw: unknown): Promise<AddTo
   }
   return result;
 }
+
+const pricedSchema = z.object({
+  price: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v : undefined))
+    .refine((v) => v === undefined || /^\d{1,12}(\.\d{1,4})?$/.test(v), {
+      error: "invalidDecimal",
+    }),
+  sellOn: z.array(z.enum(SALES_CHANNELS)).max(SALES_CHANNELS.length).default([]),
+});
+
+/**
+ * A new menu item, priced on the chosen channels from today in the same step
+ * (ADR-139), instead of creating it and then adding a price per channel. The
+ * price is checked before anything is created.
+ */
+export async function createMenuItemPriced(
+  ctx: TenantContext,
+  raw: Record<string, unknown> & { price?: unknown; sellOn?: unknown },
+) {
+  assertPermission(ctx.grants, "menu.manage");
+  const { price, sellOn, ...item } = raw;
+  const parsed = pricedSchema.safeParse({ price, sellOn });
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const created = (await createMenuItem(ctx, item))!;
+  if (parsed.data.price)
+    for (const channel of parsed.data.sellOn)
+      await addMenuItemPrice(ctx, created.id, {
+        channel,
+        price: parsed.data.price,
+        effectiveFrom: businessDate(ctx.timeZone),
+      });
+  return created;
+}

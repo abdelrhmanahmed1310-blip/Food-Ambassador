@@ -27,6 +27,7 @@ export default async function NewProductPage({
       <PageHeader title={t("catalog.newProductTitle")} />
       <Card>
         <ProductForm
+          withBarcode
           countries={countryOptions(locale)}
           action={createProductAction.bind(null, orgSlug)}
           units={unitOptions(units, locale)}

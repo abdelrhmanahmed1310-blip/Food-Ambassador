@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { MenuItemForm } from "@/components/menu/forms";
 import { Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
+import { SALES_CHANNELS } from "@/modules/menu/rules";
 import { menuFormOptions } from "@/modules/menu/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { createMenuItemAction } from "../../actions";
@@ -31,6 +32,11 @@ export default async function NewMenuItemPage({
             label: `${p.sku} — ${p.nameEn} (${p.baseUom.code})`,
           }))}
           taxCodes={o.taxCodes.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+          sellOn={{
+            channels: SALES_CHANNELS.map((c) => ({ value: c, label: t(`menu.channels.${c}`) })),
+            currency: ctx.baseCurrency,
+            includesTax: o.pricesIncludeTax,
+          }}
         />
       </Card>
     </>

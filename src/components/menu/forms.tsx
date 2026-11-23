@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ActionState } from "@/components/forms/action-state";
-import { ActionForm, SelectField, TextField } from "@/components/forms/fields";
+import { ActionForm, CheckboxGroup, SelectField, TextField } from "@/components/forms/fields";
 import { inputClass } from "@/components/ui/styles";
 
 type Option = { value: string; label: string };
@@ -74,6 +74,7 @@ export function MenuItemForm({
   defaults,
   submitLabel,
   kindFixed = false,
+  sellOn,
 }: {
   action: Action;
   categories: Option[];
@@ -83,6 +84,8 @@ export function MenuItemForm({
   defaults?: Record<string, string | undefined>;
   submitLabel: string;
   kindFixed?: boolean;
+  /** On a new item: price it on these channels in the same step (ADR-139). */
+  sellOn?: { channels: Option[]; currency: string; includesTax: boolean };
 }) {
   const t = useTranslations();
   const opt = t("common.optional");
@@ -216,6 +219,24 @@ export function MenuItemForm({
           optionalLabel={opt}
         />
       </div>
+      {sellOn ? (
+        <div className="border-border grid gap-4 border-t pt-4 sm:grid-cols-2">
+          <TextField
+            name="price"
+            label={t("menu.priceIn", { currency: sellOn.currency })}
+            hint={`${t(sellOn.includesTax ? "menu.priceInclVat" : "menu.priceExclVat")} ${t("menu.priceNowHint")}`}
+            inputMode="decimal"
+            dir="ltr"
+            optionalLabel={opt}
+          />
+          <CheckboxGroup
+            name="sellOn"
+            legend={t("menu.sellOn")}
+            options={sellOn.channels}
+            defaultValues={sellOn.channels.map((c) => c.value)}
+          />
+        </div>
+      ) : null}
     </ActionForm>
   );
 }

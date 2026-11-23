@@ -268,6 +268,21 @@ function skuConflict(error: unknown): never {
   throw error;
 }
 
+/** An optional first barcode on a new product (ADR-139): checked before anything is saved. */
+function firstBarcode(rawInput: unknown) {
+  const raw = (rawInput ?? {}) as { barcode?: unknown; barcodeSymbology?: unknown };
+  const code = typeof raw.barcode === "string" ? raw.barcode.trim() : "";
+  if (!code) return null;
+  const parsed = barcodeSchema.safeParse({ barcode: code, symbology: raw.barcodeSymbology });
+  if (!parsed.success) throw validationFailed(parsed.error);
+  const problem = validateBarcode(parsed.data.barcode, parsed.data.symbology);
+  if (problem)
+    throw new AppError("VALIDATION_FAILED", "Invalid barcode", {
+      issues: [{ path: "barcode", message: problem }],
+    });
+  return parsed.data;
+}
+
 export async function createProduct(
   ctx: TenantContext,
   rawInput: unknown,
@@ -276,10 +291,11 @@ export async function createProduct(
   const parsed = createProductSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const { idempotencyKey, ...input } = parsed.data;
+  const barcode = firstBarcode(rawInput);
   try {
     return await runIdempotent(
       ctx,
-      { key: idempotencyKey, operation: "product.create", input },
+      { key: idempotencyKey, operation: "product.create", input: { ...input, barcode } },
       async (tx) => {
         await assertUnitUsable(tx, ctx, input.baseUomId);
         await assertCategoryUsable(tx, ctx, input.categoryId);
@@ -298,10 +314,29 @@ export async function createProduct(
           entityId: product.id,
           changes: input,
         });
+        if (barcode) {
+          const row = await tx.productBarcode.create({
+            data: {
+              ...barcode,
+              organizationId: ctx.organizationId,
+              productId: product.id,
+              createdByUserId: ctx.userId,
+            },
+            select: { id: true },
+          });
+          await recordAudit(tx, actorOf(ctx), {
+            action: "product.barcode_added",
+            entityType: "product",
+            entityId: product.id,
+            changes: { barcodeId: row.id, ...barcode },
+          });
+        }
         return { id: product.id };
       },
     );
   } catch (error) {
+    if (isUniqueViolation(error, "product_barcodes_organization_id_barcode_key"))
+      throw conflict("Barcode already assigned", { field: "barcode", reason: "barcodeTaken" });
     skuConflict(error);
   }
 }

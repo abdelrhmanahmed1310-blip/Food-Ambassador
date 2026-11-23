@@ -6,7 +6,7 @@ import {
   listUnits,
   setProductArchived,
 } from "@/modules/catalog/service";
-import { addToMenu, menuCandidates } from "@/modules/menu/bulk";
+import { addToMenu, createMenuItemPriced, menuCandidates } from "@/modules/menu/bulk";
 import { postOpeningBalance } from "@/modules/inventory/operations";
 import { businessDate } from "@/modules/inventory/rules";
 import { addMenuItemPrice, createMenuCategory, createMenuItem } from "@/modules/menu/service";
@@ -250,5 +250,93 @@ describe("adding products and dishes to the menu in bulk (ADR-138)", () => {
       addToMenu(ctx, { categoryId: cat, lines: [{ source: "PRODUCT", id: productOf.CONSUMABLE }] }),
       "NOT_FOUND",
     );
+  });
+});
+
+describe("fewer steps (ADR-139)", () => {
+  it("creates a product with its first barcode in one step, or nothing", async () => {
+    const p = await createProduct(ctx, {
+      sku: "ONE-STEP",
+      nameEn: "One step",
+      type: "FINISHED_GOOD",
+      baseUomId: each,
+      barcode: "6281000000014",
+      barcodeSymbology: "EAN13",
+    });
+    const codes = await getDb().productBarcode.findMany({ where: { productId: p.id } });
+    expect(codes.map((c) => c.barcode)).toEqual(["6281000000014"]);
+    const count = () =>
+      getDb().product.count({
+        where: { organizationId: ctx.organizationId, sku: { startsWith: "TWO-" } },
+      });
+    // A wrong check digit, or a barcode already in use: no product is created.
+    await expectAppError(
+      createProduct(ctx, {
+        sku: "TWO-A",
+        nameEn: "A",
+        type: "RAW_MATERIAL",
+        baseUomId: each,
+        barcode: "6281000000015",
+        barcodeSymbology: "EAN13",
+      }),
+      "VALIDATION_FAILED",
+    );
+    await expectAppError(
+      createProduct(ctx, {
+        sku: "TWO-B",
+        nameEn: "B",
+        type: "RAW_MATERIAL",
+        baseUomId: each,
+        barcode: "6281000000014",
+        barcodeSymbology: "EAN13",
+      }),
+      "CONFLICT",
+    );
+    expect(await count()).toBe(0);
+  });
+
+  it("creates a menu item priced on the chosen channels, or nothing when the price is wrong", async () => {
+    const category = (await createMenuCategory(ctx, { name: "One step" })).id;
+    const item = await createMenuItemPriced(ctx, {
+      code: "PRICED",
+      name: "Priced",
+      categoryId: category,
+      kind: "ITEM",
+      productId: productOf.FINISHED_GOOD,
+      price: "12.5",
+      sellOn: ["DINE_IN", "DELIVERY"],
+    });
+    const prices = await getDb().menuItemPrice.findMany({ where: { itemId: item.id } });
+    expect(prices.map((p) => [p.channel, p.price.toString()]).sort()).toEqual([
+      ["DELIVERY", "12.5"],
+      ["DINE_IN", "12.5"],
+    ]);
+    await expectAppError(
+      createMenuItemPriced(ctx, {
+        code: "BADPRICE",
+        name: "Bad",
+        categoryId: category,
+        kind: "ITEM",
+        productId: productOf.FINISHED_GOOD,
+        price: "12,5",
+        sellOn: ["DINE_IN"],
+      }),
+      "VALIDATION_FAILED",
+    );
+    expect(
+      await getDb().menuItem.count({
+        where: { organizationId: ctx.organizationId, code: "BADPRICE" },
+      }),
+    ).toBe(0);
+    // Without a price it is added unpriced, as before.
+    const plain = await createMenuItemPriced(ctx, {
+      code: "PLAIN",
+      name: "Plain",
+      categoryId: category,
+      kind: "ITEM",
+      productId: productOf.CONSUMABLE,
+      sellOn: ["DINE_IN"],
+    });
+    expect(await getDb().menuItemPrice.count({ where: { itemId: plain.id } })).toBe(0);
   });
 });

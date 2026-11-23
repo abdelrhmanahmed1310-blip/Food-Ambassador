@@ -4128,6 +4128,58 @@ punched or scanned at the till, the self-order kiosk and the POS simulator:
   inside a dish. Product types still drive purchasing, production,
   nutrition coverage and reports as before.
 
+### ADR-139 Navigation grouped by end-to-end process, with page tabs and fewer steps — Accepted (built)
+
+Decision (2026-11-23): the menu is organized around end-to-end processes
+instead of one link per page. The menu has about 40 links in 12 sections,
+down from 137.
+
+- **Process groups.** `src/components/shell/nav-groups.ts` defines sections
+  and groups:
+  - Sell
+  - Menu & kitchen
+  - Procure to pay
+  - Stock & logistics
+  - B2B sales
+  - Finance
+  - Food safety
+  - People
+  - Insights
+  - Catalog
+  - Settings
+  - a top block with Overview, Needs attention and My work
+
+  Each group is one menu link and holds the pages of one stage of a
+  process. Examples: Buying = requisitions, RFQs, purchase orders, reorder,
+  forecast; Receiving = receipts, inspections, supplier returns; Invoices &
+  payables. The menu marks the group on any of its pages, including detail
+  pages under them.
+
+- **Tabs.** The group's pages show as tabs at the top of each page, in the
+  shell (a client component following the address). Pages that draw their
+  own tabs (the nutrition engine) get none.
+- **Settings hub.** The Settings section is one link to a page that lists
+  the settings links in four cards: organization & sites, people & access,
+  sales/tax/approvals, connections & system. Settings pages link back to it.
+- **One source of links.** `src/server/navigation.ts` builds a person's
+  links from permissions and the module switches (ADR-137), as before. The
+  menu, tabs and Settings page all derive from it. A unit test fails if any
+  link belongs to no group, or to two.
+- **Nothing else moves.** Page addresses, permissions, module switches and
+  bookmarks are unchanged.
+- **Fewer steps.**
+  - A new menu item takes a price and the channels it sells on in the
+    create form (priced from today). The price is checked before the item
+    is created. Leaving it empty keeps the old behaviour.
+  - A new product takes its first barcode and barcode type in the create
+    form. The barcode is checked (format, check digit, not already used)
+    and saved in the same transaction, so a bad barcode creates nothing.
+  - The personal pages (attendance, roster, leave, payslips, training,
+    performance, surveys, recognition, onboarding, interviews, deliveries)
+    are one "My work" link with tabs.
+- **Kept on purpose.** Approvals, second-person verifications and other
+  business controls stay. They are controls, not administrative overhead.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

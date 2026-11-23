@@ -79,6 +79,7 @@ export function ProductForm({
   submitLabel,
   idempotent = false,
   countries,
+  withBarcode = false,
 }: {
   action: Action;
   units: Option[];
@@ -90,6 +91,8 @@ export function ProductForm({
   locked?: boolean;
   submitLabel: string;
   idempotent?: boolean;
+  /** On a new product: its first barcode in the same step (ADR-139). */
+  withBarcode?: boolean;
 }) {
   const t = useTranslations();
   return (
@@ -205,6 +208,23 @@ export function ProductForm({
         label={t("catalog.inspectOnReceipt")}
         defaultChecked={defaults.inspectOnReceipt === "true"}
       />
+      {withBarcode ? (
+        <div className="border-border grid gap-4 border-t pt-4 sm:grid-cols-2">
+          <TextField
+            name="barcode"
+            label={t("catalog.barcode")}
+            hint={t("catalog.barcodeOnCreateHint")}
+            dir="ltr"
+            optionalLabel={t("common.optional")}
+          />
+          <SelectField
+            name="barcodeSymbology"
+            label={t("catalog.symbology")}
+            options={SYMBOLOGIES.map((v) => ({ value: v, label: t(`catalog.symbologies.${v}`) }))}
+            defaultValue="EAN13"
+          />
+        </div>
+      ) : null}
     </ActionForm>
   );
 }

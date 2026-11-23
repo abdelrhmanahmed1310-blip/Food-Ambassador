@@ -10,7 +10,6 @@ import {
   attachModifierGroup,
   createMenuCategory,
   updateMenuCategory,
-  createMenuItem,
   createModifierGroup,
   detachModifierGroup,
   removeComboComponent,
@@ -19,7 +18,7 @@ import {
   setModifierOptionArchived,
   updateMenuItem,
 } from "@/modules/menu/service";
-import { addToMenu } from "@/modules/menu/bulk";
+import { addToMenu, createMenuItemPriced } from "@/modules/menu/bulk";
 import { formValues } from "@/server/actions/handle";
 import { setMenuItemImage } from "@/modules/media/images";
 import { addExtraPhoto, removeExtraPhoto } from "@/modules/media/images";
@@ -48,7 +47,13 @@ export async function updateMenuCategoryAction(
 export async function createMenuItemAction(orgSlug: string, previous: S, formData: FormData) {
   let id = "";
   const state = await tenantMutation(orgSlug, previous, formData, async (ctx) => {
-    id = (await createMenuItem(ctx, formValues(formData))).id;
+    // Priced in the same step when a price is given (ADR-139).
+    id = (
+      await createMenuItemPriced(ctx, {
+        ...formValues(formData),
+        sellOn: formData.getAll("sellOn").map(String),
+      })
+    ).id;
   });
   if (state.ok) redirect(`/o/${orgSlug}/menu/items/${id}`);
   return state;

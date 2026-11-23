@@ -54,7 +54,7 @@ describe("feature registry (ADR-137)", () => {
   });
 
   it("claims every menu link and every page area", () => {
-    const layout = readFileSync(join(ORG_APP, "layout.tsx"), "utf8");
+    const layout = readFileSync(join(process.cwd(), "src/server/navigation.ts"), "utf8");
     const hrefs = [...layout.matchAll(/href: `\$\{base\}\/([^`]+)`/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThan(80);
     for (const h of hrefs) expect(featureForPath(h), h).not.toBeNull();

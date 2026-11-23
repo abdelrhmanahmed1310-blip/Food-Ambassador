@@ -18,6 +18,7 @@ import {
   Clock,
   Handshake,
   LayoutDashboard,
+  Landmark,
   Menu,
   GraduationCap,
   Heart,
@@ -65,6 +66,7 @@ const ICONS = {
   onboarding: ListChecks,
   interviews: UserSearch,
   consultant: Salad,
+  finance: Landmark,
 } satisfies Record<string, LucideIcon>;
 export type NavIcon = keyof typeof ICONS;
 
@@ -73,6 +75,10 @@ export interface NavItem {
   label: string;
   exact?: boolean;
   icon?: NavIcon;
+  /** Pages this link stands for (a process group, ADR-139); default: its own address. */
+  match?: string[];
+  /** Of those, the pages matched only exactly (an overview with pages under it). */
+  matchExact?: string[];
 }
 export interface NavSection {
   title?: string;
@@ -80,19 +86,29 @@ export interface NavSection {
   items: NavItem[];
 }
 
-function matches(pathname: string, item: NavItem) {
-  return item.exact
-    ? pathname === item.href
-    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+/** How long the item's best address for this page is; 0 when it does not hold the page. */
+function matchLength(pathname: string, item: NavItem) {
+  let best = 0;
+  for (const href of item.match ?? [item.href]) {
+    const exact = item.match ? item.matchExact?.includes(href) : item.exact;
+    const hit = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+    if (hit && href.length > best) best = href.length;
+  }
+  return best;
 }
 
 /** The one item for this page: the longest matching address (…/pos/floor, not …/pos). */
 function activeHref(pathname: string, sections: NavSection[]) {
   let best: string | null = null;
+  let length = 0;
   for (const section of sections)
-    for (const item of section.items)
-      if (matches(pathname, item) && (best === null || item.href.length > best.length))
+    for (const item of section.items) {
+      const n = matchLength(pathname, item);
+      if (n > length) {
+        length = n;
         best = item.href;
+      }
+    }
   return best;
 }
 
