@@ -21,10 +21,12 @@ export function canRunReplenishment(ctx: TenantContext) {
 }
 
 export interface NewProposal {
-  kind: "PURCHASE_ORDER" | "REORDER";
+  kind: "PURCHASE_ORDER" | "REORDER" | "CREDIT_REQUEST" | "RAISE_NC" | "PRICE_CHANGE";
   title: string;
   detail: Record<string, unknown>;
-  warehouseId: string;
+  warehouseId?: string;
+  branchId?: string;
+  /** The record it is about or prepared; one open proposal per record (ADR-142). */
   entityType?: string;
   entityId?: string;
 }

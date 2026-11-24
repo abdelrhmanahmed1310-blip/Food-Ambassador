@@ -9218,6 +9218,12 @@ enum AgentKind {
   REPLENISHMENT
   /// Checks the day's shifts, cash, voids and sales and reports what needs a look.
   DAILY_CLOSE
+  /// Explains supplier invoice exceptions and proposes credit requests (ADR-142).
+  INVOICE_MATCHING
+  /// Watches food safety records, actions, equipment and expiry and proposes non-conformances (ADR-142).
+  FOOD_SAFETY
+  /// Turns dishes above their food cost target into price proposals (ADR-142).
+  MENU_MARGIN
 }
 
 enum AgentAutonomy {
@@ -9316,12 +9322,14 @@ model AgentProposal {
   organizationId  String              @map("organization_id") @db.Uuid
   agentId         String              @map("agent_id") @db.Uuid
   runId           String              @map("run_id") @db.Uuid
-  /// e.g. PURCHASE_ORDER (a draft order) or REORDER (suggested lines, nothing created yet).
+  /// PURCHASE_ORDER (a draft order), REORDER (suggested lines), CREDIT_REQUEST, RAISE_NC or PRICE_CHANGE.
   kind            String
   status          AgentProposalStatus @default(OPEN)
   title           String
   detail          Json                @default("{}")
   warehouseId     String?             @map("warehouse_id") @db.Uuid
+  /// The branch it is for (food safety proposals, ADR-142).
+  branchId        String?             @map("branch_id") @db.Uuid
   /// The record it prepared, if any (a draft purchase order).
   entityType      String?             @map("entity_type")
   entityId        String?             @map("entity_id") @db.Uuid
@@ -9336,5 +9344,6 @@ model AgentProposal {
 
   @@unique([organizationId, id])
   @@index([organizationId, status, createdAt])
+  @@index([organizationId, agentId, entityId], map: "agent_proposals_entity_idx")
   @@map("agent_proposals")
 }

@@ -1017,9 +1017,10 @@
     "REFERENCE_ARCHIVED": "The library record is archived; choose another.",
     "REFERENCE_NOT_FETCHED": "The USDA record could not be fetched. Try again later.",
     "FEATURE_REQUIRED": "A function that stays on needs one that would be switched off.",
-    "AGENT_RUN_AS_NO_ACCESS": "Switch the agent on as someone who can do its work (order for a warehouse, or see the POS).",
+    "AGENT_RUN_AS_NO_ACCESS": "Switch the agent on as someone who can do its work (for example order for a warehouse, see the POS, approve invoice exceptions, see food safety or see recipe costs).",
     "PROPOSAL_DECIDED": "This proposal was already decided.",
-    "AGENT_RUN_NOT_SUCCEEDED": "Only a run that finished successfully can be explained."
+    "AGENT_RUN_NOT_SUCCEEDED": "Only a run that finished successfully can be explained.",
+    "AGENT_AUTONOMY_NOT_OFFERED": "This agent only proposes; drafts are for replenishment."
   },
   "notFound": {
     "title": "Page not found",
@@ -8206,6 +8207,18 @@
       "DAILY_CLOSE": {
         "name": "Daily close agent",
         "does": "Each morning it checks the previous day per branch: shifts left open, cash counted against expected, voids, refunds, sales against the same weekday last week and stock shortfalls not posted, and reports what needs a look."
+      },
+      "INVOICE_MATCHING": {
+        "name": "Invoice matching agent",
+        "does": "Each day it reviews draft supplier invoices that do not match the order and the receipt, works out what was billed beyond them and proposes accepting the invoice with a credit note request. It also reports printed totals that do not add up and received goods not invoiced after a set number of days."
+      },
+      "FOOD_SAFETY": {
+        "name": "Food safety agent",
+        "does": "Each day, per branch, it checks corrective actions past due, open serious non-conformances, equipment overdue for calibration or maintenance, stock past or near its expiry date and the 30-day compliance score, and proposes non-conformances for expired stock and overdue calibration."
+      },
+      "MENU_MARGIN": {
+        "name": "Menu & margin agent",
+        "does": "Each day it reads the food cost report and, for every dish above its food cost target, proposes the price that brings it back to the target. Dishes with incomplete costs are reported, never priced. Till prices on menu items are not changed."
       }
     },
     "autonomyLabel": "How far it may go",
@@ -8217,6 +8230,15 @@
       "DAILY_CLOSE": {
         "SUGGEST": "Report findings",
         "DRAFT": "Report findings"
+      },
+      "INVOICE_MATCHING": {
+        "SUGGEST": "Propose credit requests (you approve)"
+      },
+      "FOOD_SAFETY": {
+        "SUGGEST": "Propose non-conformances (you approve)"
+      },
+      "MENU_MARGIN": {
+        "SUGGEST": "Propose new prices (you approve)"
       }
     },
     "enabled": "Switched on (runs every day)",
@@ -8251,7 +8273,10 @@
     },
     "proposalKinds": {
       "PURCHASE_ORDER": "Draft purchase order",
-      "REORDER": "Suggested order"
+      "REORDER": "Suggested order",
+      "CREDIT_REQUEST": "Credit request",
+      "RAISE_NC": "Non-conformance",
+      "PRICE_CHANGE": "New price"
     },
     "draftOrder": "Draft order {number}",
     "linesTotal": "{lines, plural, one {# line} other {# lines}}, {total} {currency}",
@@ -8309,7 +8334,21 @@
       "SALES_DROP": "{branch}: sales {percent}% lower than the same weekday last week.",
       "SHORTFALLS": "{branch}: {count, plural, one {# stock shortfall} other {# stock shortfalls}} from sales not posted yet.",
       "NO_SUPPLIER": "{warehouse}: {sku} needs ordering but has no preferred supplier.",
-      "NO_PRICE": "{warehouse}: {sku} needs ordering but its supplier has no known price."
+      "NO_PRICE": "{warehouse}: {sku} needs ordering but its supplier has no known price.",
+      "INVOICE_TOTAL_MISMATCH": "Invoice {number} ({supplier}): printed total {printed} {currency} but the lines add up to {computed} {currency}.",
+      "INVOICE_EXCEPTION": "Invoice {number} ({supplier}): {lines, plural, one {# line does} other {# lines do}} not match the order or receipt; {amount} {currency} billed beyond them.",
+      "UNINVOICED_RECEIPTS": "{supplier}: {receipts, plural, one {# receipt} other {# receipts}} received more than {days} days ago not fully invoiced.",
+      "ACTIONS_OVERDUE": "{branch}: {count, plural, one {# corrective action} other {# corrective actions}} on {nc} past due.",
+      "NC_OPEN": "{branch}: non-conformance {nc} ({severity}) open since {since}.",
+      "CALIBRATION_OVERDUE": "{branch}: {equipment} is overdue for calibration.",
+      "MAINTENANCE_OVERDUE": "{branch}: {equipment} is overdue for maintenance.",
+      "EXPIRED_STOCK": "{branch}: {sku} lot {lot} expired on {date} and is still available in {warehouses}.",
+      "EXPIRING_STOCK": "{branch}: {sku} lot {lot} expires on {date} ({warehouses}).",
+      "LOW_COMPLIANCE": "{branch}: 30-day compliance score {score}% is below {threshold}%.",
+      "ABOVE_TARGET": "{dish}: food cost {percent}% above the {target}% target; {newPrice} instead of {price} brings it back.",
+      "COST_INCOMPLETE": "{count, plural, one {# dish has} other {# dishes have}} an incomplete cost and cannot be checked: {dishes}.",
+      "NO_DISH_PRICE": "{count, plural, one {# dish has} other {# dishes have}} no selling price: {dishes}.",
+      "NO_TARGET": "{count, plural, one {# dish has} other {# dishes have}} no food cost target; set one for the organization or the dish."
     },
     "explanationTitle": "What this run means",
     "explanationBy": "Written by Claude ({model}) from this run's figures. Check the figures below before acting.",
@@ -8320,6 +8359,27 @@
     "explaining": "Explaining…",
     "explainHint": "Claude reads only this run's counts, codes and amounts, never personal details. It uses the organization's assistant key.",
     "explained": "Explanation written.",
-    "explainFailed": "The explanation could not be written. The reason is shown above."
+    "explainFailed": "The explanation could not be written. The reason is shown above.",
+    "minCreditAmount": "Propose a credit request above (before VAT)",
+    "uninvoicedAfterDays": "Report goods not invoiced after (days)",
+    "complianceBelowPercent": "Report a compliance score below (%)",
+    "expiringWithinDays": "Report stock expiring within (days)",
+    "effectiveInDays": "New prices start after (days)",
+    "approveCredit": "Accept the invoice and request the credit",
+    "approveNc": "Raise the non-conformance",
+    "approvePrice": "{days, plural, =0 {Set the new price from today} one {Set the new price from tomorrow} other {Set the new price in # days}}",
+    "creditInvoice": "Invoice {number} (supplier ref. {reference})",
+    "creditTotal": "credit to request: {total} {currency} before VAT",
+    "creditReasons": {
+      "PRICE": "Line {line} ({sku}): billed at {invoiced}, ordered at {ordered}",
+      "QUANTITY": "Line {line} ({sku}): billed for more than was received"
+    },
+    "ncExpired": "{branch}: {sku} lot {lot} expired on {date} and is still available in {warehouses} ({quantity}).",
+    "ncCalibration": "{branch}: {equipment} ({name}) is in service past its calibration due date.",
+    "ncSeverity": "Severity: {severity}",
+    "ncRaised": "Non-conformance {number} raised",
+    "priceFromTo": "{from} → {to} {currency}",
+    "foodCostFromTo": "Food cost {from}% → {to}% (target {target}%), cost per portion {cost}",
+    "priceFrom": "New price from {date}"
   }
 }

@@ -8,15 +8,23 @@ import { membersWithGrantsInTx, notifyInTx } from "@/modules/notifications/servi
 import { cancelOrder, submitOrder } from "@/modules/procurement/orders";
 import { createOrdersFromPlan } from "@/modules/procurement/reorder";
 import { resolveTenantContext, type TenantContext } from "@/modules/tenancy/context";
-import { withSystemTx, withTenantTx } from "@/server/db/transactions";
+import { withSystemTx, withTenantTx, type Tx } from "@/server/db/transactions";
 import { businessRuleViolation, forbidden, notFound, validationFailed } from "@/server/errors";
+import { approveException } from "@/modules/invoices/service";
+import { raiseNonConformance } from "@/modules/foodsafety/nonconformances";
+import { addDays, businessDate } from "@/modules/inventory/rules";
+import { addRecipePrice } from "@/modules/recipes/menu";
 import { canRunDailyClose, runDailyClose } from "./daily-close";
+import { canRunFoodSafety, runFoodSafety } from "./food-safety";
+import { canRunInvoiceMatching, runInvoiceMatching } from "./invoice-matching";
+import { canRunMenuMargin, runMenuMargin } from "./menu-margin";
 import { explainRun, explainRunNow } from "./explain";
 import { readExplanation } from "./explain-rules";
-import { canRunReplenishment, runReplenishment } from "./replenishment";
+import { canRunReplenishment, runReplenishment, type NewProposal } from "./replenishment";
 import {
   AGENT_AUTONOMY,
   AGENT_KINDS,
+  AUTONOMY_FOR,
   readSettings,
   settingsSchema,
   type AgentKindCode,
@@ -37,13 +45,20 @@ import {
 type Json = Prisma.InputJsonValue;
 const FEATURE = "agents.center";
 
-const canRun = (kind: AgentKindCode, ctx: TenantContext) =>
-  kind === "REPLENISHMENT" ? canRunReplenishment(ctx) : canRunDailyClose(ctx);
+/** Who can do each agent's work, and so lend it their access (ADR-140, ADR-142). */
+const CAN_RUN: Record<AgentKindCode, (ctx: TenantContext) => boolean> = {
+  REPLENISHMENT: canRunReplenishment,
+  DAILY_CLOSE: canRunDailyClose,
+  INVOICE_MATCHING: canRunInvoiceMatching,
+  FOOD_SAFETY: canRunFoodSafety,
+  MENU_MARGIN: canRunMenuMargin,
+};
+const canRun = (kind: AgentKindCode, ctx: TenantContext) => CAN_RUN[kind](ctx);
 
 /** Who sees an agent's runs: settings managers, and the people its work is for. */
 export function canSeeKind(ctx: TenantContext, kind: AgentKindCode) {
   if (hasPermission(ctx.grants, "org.settings.manage")) return true;
-  return kind === "REPLENISHMENT" ? canRunReplenishment(ctx) : canRunDailyClose(ctx);
+  return canRun(kind, ctx);
 }
 
 export function canSeeAgents(ctx: TenantContext) {
@@ -104,6 +119,10 @@ export async function updateAgent(ctx: TenantContext, kind: AgentKindCode, raw: 
   const settings = settingsSchema(kind).safeParse(parsed.data.settings);
   if (!settings.success) throw validationFailed(settings.error);
   const input = parsed.data;
+  if (!AUTONOMY_FOR[kind].includes(input.autonomy))
+    throw businessRuleViolation("AGENT_AUTONOMY_NOT_OFFERED", "This agent only proposes", {
+      field: "autonomy",
+    });
   if (input.enabled && !canRun(kind, ctx))
     throw businessRuleViolation(
       "AGENT_RUN_AS_NO_ACCESS",
@@ -144,28 +163,79 @@ export async function updateAgent(ctx: TenantContext, kind: AgentKindCode, raw: 
 
 // ─── Running ───
 
+/** A proposal as far as deciding it goes (ADR-140, ADR-142). */
+interface ProposalScope {
+  kind: string;
+  warehouseId: string | null;
+  branchId: string | null;
+}
+
+/**
+ * Who may decide a proposal: the person who would do the work by hand —
+ * ordering for the warehouse, approving invoice exceptions, recording food
+ * safety at the branch, or managing recipes.
+ */
+function mayDecide(
+  grants: TenantContext["grants"],
+  p: ProposalScope,
+  warehouseBranch: ReadonlyMap<string, string | null>,
+) {
+  switch (p.kind) {
+    case "PURCHASE_ORDER":
+    case "REORDER":
+      return (
+        p.warehouseId !== null &&
+        hasPermission(grants, "purchasing.manage", {
+          branchId: warehouseBranch.get(p.warehouseId) ?? undefined,
+          warehouseId: p.warehouseId,
+        })
+      );
+    case "CREDIT_REQUEST":
+      return hasPermission(grants, "invoices.manage");
+    case "RAISE_NC":
+      return (
+        p.branchId !== null && hasPermission(grants, "foodsafety.record", { branchId: p.branchId })
+      );
+    case "PRICE_CHANGE":
+      return hasPermission(grants, "recipes.manage");
+    default:
+      return false;
+  }
+}
+
+async function warehouseBranchesInTx(tx: Tx, organizationId: string, ids: string[]) {
+  const whs = ids.length
+    ? await tx.warehouse.findMany({
+        where: { organizationId, id: { in: ids } },
+        select: { id: true, branchId: true },
+      })
+    : [];
+  return new Map(whs.map((w) => [w.id, w.branchId]));
+}
+
 async function notifyRunInTx(
-  tx: Parameters<Parameters<typeof withTenantTx>[1]>[0],
+  tx: Tx,
   organizationId: string,
   kind: AgentKindCode,
   runId: string,
-  result: { findings: Finding[]; proposals: Array<{ warehouseId: string }>; businessDate?: string },
+  result: { findings: Finding[]; proposals: NewProposal[]; businessDate?: string },
   runAsUserId: string,
 ) {
   const members = await membersWithGrantsInTx(tx, organizationId);
-  if (kind === "REPLENISHMENT") {
+  if (kind !== "DAILY_CLOSE") {
     if (result.proposals.length === 0) return;
-    const warehouses = [...new Set(result.proposals.map((p) => p.warehouseId))];
-    const whs = await tx.warehouse.findMany({
-      where: { organizationId, id: { in: warehouses } },
-      select: { id: true, branchId: true },
-    });
+    const scopes = result.proposals.map((p) => ({
+      kind: p.kind,
+      warehouseId: p.warehouseId ?? null,
+      branchId: p.branchId ?? null,
+    }));
+    const whBranch = await warehouseBranchesInTx(
+      tx,
+      organizationId,
+      scopes.flatMap((p) => (p.warehouseId ? [p.warehouseId] : [])),
+    );
     const users = members
-      .filter((m) =>
-        whs.some((w) =>
-          hasPermission(m.grants, "purchasing.manage", { branchId: w.branchId, warehouseId: w.id }),
-        ),
-      )
+      .filter((m) => scopes.some((p) => mayDecide(m.grants, p, whBranch)))
       .map((m) => m.userId);
     await notifyInTx(tx, organizationId, users, {
       kind: "AGENT_PROPOSALS",
@@ -186,6 +256,21 @@ async function notifyRunInTx(
     link: `/agents/runs/${runId}`,
     dedupeKey: `agent-run:${runId}`,
   });
+}
+
+/** Equal as JSON whatever the key order (the database stores JSONB keys in its own order). */
+function sameJson(a: unknown, b: unknown) {
+  const canon = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(canon)
+      : v && typeof v === "object"
+        ? Object.fromEntries(
+            Object.keys(v as object)
+              .sort()
+              .map((k) => [k, canon((v as Record<string, unknown>)[k])]),
+          )
+        : v;
+  return JSON.stringify(canon(a)) === JSON.stringify(canon(b));
 }
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 500);
@@ -249,7 +334,12 @@ export async function runAgent(
         "AGENT_RUN_AS_NO_ACCESS",
         "The agent's person cannot do its work",
       );
-    const result =
+    const result: {
+      summary: Record<string, unknown>;
+      findings: Finding[];
+      proposals: NewProposal[];
+      businessDate?: string;
+    } =
       kind === "REPLENISHMENT"
         ? await runReplenishment(
             ctx,
@@ -257,21 +347,28 @@ export async function runAgent(
             agent.autonomy as "SUGGEST" | "DRAFT",
             count,
           )
-        : {
-            ...(await runDailyClose(
-              ctx,
-              readSettings("DAILY_CLOSE", agent.settings),
-              opts.date ?? null,
-              count,
-            )),
-            proposals: [],
-          };
-    const businessDate = "businessDate" in result ? result.businessDate : undefined;
+        : kind === "DAILY_CLOSE"
+          ? {
+              ...(await runDailyClose(
+                ctx,
+                readSettings("DAILY_CLOSE", agent.settings),
+                opts.date ?? null,
+                count,
+              )),
+              proposals: [],
+            }
+          : kind === "INVOICE_MATCHING"
+            ? await runInvoiceMatching(ctx, readSettings("INVOICE_MATCHING", agent.settings), count)
+            : kind === "FOOD_SAFETY"
+              ? await runFoodSafety(ctx, readSettings("FOOD_SAFETY", agent.settings), count)
+              : await runMenuMargin(ctx, readSettings("MENU_MARGIN", agent.settings), count);
+    const businessDate = result.businessDate;
+    const created: NewProposal[] = [];
     await withTenantTx(organizationId, async (tx) => {
       // Suggestions replace the last run's open ones for the same warehouse (drafts count as on order).
-      const suggestWarehouses = result.proposals
-        .filter((p) => p.kind === "REORDER")
-        .map((p) => p.warehouseId);
+      const suggestWarehouses = result.proposals.flatMap((p) =>
+        p.kind === "REORDER" && p.warehouseId ? [p.warehouseId] : [],
+      );
       if (suggestWarehouses.length)
         await tx.agentProposal.updateMany({
           where: {
@@ -283,7 +380,36 @@ export async function runAgent(
           },
           data: { status: "SUPERSEDED" },
         });
-      for (const p of result.proposals)
+      // One open proposal per record (ADR-142): an unchanged one stays, a changed one
+      // replaces it, and nothing is proposed again for 30 days after an approval.
+      const since = new Date(Date.now() - 30 * 86_400_000);
+      for (const p of result.proposals) {
+        if (p.kind === "REORDER" || p.kind === "PURCHASE_ORDER" || !p.entityId) {
+          created.push(p);
+          continue;
+        }
+        const earlier = await tx.agentProposal.findMany({
+          where: {
+            organizationId,
+            agentId: agent.id,
+            kind: p.kind,
+            entityId: p.entityId,
+            branchId: p.branchId ?? null,
+            OR: [{ status: "OPEN" }, { status: "APPROVED", decidedAt: { gte: since } }],
+          },
+          select: { id: true, status: true, detail: true },
+        });
+        if (earlier.some((e) => e.status === "APPROVED")) continue;
+        const open = earlier.filter((e) => e.status === "OPEN");
+        if (open.some((e) => sameJson(e.detail, p.detail))) continue;
+        if (open.length)
+          await tx.agentProposal.updateMany({
+            where: { id: { in: open.map((e) => e.id) }, status: "OPEN" },
+            data: { status: "SUPERSEDED" },
+          });
+        created.push(p);
+      }
+      for (const p of created)
         await tx.agentProposal.create({
           data: {
             organizationId,
@@ -292,7 +418,8 @@ export async function runAgent(
             kind: p.kind,
             title: p.title.slice(0, 200),
             detail: p.detail as Json,
-            warehouseId: p.warehouseId,
+            warehouseId: p.warehouseId ?? null,
+            branchId: p.branchId ?? null,
             entityType: p.entityType ?? null,
             entityId: p.entityId ?? null,
           },
@@ -318,7 +445,7 @@ export async function runAgent(
           trigger,
           run: run.id,
           findings: result.findings.length,
-          proposals: result.proposals.length,
+          proposals: created.length,
         },
       });
       await notifyRunInTx(
@@ -326,7 +453,7 @@ export async function runAgent(
         organizationId,
         kind,
         run.id,
-        { ...result, businessDate },
+        { ...result, proposals: created, businessDate },
         runAsUserId,
       );
     });
@@ -440,29 +567,40 @@ export async function listProposals(ctx: TenantContext, raw: { status?: string }
   const status =
     (["OPEN", "APPROVED", "REJECTED", "SUPERSEDED"] as const).find((s) => s === raw.status) ??
     "OPEN";
-  const scope = accessibleScope(ctx.grants, "purchasing.manage");
+  const purchasing = accessibleScope(ctx.grants, "purchasing.manage");
+  const foodSafety = accessibleScope(ctx.grants, "foodsafety.record");
   return withTenantTx(ctx.organizationId, async (tx) => {
-    const whs = scope.all
-      ? null
-      : await tx.warehouse.findMany({
-          where: {
-            organizationId: ctx.organizationId,
-            OR: [{ branchId: { in: scope.branchIds } }, { id: { in: scope.warehouseIds } }],
-          },
-          select: { id: true },
-        });
-    return {
-      status,
-      items: await tx.agentProposal.findMany({
+    // Each person sees the proposals they could decide (ADR-142).
+    const or: Prisma.AgentProposalWhereInput[] = [];
+    if (purchasing.all) or.push({ kind: { in: ["PURCHASE_ORDER", "REORDER"] } });
+    else if (purchasing.branchIds.length || purchasing.warehouseIds.length) {
+      const whs = await tx.warehouse.findMany({
         where: {
           organizationId: ctx.organizationId,
-          status,
-          ...(whs ? { warehouseId: { in: whs.map((w) => w.id) } } : {}),
+          OR: [{ branchId: { in: purchasing.branchIds } }, { id: { in: purchasing.warehouseIds } }],
         },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-        include: { agent: { select: { kind: true } } },
-      }),
+        select: { id: true },
+      });
+      or.push({
+        kind: { in: ["PURCHASE_ORDER", "REORDER"] },
+        warehouseId: { in: whs.map((w) => w.id) },
+      });
+    }
+    if (hasPermission(ctx.grants, "invoices.manage")) or.push({ kind: "CREDIT_REQUEST" });
+    if (foodSafety.all) or.push({ kind: "RAISE_NC" });
+    else if (foodSafety.branchIds.length)
+      or.push({ kind: "RAISE_NC", branchId: { in: foodSafety.branchIds } });
+    if (hasPermission(ctx.grants, "recipes.manage")) or.push({ kind: "PRICE_CHANGE" });
+    return {
+      status,
+      items: or.length
+        ? await tx.agentProposal.findMany({
+            where: { organizationId: ctx.organizationId, status, OR: or },
+            orderBy: { createdAt: "desc" },
+            take: 100,
+            include: { agent: { select: { kind: true } } },
+          })
+        : [],
     };
   });
 }
@@ -472,11 +610,27 @@ const decideSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
+const NC_TEXT = {
+  EXPIRED_STOCK: (d: Record<string, string>) => ({
+    title: `Expired stock available: ${d.sku} lot ${d.lot}`,
+    description: `Lot ${d.lot} of ${d.sku} expired on ${d.expiredOn} and is still available in ${d.warehouses} (${d.quantity}). Raised from an agent proposal.`,
+  }),
+  CALIBRATION_OVERDUE: (d: Record<string, string>) => ({
+    title: `Calibration overdue: ${d.equipment}`,
+    description: `${d.equipment} (${d.equipmentName}) is in service past its calibration due date. Raised from an agent proposal.`,
+  }),
+} as const;
+
 /**
- * Approve or reject a proposal. Approving a draft purchase order submits it
- * into the normal approval chain; approving suggested lines creates the
- * draft orders for the approver to review. Rejecting cancels the draft.
- * The person's own permissions apply throughout.
+ * Approve or reject a proposal, as the person deciding, with their own
+ * permissions (ADR-140, ADR-142):
+ * - a draft purchase order is submitted into the approval chain (rejecting cancels it);
+ * - suggested order lines become draft orders for the approver to review;
+ * - a credit request approves the invoice's match exception with a note of the
+ *   credit asked for (not by the person who entered the invoice);
+ * - a non-conformance proposal raises the non-conformance at its branch;
+ * - a price change adds the dish's new price from the set day.
+ * Rejecting the others changes nothing but the proposal.
  */
 export async function decideProposal(ctx: TenantContext, proposalId: string, raw: unknown) {
   const parsed = decideSchema.safeParse(raw);
@@ -488,20 +642,53 @@ export async function decideProposal(ctx: TenantContext, proposalId: string, raw
   if (!p) throw notFound("Proposal");
   if (p.status !== "OPEN")
     throw businessRuleViolation("PROPOSAL_DECIDED", "This proposal was already decided");
-  assertPermission(ctx.grants, "purchasing.manage");
-  const detail = p.detail as { ruleIds?: string[]; basis?: "MIN_MAX" | "FORECAST" };
+  const whBranch = await withTenantTx(ctx.organizationId, (tx) =>
+    warehouseBranchesInTx(tx, ctx.organizationId, p.warehouseId ? [p.warehouseId] : []),
+  );
+  if (!mayDecide(ctx.grants, p, whBranch)) throw forbidden();
+  const detail = p.detail as Record<string, unknown>;
   let created: string[] = [];
+  let outcome: Record<string, unknown> = {};
   if (p.kind === "PURCHASE_ORDER" && p.entityId) {
     if (decision === "APPROVE") await submitOrder(ctx, p.entityId);
     else await cancelOrder(ctx, p.entityId, { reason: note || "Rejected agent proposal" });
-  } else if (p.kind === "REORDER" && decision === "APPROVE" && p.warehouseId) {
+  } else if (decision === "APPROVE" && p.kind === "REORDER" && p.warehouseId) {
     const r = await createOrdersFromPlan(
       ctx,
       p.warehouseId,
-      detail.ruleIds ?? [],
-      detail.basis ?? "MIN_MAX",
+      (detail.ruleIds as string[] | undefined) ?? [],
+      (detail.basis as "MIN_MAX" | "FORECAST" | undefined) ?? "MIN_MAX",
     );
     created = r.orders.map((o) => o.id);
+    outcome = { createdOrders: created };
+  } else if (decision === "APPROVE" && p.kind === "CREDIT_REQUEST" && p.entityId) {
+    await approveException(ctx, p.entityId, {
+      note: `Credit note of ${String(detail.total)} ${String(detail.currency)} requested from ${String(detail.supplier)} for the differences (agent proposal).${note ? ` ${note}` : ""}`.slice(
+        0,
+        1000,
+      ),
+    });
+  } else if (decision === "APPROVE" && p.kind === "RAISE_NC" && p.branchId) {
+    const d = detail as Record<string, string>;
+    const text = NC_TEXT[d.reason as keyof typeof NC_TEXT];
+    if (!text)
+      throw businessRuleViolation("PROPOSAL_UNKNOWN", "This proposal cannot be carried out");
+    const nc = await raiseNonConformance(ctx, {
+      branchId: p.branchId,
+      severity: d.severity,
+      ...text(d),
+    });
+    outcome = { nonConformanceId: nc.id, nonConformance: nc.number };
+  } else if (decision === "APPROVE" && p.kind === "PRICE_CHANGE" && p.entityId) {
+    const days = Number(detail.effectiveInDays ?? 1);
+    const effectiveFrom = addDays(businessDate(ctx.timeZone), Number.isFinite(days) ? days : 1);
+    await addRecipePrice(ctx, p.entityId, {
+      price: String(detail.newPrice),
+      effectiveFrom,
+      note: "Back to the food cost target (agent proposal)",
+      idempotencyKey: `agent-proposal:${p.id}`,
+    });
+    outcome = { effectiveFrom };
   }
   await withTenantTx(ctx.organizationId, async (tx) => {
     const done = await tx.agentProposal.updateMany({
@@ -511,9 +698,7 @@ export async function decideProposal(ctx: TenantContext, proposalId: string, raw
         decidedByUserId: ctx.userId,
         decidedAt: new Date(),
         decisionNote: note ?? null,
-        ...(created.length
-          ? { detail: { ...(p.detail as object), createdOrders: created } as Json }
-          : {}),
+        ...(Object.keys(outcome).length ? { detail: { ...detail, ...outcome } as Json } : {}),
       },
     });
     if (done.count === 0)
@@ -522,10 +707,10 @@ export async function decideProposal(ctx: TenantContext, proposalId: string, raw
       action: decision === "APPROVE" ? "agent.proposal_approved" : "agent.proposal_rejected",
       entityType: "agent_proposal",
       entityId: p.id,
-      changes: { kind: p.kind, entityId: p.entityId, createdOrders: created },
+      changes: { kind: p.kind, entityId: p.entityId, ...outcome },
     });
   });
-  return { createdOrders: created };
+  return { createdOrders: created, outcome };
 }
 
 /** Choices for the agent settings: warehouses with reorder rules, and branches. */

@@ -90,11 +90,14 @@ afterAll(async () => {
 });
 
 describe("agent settings (ADR-140)", () => {
-  it("lists both agents off, switches on as the person doing it, and needs settings rights", async () => {
+  it("lists every agent off, switches on as the person doing it, and needs settings rights", async () => {
     const agents = await listAgents(ctx);
     expect(agents.map((a) => [a.kind, a.enabled])).toEqual([
       ["REPLENISHMENT", false],
       ["DAILY_CLOSE", false],
+      ["INVOICE_MATCHING", false],
+      ["FOOD_SAFETY", false],
+      ["MENU_MARGIN", false],
     ]);
     await replenishment("SUGGEST");
     const on = (await listAgents(ctx)).find((a) => a.kind === "REPLENISHMENT")!;

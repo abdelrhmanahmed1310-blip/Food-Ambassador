@@ -20,6 +20,24 @@ const FINDING_MEANINGS: Record<string, string> = {
   SHORTFALLS: "{count} stock shortfalls from POS sales are waiting to be posted",
   NO_SUPPLIER: "item {sku} needs ordering but has no preferred supplier",
   NO_PRICE: "item {sku} needs ordering but its supplier has no known price",
+  INVOICE_TOTAL_MISMATCH: "the invoice's printed total differs from the sum of its lines",
+  INVOICE_EXCEPTION:
+    "{lines} invoice lines do not match the order or the receipt; {amount} was billed beyond them, before VAT",
+  UNINVOICED_RECEIPTS:
+    "{receipts} receipts from the supplier, older than {days} days, are not fully invoiced",
+  ACTIONS_OVERDUE: "{count} corrective actions on non-conformance {nc} are past their due date",
+  NC_OPEN: "a {severity} non-conformance {nc} has been open since {since}",
+  CALIBRATION_OVERDUE: "equipment {equipment} is past its calibration due date",
+  MAINTENANCE_OVERDUE: "equipment {equipment} is past its maintenance due date",
+  EXPIRED_STOCK: "lot {lot} of {sku} expired on {date} and is still available in {warehouses}",
+  EXPIRING_STOCK: "lot {lot} of {sku} expires on {date}",
+  LOW_COMPLIANCE: "the branch's 30-day food safety compliance score {score}% is below {threshold}%",
+  ABOVE_TARGET:
+    "dish {dish} runs at {percent}% food cost against a {target}% target; a price of {newPrice} instead of {price} meets the target",
+  COST_INCOMPLETE:
+    "{count} dishes have ingredients without a cost, so their food cost cannot be checked",
+  NO_DISH_PRICE: "{count} dishes have no selling price",
+  NO_TARGET: "{count} dishes have no food cost target",
 };
 
 export interface ExplainInput {
@@ -73,6 +91,10 @@ export const EXPLAIN_SYSTEM_PROMPT = [
   "The agents:",
   "- DAILY_CLOSE checks the previous business day per branch: shifts left open, cash differences, voids, refunds, sales against the same weekday last week and stock shortfalls. It only reads.",
   "- REPLENISHMENT reads reorder levels or the demand forecast per warehouse and proposes purchase lines (SUGGEST) or prepares draft purchase orders (DRAFT). Nothing reaches a supplier until a person approves.",
+  "- INVOICE_MATCHING reviews draft supplier invoices that fail the 3-way match and proposes accepting each with a credit note request for what was billed beyond the order and receipt (CREDIT_REQUEST).",
+  "- FOOD_SAFETY checks per branch overdue corrective actions, open serious non-conformances, equipment calibration and maintenance, expired or expiring stock and the compliance score, and proposes non-conformances (RAISE_NC).",
+  "- MENU_MARGIN reads dish food cost against targets and proposes the price that meets the target (PRICE_CHANGE).",
+  "- Proposals take effect only when a person approves them.",
   "",
   "How to write:",
   "- Use only the figures, codes and names in the run data. Never invent, estimate or recalculate a figure, cause or date. If something cannot be explained from the data, say it needs checking.",

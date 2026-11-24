@@ -20,6 +20,13 @@ test("agents: switch on, run now, see the run and the inbox (ADR-140)", async ({
   await expect(
     page.getByText(/nothing they prepare takes effect until a person approves it/),
   ).toBeVisible();
+  // ADR-142: the invoice matching, food safety and menu & margin agents only propose.
+  for (const kind of ["INVOICE_MATCHING", "FOOD_SAFETY", "MENU_MARGIN"]) {
+    const card = page.getByTestId(`agent-${kind}`);
+    await expect(card).toContainText("Off");
+    await expect(card.getByLabel("How far it may go").locator("option")).toHaveCount(1);
+  }
+  await expect(page.getByRole("heading", { name: "Menu & margin agent" })).toBeVisible();
   const daily = page.getByTestId("agent-DAILY_CLOSE");
   await expect(daily).toContainText("Off");
   await daily.getByLabel("Switched on (runs every day)").check();

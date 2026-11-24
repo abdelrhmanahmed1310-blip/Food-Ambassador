@@ -5,6 +5,7 @@ import { AgentForm } from "@/components/agents/agent-form";
 import { ActionForm } from "@/components/forms/fields";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
+import { AUTONOMY_FOR } from "@/modules/agents/rules";
 import { agentFormOptions, listAgents } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { runAgentNowAction, saveAgentAction } from "./actions";
@@ -74,9 +75,9 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
                   ...a.settings,
                 }}
                 options={{
-                  autonomy: (["SUGGEST", "DRAFT"] as const).map((k) => ({
+                  autonomy: AUTONOMY_FOR[a.kind].map((k) => ({
                     value: k,
-                    label: t(`autonomy.${a.kind}.${k}`),
+                    label: t(`autonomy.${a.kind}.${k}` as "autonomy.REPLENISHMENT.SUGGEST"),
                   })),
                   hours: Array.from({ length: 24 }, (_, h) => ({
                     value: String(h),
@@ -109,6 +110,11 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
                   cashTolerance: t("cashTolerance"),
                   voidAlertPercent: t("voidAlertPercent"),
                   salesDropPercent: t("salesDropPercent"),
+                  minCreditAmount: t("minCreditAmount"),
+                  uninvoicedAfterDays: t("uninvoicedAfterDays"),
+                  complianceBelowPercent: t("complianceBelowPercent"),
+                  expiringWithinDays: t("expiringWithinDays"),
+                  effectiveInDays: t("effectiveInDays"),
                 }}
               />
               <div className="border-border border-t pt-4">

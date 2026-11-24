@@ -6,10 +6,27 @@ import { Decimal } from "@/lib/decimal";
  * daily close checks, so they are tested without a database.
  */
 
-export const AGENT_KINDS = ["REPLENISHMENT", "DAILY_CLOSE"] as const;
+export const AGENT_KINDS = [
+  "REPLENISHMENT",
+  "DAILY_CLOSE",
+  "INVOICE_MATCHING",
+  "FOOD_SAFETY",
+  "MENU_MARGIN",
+] as const;
 export type AgentKindCode = (typeof AGENT_KINDS)[number];
 /** Phase 0 stops at drafts: nothing an agent prepares takes effect without a person. */
 export const AGENT_AUTONOMY = ["SUGGEST", "DRAFT"] as const;
+/**
+ * How far each agent may go. Only replenishment has drafts to prepare (draft
+ * purchase orders); the others propose, and the approver's action does the work.
+ */
+export const AUTONOMY_FOR: Record<AgentKindCode, ReadonlyArray<(typeof AGENT_AUTONOMY)[number]>> = {
+  REPLENISHMENT: ["SUGGEST", "DRAFT"],
+  DAILY_CLOSE: ["SUGGEST"],
+  INVOICE_MATCHING: ["SUGGEST"],
+  FOOD_SAFETY: ["SUGGEST"],
+  MENU_MARGIN: ["SUGGEST"],
+};
 
 export type Severity = "INFO" | "WARNING" | "CRITICAL";
 export interface Finding {
@@ -47,17 +64,57 @@ export const dailyCloseSettings = z.object({
 });
 export type DailyCloseSettings = z.infer<typeof dailyCloseSettings>;
 
-export const settingsSchema = (kind: AgentKindCode) =>
-  kind === "REPLENISHMENT" ? replenishmentSettings : dailyCloseSettings;
+const money = z
+  .string()
+  .regex(/^\d{1,9}(\.\d{1,2})?$/)
+  .default("0");
+
+export const invoiceMatchingSettings = z.object({
+  /** A credit request is proposed only above this amount (invoice currency, before VAT). */
+  minCreditAmount: money,
+  /** Received goods not invoiced after this many days are reported. */
+  uninvoicedAfterDays: z.coerce.number().int().min(1).max(365).default(14),
+});
+export type InvoiceMatchingSettings = z.infer<typeof invoiceMatchingSettings>;
+
+export const foodSafetySettings = z.object({
+  /** Empty: every branch the agent may see. */
+  branchIds: z.array(uuid).max(200).default([]),
+  /** A 30-day compliance score below this is reported. */
+  complianceBelowPercent: percent.default(80),
+  /** Stock expiring within this many days is reported. */
+  expiringWithinDays: z.coerce.number().int().min(0).max(30).default(2),
+});
+export type FoodSafetySettings = z.infer<typeof foodSafetySettings>;
+
+export const menuMarginSettings = z.object({
+  /** An approved price starts this many days after approval. */
+  effectiveInDays: z.coerce.number().int().min(0).max(30).default(1),
+});
+export type MenuMarginSettings = z.infer<typeof menuMarginSettings>;
+
+const SETTINGS = {
+  REPLENISHMENT: replenishmentSettings,
+  DAILY_CLOSE: dailyCloseSettings,
+  INVOICE_MATCHING: invoiceMatchingSettings,
+  FOOD_SAFETY: foodSafetySettings,
+  MENU_MARGIN: menuMarginSettings,
+} as const;
+type SettingsOf = {
+  REPLENISHMENT: ReplenishmentSettings;
+  DAILY_CLOSE: DailyCloseSettings;
+  INVOICE_MATCHING: InvoiceMatchingSettings;
+  FOOD_SAFETY: FoodSafetySettings;
+  MENU_MARGIN: MenuMarginSettings;
+};
+
+export const settingsSchema = (kind: AgentKindCode) => SETTINGS[kind];
 
 /** Read stored settings, falling back to defaults for anything missing or invalid. */
-export function readSettings<K extends AgentKindCode>(
-  kind: K,
-  raw: unknown,
-): K extends "REPLENISHMENT" ? ReplenishmentSettings : DailyCloseSettings {
-  const schema = settingsSchema(kind);
+export function readSettings<K extends AgentKindCode>(kind: K, raw: unknown): SettingsOf[K] {
+  const schema = settingsSchema(kind) as unknown as z.ZodType<SettingsOf[K]>;
   const parsed = schema.safeParse(raw ?? {});
-  return (parsed.success ? parsed.data : schema.parse({})) as never;
+  return parsed.success ? parsed.data : schema.parse({});
 }
 
 // ─── Daily close ───
@@ -163,4 +220,72 @@ export function dailyCloseFindings(days: readonly BranchDay[], s: DailyCloseSett
   }
   const rank: Record<Severity, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
   return out.sort((a, b) => rank[a.severity] - rank[b.severity]);
+}
+
+// ─── Invoice matching ───
+
+export interface ExceptionLine {
+  lineNo: number;
+  sku: string | null;
+  match: string;
+  quantity: Decimal;
+  quantityBase: Decimal | null;
+  unitPrice: Decimal;
+  orderedUnitPrice: Decimal | null;
+  /** Invoiced beyond what was received and not yet invoiced, in the base unit. */
+  quantityVariance: Decimal | null;
+  /** (Invoice − order unit price) × quantity. */
+  priceVariance: Decimal | null;
+}
+
+/**
+ * What the supplier billed beyond the order and the receipt, before VAT:
+ * price above the order price, plus quantity beyond what was received at the
+ * invoiced price. Lines billed below the order price are not netted off —
+ * they are the supplier's to correct, not a reason to ask for less credit.
+ */
+export function creditRequest(lines: readonly ExceptionLine[]) {
+  const out: Array<{
+    lineNo: number;
+    sku: string | null;
+    reason: "PRICE" | "QUANTITY";
+    amount: Decimal;
+  }> = [];
+  for (const l of lines) {
+    if (l.priceVariance && l.priceVariance.gt(0))
+      out.push({ lineNo: l.lineNo, sku: l.sku, reason: "PRICE", amount: l.priceVariance });
+    if (l.quantityVariance && l.quantityVariance.gt(0) && l.quantityBase && l.quantityBase.gt(0)) {
+      // Back into the invoice line's own unit, at the invoiced price.
+      const inUnit = l.quantityVariance.times(l.quantity).dividedBy(l.quantityBase);
+      out.push({
+        lineNo: l.lineNo,
+        sku: l.sku,
+        reason: "QUANTITY",
+        amount: inUnit.times(l.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
+      });
+    }
+  }
+  const total = out.reduce((a, l) => a.plus(l.amount), new Decimal(0));
+  return { lines: out, total: total.toDecimalPlaces(2, Decimal.ROUND_HALF_UP) };
+}
+
+// ─── Menu & margin ───
+
+/**
+ * The price that brings a dish back to its food cost target, as it is
+ * entered: when prices include VAT, the target net price is grossed up by
+ * the dish's own entered-to-net ratio. Rounded up to 0.01, so the food cost
+ * is never above the target.
+ */
+export function targetPrice(input: {
+  suggestedNet: Decimal;
+  entered: Decimal;
+  net: Decimal;
+  includesTax: boolean;
+}): Decimal {
+  if (!input.includesTax || input.net.isZero()) return input.suggestedNet;
+  return input.suggestedNet
+    .times(input.entered)
+    .dividedBy(input.net)
+    .toDecimalPlaces(2, Decimal.ROUND_UP);
 }

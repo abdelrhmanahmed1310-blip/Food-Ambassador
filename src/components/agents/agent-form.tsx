@@ -21,7 +21,7 @@ export function AgentForm({
   labels,
 }: {
   action: Action;
-  kind: "REPLENISHMENT" | "DAILY_CLOSE";
+  kind: "REPLENISHMENT" | "DAILY_CLOSE" | "INVOICE_MATCHING" | "FOOD_SAFETY" | "MENU_MARGIN";
   defaults: {
     enabled: boolean;
     autonomy: string;
@@ -32,6 +32,11 @@ export function AgentForm({
     cashTolerance?: string;
     voidAlertPercent?: number;
     salesDropPercent?: number;
+    minCreditAmount?: string;
+    uninvoicedAfterDays?: number;
+    complianceBelowPercent?: number;
+    expiringWithinDays?: number;
+    effectiveInDays?: number;
   };
   options: {
     autonomy: Option[];
@@ -53,7 +58,12 @@ export function AgentForm({
     | "branchesHint"
     | "cashTolerance"
     | "voidAlertPercent"
-    | "salesDropPercent",
+    | "salesDropPercent"
+    | "minCreditAmount"
+    | "uninvoicedAfterDays"
+    | "complianceBelowPercent"
+    | "expiringWithinDays"
+    | "effectiveInDays",
     string
   >;
 }) {
@@ -82,7 +92,53 @@ export function AgentForm({
             options={options.bases}
             defaultValue={defaults.basis}
           />
-        ) : (
+        ) : null}
+        {kind === "INVOICE_MATCHING" ? (
+          <>
+            <TextField
+              name="minCreditAmount"
+              label={labels.minCreditAmount}
+              defaultValue={defaults.minCreditAmount ?? "0"}
+              inputMode="decimal"
+              dir="ltr"
+            />
+            <TextField
+              name="uninvoicedAfterDays"
+              label={labels.uninvoicedAfterDays}
+              defaultValue={String(defaults.uninvoicedAfterDays ?? 14)}
+              inputMode="numeric"
+              dir="ltr"
+            />
+          </>
+        ) : null}
+        {kind === "FOOD_SAFETY" ? (
+          <>
+            <TextField
+              name="complianceBelowPercent"
+              label={labels.complianceBelowPercent}
+              defaultValue={String(defaults.complianceBelowPercent ?? 80)}
+              inputMode="decimal"
+              dir="ltr"
+            />
+            <TextField
+              name="expiringWithinDays"
+              label={labels.expiringWithinDays}
+              defaultValue={String(defaults.expiringWithinDays ?? 2)}
+              inputMode="numeric"
+              dir="ltr"
+            />
+          </>
+        ) : null}
+        {kind === "MENU_MARGIN" ? (
+          <TextField
+            name="effectiveInDays"
+            label={labels.effectiveInDays}
+            defaultValue={String(defaults.effectiveInDays ?? 1)}
+            inputMode="numeric"
+            dir="ltr"
+          />
+        ) : null}
+        {kind === "DAILY_CLOSE" ? (
           <>
             <TextField
               name="cashTolerance"
@@ -106,7 +162,7 @@ export function AgentForm({
               dir="ltr"
             />
           </>
-        )}
+        ) : null}
       </div>
       {kind === "REPLENISHMENT" && options.warehouses.length ? (
         <div>
@@ -119,7 +175,7 @@ export function AgentForm({
           <p className="text-muted mt-1 text-xs">{labels.warehousesHint}</p>
         </div>
       ) : null}
-      {kind === "DAILY_CLOSE" && options.branches.length ? (
+      {(kind === "DAILY_CLOSE" || kind === "FOOD_SAFETY") && options.branches.length ? (
         <div>
           <CheckboxGroup
             name="branchIds"

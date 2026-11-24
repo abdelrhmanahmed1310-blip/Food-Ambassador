@@ -19,6 +19,56 @@ type Detail = {
     number | Array<{ sku: string; name: string; quantity: string; unit: string; price: string }>;
 };
 
+/** A credit request for an invoice exception (ADR-142). */
+type CreditDetail = {
+  invoiceNumber: string;
+  supplierInvoiceNo: string;
+  total: string;
+  currency: string;
+  lines: Array<{
+    lineNo: number;
+    sku: string | null;
+    reason: "PRICE" | "QUANTITY";
+    amount: string;
+    invoicedPrice: string;
+    orderedPrice: string | null;
+  }>;
+};
+type NcDetail = {
+  branch: string;
+  severity: string;
+  reason: "EXPIRED_STOCK" | "CALIBRATION_OVERDUE";
+  sku?: string;
+  lot?: string;
+  expiredOn?: string;
+  warehouses?: string;
+  quantity?: string;
+  equipment?: string;
+  equipmentName?: string;
+  nonConformanceId?: string;
+  nonConformance?: string;
+};
+type PriceDetail = {
+  dish: string;
+  costPerPortion: string;
+  price: string;
+  newPrice: string;
+  foodCostPercent: string;
+  newFoodCostPercent: string;
+  targetPercent: string;
+  effectiveInDays: number;
+  currency: string;
+  effectiveFrom?: string;
+};
+
+const APPROVE_LABEL = {
+  PURCHASE_ORDER: "approveSubmit",
+  REORDER: "approveDraft",
+  CREDIT_REQUEST: "approveCredit",
+  RAISE_NC: "approveNc",
+  PRICE_CHANGE: "approvePrice",
+} as const;
+
 /** What the agents propose, for a person to approve or reject (ADR-140). */
 export default async function AgentInboxPage({
   params,
@@ -94,7 +144,11 @@ export default async function AgentInboxPage({
                       })}
                     </p>
                   ) : null}
-                  {Array.isArray(d.lines) ? (
+                  {p.kind === "CREDIT_REQUEST" ? <CreditRequest p={p} base={base} t={t} /> : null}
+                  {p.kind === "RAISE_NC" ? <RaiseNc p={p} base={base} t={t} /> : null}
+                  {p.kind === "PRICE_CHANGE" ? <PriceChange p={p} base={base} t={t} /> : null}
+                  {(p.kind === "REORDER" || p.kind === "PURCHASE_ORDER") &&
+                  Array.isArray(d.lines) ? (
                     <ul className="divide-border divide-y">
                       {d.lines.map((l) => (
                         <li key={l.sku} className="flex justify-between gap-2 py-1">
@@ -112,9 +166,12 @@ export default async function AgentInboxPage({
                     <div className="flex flex-wrap items-start gap-3">
                       <ActionForm
                         action={decideProposalAction.bind(null, orgSlug, p.id, "APPROVE")}
-                        submitLabel={
-                          p.kind === "PURCHASE_ORDER" ? t("approveSubmit") : t("approveDraft")
-                        }
+                        submitLabel={t(
+                          APPROVE_LABEL[p.kind as keyof typeof APPROVE_LABEL] ?? "approveDraft",
+                          {
+                            days: Number((p.detail as PriceDetail).effectiveInDays ?? 1),
+                          },
+                        )}
                         pendingLabel={t("saving")}
                         className="space-y-2"
                       >
@@ -139,6 +196,100 @@ export default async function AgentInboxPage({
           })}
         </div>
       )}
+    </>
+  );
+}
+
+type T = Awaited<ReturnType<typeof getTranslations<"agents">>>;
+type P = Awaited<ReturnType<typeof listProposals>>["items"][number];
+
+function CreditRequest({ p, base, t }: { p: P; base: string; t: T }) {
+  const d = p.detail as CreditDetail;
+  return (
+    <>
+      <p>
+        <Link
+          href={`${base}/purchasing/invoices/${p.entityId}`}
+          className="text-primary hover:underline"
+        >
+          {t("creditInvoice", { number: d.invoiceNumber, reference: d.supplierInvoiceNo })}
+        </Link>{" "}
+        · {t("creditTotal", { total: d.total, currency: d.currency })}
+      </p>
+      <ul className="divide-border divide-y">
+        {d.lines.map((l) => (
+          <li key={`${l.lineNo}-${l.reason}`} className="flex justify-between gap-2 py-1">
+            <span>
+              {t(`creditReasons.${l.reason}`, {
+                line: l.lineNo,
+                sku: l.sku ?? "—",
+                invoiced: l.invoicedPrice,
+                ordered: l.orderedPrice ?? "—",
+              })}
+            </span>
+            <span className="ltr-value tabular-nums">{l.amount}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function RaiseNc({ p, base, t }: { p: P; base: string; t: T }) {
+  const d = p.detail as NcDetail;
+  return (
+    <>
+      <p>
+        {d.reason === "EXPIRED_STOCK"
+          ? t("ncExpired", {
+              branch: d.branch,
+              sku: d.sku ?? "",
+              lot: d.lot ?? "",
+              date: d.expiredOn ?? "",
+              warehouses: d.warehouses ?? "",
+              quantity: d.quantity ?? "",
+            })
+          : t("ncCalibration", {
+              branch: d.branch,
+              equipment: d.equipment ?? "",
+              name: d.equipmentName ?? "",
+            })}
+      </p>
+      <p className="text-muted">{t("ncSeverity", { severity: d.severity })}</p>
+      {d.nonConformanceId ? (
+        <Link
+          href={`${base}/food-safety/non-conformances/${d.nonConformanceId}`}
+          className="text-primary hover:underline"
+        >
+          {t("ncRaised", { number: d.nonConformance ?? "" })}
+        </Link>
+      ) : null}
+    </>
+  );
+}
+
+function PriceChange({ p, base, t }: { p: P; base: string; t: T }) {
+  const d = p.detail as PriceDetail;
+  return (
+    <>
+      <p>
+        <Link href={`${base}/recipes/${p.entityId}`} className="text-primary hover:underline">
+          {d.dish}
+        </Link>{" "}
+        ·{" "}
+        <span className="ltr-value tabular-nums">
+          {t("priceFromTo", { from: d.price, to: d.newPrice, currency: d.currency })}
+        </span>
+      </p>
+      <p className="text-muted">
+        {t("foodCostFromTo", {
+          from: d.foodCostPercent,
+          to: d.newFoodCostPercent,
+          target: d.targetPercent,
+          cost: d.costPerPortion,
+        })}
+      </p>
+      {d.effectiveFrom ? <p>{t("priceFrom", { date: d.effectiveFrom })}</p> : null}
     </>
   );
 }

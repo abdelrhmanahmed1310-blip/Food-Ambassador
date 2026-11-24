@@ -812,9 +812,9 @@ DATABASE).
 
 **Agents** (migration `20270128090000_agents`, ADR-140, row-level security on all three):
 
-- **agents**: kind REPLENISHMENT | DAILY_CLOSE (UQ per organization), `enabled`, `autonomy` SUGGEST | DRAFT, `run_hour` (CK 0–23), `run_as_user_id` (CK required when enabled), `settings` JSONB, `last_run_at`.
+- **agents**: kind REPLENISHMENT | DAILY_CLOSE | INVOICE_MATCHING | FOOD_SAFETY | MENU_MARGIN (UQ per organization), `enabled`, `autonomy` SUGGEST | DRAFT, `run_hour` (CK 0–23), `run_as_user_id` (CK required when enabled), `settings` JSONB, `last_run_at`.
 - **agent_runs**: agent, trigger SCHEDULE | MANUAL, status RUNNING | SUCCEEDED | FAILED (CK finished exactly when not running), `business_date`, start and finish, `duration_ms`, `tool_calls`, `summary`, `findings` JSONB, `error`, who started it. Claude's explanation (ADR-141): `explanation` JSONB `{ en, ar }` (CK both text, with `explanation_model` and `explained_at`), input and output tokens, `explanation_error`. Never deleted.
-- **agent_proposals**: agent, run, kind (PURCHASE_ORDER, REORDER), status OPEN | APPROVED | REJECTED | SUPERSEDED (CK decided time set exactly when approved or rejected), title, detail JSONB, warehouse, the record prepared (`entity_type`, `entity_id`), decided by and at, note. Never deleted.
+- **agent_proposals**: agent, run, kind (PURCHASE_ORDER, REORDER, CREDIT_REQUEST, RAISE_NC, PRICE_CHANGE), status OPEN | APPROVED | REJECTED | SUPERSEDED (CK decided time set exactly when approved or rejected), title, detail JSONB, warehouse, the record prepared (`entity_type`, `entity_id`), decided by and at, note. Never deleted. Kinds (CHECK): PURCHASE_ORDER, REORDER, CREDIT_REQUEST, RAISE_NC, PRICE_CHANGE (ADR-142); `branch_id` for food safety proposals; index on (organization, agent, entity) for one open proposal per record.
 
 **Module switches** (migration `20270127090000_feature_switches`, ADR-137):
 `organizations.disabled_features` (text[], NOT NULL, default empty, CK at

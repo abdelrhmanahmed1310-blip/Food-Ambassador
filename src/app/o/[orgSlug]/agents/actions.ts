@@ -22,18 +22,29 @@ export async function saveAgentAction(
 ) {
   const t = await getTranslations("common");
   const v = (k: string) => String(formData.get(k) ?? "");
-  const settings =
-    kind === "REPLENISHMENT"
-      ? {
-          warehouseIds: formData.getAll("warehouseIds").map(String),
-          basis: v("basis") || "MIN_MAX",
-        }
-      : {
-          branchIds: formData.getAll("branchIds").map(String),
-          cashTolerance: v("cashTolerance") || "0",
-          voidAlertPercent: v("voidAlertPercent") || "5",
-          salesDropPercent: v("salesDropPercent") || "30",
-        };
+  const SETTINGS: Record<AgentKindCode, () => Record<string, unknown>> = {
+    REPLENISHMENT: () => ({
+      warehouseIds: formData.getAll("warehouseIds").map(String),
+      basis: v("basis") || "MIN_MAX",
+    }),
+    DAILY_CLOSE: () => ({
+      branchIds: formData.getAll("branchIds").map(String),
+      cashTolerance: v("cashTolerance") || "0",
+      voidAlertPercent: v("voidAlertPercent") || "5",
+      salesDropPercent: v("salesDropPercent") || "30",
+    }),
+    INVOICE_MATCHING: () => ({
+      minCreditAmount: v("minCreditAmount") || "0",
+      uninvoicedAfterDays: v("uninvoicedAfterDays") || "14",
+    }),
+    FOOD_SAFETY: () => ({
+      branchIds: formData.getAll("branchIds").map(String),
+      complianceBelowPercent: v("complianceBelowPercent") || "80",
+      expiringWithinDays: v("expiringWithinDays") || "2",
+    }),
+    MENU_MARGIN: () => ({ effectiveInDays: v("effectiveInDays") || "1" }),
+  };
+  const settings = SETTINGS[kind]();
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await updateAgent(ctx, kind, {
       enabled: formData.get("enabled") === "on",

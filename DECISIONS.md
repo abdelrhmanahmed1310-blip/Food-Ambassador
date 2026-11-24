@@ -4308,6 +4308,67 @@ setup: it uses the organization's AI assistant connection (ADR-122).
 - **Not yet.** Handling exceptions with Claude, acting within limits, more
   agents.
 
+### ADR-142 AgaaS Phase 1: invoice matching, food safety and menu & margin agents — Accepted (built)
+
+Decision (2026-11-24): three more agents on the ADR-140 foundations, with
+the same identity, run log, schedule, module switch and Claude explanations
+(ADR-141). All three only propose: nothing changes until a person approves,
+and the approval runs through the existing service with the approver's own
+permissions. "Prepare drafts" stays a replenishment-only autonomy level
+(`AUTONOMY_FOR`); the new agents offer "propose" only.
+
+- **Invoice matching agent** (runs as someone with `invoices.manage`).
+  - Reads draft supplier invoices whose 3-way match (ADR-038) failed and
+    whose differences nobody approved yet.
+  - Finds: lines that do not match, with what was billed beyond the order
+    and receipt; printed totals that do not add up; receipts older than a
+    set number of days (default 14) not fully invoiced, per supplier.
+  - Credit request: price above the order price, plus quantity beyond what
+    was received at the invoiced price, before VAT. Lines billed below the
+    order price are not netted off. Proposed only above a set minimum, and
+    only when the printed total adds up (a keying error is fixed first).
+  - Approving accepts the invoice's differences (the existing exception
+    approval) with a note of the credit requested, so the invoice can be
+    posted and the supplier's credit note recorded against it later. The
+    person who entered the invoice still may not approve it. Nothing is sent
+    to the supplier.
+- **Food safety agent** (runs as someone with `foodsafety.view`), per branch
+  it may see, or the chosen branches.
+  - Finds: corrective actions past due; open HIGH and CRITICAL
+    non-conformances; equipment past its calibration or maintenance date;
+    available stock past its expiry date (urgent) or expiring within a set
+    number of days (default 2); a 30-day compliance score (ADR-100) below a
+    set level (default 80 %).
+  - Proposes raising a non-conformance for expired stock still available
+    (HIGH) and for equipment in service past its calibration date (MEDIUM).
+    Approving raises it at the branch as the approver (`foodsafety.record`),
+    with a fixed English title and description built from the codes.
+- **Menu & margin agent** (runs as someone with `recipes.costs.view`).
+  - Reads the food cost report (ADR-032): every active dish at today's cost,
+    its price in effect and its target.
+  - For a dish above its target it proposes the price that meets it: the
+    suggested net price, grossed up by the dish's own entered-to-net ratio
+    when prices include VAT, rounded up to 0.01. The proposal shows the food
+    cost before and after.
+  - Dishes with an incomplete cost are reported and never priced; dishes
+    without a price or a target are reported.
+  - Approving adds the price from a set number of days later (default 1)
+    through the recipe price service (`recipes.manage`). Till prices on menu
+    items are separate and not changed.
+- **Proposals.**
+  - New kinds CREDIT_REQUEST, RAISE_NC and PRICE_CHANGE; a CHECK lists the
+    kinds the inbox can carry out. `agent_proposals.branch_id` scopes
+    food safety proposals.
+  - One open proposal per record (invoice, lot or equipment at a branch,
+    dish): an unchanged one is kept, a changed one replaces it
+    (SUPERSEDED), and nothing is proposed again for 30 days after an
+    approval.
+  - The inbox shows each person the proposals they could carry out by hand,
+    and only they may decide them. Those people are notified of new
+    proposals.
+- **Not yet.** Acting within limits, recipe changes (substitutions) as
+  margin proposals, exception handling with Claude.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
