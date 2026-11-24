@@ -1020,7 +1020,8 @@
     "AGENT_RUN_AS_NO_ACCESS": "Switch the agent on as someone who can do its work (for example order for a warehouse, see the POS, approve invoice exceptions, see food safety or see recipe costs).",
     "PROPOSAL_DECIDED": "This proposal was already decided.",
     "AGENT_RUN_NOT_SUCCEEDED": "Only a run that finished successfully can be explained.",
-    "AGENT_AUTONOMY_NOT_OFFERED": "This agent only proposes; drafts are for replenishment."
+    "AGENT_AUTONOMY_NOT_OFFERED": "This agent only proposes; drafts are for replenishment.",
+    "API_MCP_NO_COMPANY": "MCP keys cannot be limited to a company."
   },
   "notFound": {
     "title": "Page not found",
@@ -4880,7 +4881,9 @@
       "invoices_read": "Supplier invoices",
       "sales_read": "Sales invoices and point-of-sale orders",
       "nutrition_read": "Nutrition library: search, foods, calculations (read)",
-      "nutrition_write": "Nutrition library: import from USDA, add and maintain foods, queue syncs"
+      "nutrition_write": "Nutrition library: import from USDA, add and maintain foods, queue syncs",
+      "mcp_read": "MCP: read reports and agent runs as the key's creator",
+      "mcp_decide": "MCP: approve or reject agent proposals as the key's creator"
     },
     "reference": "Endpoint reference",
     "referenceIntro": "Every endpoint of REST API v1 with the scope it needs, its parameters and its request body. Send the key as Authorization: Bearer fa_…. Descriptions are in English, as in the OpenAPI file.",
@@ -4891,7 +4894,11 @@
     "body": "Request body",
     "responses": "Responses",
     "required": "required",
-    "back": "API keys"
+    "back": "API keys",
+    "mcpTitle": "Connect your own AI agent (MCP)",
+    "mcpIntro": "AI agents and assistants that speak the Model Context Protocol (Claude and others) can read your reports and agent runs, and decide agent proposals, through this app's MCP server.",
+    "mcpEndpoint": "Server address (Streamable HTTP, at this site's address):",
+    "mcpAccess": "Create a key with an MCP scope and give it to your agent as a bearer token. The agent acts as you, with your access as it is at each call: it sees only what you see, and stops working if your access is removed or the key is revoked. Approvals it makes are recorded under your name with the key."
   },
   "rfqs": {
     "title": "Requests for quotation",

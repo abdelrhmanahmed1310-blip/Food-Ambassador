@@ -42,6 +42,11 @@ export async function createApiClient(ctx: TenantContext, rawInput: unknown) {
   const parsed = clientSchema.safeParse(rawInput);
   if (!parsed.success) throw validationFailed(parsed.error);
   const input = parsed.data;
+  // An MCP key acts as its creator across the organization (ADR-143).
+  if (input.companyId && input.scopes.some((x) => x.startsWith("mcp:")))
+    throw businessRuleViolation("API_MCP_NO_COMPANY", "MCP keys cannot be limited to a company", {
+      field: "companyId",
+    });
   let prefix = alnum(16);
   while (prefix.length < 12) prefix += alnum(16);
   prefix = prefix.slice(0, 12);

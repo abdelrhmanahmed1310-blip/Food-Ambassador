@@ -1711,6 +1711,7 @@ Migration `20261218090000_f2d_api_clients`.
   secret), `scopes` (text array), optional `company_id`,
   `created_by_user_id`, `last_used_at`, `revoked_at` / `revoked_by_user_id`
   (check: both or neither). Row-level security like every tenant table.
+  Scopes include `mcp:read` and `mcp:decide` (ADR-143): an MCP key acts as its creator and cannot be limited to a company.
 
 ### Global search (F2b, ADR-088)
 

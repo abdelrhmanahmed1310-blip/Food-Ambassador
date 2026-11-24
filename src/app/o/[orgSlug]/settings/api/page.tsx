@@ -49,6 +49,19 @@ export default async function ApiKeysPage({ params }: PageProps<"/o/[orgSlug]/se
             {t("reference")}
           </Link>
         </Alert>
+        <Card title={t("mcpTitle")}>
+          <div className="space-y-2 text-sm" data-testid="mcp-connect">
+            <p>{t("mcpIntro")}</p>
+            <p>
+              {t("mcpEndpoint")}{" "}
+              <code className="ltr-value bg-surface-muted rounded px-1">/api/mcp</code>
+            </p>
+            <pre className="ltr-value bg-surface-muted overflow-x-auto rounded p-3 text-xs">
+              {`Authorization: Bearer fa_…`}
+            </pre>
+            <p className="text-muted">{t("mcpAccess")}</p>
+          </div>
+        </Card>
         {clients.length === 0 ? (
           <EmptyState title={t("none")} />
         ) : (

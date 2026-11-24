@@ -4369,6 +4369,47 @@ permissions. "Prepare drafts" stays a replenishment-only autonomy level
 - **Not yet.** Acting within limits, recipe changes (substitutions) as
   margin proposals, exception handling with Claude.
 
+### ADR-143 AgaaS: MCP server for customers' own agents — Accepted (built)
+
+Decision (2026-11-24): customers' own AI agents and assistants (Claude and
+other Model Context Protocol clients) reach the app through an MCP server,
+with the same permissions, rules and audit as a person.
+
+- **Transport.** `POST /api/mcp`, Streamable HTTP, stateless: one JSON-RPC
+  message per request (batches accepted from older clients), a JSON reply,
+  202 for notifications. No sessions and no server-sent stream, so GET and
+  DELETE return 405. Protocol versions 2025-11-25, 2025-06-18 and 2025-03-26;
+  an unknown `MCP-Protocol-Version` header gets 400. A browser `Origin`
+  other than the site itself gets 403 (DNS rebinding). Bodies up to 1 MB.
+  The protocol layer is a small hand-written module, tested on its own.
+- **Who is calling.**
+  - An API key (ADR-090) with an MCP scope: `mcp:read` (read tools) and
+    `mcp:decide` (deciding agent proposals). The scopes grant no permission
+    of their own.
+  - The key acts as the person who created it, with that person's access
+    resolved again on every request. Removed access, a removed membership
+    or a revoked key stops it at once. MCP keys cannot be limited to a
+    company. The API module switch (ADR-137) covers MCP too, and the agent
+    tools need the Agents module.
+  - Everything an MCP call changes is audited under the person with request
+    id `mcp:<key id>`. The key's own rate limit applies.
+- **Tools.**
+  - The AI assistant's business read tools (ADR-122): sites, sales, stock,
+    needs attention, demand forecast, reorder suggestions, branch P&L.
+    Business fields only; each result names the app pages behind it.
+  - `list_agent_runs`, `get_agent_run` (findings, counts, proposals, the
+    Claude explanation) and `list_agent_proposals`, as the Agents pages
+    show them to that person. No user ids are returned.
+  - `decide_agent_proposal` (`mcp:decide`): approve or reject exactly as
+    from the inbox (ADR-140, ADR-142), with the person's own permissions.
+    Marked destructive, and the server instructions ask the client to
+    confirm with the person before approving.
+  - `tools/list` shows only the tools the key may call. Refusals come back
+    as tool errors without internal details.
+- **Where.** Settings → API shows the address and how to connect.
+- **Not yet.** OAuth authorization for MCP clients (keys are bearer tokens
+  for now), resources and prompts, more write tools, usage metering.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

@@ -4,6 +4,7 @@ import type { Permission } from "@/modules/access/permissions";
  * REST API v1 scopes (DECISIONS.md ADR-090, ADR-132). Each scope maps to the
  * permissions of the pages that show or change the same data. Only
  * nutrition:write allows changes (importing and maintaining library foods).
+ * The MCP scopes grant no permission of their own (ADR-143).
  */
 export const API_SCOPES = {
   "sites:read": ["branches.view", "warehouses.view"],
@@ -15,7 +16,14 @@ export const API_SCOPES = {
   "sales:read": ["b2b.view", "pos.view"],
   "nutrition:read": ["nutrition.view"],
   "nutrition:write": ["nutrition.view", "nutrition.manage"],
+  // MCP (ADR-143): the key acts as the person who created it, with that
+  // person's current access; these scopes only say which tools it may call.
+  "mcp:read": [],
+  "mcp:decide": [],
 } as const satisfies Record<string, readonly Permission[]>;
+
+/** Scopes for the MCP server, which acts as a person rather than with scope permissions. */
+export const MCP_SCOPES = ["mcp:read", "mcp:decide"] as const;
 
 export type ApiScope = keyof typeof API_SCOPES;
 export const API_SCOPE_NAMES = Object.keys(API_SCOPES) as ApiScope[];
