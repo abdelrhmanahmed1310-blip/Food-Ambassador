@@ -317,6 +317,9 @@ model Organization {
   notifications                Notification[]
   notificationPreferences      NotificationPreference[]
   apiClients                   ApiClient[]
+  oauthGrants                  OAuthGrant[]
+  oauthCodes                   OAuthCode[]
+  oauthTokens                  OAuthToken[]
   haccpPlans                   HaccpPlan[]
   haccpSteps                   HaccpStep[]
   haccpHazards                 HaccpHazard[]
@@ -9279,33 +9282,33 @@ model Agent {
 
 /// One run of an agent: what it looked at, found and proposed. Changes it made carry request id "agent-run:<id>".
 model AgentRun {
-  id              String          @id @default(uuid(7)) @db.Uuid
-  organizationId  String          @map("organization_id") @db.Uuid
-  agentId         String          @map("agent_id") @db.Uuid
-  trigger         AgentRunTrigger
-  status          AgentRunStatus  @default(RUNNING)
+  id                      String          @id @default(uuid(7)) @db.Uuid
+  organizationId          String          @map("organization_id") @db.Uuid
+  agentId                 String          @map("agent_id") @db.Uuid
+  trigger                 AgentRunTrigger
+  status                  AgentRunStatus  @default(RUNNING)
   /// The business day the run is about (daily close: the day checked).
-  businessDate    DateTime?       @map("business_date") @db.Date
-  startedAt       DateTime        @default(now()) @map("started_at") @db.Timestamptz(3)
-  finishedAt      DateTime?       @map("finished_at") @db.Timestamptz(3)
-  durationMs      Int?            @map("duration_ms")
+  businessDate            DateTime?       @map("business_date") @db.Date
+  startedAt               DateTime        @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt              DateTime?       @map("finished_at") @db.Timestamptz(3)
+  durationMs              Int?            @map("duration_ms")
   /// Service calls the run made (metering).
-  toolCalls       Int             @default(0) @map("tool_calls")
+  toolCalls               Int             @default(0) @map("tool_calls")
   /// Counts for the run (e.g. warehouses checked, orders drafted).
-  summary         Json            @default("{}")
+  summary                 Json            @default("{}")
   /// What needs a look: [{ severity, code, params, link, branchId }].
-  findings        Json            @default("[]")
-  error           String?
-  startedByUserId String?         @map("started_by_user_id") @db.Uuid
+  findings                Json            @default("[]")
+  error                   String?
+  startedByUserId         String?         @map("started_by_user_id") @db.Uuid
   /// What the run found, written by Claude in English and Arabic: { en, ar } (ADR-141).
   explanation             Json?
   /// The model that wrote it, and its tokens (metering).
-  explanationModel        String?   @map("explanation_model")
-  explanationInputTokens  Int?      @map("explanation_input_tokens")
-  explanationOutputTokens Int?      @map("explanation_output_tokens")
+  explanationModel        String?         @map("explanation_model")
+  explanationInputTokens  Int?            @map("explanation_input_tokens")
+  explanationOutputTokens Int?            @map("explanation_output_tokens")
   /// Why there is no explanation (provider error, declined); null when written.
-  explanationError        String?   @map("explanation_error")
-  explainedAt             DateTime? @map("explained_at") @db.Timestamptz(3)
+  explanationError        String?         @map("explanation_error")
+  explainedAt             DateTime?       @map("explained_at") @db.Timestamptz(3)
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   agent        Agent           @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
@@ -9346,4 +9349,83 @@ model AgentProposal {
   @@index([organizationId, status, createdAt])
   @@index([organizationId, agentId, entityId], map: "agent_proposals_entity_idx")
   @@map("agent_proposals")
+}
+
+// ─── OAuth for the MCP server (ADR-144) ───
+
+/// An app that registered itself to sign people in (dynamic client registration). Not tied to an organization.
+model OAuthClient {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  /// The public client id the app sends.
+  clientId     String   @unique @map("client_id")
+  clientName   String   @map("client_name")
+  /// Exact redirect addresses it may use (https, or http on the loopback address).
+  redirectUris String[] @map("redirect_uris")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  grants OAuthGrant[]
+
+  @@map("oauth_clients")
+}
+
+/// A person's consent for one app to act as them in one organization, over the MCP server.
+model OAuthGrant {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  /// mcp:read, mcp:decide.
+  scopes          String[]
+  /// The protected resource the tokens are for (the MCP server's address).
+  resource        String
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt      DateTime? @map("last_used_at") @db.Timestamptz(3)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedByUserId String?   @map("revoked_by_user_id") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  client       OAuthClient  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  codes        OAuthCode[]
+  tokens       OAuthToken[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, userId])
+  @@map("oauth_grants")
+}
+
+/// A one-time authorization code (stored as its SHA-256), bound to the redirect address and the PKCE challenge.
+model OAuthCode {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  grantId        String    @map("grant_id") @db.Uuid
+  codeHash       String    @unique @map("code_hash")
+  redirectUri    String    @map("redirect_uri")
+  codeChallenge  String    @map("code_challenge")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt         DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  grant        OAuthGrant   @relation(fields: [organizationId, grantId], references: [organizationId, id], onDelete: Restrict)
+
+  @@map("oauth_codes")
+}
+
+/// An access or refresh token (stored as its SHA-256).
+model OAuthToken {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  grantId        String    @map("grant_id") @db.Uuid
+  /// ACCESS or REFRESH.
+  kind           String
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  grant        OAuthGrant   @relation(fields: [organizationId, grantId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, grantId])
+  @@map("oauth_tokens")
 }

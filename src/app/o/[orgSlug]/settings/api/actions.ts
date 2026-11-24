@@ -2,6 +2,7 @@
 
 import type { ActionState } from "@/components/forms/action-state";
 import { createApiClient, revokeApiClient } from "@/modules/api/clients";
+import { revokeConnectedApp } from "@/modules/oauth/service";
 import { formList, formValues } from "@/server/actions/handle";
 import { tenantMutation } from "@/server/actions/tenant";
 
@@ -26,5 +27,17 @@ export async function revokeApiKeyAction(
 ) {
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await revokeApiClient(ctx, id);
+  });
+}
+
+/** Disconnect an app a person connected over OAuth (ADR-144). */
+export async function revokeConnectedAppAction(
+  orgSlug: string,
+  grantId: string,
+  previous: S,
+  formData: FormData,
+) {
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await revokeConnectedApp(ctx, grantId);
   });
 }

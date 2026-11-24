@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { newClient, signUp, uniqueEmail } from "./helpers";
 
@@ -103,5 +104,70 @@ test("MCP: an agent connects with a key and reads as its creator (ADR-143)", asy
   });
   expect((await sites.json()).result.isError).toBeFalsy();
   expect((await api.get("/api/mcp", { headers })).status()).toBe(405);
+  await context.close();
+});
+
+test("MCP sign-in: an app registers, the person allows it, and can disconnect it (ADR-144)", async ({
+  browser,
+}) => {
+  const { context, page } = await newClient(browser);
+  await signUp(page, { name: "Owner", email: uniqueEmail("oauth"), organization: "OAuth Foods" });
+  const api = page.context().request;
+  const redirect = "https://agent.example/callback";
+  const reg = await api.post("/oauth/register", {
+    data: { client_name: "Ops agent", redirect_uris: [redirect] },
+  });
+  expect(reg.status()).toBe(201);
+  const clientId = (await reg.json()).client_id as string;
+  const verifier = "v".repeat(43);
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const query = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: redirect,
+    state: "s1",
+    scope: "mcp:read",
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+  });
+  // The app's own address is not reachable from the test: answer it here.
+  await page.route("https://agent.example/**", (r) => r.fulfill({ body: "back in the app" }));
+  await page.goto(`/oauth/authorize?${query}`);
+  await expect(page.getByTestId("oauth-consent")).toContainText("Ops agent");
+  await expect(page.getByText("agent.example")).toBeVisible();
+  await page.getByRole("button", { name: "Allow" }).click();
+  await page.waitForURL(/agent\.example\/callback\?/);
+  const back = new URL(page.url());
+  expect(back.searchParams.get("state")).toBe("s1");
+  const code = back.searchParams.get("code")!;
+
+  const tok = await api.post("/oauth/token", {
+    form: {
+      grant_type: "authorization_code",
+      code,
+      code_verifier: verifier,
+      client_id: clientId,
+      redirect_uri: redirect,
+    },
+  });
+  expect(tok.status()).toBe(200);
+  const access = (await tok.json()).access_token as string;
+  const ping = await api.post("/api/mcp", {
+    headers: { authorization: `Bearer ${access}`, "content-type": "application/json" },
+    data: { jsonrpc: "2.0", id: 1, method: "ping" },
+  });
+  expect(ping.status()).toBe(200);
+
+  await page.goto("/account/security");
+  const row = page.getByTestId("my-connected-app");
+  await expect(row).toContainText("Ops agent");
+  page.once("dialog", (d) => d.accept());
+  await row.getByRole("button", { name: "Disconnect" }).click();
+  await expect(page.getByTestId("my-connected-app")).toHaveCount(0);
+  const after = await api.post("/api/mcp", {
+    headers: { authorization: `Bearer ${access}`, "content-type": "application/json" },
+    data: { jsonrpc: "2.0", id: 2, method: "ping" },
+  });
+  expect(after.status()).toBe(401);
   await context.close();
 });

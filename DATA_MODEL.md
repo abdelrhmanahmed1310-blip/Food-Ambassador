@@ -1713,6 +1713,24 @@ Migration `20261218090000_f2d_api_clients`.
   (check: both or neither). Row-level security like every tenant table.
   Scopes include `mcp:read` and `mcp:decide` (ADR-143): an MCP key acts as its creator and cannot be limited to a company.
 
+### OAuth sign-in for MCP apps (ADR-144)
+
+Migration `20270131090000_oauth_mcp`.
+
+- **oauth_clients**: apps that registered themselves (`client_id` unique,
+  `client_name`, `redirect_uris` (CK 1–10)). Not tenant data; readable by
+  the tenant role, written by the system.
+- **oauth_grants**: a person's consent for one app in one organization:
+  `user_id`, `client_id`, `scopes` (CK non-empty, mcp:read / mcp:decide),
+  `resource` (the MCP address), `last_used_at`, `revoked_at` /
+  `revoked_by_user_id`. Row-level security.
+- **oauth_codes**: one-time codes as SHA-256 (`code_hash` unique),
+  `redirect_uri`, `code_challenge`, `expires_at`, `used_at`. Row-level
+  security.
+- **oauth_tokens**: access and refresh tokens as SHA-256 (`token_hash`
+  unique), `kind` (CK ACCESS / REFRESH), `expires_at`, `revoked_at`.
+  Row-level security.
+
 ### Global search (F2b, ADR-088)
 
 Migration `20261217090000_f2b_search`: extension `pg_trgm`; GIN trigram

@@ -1,10 +1,14 @@
 "use server";
 
 import { isAPIError } from "better-auth/api";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import type { ActionState } from "@/components/forms/action-state";
+import { revokeConnectedApp } from "@/modules/oauth/service";
+import { resolveTenantContext } from "@/modules/tenancy/context";
 import { getAuth } from "@/server/auth/auth";
+import { withSystemTx } from "@/server/db/transactions";
 import { requireUser } from "@/server/auth/session";
 import { formValues } from "@/server/actions/handle";
 import { logger } from "@/server/logger";
@@ -76,4 +80,18 @@ export async function disableTwoFactorAction(
     logger.error("disable two-factor failed", { error });
     return failed(previous, t("tryAgain"));
   }
+}
+
+/** Disconnect one of the person's own connected apps (ADR-144). */
+export async function revokeMyConnectedAppAction(
+  orgSlug: string,
+  grantId: string,
+  previous: S,
+): Promise<ActionState> {
+  const user = await requireUser("/account/security");
+  const ctx = await withSystemTx((tx) => resolveTenantContext(tx, user.id, orgSlug));
+  if (!ctx) return failed(previous, (await getTranslations("auth"))("connectedAppGone"));
+  await revokeConnectedApp(ctx, grantId);
+  revalidatePath("/account/security");
+  return done(previous);
 }

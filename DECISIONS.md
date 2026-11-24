@@ -4410,6 +4410,68 @@ with the same permissions, rules and audit as a person.
 - **Not yet.** OAuth authorization for MCP clients (keys are bearer tokens
   for now), resources and prompts, more write tools, usage metering.
 
+### ADR-144 OAuth sign-in for MCP apps — Accepted (built)
+
+Decision (2026-11-24): MCP apps (for example a Claude connector) sign the
+person in with their Food Ambassador account instead of a pasted API key,
+following the MCP authorization specification. The app is both the
+authorization server and the protected resource; API keys (ADR-143) keep
+working beside it.
+
+- **Discovery.**
+  - `/.well-known/oauth-protected-resource` and
+    `/.well-known/oauth-protected-resource/api/mcp` (RFC 9728) name the MCP
+    address and this server as its authorization server.
+  - `/.well-known/oauth-authorization-server` (RFC 8414) lists the
+    endpoints, PKCE S256 only, public clients only, and the scopes.
+  - A 401 from `/api/mcp` carries
+    `WWW-Authenticate: Bearer resource_metadata="…"` so a client can find
+    the way to sign in.
+- **Registration.** `POST /oauth/register` (RFC 7591, dynamic client
+  registration): public clients (`token_endpoint_auth_method` "none")
+  only, 1 to 10 redirect addresses, https or http on the loopback address,
+  no fragment. 20 registrations per hour per address. Client ID metadata
+  documents are not supported yet.
+- **Consent.** `/oauth/authorize` (signed-in person; otherwise sign in
+  first):
+  - The app and the redirect address must be registered, or the person sees
+    an error and is not sent anywhere.
+  - Other errors go back to the app (`state` and `iss` included).
+  - It requires PKCE S256 and `response_type=code`; a `resource`, when
+    given, must be this server's MCP address.
+  - The person chooses the organization (where they are an active member
+    and the API module is on) and what the app may do: `mcp:read`, and
+    `mcp:decide` when asked.
+  - Allowing creates a grant (audited, `oauth_grant.created`) and a code.
+- **Tokens.** `POST /oauth/token`:
+  - Codes last 10 minutes and work once; a second use revokes the grant.
+  - The code must come from the same client with the same redirect address
+    and the matching PKCE verifier.
+  - Access tokens last an hour, refresh tokens 30 days. Each refresh
+    replaces the refresh token; a replaced one coming back revokes the whole
+    grant.
+  - `POST /oauth/revoke` (RFC 7009): a refresh token ends the grant, an
+    access token ends itself.
+  - Only SHA-256 hashes of codes and tokens are stored, and tokens are bound
+    to the MCP address.
+- **At the MCP server.** An access token acts as the grant's person with
+  their access resolved on every request (ADR-143), within the granted
+  scopes, while the grant, the organization and the API module are active.
+  Request id `mcp-oauth:<grant id>`; 600 calls a minute per grant.
+- **Connected apps.**
+  - Each person sees and disconnects their own under Account → Security.
+  - People who manage integrations see and disconnect everyone's under
+    Settings → API.
+  - Disconnecting revokes all of the grant's tokens at once (audited,
+    `oauth_grant.revoked`).
+- **Data.**
+  - `oauth_clients` (not tenant data).
+  - `oauth_grants`, `oauth_codes`, `oauth_tokens`: tenant-owned with
+    row-level security.
+  - CHECKs on scopes, token kind and redirect count.
+- **Not yet.** Client ID metadata documents, signed (JWT) tokens, choosing
+  narrower access (branches) at consent.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

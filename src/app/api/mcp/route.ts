@@ -1,5 +1,6 @@
 import { handleBody, PROTOCOL_VERSIONS } from "@/modules/mcp/protocol";
 import { authenticateMcp, toolHost } from "@/modules/mcp/server";
+import { resourceMetadataUrl } from "@/modules/oauth/service";
 
 /**
  * MCP server for customers' own agents (DECISIONS.md ADR-143): Streamable
@@ -38,7 +39,8 @@ export async function POST(request: Request) {
       -32001,
       auth.message,
       auth.status === 401
-        ? { "WWW-Authenticate": "Bearer" }
+        ? // Where an MCP client finds how to sign in (RFC 9728, ADR-144).
+          { "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl()}"` }
         : auth.status === 429
           ? { "Retry-After": String(auth.retryAfter ?? 60) }
           : {},

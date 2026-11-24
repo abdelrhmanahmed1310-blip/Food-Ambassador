@@ -336,7 +336,13 @@
     "orEnterKey": "Or enter this key:",
     "backupCodes": "Backup codes",
     "backupCodesHint": "Keep these somewhere safe: each signs you in once if you lose your phone. They are shown only now.",
-    "confirmCode": "Confirm"
+    "confirmCode": "Confirm",
+    "connectedAppsTitle": "Connected apps",
+    "connectedAppsIntro": "AI apps you allowed to act as you through the MCP server.",
+    "noConnectedApps": "No app is connected.",
+    "disconnectApp": "Disconnect",
+    "disconnectAppConfirm": "Disconnect this app? It stops working at once.",
+    "connectedAppGone": "You no longer have access to that organization."
   },
   "validation": {
     "required": "This field is required.",
@@ -4898,7 +4904,15 @@
     "mcpTitle": "Connect your own AI agent (MCP)",
     "mcpIntro": "AI agents and assistants that speak the Model Context Protocol (Claude and others) can read your reports and agent runs, and decide agent proposals, through this app's MCP server.",
     "mcpEndpoint": "Server address (Streamable HTTP, at this site's address):",
-    "mcpAccess": "Create a key with an MCP scope and give it to your agent as a bearer token. The agent acts as you, with your access as it is at each call: it sees only what you see, and stops working if your access is removed or the key is revoked. Approvals it makes are recorded under your name with the key."
+    "mcpAccess": "Create a key with an MCP scope and give it to your agent as a bearer token. The agent acts as you, with your access as it is at each call: it sees only what you see, and stops working if your access is removed or the key is revoked. Approvals it makes are recorded under your name with the key.",
+    "mcpOAuth": "Apps that support MCP sign-in (OAuth) need no key: add the server address in the app and sign in with your Food Ambassador account.",
+    "connectedApps": "Connected apps (MCP sign-in)",
+    "noConnectedApps": "No app is connected.",
+    "app": "App",
+    "connectedBy": "Connected by",
+    "connectedOn": "Connected",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "Disconnect this app? It stops working at once."
   },
   "rfqs": {
     "title": "Requests for quotation",
@@ -8388,5 +8402,22 @@
     "priceFromTo": "{from} → {to} {currency}",
     "foodCostFromTo": "Food cost {from}% → {to}% (target {target}%), cost per portion {cost}",
     "priceFrom": "New price from {date}"
+  },
+  "oauth": {
+    "title": "Allow {app} to use Food Ambassador?",
+    "intro": "{app} wants to act as you ({name}) through Food Ambassador's MCP server.",
+    "returnsTo": "After you decide, you go back to:",
+    "noOrganizations": "None of your organizations has the API switched on, so no app can be connected.",
+    "organization": "Organization",
+    "mayDo": "It may",
+    "scopes": {
+      "read": "Read reports (sales, stock, forecasts, P&L, what needs attention) and agent runs and proposals",
+      "decide": "Approve or reject agent proposals"
+    },
+    "asYou": "It sees and does only what you can, with your access at each moment. You can disconnect it any time in Account → Security or Settings → API.",
+    "allow": "Allow",
+    "deny": "Deny",
+    "unknownClient": "This app is not registered. Connect it again from the app.",
+    "badRedirect": "This app asked to send you back to an address it did not register, so the request was stopped."
   }
 }
