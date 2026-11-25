@@ -4742,7 +4742,8 @@
       "AGENT_DAILY_CLOSE": "{count, plural, one {إقفال يوم {date}: ملاحظة واحدة} other {إقفال يوم {date}: # ملاحظات}}",
       "AGENT_ACTIONS": "{hours, plural, =0 {{count, plural, one {نفّذ وكيل إجراءً واحدًا} other {نفّذ الوكلاء # إجراءات}} ضمن حدودهم} other {{count, plural, one {سينفّذ وكيل إجراءً واحدًا} other {سينفّذ الوكلاء # إجراءات}} خلال {hours} ساعة ما لم يُوقَف}}",
       "USAGE_LIMIT_NEAR": "تجاوز الاستخدام 80% من أحد الحدود: {used} من {cap}. راجع الاستخدام والحدود.",
-      "USAGE_LIMIT_REACHED": "بلغ الاستخدام أحد الحدود: {used} من {cap}. راجع الاستخدام والحدود."
+      "USAGE_LIMIT_REACHED": "بلغ الاستخدام أحد الحدود: {used} من {cap}. راجع الاستخدام والحدود.",
+      "AGENT_WEEKLY_DIGEST": "الوكلاء الأسبوع الماضي ({from} – {to}): {runs} تشغيل، {critical} حرجة، {proposals} اقتراح؛ {approved} موافق عليها، {rejected} مرفوضة، {acted} نفذها الوكلاء؛ {waiting} بانتظارك"
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "أوامر الشراء التي تنتظر موافقتي",
@@ -4761,7 +4762,8 @@
       "AGENT_DAILY_CLOSE": "تقرير إقفال اليوم",
       "AGENT_ACTIONS": "إجراءات ينفّذها الوكلاء ضمن حدودهم",
       "USAGE_LIMIT_NEAR": "اقتراب الاستخدام من حد",
-      "USAGE_LIMIT_REACHED": "بلوغ حد الاستخدام"
+      "USAGE_LIMIT_REACHED": "بلوغ حد الاستخدام",
+      "AGENT_WEEKLY_DIGEST": "ملخص الوكلاء الأسبوعي"
     },
     "outcomes": {
       "POSTED": "تم الترحيل",

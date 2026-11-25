@@ -1,3 +1,5 @@
+import { weeklyAgentDigest } from "@/modules/agents/digest";
+import { isoWeekday } from "@/modules/agents/digest-rules";
 import { dueAgents, executeDueActions, runAgent } from "@/modules/agents/service";
 import { generateStatementsFor } from "@/modules/billing/platform";
 import { warnUsageLimits } from "@/modules/billing/service";
@@ -138,6 +140,9 @@ const HANDLERS = {
     );
     return { succeeded: r.status === "SUCCEEDED" ? 1 : 0, failed: r.status === "FAILED" ? 1 : 0 };
   },
+  // Last week's agent digest, on Monday morning (ADR-153).
+  "agents.digest": async (payload) =>
+    weeklyAgentDigest(String(payload.organizationId), String(payload.date)),
   // Scheduled agent actions whose hold is over (ADR-145).
   "agents.act": async () => executeDueActions(),
   // Usage limit warnings at 80 % and 100 % (ADR-147), once per period.
@@ -247,6 +252,14 @@ export async function scheduleRecurringJobs(now = new Date()) {
         payload: { organizationId: o.id, date: local.date },
         dedupeKey: `attention.digest:${o.id}:${local.date}`,
       });
+      // The weekly agent digest, Mondays (ADR-153).
+      if (isoWeekday(local.date) === 1)
+        added += await enqueueJobInTx(tx, {
+          organizationId: o.id,
+          kind: "agents.digest",
+          payload: { organizationId: o.id, date: local.date },
+          dedupeKey: `agents.digest:${o.id}:${local.date}`,
+        });
     }
     return added;
   });

@@ -4759,6 +4759,30 @@ a fixed list, so owners see what holds an agent back before letting it act
 - **Not yet.** Per-reason trends by month, and reasons feeding the agents'
   own rules.
 
+### ADR-153 AgaaS: weekly agent digest — Accepted (built)
+
+Decision (2026-11-25): every Monday from 06:00 in the organization's time
+zone, a job (`agents.digest`) sends each member who may see agents one
+in-app notification (`AGENT_WEEKLY_DIGEST`) about the Monday-to-Sunday week
+before.
+
+- **What it says**, counted from records for the agents that person may see:
+  - runs (and failed runs);
+  - critical findings;
+  - proposals made;
+  - decided during the week: approved by people, rejected, and done by the
+    agents themselves within limits;
+  - the open proposals waiting for that person now, as in their inbox.
+- **When nothing is sent:** the agents module is off, no agent was ever
+  set up, the person sees no agent, or every figure is zero.
+- **Once per week and person** (dedupe key `agent-digest:<week start>`).
+  The link goes to the inbox when something waits, otherwise to
+  Performance.
+- **Opting out.** Each person can switch it off under notification
+  preferences ("Weekly agent summary").
+- **Not sent by email or chat:** no provider is chosen yet (decision D2).
+- **Not yet.** A digest page with per-agent detail, or a choice of day.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

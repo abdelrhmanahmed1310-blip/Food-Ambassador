@@ -4742,7 +4742,8 @@
       "AGENT_DAILY_CLOSE": "{count, plural, one {Daily close for {date}: # finding} other {Daily close for {date}: # findings}}",
       "AGENT_ACTIONS": "{hours, plural, =0 {{count, plural, one {An agent carried out # action} other {Agents carried out # actions}} within their limits} other {{count, plural, one {An agent will carry out # action} other {Agents will carry out # actions}} in {hours} h unless stopped}}",
       "USAGE_LIMIT_NEAR": "Usage passed 80% of a limit: {used} of {cap}. See Usage & limits.",
-      "USAGE_LIMIT_REACHED": "A usage limit is reached: {used} of {cap}. See Usage & limits."
+      "USAGE_LIMIT_REACHED": "A usage limit is reached: {used} of {cap}. See Usage & limits.",
+      "AGENT_WEEKLY_DIGEST": "Agents last week ({from} – {to}): {runs, plural, one {# run} other {# runs}}, {critical} critical, {proposals, plural, one {# proposal} other {# proposals}}; {approved} approved, {rejected} rejected, {acted} done by agents; {waiting} waiting for you"
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "Purchase orders waiting for my approval",
@@ -4761,7 +4762,8 @@
       "AGENT_DAILY_CLOSE": "Daily close report",
       "AGENT_ACTIONS": "Actions agents carry out within their limits",
       "USAGE_LIMIT_NEAR": "Usage near a limit",
-      "USAGE_LIMIT_REACHED": "Usage limit reached"
+      "USAGE_LIMIT_REACHED": "Usage limit reached",
+      "AGENT_WEEKLY_DIGEST": "Weekly agent summary"
     },
     "outcomes": {
       "POSTED": "posted",
