@@ -4734,6 +4734,31 @@ record.
   settings.
 - **Not yet.** Raising or lowering automatically from the record.
 
+### ADR-152 AgaaS: rejection reasons — Accepted (built)
+
+Decision (2026-11-25): a person who rejects an agent proposal says why, from
+a fixed list, so owners see what holds an agent back before letting it act
+(ADR-151).
+
+- **Reasons:**
+  - not needed;
+  - already done;
+  - wrong amount (quantity, price or value);
+  - based on wrong data;
+  - bad timing;
+  - other, which needs a note.
+- **Required** for every rejection by a person, in the Agents inbox and in
+  the MCP `decide_agent_proposal` tool (`reason`). Approving takes none.
+  Stopping a scheduled action is not a rejection.
+- **Stored** in `agent_proposals.rejection_reason`. A CHECK keeps it to the
+  list and to rejected proposals. The reason is also in the
+  `agent.proposal_rejected` audit event, and the MCP proposal list returns it.
+- **Performance page.** It shows, per agent, its rejected proposals over the
+  same six months by reason: most frequent first, ties in list order.
+  Rejections from before this change count as "no reason recorded".
+- **Not yet.** Per-reason trends by month, and reasons feeding the agents'
+  own rules.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

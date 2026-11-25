@@ -131,7 +131,7 @@ describe("acting within limits (ADR-145)", () => {
     await runAgentNow(ctx, "REPLENISHMENT");
     let [p] = await proposals("PURCHASE_ORDER");
     expect([p.status, p.actedByAgent]).toEqual(["OPEN", false]);
-    await decideProposal(ctx, p.id, { decision: "REJECT" }); // cancels the draft
+    await decideProposal(ctx, p.id, { decision: "REJECT", reason: "NOT_NEEDED" }); // cancels the draft
     // Within 5000 and no hold: submitted at once into the normal approval chain.
     await replenish("5000");
     const run = await runAgentNow(ctx, "REPLENISHMENT");

@@ -33,6 +33,20 @@ export const AUTONOMY_FOR: Record<AgentKindCode, ReadonlyArray<AutonomyCode>> = 
   MENU_MARGIN: ["SUGGEST", "ACT"],
 };
 
+/**
+ * Why a person rejects an agent proposal (DECISIONS.md ADR-152), so the
+ * performance page can show what holds an agent back. OTHER needs a note.
+ */
+export const REJECTION_REASONS = [
+  "NOT_NEEDED",
+  "ALREADY_DONE",
+  "WRONG_AMOUNT",
+  "WRONG_DATA",
+  "BAD_TIMING",
+  "OTHER",
+] as const;
+export type RejectionReason = (typeof REJECTION_REASONS)[number];
+
 export type Severity = "INFO" | "WARNING" | "CRITICAL";
 export interface Finding {
   severity: Severity;

@@ -101,6 +101,7 @@ export async function decideProposalAction(
     const r = await decideProposal(ctx, proposalId, {
       decision,
       note: String(formData.get("note") ?? "") || undefined,
+      reason: decision === "REJECT" ? String(formData.get("reason") ?? "") || undefined : undefined,
     });
     return {
       message:

@@ -9360,6 +9360,8 @@ model AgentProposal {
   decidedByUserId String?             @map("decided_by_user_id") @db.Uuid
   decidedAt       DateTime?           @map("decided_at") @db.Timestamptz(3)
   decisionNote    String?             @map("decision_note")
+  /// Why a person rejected it (ADR-152): NOT_NEEDED, ALREADY_DONE, WRONG_AMOUNT, WRONG_DATA, BAD_TIMING or OTHER.
+  rejectionReason String?             @map("rejection_reason")
   createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)

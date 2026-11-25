@@ -56,6 +56,14 @@ export default async function AgentPerformancePage({
                       rejected: a.totals.rejected,
                     })}
               </p>
+              {a.rejectionReasons.length ? (
+                <p className="text-sm" data-testid={`reasons-${a.kind}`}>
+                  <span className="font-medium">{t("topReasons")}</span>{" "}
+                  {a.rejectionReasons
+                    .map((r) => `${t(`rejectionReasons.${r.reason}`)} (${n(r.count)})`)
+                    .join(" · ")}
+                </p>
+              ) : null}
               <Table label={t(`kinds.${a.kind}.name`)}>
                 <thead>
                   <tr>

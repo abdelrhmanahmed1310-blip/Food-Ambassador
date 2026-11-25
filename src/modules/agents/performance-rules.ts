@@ -1,4 +1,10 @@
-import { AUTONOMY_FOR, type AgentKindCode, type AutonomyCode } from "./rules";
+import {
+  AUTONOMY_FOR,
+  REJECTION_REASONS,
+  type AgentKindCode,
+  type AutonomyCode,
+  type RejectionReason,
+} from "./rules";
 
 /**
  * Agent performance (DECISIONS.md ADR-150). Pure: monthly figures per agent
@@ -131,4 +137,33 @@ export function trustStep(
   if (!agent || !agent.enabled) return { step: "NONE", reason: "OFF" };
   if (agent.autonomy === "ACT") return { step: "LOWER", to: proposingAutonomy(kind) };
   return { step: "RAISE", to: "ACT", acknowledgementNeeded: readiness !== "READY" };
+}
+
+/** A rejection reason as counted; NOT_RECORDED for rejections before ADR-152. */
+export type CountedReason = RejectionReason | "NOT_RECORDED";
+
+/**
+ * Why people rejected an agent's proposals (ADR-152): most frequent first,
+ * ties in the order of the list, rejections without a reason last.
+ */
+export function rankReasons(
+  rows: ReadonlyArray<{ reason: string | null; count: number }>,
+): Array<{ reason: CountedReason; count: number }> {
+  const order: readonly CountedReason[] = [...REJECTION_REASONS, "NOT_RECORDED"];
+  const counts = new Map<CountedReason, number>();
+  for (const r of rows) {
+    const key: CountedReason =
+      r.reason && (REJECTION_REASONS as readonly string[]).includes(r.reason)
+        ? (r.reason as RejectionReason)
+        : "NOT_RECORDED";
+    counts.set(key, (counts.get(key) ?? 0) + r.count);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count > 0)
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) =>
+      a.reason === "NOT_RECORDED" || b.reason === "NOT_RECORDED"
+        ? Number(a.reason === "NOT_RECORDED") - Number(b.reason === "NOT_RECORDED")
+        : b.count - a.count || order.indexOf(a.reason) - order.indexOf(b.reason),
+    );
 }

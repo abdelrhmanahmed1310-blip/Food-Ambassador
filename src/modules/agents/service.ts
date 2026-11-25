@@ -31,9 +31,11 @@ import {
   actionsWithinLimits,
   AUTONOMY_FOR,
   readSettings,
+  REJECTION_REASONS,
   settingsSchema,
   type AgentKindCode,
   type Finding,
+  type RejectionReason,
 } from "./rules";
 
 /**
@@ -744,10 +746,18 @@ export async function listProposals(ctx: TenantContext, raw: { status?: string }
   });
 }
 
-const decideSchema = z.object({
-  decision: z.enum(["APPROVE", "REJECT"]),
-  note: z.string().trim().max(500).optional(),
-});
+const decideSchema = z
+  .object({
+    decision: z.enum(["APPROVE", "REJECT"]),
+    note: z.string().trim().max(500).optional(),
+    reason: z.enum(REJECTION_REASONS, { error: "invalidOption" }).optional(),
+  })
+  // A rejection says why (ADR-152); "other" says it in the note.
+  .refine((d) => d.decision === "APPROVE" || d.reason, {
+    path: ["reason"],
+    error: "required",
+  })
+  .refine((d) => d.reason !== "OTHER" || d.note, { path: ["note"], error: "required" });
 
 const NC_TEXT = {
   EXPIRED_STOCK: (d: Record<string, string>) => ({
@@ -785,7 +795,10 @@ export async function decideProposal(ctx: TenantContext, proposalId: string, raw
     warehouseBranchesInTx(tx, ctx.organizationId, p.warehouseId ? [p.warehouseId] : []),
   );
   if (!mayDecide(ctx.grants, p, whBranch)) throw forbidden();
-  return applyDecision(ctx, p, parsed.data.decision, parsed.data.note, { byAgent: false });
+  return applyDecision(ctx, p, parsed.data.decision, parsed.data.note, {
+    byAgent: false,
+    reason: parsed.data.decision === "REJECT" ? parsed.data.reason : undefined,
+  });
 }
 
 type ProposalRow = NonNullable<Awaited<ReturnType<Tx["agentProposal"]["findFirst"]>>>;
@@ -796,7 +809,7 @@ async function applyDecision(
   p: ProposalRow,
   decision: "APPROVE" | "REJECT",
   note: string | undefined,
-  opts: { byAgent: boolean },
+  opts: { byAgent: boolean; reason?: RejectionReason },
 ) {
   const detail = p.detail as Record<string, unknown>;
   let created: string[] = [];
@@ -855,6 +868,7 @@ async function applyDecision(
         decidedByUserId: ctx.userId,
         decidedAt: new Date(),
         decisionNote: note ?? null,
+        rejectionReason: decision === "REJECT" ? (opts.reason ?? null) : null,
         actedByAgent: opts.byAgent,
         ...(Object.keys(outcome).length ? { detail: { ...detail, ...outcome } as Json } : {}),
       },
@@ -871,7 +885,12 @@ async function applyDecision(
           : "agent.proposal_rejected",
       entityType: "agent_proposal",
       entityId: p.id,
-      changes: { kind: p.kind, entityId: p.entityId, ...outcome },
+      changes: {
+        kind: p.kind,
+        entityId: p.entityId,
+        ...outcome,
+        ...(decision === "REJECT" && opts.reason ? { reason: opts.reason } : {}),
+      },
     });
   });
   // Metering (ADR-146): what agents did themselves, and what people approved.

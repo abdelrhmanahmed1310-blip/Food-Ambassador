@@ -140,7 +140,7 @@ describe("replenishment agent (ADR-140)", () => {
     });
     expect([order.status, order.totalAmount.toString()]).toEqual(["DRAFT", "2000"]);
     await expectAppError(
-      decideProposal(ctx, open[0].id, { decision: "REJECT" }),
+      decideProposal(ctx, open[0].id, { decision: "REJECT", reason: "NOT_NEEDED" }),
       "BUSINESS_RULE_VIOLATION",
     );
     // Clean up for the next test: cancel that draft.

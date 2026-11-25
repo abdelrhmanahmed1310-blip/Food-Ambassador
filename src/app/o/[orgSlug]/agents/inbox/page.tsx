@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
-import { ActionForm, TextField } from "@/components/forms/fields";
+import { ActionForm, SelectField, TextField } from "@/components/forms/fields";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
+import { REJECTION_REASONS } from "@/modules/agents/rules";
 import { canSeeAgents, listProposals } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { decideProposalAction, stopActionAction } from "../actions";
@@ -222,11 +223,28 @@ export default async function AgentInboxPage({
                         submitVariant="secondary"
                         className="flex flex-wrap items-end gap-2"
                       >
+                        <SelectField
+                          name="reason"
+                          label={t("rejectReason")}
+                          placeholder={t("rejectReasonPick")}
+                          options={REJECTION_REASONS.map((r) => ({
+                            value: r,
+                            label: t(`rejectionReasons.${r}`),
+                          }))}
+                        />
                         <TextField name="note" label={t("rejectNote")} />
                       </ActionForm>
                     </div>
-                  ) : p.decisionNote ? (
-                    <p className="text-muted">{p.decisionNote}</p>
+                  ) : p.rejectionReason || p.decisionNote ? (
+                    <p className="text-muted">
+                      {p.rejectionReason
+                        ? t(
+                            `rejectionReasons.${p.rejectionReason as (typeof REJECTION_REASONS)[number]}`,
+                          )
+                        : null}
+                      {p.rejectionReason && p.decisionNote ? " — " : null}
+                      {p.decisionNote}
+                    </p>
                   ) : null}
                 </div>
               </Card>

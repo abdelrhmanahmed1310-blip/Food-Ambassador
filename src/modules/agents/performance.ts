@@ -6,7 +6,9 @@ import { forbidden } from "@/server/errors";
 import {
   emptyMonth,
   monthsBack,
+  rankReasons,
   summarize,
+  type CountedReason,
   type AgentSummary,
   type MonthFigures,
 } from "./performance-rules";
@@ -26,7 +28,9 @@ const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 export async function agentPerformance(
   ctx: TenantContext,
   monthCount = 6,
-): Promise<AgentSummary[]> {
+): Promise<
+  Array<AgentSummary & { rejectionReasons: Array<{ reason: CountedReason; count: number }> }>
+> {
   if (!canSeeAgents(ctx)) throw forbidden();
   const kinds = AGENT_KINDS.filter((k) => canSeeKind(ctx, k));
   const months = monthsBack(businessDate(ctx.timeZone).slice(0, 7), monthCount);
@@ -88,7 +92,17 @@ export async function agentPerformance(
       WHERE i."organization_id" = ${org}::uuid
         AND (i."created_at" AT TIME ZONE ${tz})::date >= ${from}::date
       GROUP BY 1, 2`;
-    return { runs, findings, proposals, stopped, investigations };
+    // Why people rejected (ADR-152), over the same proposals as the rejected count.
+    const reasons = await tx.$queryRaw<
+      Array<{ kind: string; reason: string | null; count: unknown }>
+    >`
+      SELECT a."kind"::text AS kind, p."rejection_reason" AS reason, count(*) AS count
+      FROM "agent_proposals" p JOIN "agents" a ON a."id" = p."agent_id"
+      WHERE p."organization_id" = ${org}::uuid AND p."status"::text = 'REJECTED'
+        AND p."kind" <> 'FOLLOW_UP'
+        AND (p."created_at" AT TIME ZONE ${tz})::date >= ${from}::date
+      GROUP BY 1, 2`;
+    return { runs, findings, proposals, stopped, investigations, reasons };
   });
 
   return kinds.map((kind) => {
@@ -129,6 +143,13 @@ export async function agentPerformance(
       const m = at(r);
       if (m) m.aiTokens += n(r.tokens);
     }
-    return summarize(kind, [...byMonth.values()]);
+    return {
+      ...summarize(kind, [...byMonth.values()]),
+      rejectionReasons: rankReasons(
+        rows.reasons
+          .filter((r) => r.kind === kind)
+          .map((r) => ({ reason: r.reason, count: n(r.count) })),
+      ),
+    };
   });
 }

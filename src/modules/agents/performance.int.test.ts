@@ -91,7 +91,29 @@ describe("agent performance (ADR-150)", () => {
     const open = ps.filter((p) => p.status === "OPEN");
     await decideProposal(ctx, open[0].id, { decision: "APPROVE" });
     await decideProposal(ctx, open[1].id, { decision: "APPROVE" });
-    await decideProposal(ctx, open[2].id, { decision: "REJECT" });
+    // A rejection says why (ADR-152); "other" needs a note.
+    await expectAppError(
+      decideProposal(ctx, open[2].id, { decision: "REJECT" }),
+      "VALIDATION_FAILED",
+    );
+    await expectAppError(
+      decideProposal(ctx, open[2].id, { decision: "REJECT", reason: "OTHER" }),
+      "VALIDATION_FAILED",
+    );
+    await expectAppError(
+      decideProposal(ctx, open[2].id, { decision: "REJECT", reason: "BORED" }),
+      "VALIDATION_FAILED",
+    );
+    await decideProposal(ctx, open[2].id, { decision: "REJECT", reason: "WRONG_AMOUNT" });
+    const rejected = await getDb().agentProposal.findUniqueOrThrow({ where: { id: open[2].id } });
+    expect(rejected.rejectionReason).toBe("WRONG_AMOUNT");
+    // The database keeps reasons to rejected proposals.
+    await expect(
+      getDb().agentProposal.update({
+        where: { id: open[0].id },
+        data: { rejectionReason: "NOT_NEEDED" },
+      }),
+    ).rejects.toThrow();
     await stopScheduledAction(ctx, ps.find((p) => p.status === "SCHEDULED")!.id);
 
     const perf = await agentPerformance(ctx);
@@ -112,6 +134,8 @@ describe("agent performance (ADR-150)", () => {
     expect(now.findings.WARNING).toBe(4); // one ABOVE_TARGET per dish
     expect(now.medianDecisionHours).not.toBeNull();
     expect([mm.approvalPercent, mm.readiness]).toEqual([67, "TOO_FEW"]);
+    // ADR-152: why people rejected, from the reasons they gave.
+    expect(mm.rejectionReasons).toEqual([{ reason: "WRONG_AMOUNT", count: 1 }]);
     // Every agent the person may see is listed, even without runs.
     expect(perf.map((a) => a.kind)).toEqual([
       "REPLENISHMENT",

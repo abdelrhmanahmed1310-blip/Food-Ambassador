@@ -211,6 +211,7 @@ describe("MCP server (ADR-143)", () => {
     const again = await call(decideKey, "decide_agent_proposal", {
       proposalId: proposals[0].id,
       decision: "REJECT",
+      reason: "NOT_NEEDED",
     });
     expect(again.result?.isError).toBe(true);
   });

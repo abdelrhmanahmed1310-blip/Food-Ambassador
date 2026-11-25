@@ -8328,7 +8328,7 @@
     "approveSubmit": "اعتماد وإرسال للاعتماد",
     "approveDraft": "إنشاء مسودات الطلبات",
     "reject": "رفض",
-    "rejectNote": "السبب (اختياري)",
+    "rejectNote": "ملاحظة (مطلوبة عند اختيار «أخرى»)",
     "rejected": "تم الرفض.",
     "approvedSubmitted": "تم الاعتماد: دخل الطلب سلسلة الاعتماد.",
     "approvedDrafts": "{count, plural, one {أُنشئت مسودة طلب واحدة} other {أُنشئت # مسودات طلبات}} لمراجعتك.",
@@ -8499,7 +8499,19 @@
     "trustOff": "شغّل الوكيل من إعداداته أولاً.",
     "trustLimitsLink": "الحدود والإعدادات",
     "trustRaised": "أصبح الوكيل يتصرف ضمن حدوده.",
-    "trustLowered": "عاد الوكيل إلى الاقتراح فقط."
+    "trustLowered": "عاد الوكيل إلى الاقتراح فقط.",
+    "rejectReason": "السبب",
+    "rejectReasonPick": "اختر سبباً",
+    "topReasons": "لماذا رُفضت اقتراحاته:",
+    "rejectionReasons": {
+      "NOT_NEEDED": "غير مطلوب",
+      "ALREADY_DONE": "تم بالفعل",
+      "WRONG_AMOUNT": "الكمية أو المبلغ غير صحيح",
+      "WRONG_DATA": "مبني على بيانات خاطئة",
+      "BAD_TIMING": "توقيت غير مناسب",
+      "OTHER": "أخرى",
+      "NOT_RECORDED": "لم يُسجَّل سبب"
+    }
   },
   "oauth": {
     "title": "هل تسمح لـ {app} باستخدام Food Ambassador؟",

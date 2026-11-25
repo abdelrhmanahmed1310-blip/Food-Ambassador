@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { decideProposal, getRun, listProposals, listRuns } from "@/modules/agents/service";
-import { AGENT_KINDS } from "@/modules/agents/rules";
+import { AGENT_KINDS, REJECTION_REASONS } from "@/modules/agents/rules";
 import { toPlain } from "@/modules/assistant/rules";
 import { TOOLS as ASSISTANT_TOOLS, runTool } from "@/modules/assistant/tools";
 import { featureOn } from "@/modules/features/access";
@@ -188,6 +188,7 @@ const agentTools: McpTool[] = [
             createdAt: p.createdAt,
             decidedAt: p.decidedAt,
             decisionNote: p.decisionNote,
+            rejectionReason: p.rejectionReason,
           })),
         };
       });
@@ -202,6 +203,12 @@ const agentTools: McpTool[] = [
       {
         proposalId: { type: "string", description: "The proposal's ID." },
         decision: { type: "string", enum: ["APPROVE", "REJECT"], description: "The decision." },
+        reason: {
+          type: "string",
+          enum: [...REJECTION_REASONS],
+          description:
+            "Required to reject: not needed, already done, wrong amount (quantity, price or value), based on wrong data, bad timing, or other (explain in the note).",
+        },
         note: { type: "string", maxLength: 500, description: "Why, kept with the decision." },
       },
       ["proposalId", "decision"],
@@ -214,6 +221,7 @@ const agentTools: McpTool[] = [
         z.object({
           proposalId: uuid,
           decision: z.enum(["APPROVE", "REJECT"]),
+          reason: z.enum(REJECTION_REASONS).optional(),
           note: z.string().trim().max(500).optional(),
         }),
         input,
@@ -222,6 +230,7 @@ const agentTools: McpTool[] = [
       return attempt(async () => {
         const r = await decideProposal(ctx, i.proposalId, {
           decision: i.decision,
+          reason: i.reason,
           note: i.note || undefined,
         });
         return { decision: i.decision, ...r };

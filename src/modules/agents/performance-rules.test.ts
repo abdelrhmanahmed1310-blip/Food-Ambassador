@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyMonth, monthsBack, summarize, trustStep } from "./performance-rules";
+import { emptyMonth, monthsBack, rankReasons, summarize, trustStep } from "./performance-rules";
 
 /** Agent performance rules (ADR-150). */
 
@@ -70,5 +70,25 @@ describe("trust step (ADR-151)", () => {
       step: "LOWER",
       to: "SUGGEST",
     });
+  });
+});
+
+describe("rejection reasons (ADR-152)", () => {
+  it("ranks by count, ties in list order, unrecorded last", () => {
+    expect(
+      rankReasons([
+        { reason: null, count: 5 },
+        { reason: "WRONG_DATA", count: 2 },
+        { reason: "NOT_NEEDED", count: 2 },
+        { reason: "BAD_TIMING", count: 3 },
+        { reason: "OTHER", count: 0 },
+      ]),
+    ).toEqual([
+      { reason: "BAD_TIMING", count: 3 },
+      { reason: "NOT_NEEDED", count: 2 },
+      { reason: "WRONG_DATA", count: 2 },
+      { reason: "NOT_RECORDED", count: 5 },
+    ]);
+    expect(rankReasons([])).toEqual([]);
   });
 });

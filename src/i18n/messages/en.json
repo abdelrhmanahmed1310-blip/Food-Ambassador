@@ -8328,7 +8328,7 @@
     "approveSubmit": "Approve and send for approval",
     "approveDraft": "Create the draft orders",
     "reject": "Reject",
-    "rejectNote": "Reason (optional)",
+    "rejectNote": "Note (needed for Other)",
     "rejected": "Rejected.",
     "approvedSubmitted": "Approved: the order went into the approval chain.",
     "approvedDrafts": "{count, plural, one {# draft order created} other {# draft orders created}} for you to review.",
@@ -8499,7 +8499,19 @@
     "trustOff": "Switch the agent on in its settings first.",
     "trustLimitsLink": "Limits and settings",
     "trustRaised": "The agent now acts within its limits.",
-    "trustLowered": "The agent is back to proposing."
+    "trustLowered": "The agent is back to proposing.",
+    "rejectReason": "Why",
+    "rejectReasonPick": "Choose a reason",
+    "topReasons": "Why people rejected its proposals:",
+    "rejectionReasons": {
+      "NOT_NEEDED": "Not needed",
+      "ALREADY_DONE": "Already done",
+      "WRONG_AMOUNT": "Wrong amount",
+      "WRONG_DATA": "Based on wrong data",
+      "BAD_TIMING": "Bad timing",
+      "OTHER": "Other",
+      "NOT_RECORDED": "No reason recorded"
+    }
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",
