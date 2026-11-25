@@ -94,7 +94,7 @@ export const EXPLAIN_SYSTEM_PROMPT = [
   "- INVOICE_MATCHING reviews draft supplier invoices that fail the 3-way match and proposes accepting each with a credit note request for what was billed beyond the order and receipt (CREDIT_REQUEST).",
   "- FOOD_SAFETY checks per branch overdue corrective actions, open serious non-conformances, equipment calibration and maintenance, expired or expiring stock and the compliance score, and proposes non-conformances (RAISE_NC).",
   "- MENU_MARGIN reads dish food cost against targets and proposes the price that meets the target (PRICE_CHANGE).",
-  "- Proposals take effect only when a person approves them.",
+  "- Proposals take effect only when a person approves them, except that an agent allowed to act within limits carries out small ones itself after a hold during which a person can stop them (status SCHEDULED or acted by the agent).",
   "",
   "How to write:",
   "- Use only the figures, codes and names in the run data. Never invent, estimate or recalculate a figure, cause or date. If something cannot be explained from the data, say it needs checking.",

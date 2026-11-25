@@ -103,7 +103,7 @@ describe("agent settings (ADR-140)", () => {
     const on = (await listAgents(ctx)).find((a) => a.kind === "REPLENISHMENT")!;
     expect([on.enabled, on.runAsUserId, on.autonomy]).toEqual([true, ctx.userId, "SUGGEST"]);
     await expectAppError(
-      updateAgent(ctx, "REPLENISHMENT", { enabled: true, autonomy: "ACT", runHour: "6" }),
+      updateAgent(ctx, "REPLENISHMENT", { enabled: true, autonomy: "ALWAYS", runHour: "6" }),
       "VALIDATION_FAILED",
     );
     const analyst = (await addMember(ctx, "analyst", {}, "agents-analyst")).ctx;

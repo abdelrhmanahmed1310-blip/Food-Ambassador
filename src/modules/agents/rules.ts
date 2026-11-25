@@ -15,17 +15,22 @@ export const AGENT_KINDS = [
 ] as const;
 export type AgentKindCode = (typeof AGENT_KINDS)[number];
 /** Phase 0 stops at drafts: nothing an agent prepares takes effect without a person. */
-export const AGENT_AUTONOMY = ["SUGGEST", "DRAFT"] as const;
+export const AGENT_AUTONOMY = ["SUGGEST", "DRAFT", "ACT"] as const;
+export type AutonomyCode = (typeof AGENT_AUTONOMY)[number];
 /**
  * How far each agent may go. Only replenishment has drafts to prepare (draft
- * purchase orders); the others propose, and the approver's action does the work.
+ * purchase orders); the others propose, and the approver's action does the
+ * work. "Act within limits" (ADR-145) is offered where the action is small and
+ * bounded: submitting draft orders up to set amounts, raising
+ * non-conformances, and price rises up to a set percent. Invoice matching
+ * stays a proposal: accepting supplier differences is a finance decision.
  */
-export const AUTONOMY_FOR: Record<AgentKindCode, ReadonlyArray<(typeof AGENT_AUTONOMY)[number]>> = {
-  REPLENISHMENT: ["SUGGEST", "DRAFT"],
+export const AUTONOMY_FOR: Record<AgentKindCode, ReadonlyArray<AutonomyCode>> = {
+  REPLENISHMENT: ["SUGGEST", "DRAFT", "ACT"],
   DAILY_CLOSE: ["SUGGEST"],
   INVOICE_MATCHING: ["SUGGEST"],
-  FOOD_SAFETY: ["SUGGEST"],
-  MENU_MARGIN: ["SUGGEST"],
+  FOOD_SAFETY: ["SUGGEST", "ACT"],
+  MENU_MARGIN: ["SUGGEST", "ACT"],
 };
 
 export type Severity = "INFO" | "WARNING" | "CRITICAL";
@@ -40,11 +45,24 @@ export interface Finding {
 }
 
 const uuid = z.string().uuid();
+/** An amount limit in the organization's currency; 0 means nothing is done alone. */
+const limitAmount = z
+  .string()
+  .regex(/^\d{1,9}(\.\d{1,2})?$/)
+  .default("0");
+/** Hours a scheduled action waits for a person to stop it (0: at once). */
+const holdHours = z.coerce.number().int().min(0).max(72);
+const perRun = z.coerce.number().int().min(0).max(50);
 
 export const replenishmentSettings = z.object({
   /** Empty: every warehouse with reorder rules the agent may order for. */
   warehouseIds: z.array(uuid).max(200).default([]),
   basis: z.enum(["MIN_MAX", "FORECAST"]).default("MIN_MAX"),
+  /** Act within limits (ADR-145): submit a draft order up to this total… */
+  maxOrderAmount: limitAmount,
+  /** …and at most this much a day in all. */
+  maxDailyAmount: limitAmount,
+  holdHours: holdHours.default(4),
 });
 export type ReplenishmentSettings = z.infer<typeof replenishmentSettings>;
 
@@ -84,12 +102,20 @@ export const foodSafetySettings = z.object({
   complianceBelowPercent: percent.default(80),
   /** Stock expiring within this many days is reported. */
   expiringWithinDays: z.coerce.number().int().min(0).max(30).default(2),
+  /** Act within limits (ADR-145): raise at most this many non-conformances a run. */
+  maxActionsPerRun: perRun.default(3),
+  holdHours: holdHours.default(4),
 });
 export type FoodSafetySettings = z.infer<typeof foodSafetySettings>;
 
 export const menuMarginSettings = z.object({
   /** An approved price starts this many days after approval. */
   effectiveInDays: z.coerce.number().int().min(0).max(30).default(1),
+  /** Act within limits (ADR-145): a price rise up to this percent… */
+  maxIncreasePercent: percent.default(5),
+  /** …for at most this many dishes a run. */
+  maxActionsPerRun: perRun.default(3),
+  holdHours: holdHours.default(24),
 });
 export type MenuMarginSettings = z.infer<typeof menuMarginSettings>;
 
@@ -288,4 +314,64 @@ export function targetPrice(input: {
     .times(input.entered)
     .dividedBy(input.net)
     .toDecimalPlaces(2, Decimal.ROUND_UP);
+}
+
+// ─── Acting within limits (ADR-145) ───
+
+export interface ActionCandidate {
+  index: number;
+  kind: string;
+  detail: Record<string, unknown>;
+}
+
+/**
+ * Which new proposals an agent may carry out itself. Everything else stays
+ * a proposal for a person. Nothing is guessed: an amount in another currency
+ * than the organization's, or a missing figure, is never within a limit.
+ */
+export function actionsWithinLimits(
+  kind: AgentKindCode,
+  settings: Record<string, unknown>,
+  candidates: readonly ActionCandidate[],
+  context: { baseCurrency: string; actedToday: Decimal },
+): number[] {
+  const picked: number[] = [];
+  if (kind === "REPLENISHMENT") {
+    const s = settings as ReplenishmentSettings;
+    const perOrder = new Decimal(s.maxOrderAmount);
+    let left = new Decimal(s.maxDailyAmount).minus(context.actedToday);
+    for (const c of candidates) {
+      if (c.kind !== "PURCHASE_ORDER" || c.detail.currency !== context.baseCurrency) continue;
+      if (typeof c.detail.total !== "string" || !/^\d+(\.\d+)?$/.test(c.detail.total)) continue;
+      const total = new Decimal(c.detail.total);
+      if (total.isZero() || total.gt(perOrder) || total.gt(left)) continue;
+      left = left.minus(total);
+      picked.push(c.index);
+    }
+    return picked;
+  }
+  if (kind === "FOOD_SAFETY") {
+    const s = settings as FoodSafetySettings;
+    return candidates
+      .filter((c) => c.kind === "RAISE_NC")
+      .slice(0, s.maxActionsPerRun)
+      .map((c) => c.index);
+  }
+  if (kind === "MENU_MARGIN") {
+    const s = settings as MenuMarginSettings;
+    for (const c of candidates) {
+      if (picked.length >= s.maxActionsPerRun) break;
+      if (c.kind !== "PRICE_CHANGE") continue;
+      const price = Number(c.detail.price);
+      const next = Number(c.detail.newPrice);
+      if (!(price > 0) || !(next > price)) continue;
+      const rise = new Decimal(String(c.detail.newPrice))
+        .dividedBy(String(c.detail.price))
+        .minus(1)
+        .times(100);
+      if (rise.lte(s.maxIncreasePercent)) picked.push(c.index);
+    }
+    return picked;
+  }
+  return picked;
 }

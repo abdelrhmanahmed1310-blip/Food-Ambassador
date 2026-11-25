@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { Decimal } from "@/lib/decimal";
 import type { Prisma } from "@/generated/prisma/client";
 import { accessibleScope, assertPermission, hasPermission } from "@/modules/access/authorize";
 import { actorOf, recordAudit } from "@/modules/audit/service";
@@ -24,6 +25,7 @@ import { canRunReplenishment, runReplenishment, type NewProposal } from "./reple
 import {
   AGENT_AUTONOMY,
   AGENT_KINDS,
+  actionsWithinLimits,
   AUTONOMY_FOR,
   readSettings,
   settingsSchema,
@@ -344,7 +346,8 @@ export async function runAgent(
         ? await runReplenishment(
             ctx,
             readSettings("REPLENISHMENT", agent.settings),
-            agent.autonomy as "SUGGEST" | "DRAFT",
+            // Acting within limits starts from drafts, like DRAFT (ADR-145).
+            agent.autonomy === "SUGGEST" ? "SUGGEST" : "DRAFT",
             count,
           )
         : kind === "DAILY_CLOSE"
@@ -364,6 +367,7 @@ export async function runAgent(
               : await runMenuMargin(ctx, readSettings("MENU_MARGIN", agent.settings), count);
     const businessDate = result.businessDate;
     const created: NewProposal[] = [];
+    const saved: Array<{ id: string; kind: string; detail: Prisma.JsonValue }> = [];
     await withTenantTx(organizationId, async (tx) => {
       // Suggestions replace the last run's open ones for the same warehouse (drafts count as on order).
       const suggestWarehouses = result.proposals.flatMap((p) =>
@@ -410,20 +414,23 @@ export async function runAgent(
         created.push(p);
       }
       for (const p of created)
-        await tx.agentProposal.create({
-          data: {
-            organizationId,
-            agentId: agent.id,
-            runId: run.id,
-            kind: p.kind,
-            title: p.title.slice(0, 200),
-            detail: p.detail as Json,
-            warehouseId: p.warehouseId ?? null,
-            branchId: p.branchId ?? null,
-            entityType: p.entityType ?? null,
-            entityId: p.entityId ?? null,
-          },
-        });
+        saved.push(
+          await tx.agentProposal.create({
+            data: {
+              organizationId,
+              agentId: agent.id,
+              runId: run.id,
+              kind: p.kind,
+              title: p.title.slice(0, 200),
+              detail: p.detail as Json,
+              warehouseId: p.warehouseId ?? null,
+              branchId: p.branchId ?? null,
+              entityType: p.entityType ?? null,
+              entityId: p.entityId ?? null,
+            },
+            select: { id: true, kind: true, detail: true },
+          }),
+        );
       await tx.agentRun.update({
         where: { id: run.id },
         data: {
@@ -460,6 +467,8 @@ export async function runAgent(
     await withTenantTx(organizationId, (tx) =>
       tx.agent.update({ where: { id: agent.id }, data: { lastRunAt: new Date() } }),
     );
+    // Within its limits the agent carries out its own proposals (ADR-145).
+    if (agent.autonomy === "ACT" && saved.length) await scheduleActions(ctx, agent, kind, saved);
     // Written by Claude when the assistant is on (ADR-141); never fails the run.
     await explainRun(organizationId, run.id).catch(() => undefined);
     return { runId: run.id, status: "SUCCEEDED" as const };
@@ -565,8 +574,9 @@ export const explainAgentRun = (ctx: TenantContext, runId: string) =>
 export async function listProposals(ctx: TenantContext, raw: { status?: string } = {}) {
   if (!canSeeAgents(ctx)) throw forbidden();
   const status =
-    (["OPEN", "APPROVED", "REJECTED", "SUPERSEDED"] as const).find((s) => s === raw.status) ??
-    "OPEN";
+    (["OPEN", "SCHEDULED", "APPROVED", "REJECTED", "SUPERSEDED"] as const).find(
+      (s) => s === raw.status,
+    ) ?? "OPEN";
   const purchasing = accessibleScope(ctx.grants, "purchasing.manage");
   const foodSafety = accessibleScope(ctx.grants, "foodsafety.record");
   return withTenantTx(ctx.organizationId, async (tx) => {
@@ -630,22 +640,35 @@ const NC_TEXT = {
  *   credit asked for (not by the person who entered the invoice);
  * - a non-conformance proposal raises the non-conformance at its branch;
  * - a price change adds the dish's new price from the set day.
- * Rejecting the others changes nothing but the proposal.
+ * Rejecting the others changes nothing but the proposal. A proposal the agent
+ * scheduled (ADR-145) can be decided the same way before it is carried out.
  */
 export async function decideProposal(ctx: TenantContext, proposalId: string, raw: unknown) {
   const parsed = decideSchema.safeParse(raw);
   if (!parsed.success) throw validationFailed(parsed.error);
-  const { decision, note } = parsed.data;
   const p = await withTenantTx(ctx.organizationId, (tx) =>
     tx.agentProposal.findFirst({ where: { organizationId: ctx.organizationId, id: proposalId } }),
   );
   if (!p) throw notFound("Proposal");
-  if (p.status !== "OPEN")
+  if (p.status !== "OPEN" && p.status !== "SCHEDULED")
     throw businessRuleViolation("PROPOSAL_DECIDED", "This proposal was already decided");
   const whBranch = await withTenantTx(ctx.organizationId, (tx) =>
     warehouseBranchesInTx(tx, ctx.organizationId, p.warehouseId ? [p.warehouseId] : []),
   );
   if (!mayDecide(ctx.grants, p, whBranch)) throw forbidden();
+  return applyDecision(ctx, p, parsed.data.decision, parsed.data.note, { byAgent: false });
+}
+
+type ProposalRow = NonNullable<Awaited<ReturnType<Tx["agentProposal"]["findFirst"]>>>;
+
+/** Carry out a decision through the existing services, then record it. */
+async function applyDecision(
+  ctx: TenantContext,
+  p: ProposalRow,
+  decision: "APPROVE" | "REJECT",
+  note: string | undefined,
+  opts: { byAgent: boolean },
+) {
   const detail = p.detail as Record<string, unknown>;
   let created: string[] = [];
   let outcome: Record<string, unknown> = {};
@@ -692,25 +715,285 @@ export async function decideProposal(ctx: TenantContext, proposalId: string, raw
   }
   await withTenantTx(ctx.organizationId, async (tx) => {
     const done = await tx.agentProposal.updateMany({
-      where: { organizationId: ctx.organizationId, id: p.id, status: "OPEN" },
+      where: {
+        organizationId: ctx.organizationId,
+        id: p.id,
+        status: { in: ["OPEN", "SCHEDULED"] },
+      },
       data: {
         status: decision === "APPROVE" ? "APPROVED" : "REJECTED",
         decidedByUserId: ctx.userId,
         decidedAt: new Date(),
         decisionNote: note ?? null,
+        actedByAgent: opts.byAgent,
         ...(Object.keys(outcome).length ? { detail: { ...detail, ...outcome } as Json } : {}),
       },
     });
     if (done.count === 0)
       throw businessRuleViolation("PROPOSAL_DECIDED", "This proposal was already decided");
     await recordAudit(tx, actorOf(ctx), {
-      action: decision === "APPROVE" ? "agent.proposal_approved" : "agent.proposal_rejected",
+      action: opts.byAgent
+        ? "agent.action_carried_out"
+        : decision === "APPROVE"
+          ? "agent.proposal_approved"
+          : "agent.proposal_rejected",
       entityType: "agent_proposal",
       entityId: p.id,
       changes: { kind: p.kind, entityId: p.entityId, ...outcome },
     });
   });
   return { createdOrders: created, outcome };
+}
+
+// ─── Acting within limits (ADR-145) ───
+
+const HOUR = 3_600_000;
+
+/** Whether the organization paused every agent action (the kill switch). */
+async function actionsPaused(organizationId: string) {
+  const org = await withTenantTx(organizationId, (tx) =>
+    tx.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+      select: { agentActionsPausedAt: true },
+    }),
+  );
+  return org.agentActionsPausedAt !== null;
+}
+
+/**
+ * After a run: the new proposals within the agent's limits are scheduled to
+ * be carried out after the hold, or at once with no hold. The people who
+ * could decide them are told, so they can stop any of them in the inbox.
+ */
+async function scheduleActions(
+  ctx: TenantContext,
+  agent: { id: string; settings: Prisma.JsonValue },
+  kind: AgentKindCode,
+  saved: ReadonlyArray<{ id: string; kind: string; detail: Prisma.JsonValue }>,
+) {
+  const org = ctx.organizationId;
+  if (await actionsPaused(org)) return;
+  const settings = readSettings(kind, agent.settings) as Record<string, unknown>;
+  // What this agent carried out or scheduled in the last 24 hours, for the daily limit.
+  const recent = await withTenantTx(org, (tx) =>
+    tx.agentProposal.findMany({
+      where: {
+        organizationId: org,
+        agentId: agent.id,
+        OR: [
+          { status: "SCHEDULED" },
+          { actedByAgent: true, decidedAt: { gte: new Date(Date.now() - 24 * HOUR) } },
+        ],
+      },
+      select: { detail: true },
+    }),
+  );
+  const actedToday = recent.reduce((a, r) => {
+    const total = (r.detail as { total?: unknown }).total;
+    return typeof total === "string" && /^\d+(\.\d+)?$/.test(total) ? a.plus(total) : a;
+  }, new Decimal(0));
+  const picked = actionsWithinLimits(
+    kind,
+    settings,
+    saved.map((p, index) => ({ index, kind: p.kind, detail: p.detail as Record<string, unknown> })),
+    { baseCurrency: ctx.baseCurrency, actedToday },
+  ).map((i) => saved[i]);
+  if (picked.length === 0) return;
+  const hold = Number(settings.holdHours ?? 0);
+  if (hold === 0) {
+    for (const p of picked) await carryOut(ctx, p.id);
+  } else {
+    await withTenantTx(org, async (tx) => {
+      await tx.agentProposal.updateMany({
+        where: { organizationId: org, id: { in: picked.map((p) => p.id) }, status: "OPEN" },
+        data: { status: "SCHEDULED", scheduledFor: new Date(Date.now() + hold * HOUR) },
+      });
+      await recordAudit(tx, actorOf(ctx), {
+        action: "agent.actions_scheduled",
+        entityType: "agent",
+        entityId: agent.id,
+        changes: { kind, count: picked.length, holdHours: hold },
+      });
+    });
+  }
+  await withTenantTx(org, async (tx) => {
+    const rows = await tx.agentProposal.findMany({
+      where: { organizationId: org, id: { in: picked.map((p) => p.id) } },
+      select: { kind: true, warehouseId: true, branchId: true },
+    });
+    const whBranch = await warehouseBranchesInTx(
+      tx,
+      org,
+      rows.flatMap((r) => (r.warehouseId ? [r.warehouseId] : [])),
+    );
+    const users = (await membersWithGrantsInTx(tx, org))
+      .filter((m) => rows.some((r) => mayDecide(m.grants, r, whBranch)))
+      .map((m) => m.userId);
+    await notifyInTx(tx, org, users, {
+      kind: "AGENT_ACTIONS",
+      params: { count: picked.length, hours: hold },
+      link: hold ? "/agents/inbox?status=SCHEDULED" : "/agents/inbox?status=APPROVED",
+      dedupeKey: `agent-actions:${picked[0].id}`,
+    });
+  });
+}
+
+/** Carry out one proposal as the agent's person; on failure it goes back to people. */
+async function carryOut(ctx: TenantContext, proposalId: string) {
+  const p = await withTenantTx(ctx.organizationId, (tx) =>
+    tx.agentProposal.findFirst({ where: { organizationId: ctx.organizationId, id: proposalId } }),
+  );
+  if (!p || (p.status !== "OPEN" && p.status !== "SCHEDULED")) return "skipped" as const;
+  const whBranch = await withTenantTx(ctx.organizationId, (tx) =>
+    warehouseBranchesInTx(tx, ctx.organizationId, p.warehouseId ? [p.warehouseId] : []),
+  );
+  const backToPeople = (why: string) =>
+    withTenantTx(ctx.organizationId, (tx) =>
+      tx.agentProposal.updateMany({
+        where: {
+          organizationId: ctx.organizationId,
+          id: p.id,
+          status: { in: ["OPEN", "SCHEDULED"] },
+        },
+        data: {
+          status: "OPEN",
+          detail: { ...(p.detail as object), actionError: why.slice(0, 300) } as Json,
+        },
+      }),
+    );
+  if (!mayDecide(ctx.grants, p, whBranch)) {
+    await backToPeople("The agent's person may not do this");
+    return "returned" as const;
+  }
+  try {
+    await applyDecision(ctx, p, "APPROVE", undefined, { byAgent: true });
+    return "done" as const;
+  } catch (error) {
+    await backToPeople(errorText(error));
+    return "returned" as const;
+  }
+}
+
+/**
+ * For the job runner: carry out every scheduled action whose hold is over.
+ * An agent switched off or no longer acting, a person without access, or a
+ * paused organization sends the action back to people instead.
+ */
+export async function executeDueActions(now = new Date()) {
+  const due = await withSystemTx((tx) =>
+    tx.agentProposal.findMany({
+      where: { status: "SCHEDULED", scheduledFor: { lte: now } },
+      select: {
+        id: true,
+        organizationId: true,
+        agent: { select: { enabled: true, autonomy: true, runAsUserId: true } },
+        organization: {
+          select: { slug: true, status: true, disabledFeatures: true, agentActionsPausedAt: true },
+        },
+      },
+      orderBy: { scheduledFor: "asc" },
+      take: 200,
+    }),
+  );
+  const counts = { done: 0, returned: 0 };
+  for (const d of due) {
+    const reopen = (why: string) =>
+      withSystemTx((tx) =>
+        tx.agentProposal.updateMany({
+          where: { id: d.id, status: "SCHEDULED" },
+          data: { status: "OPEN" },
+        }),
+      ).then(() => {
+        counts.returned += 1;
+        return why;
+      });
+    const o = d.organization;
+    if (
+      o.status !== "ACTIVE" ||
+      o.agentActionsPausedAt ||
+      !featureOn({ disabledFeatures: o.disabledFeatures }, FEATURE) ||
+      !d.agent.enabled ||
+      d.agent.autonomy !== "ACT" ||
+      !d.agent.runAsUserId
+    ) {
+      await reopen("agent not acting");
+      continue;
+    }
+    const ctx = await withSystemTx((tx) =>
+      resolveTenantContext(tx, d.agent.runAsUserId!, o.slug, `agent-act:${d.id}`),
+    );
+    if (!ctx) {
+      await reopen("no access");
+      continue;
+    }
+    const r = await carryOut(ctx, d.id);
+    if (r === "done") counts.done += 1;
+    else if (r === "returned") counts.returned += 1;
+  }
+  return counts;
+}
+
+/** A person stops a scheduled action: it goes back to the inbox as a proposal. */
+export async function stopScheduledAction(ctx: TenantContext, proposalId: string) {
+  const p = await withTenantTx(ctx.organizationId, (tx) =>
+    tx.agentProposal.findFirst({ where: { organizationId: ctx.organizationId, id: proposalId } }),
+  );
+  if (!p) throw notFound("Proposal");
+  const whBranch = await withTenantTx(ctx.organizationId, (tx) =>
+    warehouseBranchesInTx(tx, ctx.organizationId, p.warehouseId ? [p.warehouseId] : []),
+  );
+  if (!mayDecide(ctx.grants, p, whBranch)) throw forbidden();
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    const r = await tx.agentProposal.updateMany({
+      where: { organizationId: ctx.organizationId, id: p.id, status: "SCHEDULED" },
+      data: { status: "OPEN" },
+    });
+    if (r.count === 0)
+      throw businessRuleViolation("PROPOSAL_NOT_SCHEDULED", "This action is no longer scheduled");
+    await recordAudit(tx, actorOf(ctx), {
+      action: "agent.action_stopped",
+      entityType: "agent_proposal",
+      entityId: p.id,
+      changes: { kind: p.kind },
+    });
+  });
+}
+
+/** The kill switch: pause or resume every agent action in the organization. */
+export async function setAgentActionsPaused(ctx: TenantContext, paused: boolean) {
+  assertPermission(ctx.grants, "org.settings.manage");
+  await withTenantTx(ctx.organizationId, async (tx) => {
+    await tx.organization.update({
+      where: { id: ctx.organizationId },
+      data: paused
+        ? { agentActionsPausedAt: new Date(), agentActionsPausedByUserId: ctx.userId }
+        : { agentActionsPausedAt: null, agentActionsPausedByUserId: null },
+    });
+    // Pausing hands everything scheduled back to people.
+    const back = paused
+      ? await tx.agentProposal.updateMany({
+          where: { organizationId: ctx.organizationId, status: "SCHEDULED" },
+          data: { status: "OPEN" },
+        })
+      : { count: 0 };
+    await recordAudit(tx, actorOf(ctx), {
+      action: paused ? "agent.actions_paused" : "agent.actions_resumed",
+      entityType: "organization",
+      entityId: ctx.organizationId,
+      changes: { returnedToInbox: back.count },
+    });
+  });
+}
+
+export async function agentControls(ctx: TenantContext) {
+  if (!canSeeAgents(ctx)) throw forbidden();
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const org = await tx.organization.findUniqueOrThrow({
+      where: { id: ctx.organizationId },
+      select: { agentActionsPausedAt: true },
+    });
+    return { pausedAt: org.agentActionsPausedAt };
+  });
 }
 
 /** Choices for the agent settings: warehouses with reorder rules, and branches. */

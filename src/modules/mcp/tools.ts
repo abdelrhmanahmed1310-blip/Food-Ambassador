@@ -158,7 +158,7 @@ const agentTools: McpTool[] = [
     inputSchema: strict({
       status: {
         type: "string",
-        enum: ["OPEN", "APPROVED", "REJECTED", "SUPERSEDED"],
+        enum: ["OPEN", "SCHEDULED", "APPROVED", "REJECTED", "SUPERSEDED"],
         description: "Which proposals (OPEN).",
       },
     }),
@@ -167,7 +167,9 @@ const agentTools: McpTool[] = [
     feature: AGENTS,
     async run(ctx, input) {
       const i = parse(
-        z.object({ status: z.enum(["OPEN", "APPROVED", "REJECTED", "SUPERSEDED"]).optional() }),
+        z.object({
+          status: z.enum(["OPEN", "SCHEDULED", "APPROVED", "REJECTED", "SUPERSEDED"]).optional(),
+        }),
         input,
       );
       if (!i) return invalid;
@@ -195,7 +197,7 @@ const agentTools: McpTool[] = [
     name: "decide_agent_proposal",
     title: "Decide an agent proposal",
     description:
-      "Approve or reject one open agent proposal as this person, with their own permissions, exactly as from the Agents inbox. Approving carries it out: submits a draft purchase order for approval, creates suggested draft orders, accepts an invoice exception with the credit request noted, raises a non-conformance, or sets a dish's new price. Rejecting a draft purchase order cancels it. Confirm with the person before approving.",
+      "Approve or reject one open (or agent-scheduled) agent proposal as this person, with their own permissions, exactly as from the Agents inbox. Approving carries it out: submits a draft purchase order for approval, creates suggested draft orders, accepts an invoice exception with the credit request noted, raises a non-conformance, or sets a dish's new price. Rejecting a draft purchase order cancels it. Confirm with the person before approving.",
     inputSchema: strict(
       {
         proposalId: { type: "string", description: "The proposal's ID." },

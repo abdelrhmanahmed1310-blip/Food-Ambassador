@@ -4472,6 +4472,56 @@ working beside it.
 - **Not yet.** Client ID metadata documents, signed (JWT) tokens, choosing
   narrower access (branches) at consent.
 
+### ADR-145 AgaaS: agents act within limits — Accepted (built)
+
+Decision (2026-11-25): an agent may carry out its own small, bounded
+proposals: "act within limits", a third autonomy level after SUGGEST and
+DRAFT (ADR-140). Acting means doing exactly what a person would do from the
+inbox, as the agent's person with their access at that moment, under the
+same services and approval chains.
+
+- **Which agents, which limits.**
+  - Replenishment: drafts orders as with DRAFT, then submits a draft order
+    into the normal approval chain when its total, in the organization's
+    currency, is within a per-order amount. Everything it carried out or
+    scheduled in the last 24 hours also counts against a daily amount. Both
+    amounts default to 0, so nothing is done alone until they are set.
+  - Food safety: raises up to N non-conformances a run (default 3).
+  - Menu & margin: sets a new price only when the rise is within a percent
+    (default 5 %), for up to N dishes a run (default 3).
+  - Invoice matching and daily close never act. Accepting supplier
+    differences is a finance decision; the daily close only reads.
+  - Anything outside the limits stays a proposal. An amount in another
+    currency, or a missing figure, is never within a limit.
+- **Hold, not undo.** Many actions cannot be reversed afterwards (recipe
+  prices are append-only, an order goes to approvers). So an action within
+  limits is SCHEDULED to happen after a hold: 4 hours by default, 24 for
+  prices, 0 for at once.
+  - During the hold, the people who could decide it are told
+    (AGENT_ACTIONS). Any of them can stop it, which sends it back to the
+    inbox as a proposal, or approve or reject it themselves.
+  - A job every 5 minutes (`agents.act`) carries out the actions whose hold
+    is over. Request id `agent-act:<proposal id>`; with no hold it is the
+    run's `agent-run:<run id>`.
+  - If the agent was switched off or set below "act", its person lost
+    access, or the action fails, it goes back to people with the reason.
+  - Carried-out proposals are marked "carried out by the agent" and audited
+    as `agent.action_carried_out`. The schedule is audited as
+    `agent.actions_scheduled`, a stop as `agent.action_stopped`.
+- **Kill switch.** "Pause all agent actions" on the Agents page
+  (settings managers). While paused, agents still propose but nothing is
+  scheduled or carried out, and everything already scheduled goes back to
+  the inbox. Audited as `agent.actions_paused` / `agent.actions_resumed`.
+- **Data.**
+  - `agents.autonomy` gains ACT.
+  - `agent_proposals` gains status SCHEDULED, `scheduled_for` and
+    `acted_by_agent`. CHECKs: scheduled has a time, only an approved
+    proposal is the agent's doing, and decided means a decision time.
+  - `organizations` gains `agent_actions_paused_at` and `_by_user_id`
+    (CHECK: both or neither).
+- **Not yet.** Per-branch or per-supplier limits, acting on credit requests,
+  limits learnt from approval history.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

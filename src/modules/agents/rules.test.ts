@@ -86,6 +86,10 @@ describe("daily close checks (ADR-140)", () => {
     expect(readSettings("REPLENISHMENT", { basis: "GUESS" })).toEqual({
       warehouseIds: [],
       basis: "MIN_MAX",
+      // Acting within limits is off until amounts are set (ADR-145).
+      maxOrderAmount: "0",
+      maxDailyAmount: "0",
+      holdHours: 4,
     });
     expect(readSettings("DAILY_CLOSE", null).salesDropPercent).toBe(30);
   });

@@ -5,9 +5,9 @@ import { ActionForm, TextField } from "@/components/forms/fields";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { canSeeAgents, listProposals } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { decideProposalAction } from "../actions";
+import { decideProposalAction, stopActionAction } from "../actions";
 
-const STATUSES = ["OPEN", "APPROVED", "REJECTED", "SUPERSEDED"] as const;
+const STATUSES = ["OPEN", "SCHEDULED", "APPROVED", "REJECTED", "SUPERSEDED"] as const;
 
 type Detail = {
   orderNumber?: string;
@@ -162,7 +162,40 @@ export default async function AgentInboxPage({
                       ))}
                     </ul>
                   ) : null}
-                  {p.status === "OPEN" ? (
+                  {p.status === "SCHEDULED" && p.scheduledFor ? (
+                    <div
+                      className="flex flex-wrap items-center gap-3"
+                      data-testid="scheduled-action"
+                    >
+                      <p className="text-warning">
+                        {t("scheduledFor", {
+                          when: format.dateTime(p.scheduledFor, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                            timeZone: ctx.timeZone,
+                          }),
+                        })}
+                      </p>
+                      <ActionForm
+                        action={stopActionAction.bind(null, orgSlug, p.id)}
+                        submitLabel={t("stop")}
+                        pendingLabel={t("saving")}
+                        submitVariant="secondary"
+                      >
+                        <span />
+                      </ActionForm>
+                    </div>
+                  ) : null}
+                  {p.actedByAgent ? <Badge tone="success">{t("actedByAgent")}</Badge> : null}
+                  {p.status === "OPEN" &&
+                  typeof (p.detail as { actionError?: unknown }).actionError === "string" ? (
+                    <p className="text-danger">
+                      {t("actionError", {
+                        error: String((p.detail as { actionError: string }).actionError),
+                      })}
+                    </p>
+                  ) : null}
+                  {p.status === "OPEN" || p.status === "SCHEDULED" ? (
                     <div className="flex flex-wrap items-start gap-3">
                       <ActionForm
                         action={decideProposalAction.bind(null, orgSlug, p.id, "APPROVE")}

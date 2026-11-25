@@ -1027,7 +1027,8 @@
     "PROPOSAL_DECIDED": "This proposal was already decided.",
     "AGENT_RUN_NOT_SUCCEEDED": "Only a run that finished successfully can be explained.",
     "AGENT_AUTONOMY_NOT_OFFERED": "This agent only proposes; drafts are for replenishment.",
-    "API_MCP_NO_COMPANY": "MCP keys cannot be limited to a company."
+    "API_MCP_NO_COMPANY": "MCP keys cannot be limited to a company.",
+    "PROPOSAL_NOT_SCHEDULED": "This action is no longer scheduled."
   },
   "notFound": {
     "title": "Page not found",
@@ -4728,7 +4729,8 @@
       "SUPPLIER_APPROVAL_NEEDED": "Supplier {code} is waiting for your approval",
       "SUPPLIER_BANK_ACCOUNT_ADDED": "A bank account ending {last4} was added to supplier {code} — verify it before paying",
       "AGENT_PROPOSALS": "{count, plural, one {An agent proposes # thing to decide} other {Agents propose # things to decide}}",
-      "AGENT_DAILY_CLOSE": "{count, plural, one {Daily close for {date}: # finding} other {Daily close for {date}: # findings}}"
+      "AGENT_DAILY_CLOSE": "{count, plural, one {Daily close for {date}: # finding} other {Daily close for {date}: # findings}}",
+      "AGENT_ACTIONS": "{hours, plural, =0 {{count, plural, one {An agent carried out # action} other {Agents carried out # actions}} within their limits} other {{count, plural, one {An agent will carry out # action} other {Agents will carry out # actions}} in {hours} h unless stopped}}"
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "Purchase orders waiting for my approval",
@@ -4744,7 +4746,8 @@
       "SUPPLIER_APPROVAL_NEEDED": "Suppliers waiting for my approval",
       "SUPPLIER_BANK_ACCOUNT_ADDED": "Supplier bank accounts added or changed",
       "AGENT_PROPOSALS": "Agent proposals to decide",
-      "AGENT_DAILY_CLOSE": "Daily close report"
+      "AGENT_DAILY_CLOSE": "Daily close report",
+      "AGENT_ACTIONS": "Actions agents carry out within their limits"
     },
     "outcomes": {
       "POSTED": "posted",
@@ -8214,7 +8217,7 @@
   "agents": {
     "title": "Agents",
     "intro": "Agents do routine work in the background with the app's own rules and permissions, and bring you what needs a decision.",
-    "draftOnly": "Agents prepare and propose; nothing they prepare takes effect until a person approves it. Each agent runs with the access of the person who switched it on.",
+    "draftOnly": "Agents prepare and propose; nothing takes effect until a person approves it, unless you let an agent act within limits — then it waits out a hold during which anyone who could decide can stop it. Each agent runs with the access of the person who switched it on.",
     "on": "On",
     "off": "Off",
     "runsAs": "Runs as {name}",
@@ -8246,20 +8249,25 @@
     "autonomy": {
       "REPLENISHMENT": {
         "SUGGEST": "Suggest orders (you create them)",
-        "DRAFT": "Prepare draft purchase orders (you approve)"
+        "DRAFT": "Prepare draft purchase orders (you approve)",
+        "ACT": "Act within limits: submit draft orders up to the amounts below"
       },
       "DAILY_CLOSE": {
         "SUGGEST": "Report findings",
-        "DRAFT": "Report findings"
+        "DRAFT": "Report findings",
+        "ACT": "Report findings"
       },
       "INVOICE_MATCHING": {
-        "SUGGEST": "Propose credit requests (you approve)"
+        "SUGGEST": "Propose credit requests (you approve)",
+        "ACT": "Propose credit requests (you approve)"
       },
       "FOOD_SAFETY": {
-        "SUGGEST": "Propose non-conformances (you approve)"
+        "SUGGEST": "Propose non-conformances (you approve)",
+        "ACT": "Act within limits: raise non-conformances itself"
       },
       "MENU_MARGIN": {
-        "SUGGEST": "Propose new prices (you approve)"
+        "SUGGEST": "Propose new prices (you approve)",
+        "ACT": "Act within limits: set new prices up to the rise below"
       }
     },
     "enabled": "Switched on (runs every day)",
@@ -8290,7 +8298,8 @@
       "OPEN": "Waiting",
       "APPROVED": "Approved",
       "REJECTED": "Rejected",
-      "SUPERSEDED": "Replaced by a newer run"
+      "SUPERSEDED": "Replaced by a newer run",
+      "SCHEDULED": "Scheduled by agents"
     },
     "proposalKinds": {
       "PURCHASE_ORDER": "Draft purchase order",
@@ -8401,7 +8410,27 @@
     "ncRaised": "Non-conformance {number} raised",
     "priceFromTo": "{from} → {to} {currency}",
     "foodCostFromTo": "Food cost {from}% → {to}% (target {target}%), cost per portion {cost}",
-    "priceFrom": "New price from {date}"
+    "priceFrom": "New price from {date}",
+    "limitsTitle": "Limits when acting",
+    "limitsHint": "Only used when it may act within limits. Anything outside them stays a proposal for a person.",
+    "maxOrderAmount": "Submit a draft order up to (0: never)",
+    "maxDailyAmount": "At most in any 24 hours (0: never)",
+    "maxActionsPerRun": "At most this many a run",
+    "maxIncreasePercent": "A price rise up to (%)",
+    "holdHours": "Wait before acting, so a person can stop it (hours; 0: at once)",
+    "actionsTitle": "Agent actions",
+    "actionsRunning": "Agents set to act within limits carry out actions after their hold, unless a person stops them.",
+    "actionsPaused": "All agent actions are paused since {when}. Agents still propose; nothing is carried out.",
+    "pauseActions": "Pause all agent actions",
+    "resumeActions": "Resume agent actions",
+    "pauseConfirm": "Pause every agent action now? Scheduled actions go back to the inbox for people to decide.",
+    "paused": "Agent actions paused.",
+    "resumed": "Agent actions resumed.",
+    "scheduledFor": "The agent will carry this out on {when} unless someone stops it.",
+    "stop": "Stop it",
+    "stopped": "Stopped: it is back in the inbox as a proposal.",
+    "actedByAgent": "Carried out by the agent within its limits",
+    "actionError": "The agent could not carry this out: {error}"
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",

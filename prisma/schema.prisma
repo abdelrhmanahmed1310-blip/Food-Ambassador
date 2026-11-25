@@ -139,18 +139,21 @@ enum OrganizationStatus {
 }
 
 model Organization {
-  id               String             @id @default(uuid(7)) @db.Uuid
-  name             String
-  slug             String             @unique
-  baseCurrency     String             @map("base_currency") @db.Char(3)
-  timeZone         String             @map("time_zone")
-  defaultLocale    String             @default("en") @map("default_locale")
-  status           OrganizationStatus @default(ACTIVE)
+  id                         String             @id @default(uuid(7)) @db.Uuid
+  name                       String
+  slug                       String             @unique
+  baseCurrency               String             @map("base_currency") @db.Char(3)
+  timeZone                   String             @map("time_zone")
+  defaultLocale              String             @default("en") @map("default_locale")
+  status                     OrganizationStatus @default(ACTIVE)
   /// Modules ("module:<key>") and functions switched off in Settings → Modules (ADR-137).
-  disabledFeatures String[]           @default([]) @map("disabled_features")
-  createdByUserId  String?            @map("created_by_user_id") @db.Uuid
-  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  disabledFeatures           String[]           @default([]) @map("disabled_features")
+  /// Kill switch: agents carry nothing out while set (ADR-145).
+  agentActionsPausedAt       DateTime?          @map("agent_actions_paused_at") @db.Timestamptz(3)
+  agentActionsPausedByUserId String?            @map("agent_actions_paused_by_user_id") @db.Uuid
+  createdByUserId            String?            @map("created_by_user_id") @db.Uuid
+  createdAt                  DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships                  OrganizationMembership[]
   agents                       Agent[]
@@ -9234,6 +9237,8 @@ enum AgentAutonomy {
   SUGGEST
   /// Prepares drafts (e.g. draft purchase orders); a person approves before they take effect.
   DRAFT
+  /// Carries out its own proposals within set limits, after a hold a person can stop (ADR-145).
+  ACT
 }
 
 enum AgentRunStatus {
@@ -9249,6 +9254,8 @@ enum AgentRunTrigger {
 
 enum AgentProposalStatus {
   OPEN
+  /// Within the agent's limits: carried out at scheduled_for unless a person stops it (ADR-145).
+  SCHEDULED
   APPROVED
   REJECTED
   SUPERSEDED
@@ -9333,6 +9340,10 @@ model AgentProposal {
   warehouseId     String?             @map("warehouse_id") @db.Uuid
   /// The branch it is for (food safety proposals, ADR-142).
   branchId        String?             @map("branch_id") @db.Uuid
+  /// When the agent carries it out unless stopped (ADR-145).
+  scheduledFor    DateTime?           @map("scheduled_for") @db.Timestamptz(3)
+  /// Carried out by the agent within its limits, not decided by a person.
+  actedByAgent    Boolean             @default(false) @map("acted_by_agent")
   /// The record it prepared, if any (a draft purchase order).
   entityType      String?             @map("entity_type")
   entityId        String?             @map("entity_id") @db.Uuid
@@ -9348,6 +9359,7 @@ model AgentProposal {
   @@unique([organizationId, id])
   @@index([organizationId, status, createdAt])
   @@index([organizationId, agentId, entityId], map: "agent_proposals_entity_idx")
+  @@index([status, scheduledFor], map: "agent_proposals_scheduled_idx")
   @@map("agent_proposals")
 }
 

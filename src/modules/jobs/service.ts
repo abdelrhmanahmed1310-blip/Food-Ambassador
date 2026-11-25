@@ -1,4 +1,4 @@
-import { dueAgents, runAgent } from "@/modules/agents/service";
+import { dueAgents, executeDueActions, runAgent } from "@/modules/agents/service";
 import { purgeOldConversations } from "@/modules/assistant/service";
 import "server-only";
 import { purgeCandidates } from "@/modules/recruitment/service";
@@ -136,6 +136,8 @@ const HANDLERS = {
     );
     return { succeeded: r.status === "SUCCEEDED" ? 1 : 0, failed: r.status === "FAILED" ? 1 : 0 };
   },
+  // Scheduled agent actions whose hold is over (ADR-145).
+  "agents.act": async () => executeDueActions(),
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -160,6 +162,12 @@ export async function scheduleRecurringJobs(now = new Date()) {
     added += await enqueueJobInTx(tx, {
       kind: "campaigns.send",
       dedupeKey: `campaigns.send:${slotKey(now, 1)}`,
+      maxAttempts: 1,
+    });
+    // Agent actions whose hold is over (ADR-145), every 5 minutes.
+    added += await enqueueJobInTx(tx, {
+      kind: "agents.act",
+      dedupeKey: `agents.act:${slotKey(now, 5)}`,
       maxAttempts: 1,
     });
     added += await enqueueJobInTx(tx, {

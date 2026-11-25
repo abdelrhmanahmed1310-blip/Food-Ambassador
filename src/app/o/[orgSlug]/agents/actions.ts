@@ -7,6 +7,8 @@ import {
   decideProposal,
   explainAgentRun,
   runAgentNow,
+  setAgentActionsPaused,
+  stopScheduledAction,
   updateAgent,
 } from "@/modules/agents/service";
 import { tenantMutation } from "@/server/actions/tenant";
@@ -26,6 +28,9 @@ export async function saveAgentAction(
     REPLENISHMENT: () => ({
       warehouseIds: formData.getAll("warehouseIds").map(String),
       basis: v("basis") || "MIN_MAX",
+      maxOrderAmount: v("maxOrderAmount") || "0",
+      maxDailyAmount: v("maxDailyAmount") || "0",
+      holdHours: v("holdHours") || "4",
     }),
     DAILY_CLOSE: () => ({
       branchIds: formData.getAll("branchIds").map(String),
@@ -41,8 +46,15 @@ export async function saveAgentAction(
       branchIds: formData.getAll("branchIds").map(String),
       complianceBelowPercent: v("complianceBelowPercent") || "80",
       expiringWithinDays: v("expiringWithinDays") || "2",
+      maxActionsPerRun: v("maxActionsPerRun") || "3",
+      holdHours: v("holdHours") || "4",
     }),
-    MENU_MARGIN: () => ({ effectiveInDays: v("effectiveInDays") || "1" }),
+    MENU_MARGIN: () => ({
+      effectiveInDays: v("effectiveInDays") || "1",
+      maxIncreasePercent: v("maxIncreasePercent") || "5",
+      maxActionsPerRun: v("maxActionsPerRun") || "3",
+      holdHours: v("holdHours") || "24",
+    }),
   };
   const settings = SETTINGS[kind]();
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
@@ -106,5 +118,33 @@ export async function explainRunAction(
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     const r = await explainAgentRun(ctx, runId);
     return r.explained ? { message: t("explained") } : { ok: false, formError: t("explainFailed") };
+  });
+}
+
+/** Stop an action an agent scheduled; it goes back to the inbox (ADR-145). */
+export async function stopActionAction(
+  orgSlug: string,
+  proposalId: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await stopScheduledAction(ctx, proposalId);
+    return { message: t("stopped") };
+  });
+}
+
+/** The kill switch for every agent action (ADR-145). */
+export async function setActionsPausedAction(
+  orgSlug: string,
+  paused: boolean,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await setAgentActionsPaused(ctx, paused);
+    return { message: t(paused ? "paused" : "resumed") };
   });
 }

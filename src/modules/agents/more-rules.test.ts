@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "@/lib/decimal";
-import { AUTONOMY_FOR, creditRequest, readSettings, targetPrice } from "./rules";
+import {
+  actionsWithinLimits,
+  AUTONOMY_FOR,
+  creditRequest,
+  readSettings,
+  targetPrice,
+} from "./rules";
 
 /** Pure rules of the invoice matching and menu & margin agents (ADR-142). */
 
@@ -71,7 +77,7 @@ describe("targetPrice", () => {
 });
 
 describe("settings and autonomy", () => {
-  it("falls back to defaults and offers drafts only to replenishment", () => {
+  it("falls back to defaults; drafts are replenishment's, and acting is not for invoices", () => {
     expect(readSettings("INVOICE_MATCHING", { minCreditAmount: "abc" })).toEqual({
       minCreditAmount: "0",
       uninvoicedAfterDays: 14,
@@ -80,9 +86,80 @@ describe("settings and autonomy", () => {
       branchIds: [],
       complianceBelowPercent: 80,
       expiringWithinDays: 2,
+      maxActionsPerRun: 3,
+      holdHours: 4,
     });
-    expect(readSettings("MENU_MARGIN", { effectiveInDays: "3" })).toEqual({ effectiveInDays: 3 });
-    expect(AUTONOMY_FOR.REPLENISHMENT).toContain("DRAFT");
-    expect(AUTONOMY_FOR.MENU_MARGIN).toEqual(["SUGGEST"]);
+    expect(readSettings("MENU_MARGIN", { effectiveInDays: "3" })).toEqual({
+      effectiveInDays: 3,
+      maxIncreasePercent: 5,
+      maxActionsPerRun: 3,
+      holdHours: 24,
+    });
+    expect(AUTONOMY_FOR.REPLENISHMENT).toEqual(["SUGGEST", "DRAFT", "ACT"]);
+    expect(AUTONOMY_FOR.MENU_MARGIN).toEqual(["SUGGEST", "ACT"]);
+    // Accepting supplier differences stays a person's decision.
+    expect(AUTONOMY_FOR.INVOICE_MATCHING).toEqual(["SUGGEST"]);
+  });
+});
+
+describe("actionsWithinLimits (ADR-145)", () => {
+  const po = (index: number, total: string, currency = "SAR") => ({
+    index,
+    kind: "PURCHASE_ORDER",
+    detail: { total, currency },
+  });
+  it("keeps orders within the per-order and the 24-hour amounts, in the organization's currency", () => {
+    const settings = readSettings("REPLENISHMENT", {
+      maxOrderAmount: "1000",
+      maxDailyAmount: "1500",
+    });
+    const ctx = { baseCurrency: "SAR", actedToday: d("200") };
+    expect(
+      actionsWithinLimits(
+        "REPLENISHMENT",
+        settings,
+        [po(0, "900"), po(1, "1200"), po(2, "500"), po(3, "300"), po(4, "100", "USD")],
+        ctx,
+      ),
+    ).toEqual([0, 3]);
+    expect(
+      actionsWithinLimits("REPLENISHMENT", readSettings("REPLENISHMENT", {}), [po(0, "1")], ctx),
+    ).toEqual([]);
+  });
+
+  it("caps non-conformances and price rises per run", () => {
+    const nc = (index: number) => ({ index, kind: "RAISE_NC", detail: {} });
+    expect(
+      actionsWithinLimits(
+        "FOOD_SAFETY",
+        readSettings("FOOD_SAFETY", { maxActionsPerRun: "2" }),
+        [nc(0), nc(1), nc(2)],
+        { baseCurrency: "SAR", actedToday: d("0") },
+      ),
+    ).toEqual([0, 1]);
+    const price = (index: number, from: string, to: string) => ({
+      index,
+      kind: "PRICE_CHANGE",
+      detail: { price: from, newPrice: to },
+    });
+    expect(
+      actionsWithinLimits(
+        "MENU_MARGIN",
+        readSettings("MENU_MARGIN", { maxIncreasePercent: "5", maxActionsPerRun: "2" }),
+        [
+          price(0, "25", "26"),
+          price(1, "25", "33.34"),
+          price(2, "20", "21"),
+          price(3, "10", "10.1"),
+        ],
+        { baseCurrency: "SAR", actedToday: d("0") },
+      ),
+    ).toEqual([0, 2]);
+    expect(
+      actionsWithinLimits("INVOICE_MATCHING", {}, [nc(0)], {
+        baseCurrency: "SAR",
+        actedToday: d("0"),
+      }),
+    ).toEqual([]);
   });
 });

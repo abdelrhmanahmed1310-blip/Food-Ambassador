@@ -6,20 +6,22 @@ import { ActionForm } from "@/components/forms/fields";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui/primitives";
 import { hasPermission } from "@/modules/access/authorize";
 import { AUTONOMY_FOR } from "@/modules/agents/rules";
-import { agentFormOptions, listAgents } from "@/modules/agents/service";
+import { agentControls, agentFormOptions, listAgents } from "@/modules/agents/service";
+import { ConfirmActionButton } from "@/components/forms/confirm-button";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { runAgentNowAction, saveAgentAction } from "./actions";
+import { runAgentNowAction, saveAgentAction, setActionsPausedAction } from "./actions";
 
 /** Agents and what they may do (ADR-140, AgaaS Phase 0). */
 export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/agents">) {
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "org.settings.manage")) notFound();
-  const [t, format, agents, o] = await Promise.all([
+  const [t, format, agents, o, controls] = await Promise.all([
     getTranslations("agents"),
     getFormatter(),
     listAgents(ctx),
     agentFormOptions(ctx),
+    agentControls(ctx),
   ]);
   const when = (d: Date) =>
     format.dateTime(d, { dateStyle: "medium", timeStyle: "short", timeZone: ctx.timeZone });
@@ -28,6 +30,31 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
       <PageHeader title={t("title")} description={t("intro")} />
       <div className="space-y-6">
         <Alert tone="info">{t("draftOnly")}</Alert>
+        <Card title={t("actionsTitle")}>
+          <div
+            className="flex flex-wrap items-center justify-between gap-3"
+            data-testid="agent-actions"
+          >
+            <p className="text-sm">
+              {controls.pausedAt
+                ? t("actionsPaused", { when: when(controls.pausedAt) })
+                : t("actionsRunning")}
+            </p>
+            {controls.pausedAt ? (
+              <ConfirmActionButton
+                action={setActionsPausedAction.bind(null, orgSlug, false)}
+                label={t("resumeActions")}
+                variant="secondary"
+              />
+            ) : (
+              <ConfirmActionButton
+                action={setActionsPausedAction.bind(null, orgSlug, true)}
+                label={t("pauseActions")}
+                confirmMessage={t("pauseConfirm")}
+              />
+            )}
+          </div>
+        </Card>
         {agents.map((a) => (
           <Card key={a.id} title={t(`kinds.${a.kind}.name`)}>
             <div className="space-y-4" data-testid={`agent-${a.kind}`}>
@@ -115,6 +142,13 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
                   complianceBelowPercent: t("complianceBelowPercent"),
                   expiringWithinDays: t("expiringWithinDays"),
                   effectiveInDays: t("effectiveInDays"),
+                  limitsTitle: t("limitsTitle"),
+                  limitsHint: t("limitsHint"),
+                  maxOrderAmount: t("maxOrderAmount"),
+                  maxDailyAmount: t("maxDailyAmount"),
+                  maxActionsPerRun: t("maxActionsPerRun"),
+                  maxIncreasePercent: t("maxIncreasePercent"),
+                  holdHours: t("holdHours"),
                 }}
               />
               <div className="border-border border-t pt-4">

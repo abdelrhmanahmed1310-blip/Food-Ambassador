@@ -37,6 +37,11 @@ export function AgentForm({
     complianceBelowPercent?: number;
     expiringWithinDays?: number;
     effectiveInDays?: number;
+    maxOrderAmount?: string;
+    maxDailyAmount?: string;
+    maxActionsPerRun?: number;
+    maxIncreasePercent?: number;
+    holdHours?: number;
   };
   options: {
     autonomy: Option[];
@@ -63,7 +68,14 @@ export function AgentForm({
     | "uninvoicedAfterDays"
     | "complianceBelowPercent"
     | "expiringWithinDays"
-    | "effectiveInDays",
+    | "effectiveInDays"
+    | "limitsTitle"
+    | "limitsHint"
+    | "maxOrderAmount"
+    | "maxDailyAmount"
+    | "maxActionsPerRun"
+    | "maxIncreasePercent"
+    | "holdHours",
     string
   >;
 }) {
@@ -164,6 +176,57 @@ export function AgentForm({
           </>
         ) : null}
       </div>
+      {options.autonomy.some((o) => o.value === "ACT") ? (
+        <fieldset className="border-border space-y-3 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">{labels.limitsTitle}</legend>
+          <p className="text-muted text-xs">{labels.limitsHint}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {kind === "REPLENISHMENT" ? (
+              <>
+                <TextField
+                  name="maxOrderAmount"
+                  label={labels.maxOrderAmount}
+                  defaultValue={defaults.maxOrderAmount ?? "0"}
+                  inputMode="decimal"
+                  dir="ltr"
+                />
+                <TextField
+                  name="maxDailyAmount"
+                  label={labels.maxDailyAmount}
+                  defaultValue={defaults.maxDailyAmount ?? "0"}
+                  inputMode="decimal"
+                  dir="ltr"
+                />
+              </>
+            ) : null}
+            {kind === "MENU_MARGIN" ? (
+              <TextField
+                name="maxIncreasePercent"
+                label={labels.maxIncreasePercent}
+                defaultValue={String(defaults.maxIncreasePercent ?? 5)}
+                inputMode="decimal"
+                dir="ltr"
+              />
+            ) : null}
+            {kind === "FOOD_SAFETY" || kind === "MENU_MARGIN" ? (
+              <TextField
+                name="maxActionsPerRun"
+                label={labels.maxActionsPerRun}
+                defaultValue={String(defaults.maxActionsPerRun ?? 3)}
+                inputMode="numeric"
+                dir="ltr"
+              />
+            ) : null}
+            <TextField
+              name="holdHours"
+              label={labels.holdHours}
+              defaultValue={String(defaults.holdHours ?? 4)}
+              inputMode="numeric"
+              dir="ltr"
+            />
+          </div>
+        </fieldset>
+      ) : null}
       {kind === "REPLENISHMENT" && options.warehouses.length ? (
         <div>
           <CheckboxGroup

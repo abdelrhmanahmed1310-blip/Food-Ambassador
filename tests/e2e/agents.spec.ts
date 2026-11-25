@@ -18,14 +18,25 @@ test("agents: switch on, run now, see the run and the inbox (ADR-140)", async ({
   // Settings: both agents, off, draft-only at most.
   await page.getByTestId("process-tabs").getByRole("link", { name: "Agents", exact: true }).click();
   await expect(
-    page.getByText(/nothing they prepare takes effect until a person approves it/),
+    page.getByText(/nothing takes effect until a person approves it, unless you let an agent act/),
   ).toBeVisible();
-  // ADR-142: the invoice matching, food safety and menu & margin agents only propose.
-  for (const kind of ["INVOICE_MATCHING", "FOOD_SAFETY", "MENU_MARGIN"]) {
+  // ADR-142, ADR-145: invoice matching only proposes; food safety and menu & margin may act within limits.
+  for (const [kind, options] of [
+    ["INVOICE_MATCHING", 1],
+    ["FOOD_SAFETY", 2],
+    ["MENU_MARGIN", 2],
+  ] as const) {
     const card = page.getByTestId(`agent-${kind}`);
     await expect(card).toContainText("Off");
-    await expect(card.getByLabel("How far it may go").locator("option")).toHaveCount(1);
+    await expect(card.getByLabel("How far it may go").locator("option")).toHaveCount(options);
   }
+  // The kill switch pauses every agent action and resumes them.
+  const actions = page.getByTestId("agent-actions");
+  page.once("dialog", (d) => d.accept());
+  await actions.getByRole("button", { name: "Pause all agent actions" }).click();
+  await expect(actions).toContainText("All agent actions are paused");
+  await actions.getByRole("button", { name: "Resume agent actions" }).click();
+  await expect(actions).toContainText("carry out actions after their hold");
   await expect(page.getByRole("heading", { name: "Menu & margin agent" })).toBeVisible();
   const daily = page.getByTestId("agent-DAILY_CLOSE");
   await expect(daily).toContainText("Off");
