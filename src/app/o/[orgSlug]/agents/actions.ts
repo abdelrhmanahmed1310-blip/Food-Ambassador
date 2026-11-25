@@ -8,6 +8,7 @@ import {
   explainAgentRun,
   followUpFromInvestigation,
   investigateAgentFinding,
+  liftProposalPause,
   runAgentNow,
   setAgentActionsPaused,
   stopScheduledAction,
@@ -202,5 +203,19 @@ export async function changeTrustAction(
       recordRead: formData.get("recordRead") === "on",
     });
     return { message: t(direction === "RAISE" ? "trustRaised" : "trustLowered") };
+  });
+}
+
+/** Let the agent propose a record again after rejections paused it (ADR-155). */
+export async function liftPauseAction(
+  orgSlug: string,
+  proposalId: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await liftProposalPause(ctx, proposalId);
+    return { message: t("pauseLifted") };
   });
 }

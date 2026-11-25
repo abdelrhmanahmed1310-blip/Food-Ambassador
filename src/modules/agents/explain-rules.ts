@@ -38,6 +38,8 @@ const FINDING_MEANINGS: Record<string, string> = {
     "{count} dishes have ingredients without a cost, so their food cost cannot be checked",
   NO_DISH_PRICE: "{count} dishes have no selling price",
   NO_TARGET: "{count} dishes have no food cost target",
+  PAUSED_BY_REJECTIONS:
+    "{count} proposals were held back because people rejected them twice in 30 days as not needed or already done",
 };
 
 export interface ExplainInput {

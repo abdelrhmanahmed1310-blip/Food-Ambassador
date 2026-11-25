@@ -6,7 +6,7 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/primitives"
 import { REJECTION_REASONS } from "@/modules/agents/rules";
 import { canSeeAgents, listProposals } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { decideProposalAction, stopActionAction } from "../actions";
+import { decideProposalAction, liftPauseAction, stopActionAction } from "../actions";
 
 const STATUSES = ["OPEN", "SCHEDULED", "APPROVED", "REJECTED", "SUPERSEDED"] as const;
 
@@ -245,6 +245,22 @@ export default async function AgentInboxPage({
                       {p.rejectionReason && p.decisionNote ? " — " : null}
                       {p.decisionNote}
                     </p>
+                  ) : null}
+                  {p.status === "REJECTED" &&
+                  p.entityId &&
+                  !p.pauseLiftedAt &&
+                  (p.rejectionReason === "NOT_NEEDED" || p.rejectionReason === "ALREADY_DONE") ? (
+                    <div className="flex flex-wrap items-center gap-3" data-testid="lift-pause">
+                      <p className="text-muted text-xs">{t("pauseHint")}</p>
+                      <ActionForm
+                        action={liftPauseAction.bind(null, orgSlug, p.id)}
+                        submitLabel={t("liftPause")}
+                        pendingLabel={t("saving")}
+                        submitVariant="secondary"
+                      >
+                        <span />
+                      </ActionForm>
+                    </div>
                   ) : null}
                 </div>
               </Card>

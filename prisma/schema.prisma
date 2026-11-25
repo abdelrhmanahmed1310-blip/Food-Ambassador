@@ -9362,6 +9362,8 @@ model AgentProposal {
   decisionNote    String?             @map("decision_note")
   /// Why a person rejected it (ADR-152): NOT_NEEDED, ALREADY_DONE, WRONG_AMOUNT, WRONG_DATA, BAD_TIMING or OTHER.
   rejectionReason String?             @map("rejection_reason")
+  /// When someone let the agent propose this record again despite the rejection (ADR-155).
+  pauseLiftedAt   DateTime?           @map("pause_lifted_at") @db.Timestamptz(3)
   createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)

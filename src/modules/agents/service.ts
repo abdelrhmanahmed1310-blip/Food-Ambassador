@@ -21,6 +21,7 @@ import { canRunFoodSafety, runFoodSafety } from "./food-safety";
 import { canRunInvoiceMatching, runInvoiceMatching } from "./invoice-matching";
 import { canRunMenuMargin, runMenuMargin } from "./menu-margin";
 import { explainRun, explainRunNow } from "./explain";
+import { PAUSE_LOOKBACK_MS, PAUSING_REASONS, pausedUntil } from "./pause-rules";
 import { investigateFinding, investigationsOf, type InvestigationResult } from "./investigate";
 import { canUseAssistant } from "@/modules/assistant/service";
 import { readExplanation } from "./explain-rules";
@@ -404,9 +405,34 @@ export async function runAgent(
       // One open proposal per record (ADR-142): an unchanged one stays, a changed one
       // replaces it, and nothing is proposed again for 30 days after an approval.
       const since = new Date(Date.now() - 30 * 86_400_000);
+      const now = new Date();
+      let paused = 0;
       for (const p of result.proposals) {
         if (p.kind === "REORDER" || p.kind === "PURCHASE_ORDER" || !p.entityId) {
           created.push(p);
+          continue;
+        }
+        // Rejected as not needed or already done twice in 30 days: not again for now (ADR-155).
+        const rejections = await tx.agentProposal.findMany({
+          where: {
+            organizationId,
+            agentId: agent.id,
+            kind: p.kind,
+            entityId: p.entityId,
+            branchId: p.branchId ?? null,
+            status: "REJECTED",
+            rejectionReason: { in: [...PAUSING_REASONS] },
+            decidedAt: { gte: new Date(now.getTime() - PAUSE_LOOKBACK_MS) },
+          },
+          select: { rejectionReason: true, decidedAt: true, pauseLiftedAt: true },
+        });
+        if (
+          pausedUntil(
+            rejections.map((r) => ({ ...r, reason: r.rejectionReason })),
+            now,
+          )
+        ) {
+          paused += 1;
           continue;
         }
         const earlier = await tx.agentProposal.findMany({
@@ -430,6 +456,13 @@ export async function runAgent(
           });
         created.push(p);
       }
+      if (paused)
+        result.findings.push({
+          severity: "INFO",
+          code: "PAUSED_BY_REJECTIONS",
+          params: { count: paused },
+          link: "/agents/inbox?status=REJECTED",
+        });
       for (const p of created)
         saved.push(
           await tx.agentProposal.create({
@@ -798,6 +831,51 @@ export async function decideProposal(ctx: TenantContext, proposalId: string, raw
   return applyDecision(ctx, p, parsed.data.decision, parsed.data.note, {
     byAgent: false,
     reason: parsed.data.decision === "REJECT" ? parsed.data.reason : undefined,
+  });
+}
+
+/**
+ * Let the agent propose a record again although people rejected it as not
+ * needed or already done (ADR-155): for whoever could decide it.
+ */
+export async function liftProposalPause(ctx: TenantContext, proposalId: string) {
+  const p = await withTenantTx(ctx.organizationId, (tx) =>
+    tx.agentProposal.findFirst({ where: { organizationId: ctx.organizationId, id: proposalId } }),
+  );
+  if (!p) throw notFound("Proposal");
+  if (
+    p.status !== "REJECTED" ||
+    !p.entityId ||
+    p.pauseLiftedAt ||
+    !p.rejectionReason ||
+    !PAUSING_REASONS.has(p.rejectionReason as RejectionReason)
+  )
+    throw businessRuleViolation("PROPOSAL_NOT_PAUSING", "This rejection does not pause the agent");
+  const whBranch = await withTenantTx(ctx.organizationId, (tx) =>
+    warehouseBranchesInTx(tx, ctx.organizationId, p.warehouseId ? [p.warehouseId] : []),
+  );
+  if (!mayDecide(ctx.grants, p, whBranch)) throw forbidden();
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const lifted = await tx.agentProposal.updateMany({
+      where: {
+        organizationId: ctx.organizationId,
+        agentId: p.agentId,
+        kind: p.kind,
+        entityId: p.entityId,
+        branchId: p.branchId,
+        status: "REJECTED",
+        rejectionReason: { in: [...PAUSING_REASONS] },
+        pauseLiftedAt: null,
+      },
+      data: { pauseLiftedAt: new Date() },
+    });
+    await recordAudit(tx, actorOf(ctx), {
+      action: "agent.pause_lifted",
+      entityType: "agent_proposal",
+      entityId: p.id,
+      changes: { kind: p.kind, entityId: p.entityId, rejections: lifted.count },
+    });
+    return { lifted: lifted.count };
   });
 }
 

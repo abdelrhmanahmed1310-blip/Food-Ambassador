@@ -1038,7 +1038,8 @@
     "INVESTIGATION_FAILED": "This investigation has no next step.",
     "AGENT_NOT_ON": "Switch the agent on first.",
     "AGENT_TRUST_CHANGED": "The agent's autonomy changed meanwhile. Reload the page and try again.",
-    "AGENT_RECORD_NOT_READY": "Confirm you have read the agent's record before letting it act."
+    "AGENT_RECORD_NOT_READY": "Confirm you have read the agent's record before letting it act.",
+    "PROPOSAL_NOT_PAUSING": "This rejection does not stop the agent proposing it."
   },
   "notFound": {
     "title": "Page not found",
@@ -8395,7 +8396,8 @@
       "ABOVE_TARGET": "{dish}: food cost {percent}% above the {target}% target; {newPrice} instead of {price} brings it back.",
       "COST_INCOMPLETE": "{count, plural, one {# dish has} other {# dishes have}} an incomplete cost and cannot be checked: {dishes}.",
       "NO_DISH_PRICE": "{count, plural, one {# dish has} other {# dishes have}} no selling price: {dishes}.",
-      "NO_TARGET": "{count, plural, one {# dish has} other {# dishes have}} no food cost target; set one for the organization or the dish."
+      "NO_TARGET": "{count, plural, one {# dish has} other {# dishes have}} no food cost target; set one for the organization or the dish.",
+      "PAUSED_BY_REJECTIONS": "{count, plural, one {# proposal was held back} other {# proposals were held back}}: people rejected the same item twice in 30 days as not needed or already done."
     },
     "explanationTitle": "What this run means",
     "explanationBy": "Written by Claude ({model}) from this run's figures. Check the figures below before acting.",
@@ -8513,7 +8515,10 @@
       "BAD_TIMING": "Bad timing",
       "OTHER": "Other",
       "NOT_RECORDED": "No reason recorded"
-    }
+    },
+    "liftPause": "Allow proposing this again",
+    "pauseHint": "Two such rejections within 30 days stop the agent proposing this for 30 days.",
+    "pauseLifted": "The agent may propose this again."
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",

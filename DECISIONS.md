@@ -4813,6 +4813,31 @@ Performance page.
   for keys and OAuth consent alike.
 - **Not yet.** Changing an agent's limits or settings over MCP.
 
+### ADR-155 AgaaS: rejection reasons pause repeat proposals — Accepted (built)
+
+Decision (2026-11-25): an agent learns from the reasons people give
+(ADR-152). It does not keep proposing what people said they do not want.
+
+- **Rule.** People may reject the agent's proposal for the same record twice
+  within 30 days as "not needed" or "already done". The record is:
+  - the dish for a price change;
+  - the invoice for a credit request;
+  - the subject at the branch for a non-conformance.
+
+  The agent then does not propose that record again for 30 days from the
+  second rejection. Other reasons do not count.
+
+- **Shown.** The run gets an INFO finding, `PAUSED_BY_REJECTIONS`, with how
+  many proposals it held back. It links to the rejected proposals in the
+  inbox.
+- **Lifting.** Anyone who could decide the proposal can choose "Allow
+  proposing this again" on a pausing rejection. This stamps
+  `pause_lifted_at` on the record's pausing rejections, so they stop
+  counting. It is audited as `agent.pause_lifted`. A CHECK keeps
+  `pause_lifted_at` to rejected proposals.
+- **Not covered.** Replenishment suggestions and draft orders, which bundle
+  many items per warehouse. They are not paused per item yet.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
