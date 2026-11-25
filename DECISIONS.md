@@ -4600,6 +4600,50 @@ operator.
   issued statements, plan changes in the middle of a month (the plan at
   statement time applies to the whole month).
 
+### ADR-148 AgaaS: Claude investigates agent findings — Accepted (built)
+
+Decision (2026-11-25): from any finding on an agent run, a person can ask
+Claude to investigate. Claude reads more through read-only tools, as that
+person, and writes what it found, the likely causes and a draft next step,
+in English and Arabic. It changes nothing and sends nothing.
+
+- **Who and when.**
+  - People who may use the assistant (`assistant.use`), on successful runs
+    they may see. Someone who cannot see the run gets "not found".
+  - The assistant must be switched on (ADR-122). The organization's monthly
+    AI token limit applies (ADR-146), and tokens are counted.
+  - Each finding can be investigated again; the latest is shown.
+- **Tools** (all read only, business fields only, the person's access):
+  - The assistant's business tools (ADR-122).
+  - Dish costs from the food consultant (ADR-131).
+  - `invoice_detail`: an invoice by number, with each line against order
+    and receipt.
+  - `supplier_price_history`: a product's price on recent receipts, within
+    the person's purchasing scope.
+- **The request.**
+  - The finding goes as data (codes, figures, no record ids or people),
+    with the same stable, cached instructions for every finding: no
+    invented figures or causes, say what to check when the data cannot
+    settle it.
+  - Up to the assistant's tool-round limit; medium effort; refusal fallback
+    on Opus and Sonnet.
+  - The answer is structured JSON:
+    - a summary, in English and Arabic;
+    - likely causes, in English and Arabic;
+    - one next step — MESSAGE (a draft to send), CHECK (what to look at)
+      or CHANGE (a change to consider) — with a title and body in both
+      languages.
+- **Data.** `agent_investigations`:
+  - run, finding index and code, who asked;
+  - status OK / FAILED (CHECK: a result exactly when OK), or the reason it
+    failed;
+  - model, tokens, and the tools called.
+  - Row-level security; insert and read only.
+- **Where.** Under each finding on the run page, in the reader's language,
+  naming the model and the tools it read.
+- **Not yet.** Investigating automatically on critical findings, turning a
+  drafted change into a proposal, sending a drafted message.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

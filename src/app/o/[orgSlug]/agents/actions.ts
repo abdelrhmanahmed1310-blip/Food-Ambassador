@@ -6,6 +6,7 @@ import type { AgentKindCode } from "@/modules/agents/rules";
 import {
   decideProposal,
   explainAgentRun,
+  investigateAgentFinding,
   runAgentNow,
   setAgentActionsPaused,
   stopScheduledAction,
@@ -146,5 +147,22 @@ export async function setActionsPausedAction(
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await setAgentActionsPaused(ctx, paused);
     return { message: t(paused ? "paused" : "resumed") };
+  });
+}
+
+/** Ask Claude to investigate one finding (ADR-148). */
+export async function investigateAction(
+  orgSlug: string,
+  runId: string,
+  findingIndex: number,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    const r = await investigateAgentFinding(ctx, runId, findingIndex);
+    return r.status === "OK"
+      ? { message: t("investigated") }
+      : { ok: false, formError: t("investigationFailed", { error: r.error ?? "" }) };
   });
 }

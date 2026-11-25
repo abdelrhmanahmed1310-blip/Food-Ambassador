@@ -8439,7 +8439,19 @@
     "stop": "أوقفه",
     "stopped": "أُوقف: عاد إلى صندوق الوارد كمقترح.",
     "actedByAgent": "نفّذه الوكيل ضمن حدوده",
-    "actionError": "تعذّر على الوكيل تنفيذ هذا: {error}"
+    "actionError": "تعذّر على الوكيل تنفيذ هذا: {error}",
+    "investigate": "التحقق بواسطة Claude",
+    "investigateAgain": "تحقق مرة أخرى",
+    "investigating": "جارٍ التحقق…",
+    "investigated": "كُتب التحقق.",
+    "investigationFailed": "لا يوجد تحقق: {error}",
+    "causes": "الأسباب المحتملة",
+    "nextStepKinds": {
+      "MESSAGE": "مسودة رسالة",
+      "CHECK": "ما يجب فحصه",
+      "CHANGE": "تغيير مقترح"
+    },
+    "investigatedBy": "تحقق Claude ‏({model}) بقراءة: {tools}. لم يُغيَّر أو يُرسَل شيء؛ راجع الأرقام قبل اتخاذ أي إجراء."
   },
   "oauth": {
     "title": "هل تسمح لـ {app} باستخدام Food Ambassador؟",

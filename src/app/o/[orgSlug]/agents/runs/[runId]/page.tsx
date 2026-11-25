@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/primitives";
 import { isUuid } from "@/lib/uuid";
 import { canUseAssistant } from "@/modules/assistant/service";
-import { getRun } from "@/modules/agents/service";
+import { getRun, runInvestigations } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
-import { explainRunAction } from "../../actions";
+import { explainRunAction, investigateAction } from "../../actions";
 
 type Figure = {
   branchId: string;
@@ -42,7 +42,9 @@ export default async function AgentRunPage({
     getFormatter(),
     getLocale(),
   ]);
-  const explanation = run.explanation ? run.explanation[locale === "ar" ? "ar" : "en"] : null;
+  const lang = locale === "ar" ? "ar" : "en";
+  const explanation = run.explanation ? run.explanation[lang] : null;
+  const investigations = await runInvestigations(ctx, run.id);
   const canExplain = run.status === "SUCCEEDED" && canUseAssistant(ctx);
   const base = `/o/${orgSlug}`;
   const summary = run.summary as Record<string, unknown>;
@@ -143,20 +145,71 @@ export default async function AgentRunPage({
             <p className="text-muted text-sm">{t("noFindings")}</p>
           ) : (
             <ul className="space-y-2 text-sm" data-testid="findings">
-              {run.findings.map((f, i) => (
-                <li key={i} className="flex flex-wrap items-baseline gap-2">
-                  <Badge tone={tone[f.severity]}>{t(`severity.${f.severity}`)}</Badge>
-                  <span>{t(`findings.${f.code as "NO_SALES"}`, f.params)}</span>
-                  {f.link ? (
-                    <Link
-                      href={`${base}/${f.link}`}
-                      className="text-primary text-xs hover:underline"
-                    >
-                      {t("open")}
-                    </Link>
-                  ) : null}
-                </li>
-              ))}
+              {run.findings.map((f, i) => {
+                const inv = investigations.get(i);
+                return (
+                  <li key={i} className="space-y-2">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <Badge tone={tone[f.severity]}>{t(`severity.${f.severity}`)}</Badge>
+                      <span>{t(`findings.${f.code as "NO_SALES"}`, f.params)}</span>
+                      {f.link ? (
+                        <Link
+                          href={`${base}/${f.link}`}
+                          className="text-primary text-xs hover:underline"
+                        >
+                          {t("open")}
+                        </Link>
+                      ) : null}
+                      {canExplain ? (
+                        <ActionForm
+                          action={investigateAction.bind(null, orgSlug, run.id, i)}
+                          submitLabel={inv ? t("investigateAgain") : t("investigate")}
+                          pendingLabel={t("investigating")}
+                          submitVariant="secondary"
+                          className="inline-flex flex-col gap-1"
+                        >
+                          <span />
+                        </ActionForm>
+                      ) : null}
+                    </div>
+                    {inv?.result ? (
+                      <div
+                        className="border-border bg-surface-muted space-y-2 rounded-md border p-3"
+                        data-testid="investigation"
+                      >
+                        <p className="whitespace-pre-line">{inv.result.summary[lang]}</p>
+                        {inv.result.causes.length ? (
+                          <div>
+                            <p className="font-medium">{t("causes")}</p>
+                            <ul className="list-disc ps-5">
+                              {inv.result.causes.map((c, k) => (
+                                <li key={k}>{c[lang]}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        <div>
+                          <p className="font-medium">
+                            {t(`nextStepKinds.${inv.result.nextStep.kind}`)}:{" "}
+                            {inv.result.nextStep.title[lang]}
+                          </p>
+                          <p className="whitespace-pre-line">{inv.result.nextStep.body[lang]}</p>
+                        </div>
+                        <p className="text-muted text-xs">
+                          {t("investigatedBy", {
+                            model: inv.model ?? "",
+                            tools: inv.toolCalls.map((c) => c.name).join(", ") || "—",
+                          })}
+                        </p>
+                      </div>
+                    ) : inv ? (
+                      <p className="text-danger text-xs">
+                        {t("investigationFailed", { error: inv.error ?? "" })}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>

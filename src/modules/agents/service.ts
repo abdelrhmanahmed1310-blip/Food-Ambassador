@@ -21,6 +21,7 @@ import { canRunFoodSafety, runFoodSafety } from "./food-safety";
 import { canRunInvoiceMatching, runInvoiceMatching } from "./invoice-matching";
 import { canRunMenuMargin, runMenuMargin } from "./menu-margin";
 import { explainRun, explainRunNow } from "./explain";
+import { investigateFinding, investigationsOf } from "./investigate";
 import { readExplanation } from "./explain-rules";
 import { canRunReplenishment, runReplenishment, type NewProposal } from "./replenishment";
 import {
@@ -566,6 +567,24 @@ export async function getRun(ctx: TenantContext, runId: string) {
     findings: run.findings as unknown as Finding[],
     explanation: readExplanation(run.explanation),
   };
+}
+
+/** Claude investigates one finding of a run the person may see (ADR-148). */
+export async function investigateAgentFinding(
+  ctx: TenantContext,
+  runId: string,
+  findingIndex: number,
+) {
+  const run = await getRun(ctx, runId);
+  if (run.status !== "SUCCEEDED")
+    throw businessRuleViolation("AGENT_RUN_NOT_SUCCEEDED", "Only a successful run is investigated");
+  return investigateFinding(ctx, run.id, findingIndex);
+}
+
+/** The latest investigation of each finding, for a run the person may see. */
+export async function runInvestigations(ctx: TenantContext, runId: string) {
+  await getRun(ctx, runId);
+  return investigationsOf(ctx, runId);
 }
 
 /** Explain a run (again) from its page (ADR-141). */

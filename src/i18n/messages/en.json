@@ -8439,7 +8439,19 @@
     "stop": "Stop it",
     "stopped": "Stopped: it is back in the inbox as a proposal.",
     "actedByAgent": "Carried out by the agent within its limits",
-    "actionError": "The agent could not carry this out: {error}"
+    "actionError": "The agent could not carry this out: {error}",
+    "investigate": "Investigate with Claude",
+    "investigateAgain": "Investigate again",
+    "investigating": "Investigating…",
+    "investigated": "Investigation written.",
+    "investigationFailed": "No investigation: {error}",
+    "causes": "Likely causes",
+    "nextStepKinds": {
+      "MESSAGE": "Draft message",
+      "CHECK": "What to check",
+      "CHANGE": "Change to consider"
+    },
+    "investigatedBy": "Investigated by Claude ({model}), reading: {tools}. Nothing was changed or sent; check the figures before acting."
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",

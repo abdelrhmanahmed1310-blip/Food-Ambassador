@@ -331,6 +331,7 @@ model Organization {
   oauthTokens                  OAuthToken[]
   usageDaily                   UsageDaily[]
   billingStatements            BillingStatement[]
+  agentInvestigations          AgentInvestigation[]
   haccpPlans                   HaccpPlan[]
   haccpSteps                   HaccpStep[]
   haccpHazards                 HaccpHazard[]
@@ -9325,9 +9326,10 @@ model AgentRun {
   explanationError        String?         @map("explanation_error")
   explainedAt             DateTime?       @map("explained_at") @db.Timestamptz(3)
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  agent        Agent           @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
-  proposals    AgentProposal[]
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  agent          Agent                @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
+  proposals      AgentProposal[]
+  investigations AgentInvestigation[]
 
   @@unique([organizationId, id])
   @@index([organizationId, agentId, startedAt])
@@ -9510,4 +9512,34 @@ model BillingStatement {
 
   @@unique([organizationId, month])
   @@map("billing_statements")
+}
+
+// ─── Claude investigates agent findings (ADR-148) ───
+
+/// Claude's look into one finding of a run, asked for by a person: what it read, found and suggests.
+model AgentInvestigation {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  runId             String   @map("run_id") @db.Uuid
+  /// Position of the finding in the run's findings, and its code.
+  findingIndex      Int      @map("finding_index")
+  findingCode       String   @map("finding_code")
+  requestedByUserId String   @map("requested_by_user_id") @db.Uuid
+  /// OK or FAILED.
+  status            String
+  /// { summary: {en, ar}, causes: [{en, ar}], nextStep: { kind, title: {en, ar}, body: {en, ar} } }
+  result            Json?
+  error             String?
+  model             String?
+  inputTokens       Int      @default(0) @map("input_tokens")
+  outputTokens      Int      @default(0) @map("output_tokens")
+  /// [{ name, ok }]
+  toolCalls         Json     @default("[]") @map("tool_calls")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  run          AgentRun     @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, runId, findingIndex, createdAt])
+  @@map("agent_investigations")
 }
