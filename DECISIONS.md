@@ -4873,6 +4873,21 @@ and approve the rest.
 - **Not covered.** Lines of draft purchase orders the agent prepared; those
   are edited on the order itself.
 
+### ADR-157 AgaaS: weekdays per agent — Accepted (built)
+
+Decision (2026-11-25): besides the hour, each agent's settings choose the
+weekdays it runs on, for example replenishment Sunday to Thursday only.
+
+- Stored as `agents.run_days`, ISO weekdays 1 (Monday) to 7 (Sunday), all
+  seven by default. A CHECK keeps at least one day and valid numbers only.
+  The service sorts the days and removes repeats.
+- The scheduler starts an agent only on its weekdays, in the organization's
+  time zone, from its hour. "Run now" still works on any day.
+- The daily close checks the day before its run. A day after a skipped
+  weekday is not checked automatically; run it from the agent's page if
+  needed.
+- Audited with the other settings (`agent.updated`).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

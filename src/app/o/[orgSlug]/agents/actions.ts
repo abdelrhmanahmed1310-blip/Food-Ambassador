@@ -70,6 +70,7 @@ export async function saveAgentAction(
       enabled: formData.get("enabled") === "on",
       autonomy: v("autonomy"),
       runHour: v("runHour"),
+      runDays: formData.getAll("runDays").map(String),
       settings,
     });
     return { message: t("savedSuccessfully") };

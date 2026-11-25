@@ -8525,7 +8525,8 @@
     "dropLine": "Drop this line",
     "lineDropped": "Line dropped from the suggestion.",
     "pausedTitle": "Products the agent stopped proposing",
-    "pausedUntil": "until {date}"
+    "pausedUntil": "until {date}",
+    "runDays": "Runs on"
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",

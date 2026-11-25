@@ -8525,7 +8525,8 @@
     "dropLine": "إسقاط هذا البند",
     "lineDropped": "تم إسقاط البند من الاقتراح.",
     "pausedTitle": "منتجات توقف الوكيل عن اقتراحها",
-    "pausedUntil": "حتى {date}"
+    "pausedUntil": "حتى {date}",
+    "runDays": "يعمل في الأيام"
   },
   "oauth": {
     "title": "هل تسمح لـ {app} باستخدام Food Ambassador؟",

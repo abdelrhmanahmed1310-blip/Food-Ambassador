@@ -303,4 +303,37 @@ describe("daily close agent (ADR-140)", () => {
     const early = await dueAgents(new Date(), at(2));
     expect(early.filter((a) => a.organizationId === ctx.organizationId)).toEqual([]);
   });
+
+  it("runs only on its weekdays (ADR-157)", async () => {
+    const mine = async (date: string) =>
+      (await dueAgents(new Date(), () => ({ date, hour: 23 }))).filter(
+        (a) => a.organizationId === ctx.organizationId,
+      ).length;
+    await expectAppError(
+      updateAgent(ctx, "REPLENISHMENT", {
+        enabled: true,
+        autonomy: "SUGGEST",
+        runHour: "6",
+        runDays: [],
+        settings: { basis: "MIN_MAX" },
+      }),
+      "VALIDATION_FAILED",
+    );
+    // Sunday to Thursday only: due on Monday, not on Friday.
+    await updateAgent(ctx, "REPLENISHMENT", {
+      enabled: true,
+      autonomy: "SUGGEST",
+      runHour: "6",
+      runDays: ["7", "1", "2", "3", "4", "4"],
+      settings: { basis: "MIN_MAX" },
+    });
+    const agent = await getDb().agent.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, kind: "REPLENISHMENT" },
+    });
+    expect(agent.runDays).toEqual([1, 2, 3, 4, 7]);
+    expect(await mine("2026-11-23")).toBe(2); // Monday
+    expect(await mine("2026-11-27")).toBe(1); // Friday: only the daily close
+    await replenishment("SUGGEST"); // every day again
+    expect(await mine("2026-11-27")).toBe(2);
+  });
 });

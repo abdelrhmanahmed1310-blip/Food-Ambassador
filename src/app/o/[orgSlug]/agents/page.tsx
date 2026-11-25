@@ -16,8 +16,9 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
   const { orgSlug } = await params;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "org.settings.manage")) notFound();
-  const [t, format, agents, o, controls] = await Promise.all([
+  const [t, tDays, format, agents, o, controls] = await Promise.all([
     getTranslations("agents"),
+    getTranslations("salesReport.weekdays"),
     getFormatter(),
     listAgents(ctx),
     agentFormOptions(ctx),
@@ -99,6 +100,7 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
                   enabled: a.enabled,
                   autonomy: a.autonomy,
                   runHour: a.runHour,
+                  runDays: a.runDays,
                   ...a.settings,
                 }}
                 options={{
@@ -109,6 +111,10 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
                   hours: Array.from({ length: 24 }, (_, h) => ({
                     value: String(h),
                     label: `${String(h).padStart(2, "0")}:00`,
+                  })),
+                  weekdays: (["1", "2", "3", "4", "5", "6", "7"] as const).map((d) => ({
+                    value: d,
+                    label: tDays(d),
                   })),
                   warehouses: o.warehouses.map((w) => ({
                     value: w.id,
@@ -129,6 +135,7 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
                   enabled: t("enabled"),
                   autonomy: t("autonomyLabel"),
                   runHour: t("runHour"),
+                  runDays: t("runDays"),
                   warehouses: t("warehouses"),
                   warehousesHint: t("warehousesHint"),
                   basis: t("basis"),

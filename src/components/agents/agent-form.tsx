@@ -26,6 +26,7 @@ export function AgentForm({
     enabled: boolean;
     autonomy: string;
     runHour: number;
+    runDays: number[];
     warehouseIds?: string[];
     basis?: string;
     branchIds?: string[];
@@ -47,6 +48,7 @@ export function AgentForm({
   options: {
     autonomy: Option[];
     hours: Option[];
+    weekdays: Option[];
     warehouses: Option[];
     branches: Option[];
     bases: Option[];
@@ -57,6 +59,7 @@ export function AgentForm({
     | "enabled"
     | "autonomy"
     | "runHour"
+    | "runDays"
     | "warehouses"
     | "warehousesHint"
     | "basis"
@@ -108,6 +111,14 @@ export function AgentForm({
           defaultValue={String(defaults.runHour)}
           required
         />
+        <div className="sm:col-span-2">
+          <CheckboxGroup
+            name="runDays"
+            legend={labels.runDays}
+            options={options.weekdays}
+            defaultValues={defaults.runDays.map(String)}
+          />
+        </div>
         {kind === "REPLENISHMENT" ? (
           <SelectField
             name="basis"

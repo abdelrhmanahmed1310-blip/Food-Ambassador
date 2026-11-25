@@ -9280,6 +9280,8 @@ model Agent {
   autonomy       AgentAutonomy @default(SUGGEST)
   /// Local hour (0–23, the organization's time zone) of the daily run.
   runHour        Int           @default(6) @map("run_hour")
+  /// ISO weekdays it runs on (1 = Monday … 7 = Sunday), in the organization's time zone (ADR-157).
+  runDays        Int[]         @default([1, 2, 3, 4, 5, 6, 7]) @map("run_days")
   /// Whose permissions the agent uses; set by the person who switches it on.
   runAsUserId    String?       @map("run_as_user_id") @db.Uuid
   /// Kind-specific options (warehouses, order basis…), validated by the service.

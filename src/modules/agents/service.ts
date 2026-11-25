@@ -20,6 +20,7 @@ import { canRunDailyClose, runDailyClose } from "./daily-close";
 import { canRunFoodSafety, runFoodSafety } from "./food-safety";
 import { canRunInvoiceMatching, runInvoiceMatching } from "./invoice-matching";
 import { canRunMenuMargin, runMenuMargin } from "./menu-margin";
+import { isoWeekday } from "./digest-rules";
 import { explainRun, explainRunNow } from "./explain";
 import { PAUSE_LOOKBACK_MS, PAUSING_REASONS, pausedUntil } from "./pause-rules";
 import { investigateFinding, investigationsOf, type InvestigationResult } from "./investigate";
@@ -52,6 +53,7 @@ import {
 
 type Json = Prisma.InputJsonValue;
 const FEATURE = "agents.center";
+const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 /** Who can do each agent's work, and so lend it their access (ADR-140, ADR-142). */
 const CAN_RUN: Record<AgentKindCode, (ctx: TenantContext) => boolean> = {
@@ -113,6 +115,13 @@ const updateSchema = z.object({
   enabled: z.boolean(),
   autonomy: z.enum(AGENT_AUTONOMY, { error: "invalidOption" }),
   runHour: z.coerce.number().int().min(0).max(23, { error: "invalidHour" }),
+  // The weekdays it runs on (ADR-157): at least one, ISO numbers.
+  runDays: z
+    .array(z.coerce.number().int().min(1).max(7))
+    .min(1, { error: "required" })
+    .max(7)
+    .default([...ALL_DAYS])
+    .transform((d) => [...new Set(d)].sort()),
   settings: z.record(z.string(), z.unknown()).default({}),
 });
 
@@ -151,6 +160,7 @@ export async function updateAgent(ctx: TenantContext, kind: AgentKindCode, raw: 
         enabled: input.enabled,
         autonomy: input.autonomy,
         runHour: input.runHour,
+        runDays: input.runDays,
         settings: settings.data as Json,
         // Whoever saves it switched on lends it their access from then on.
         ...(input.enabled ? { runAsUserId: ctx.userId } : {}),
@@ -165,6 +175,7 @@ export async function updateAgent(ctx: TenantContext, kind: AgentKindCode, raw: 
         enabled: input.enabled,
         autonomy: input.autonomy,
         runHour: input.runHour,
+        runDays: input.runDays,
         ...(turningOn ? { runAs: ctx.userId } : {}),
       },
     });
@@ -564,6 +575,7 @@ export async function dueAgents(
         id: true,
         organizationId: true,
         runHour: true,
+        runDays: true,
         runAsUserId: true,
         organization: { select: { timeZone: true, disabledFeatures: true } },
       },
@@ -571,6 +583,8 @@ export async function dueAgents(
     return agents.flatMap((a) => {
       const local = localDateHour(now, a.organization.timeZone);
       if (local.hour < a.runHour) return [];
+      // Only on its weekdays (ADR-157).
+      if (!a.runDays.includes(isoWeekday(local.date))) return [];
       if (!featureOn({ disabledFeatures: a.organization.disabledFeatures }, FEATURE)) return [];
       return [
         {
