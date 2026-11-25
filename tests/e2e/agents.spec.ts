@@ -69,5 +69,11 @@ test("agents: switch on, run now, see the run and the inbox (ADR-140)", async ({
   await expect(
     page.getByRole("alert").filter({ hasText: "The assistant is not switched on." }),
   ).toBeVisible();
+  // ADR-150: performance per agent, from the records.
+  await page.getByTestId("process-tabs").getByRole("link", { name: "Performance" }).click();
+  await expect(page.getByRole("heading", { name: "Agent performance" })).toBeVisible();
+  await expect(page.getByTestId("performance-DAILY_CLOSE")).toContainText(
+    "Too few decisions to say",
+  );
   await context.close();
 });

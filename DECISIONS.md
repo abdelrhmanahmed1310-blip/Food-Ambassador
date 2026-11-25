@@ -4673,6 +4673,40 @@ step can become a follow-up in the inbox.
 - **Data.** `agent_investigations.automatic`; the proposal-kind CHECK gains
   FOLLOW_UP.
 
+### ADR-150 AgaaS: agent performance from the records — Accepted (built)
+
+Decision (2026-11-25): a Performance page in the Agents section shows, for
+each agent the person may see and for the last six months (in the
+organization's calendar), what happened.
+
+- **Counted, never estimated:**
+  - runs (and failed ones);
+  - findings by severity;
+  - proposals made;
+  - approved by a person;
+  - rejected;
+  - superseded;
+  - still open or scheduled;
+  - carried out by the agent;
+  - stopped during a hold;
+  - follow-ups taken on;
+  - the median hours from proposal to a person's decision;
+  - AI tokens for explanations and investigations.
+    There is no "time saved" or money figure.
+- **Approval rate.** Approved ÷ (approved + rejected) by people. Follow-ups
+  and the agent's own actions are not counted.
+- **Readiness hint** (a hint, not a switch):
+  - READY: at least 20 decided proposals, 90 % or more approved and none
+    rejected this month;
+  - TOO_FEW: fewer decisions than that;
+  - MIXED: otherwise.
+    It helps decide when to let an agent act within limits (ADR-145).
+- **Sources.** `agent_runs` (status, findings, explanation tokens),
+  `agent_proposals` (status, `acted_by_agent`, decision times),
+  `audit_events` (`agent.action_stopped`), and `agent_investigations`
+  (tokens), all filtered by organization.
+- **Not yet.** Charts, comparing branches, exporting the figures.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

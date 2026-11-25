@@ -50,6 +50,7 @@ export async function navLinks(ctx: TenantContext): Promise<NavItem[]> {
     main.items.push(
       { href: `${base}/agents/inbox`, label: t("agentsInbox") },
       { href: `${base}/agents/runs`, label: t("agentsRuns") },
+      { href: `${base}/agents/performance`, label: t("agentsPerformance") },
     );
   if (hasPermission(ctx.grants, "org.settings.manage"))
     main.items.push({ href: `${base}/agents`, label: t("agentsSettings") });

@@ -280,7 +280,8 @@
     "agentsInbox": "Inbox",
     "agentsRuns": "Runs",
     "agentsSettings": "Agents",
-    "usage": "Usage & limits"
+    "usage": "Usage & limits",
+    "agentsPerformance": "Performance"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -8460,7 +8461,30 @@
     "addFollowUp": "Add to the inbox",
     "followUpAdded": "Added to the inbox as a follow-up.",
     "approveFollowUp": "Accept — I'll take it on",
-    "fromRun": "See the run and the finding"
+    "fromRun": "See the run and the finding",
+    "performanceTitle": "Agent performance",
+    "performanceIntro": "For each agent, month by month: its runs and findings, what happened to its proposals, and what its Claude work used. Counted from the records only.",
+    "readinessRule": "An agent reads as ready to act within limits when at least {min} of its proposals were decided by people, {percent}% or more were approved, and none was rejected this month.",
+    "readiness": {
+      "READY": "Ready to act within limits",
+      "MIXED": "Keep reviewing",
+      "TOO_FEW": "Too few decisions to say"
+    },
+    "noDecisions": "No proposal decided by a person yet.",
+    "approvalRate": "{percent}% approved ({approved} approved, {rejected} rejected)",
+    "perfMonth": "Month",
+    "perfRuns": "Runs",
+    "perfFailed": "failed",
+    "perfFindings": "Findings (critical · warning · info)",
+    "perfProposals": "Proposals",
+    "perfApproved": "Approved",
+    "perfRejected": "Rejected",
+    "perfActed": "Done by the agent",
+    "perfStopped": "Stopped",
+    "perfFollowUps": "Follow-ups taken",
+    "perfDecisionHours": "Hours to decide (median)",
+    "perfTokens": "AI tokens",
+    "perfNote": "Months follow the organization's time zone. Approved means approved by a person as proposed; the app has no estimate of time or money saved."
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",
