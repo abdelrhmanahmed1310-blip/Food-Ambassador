@@ -19,6 +19,11 @@ export function previousWeek(monday: string): { from: string; to: string } | nul
   return { from: addDays(monday, -7), to: addDays(monday, -1) };
 }
 
+/** The Monday of the week a date falls in. */
+export function mondayOf(date: string): string {
+  return addDays(date, 1 - isoWeekday(date));
+}
+
 /** The first Monday after a date (for tests and previews). */
 export function nextMonday(date: string): string {
   return addDays(date, 8 - isoWeekday(date));

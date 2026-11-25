@@ -4776,8 +4776,7 @@ before.
 - **When nothing is sent:** the agents module is off, no agent was ever
   set up, the person sees no agent, or every figure is zero.
 - **Once per week and person** (dedupe key `agent-digest:<week start>`).
-  The link goes to the inbox when something waits, otherwise to
-  Performance.
+  The link opens the Weekly page for that week (ADR-158).
 - **Opting out.** Each person can switch it off under notification
   preferences ("Weekly agent summary").
 - **Not sent by email or chat:** no provider is chosen yet (decision D2).
@@ -4887,6 +4886,30 @@ weekdays it runs on, for example replenishment Sunday to Thursday only.
   weekday is not checked automatically; run it from the agent's page if
   needed.
 - Audited with the other settings (`agent.updated`).
+
+### ADR-158 AgaaS: the Weekly page — Accepted (built)
+
+Decision (2026-11-25): Agents → Weekly shows one Monday-to-Sunday week of
+agent work. It opens on the last full week, the same one as the Monday
+summary (ADR-153). People can step back week by week, but never into a
+future week.
+
+- **Per agent the person may see,** the digest figures:
+  - runs and failed runs;
+  - critical findings;
+  - proposals made;
+  - approved, rejected, and done by the agent.
+
+  Runs and proposals count by the day they started. Decisions count by the
+  day they were taken.
+
+- **The week's runs** link to each run page, with counts of findings and
+  proposals. **The proposals made** show their status and link to the inbox
+  list for that status. Each list shows up to 200.
+- **The Monday notification** now opens this page for its week
+  (`/agents/week?week=<Monday>`).
+- **One query** gives the page and the digest the same figures, so they
+  always agree.
 
 ## Business assumptions (recorded, not invented rules)
 

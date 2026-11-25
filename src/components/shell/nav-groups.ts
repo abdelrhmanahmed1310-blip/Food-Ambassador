@@ -54,7 +54,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
       {
         key: "agents",
         icon: "agents",
-        paths: ["agents/inbox", "agents/runs", "agents/performance", "agents"],
+        paths: ["agents/inbox", "agents/runs", "agents/week", "agents/performance", "agents"],
       },
       // Kept in view for every member (ADR-131).
       { key: "consultant", icon: "consultant", paths: ["consultant"] },

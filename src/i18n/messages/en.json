@@ -281,6 +281,7 @@
     "agentsRuns": "Runs",
     "agentsSettings": "Agents",
     "usage": "Usage & limits",
+    "agentsWeek": "Weekly",
     "agentsPerformance": "Performance"
   },
   "home": {
@@ -8526,7 +8527,20 @@
     "lineDropped": "Line dropped from the suggestion.",
     "pausedTitle": "Products the agent stopped proposing",
     "pausedUntil": "until {date}",
-    "runDays": "Runs on"
+    "runDays": "Runs on",
+    "weekTitle": "Agent week",
+    "weekRange": "Monday {from} to Sunday {to}",
+    "weekPrevious": "← Previous week",
+    "weekNext": "Next week →",
+    "weekByAgent": "By agent",
+    "weekAgent": "Agent",
+    "weekCritical": "Critical findings",
+    "weekNote": "Runs and proposals count by the day they started; approved, rejected and done by the agent count by the day they were decided. Only the agents you may see.",
+    "weekRuns": "Runs",
+    "weekNoRuns": "No runs this week.",
+    "weekProposals": "Proposals made",
+    "weekNoProposals": "No proposals this week.",
+    "weekRunCounts": "{findings, plural, one {# finding} other {# findings}}, {proposals, plural, one {# proposal} other {# proposals}}"
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",

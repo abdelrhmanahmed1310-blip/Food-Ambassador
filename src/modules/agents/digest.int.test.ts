@@ -3,8 +3,8 @@ import { businessDate } from "@/modules/inventory/rules";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
 import { createTenant } from "../../../test/support/factories";
-import { weeklyAgentDigest } from "./digest";
-import { nextMonday } from "./digest-rules";
+import { weekOverview, weeklyAgentDigest } from "./digest";
+import { nextMonday, previousWeek } from "./digest-rules";
 import { decideProposal, runAgentNow, updateAgent } from "./service";
 
 /** The weekly agent digest (ADR-153). */
@@ -94,8 +94,21 @@ describe("weekly agent digest (ADR-153)", () => {
       acted: 0,
       waiting: 1,
     });
-    expect(n.link).toBe("/agents/inbox");
+    expect(n.link).toBe(`/agents/week?week=${previousWeek(monday)!.from}`);
     // Once per week.
     expect((await weeklyAgentDigest(ctx.organizationId, monday)).notified).toBe(0);
+
+    // The Weekly page shows the same week per agent, with its runs and proposals (ADR-158).
+    const week = await weekOverview(ctx, businessDate(ctx.timeZone));
+    expect(week.from).toBe(previousWeek(monday)!.from);
+    expect(week.agents.find((a) => a.kind === "MENU_MARGIN")!.figures).toMatchObject({
+      runs: 1,
+      critical: 1,
+      proposals: 3,
+      approved: 1,
+      rejected: 1,
+    });
+    expect(week.runs.map((r) => r.kind).sort()).toEqual(["DAILY_CLOSE", "MENU_MARGIN"]);
+    expect(week.proposals.map((p) => p.title).sort()).toEqual(["Dish A", "Dish B", "Dish C"]);
   });
 });

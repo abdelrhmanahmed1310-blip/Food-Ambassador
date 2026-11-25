@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { digestFor, emptyWeek, isoWeekday, nextMonday, previousWeek } from "./digest-rules";
+import {
+  digestFor,
+  emptyWeek,
+  isoWeekday,
+  mondayOf,
+  nextMonday,
+  previousWeek,
+} from "./digest-rules";
 
 /** The weekly agent digest (ADR-153). */
 
@@ -12,6 +19,10 @@ describe("weekly agent digest rules", () => {
     expect(nextMonday("2026-11-25")).toBe("2026-11-30");
     expect(nextMonday("2026-11-30")).toBe("2026-12-07");
     expect(nextMonday("2026-12-28")).toBe("2027-01-04");
+    expect(mondayOf("2026-11-25")).toBe("2026-11-23");
+    expect(mondayOf("2026-11-29")).toBe("2026-11-23");
+    expect(mondayOf("2026-11-30")).toBe("2026-11-30");
+    expect(mondayOf("2027-01-01")).toBe("2026-12-28");
   });
 
   it("sums only the agents the person may see, and is null for a quiet week", () => {

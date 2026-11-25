@@ -281,6 +281,7 @@
     "agentsRuns": "التشغيلات",
     "agentsSettings": "الوكلاء",
     "usage": "الاستخدام والحدود",
+    "agentsWeek": "أسبوعي",
     "agentsPerformance": "الأداء"
   },
   "home": {
@@ -8526,7 +8527,20 @@
     "lineDropped": "تم إسقاط البند من الاقتراح.",
     "pausedTitle": "منتجات توقف الوكيل عن اقتراحها",
     "pausedUntil": "حتى {date}",
-    "runDays": "يعمل في الأيام"
+    "runDays": "يعمل في الأيام",
+    "weekTitle": "أسبوع الوكلاء",
+    "weekRange": "من الاثنين {from} إلى الأحد {to}",
+    "weekPrevious": "→ الأسبوع السابق",
+    "weekNext": "الأسبوع التالي ←",
+    "weekByAgent": "حسب الوكيل",
+    "weekAgent": "الوكيل",
+    "weekCritical": "نتائج حرجة",
+    "weekNote": "تُحسب عمليات التشغيل والاقتراحات بيوم بدئها؛ وتُحسب الموافقات والرفض وما نفذه الوكيل بيوم القرار. فقط الوكلاء المسموح لك برؤيتهم.",
+    "weekRuns": "عمليات التشغيل",
+    "weekNoRuns": "لا عمليات تشغيل هذا الأسبوع.",
+    "weekProposals": "الاقتراحات المقدمة",
+    "weekNoProposals": "لا اقتراحات هذا الأسبوع.",
+    "weekRunCounts": "{findings} نتيجة، {proposals} اقتراح"
   },
   "oauth": {
     "title": "هل تسمح لـ {app} باستخدام Food Ambassador؟",

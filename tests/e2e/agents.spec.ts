@@ -80,5 +80,9 @@ test("agents: switch on, run now, see the run and the inbox (ADR-140)", async ({
     "Switch the agent on in its settings first.",
   );
   await expect(page.getByTestId("trust-DAILY_CLOSE")).toHaveCount(0);
+  // ADR-158: a week of agent work, per agent (last full week by default).
+  await page.getByTestId("process-tabs").getByRole("link", { name: "Weekly" }).click();
+  await expect(page.getByRole("heading", { name: "Agent week" })).toBeVisible();
+  await expect(page.getByTestId("week-DAILY_CLOSE")).toBeVisible();
   await context.close();
 });
