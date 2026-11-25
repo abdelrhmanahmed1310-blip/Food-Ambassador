@@ -17,6 +17,7 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { withSystemTx, withTenantTx, type Tx } from "@/server/db/transactions";
 import { getEnv } from "@/server/env";
 import { businessRuleViolation, notFound, validationFailed } from "@/server/errors";
+import { recordUsage, withinLimit } from "@/modules/usage/service";
 import { assistantClient, describeProviderError } from "./client";
 import {
   ASSISTANT_MODELS,
@@ -255,6 +256,9 @@ export async function askAssistant(
   if (!parsed.success) throw validationFailed(parsed.error);
   // A new conversation needs the right for its mode; an existing one, for the mode it was started in.
   if (!parsed.data.conversationId) assertCanUse(ctx, parsed.data.mode ?? "BUSINESS");
+  // The organization's monthly AI token limit (ADR-146).
+  if (!(await withinLimit(ctx.organizationId, "aiTokensPerMonth")))
+    throw businessRuleViolation("USAGE_LIMIT_REACHED", "The monthly AI limit is reached");
   const { text: question, removed } = scrubPersonalData(parsed.data.question);
   const today = businessDate(ctx.timeZone);
 
@@ -435,6 +439,8 @@ export async function askAssistant(
     providerError = describeProviderError(error);
   }
 
+  await recordUsage(ctx.organizationId, "ai.input_tokens", inputTokens, servedBy, ctx.timeZone);
+  await recordUsage(ctx.organizationId, "ai.output_tokens", outputTokens, servedBy, ctx.timeZone);
   // 3. Store the answer (or what went wrong) and the record of what was read.
   const text =
     providerError !== null

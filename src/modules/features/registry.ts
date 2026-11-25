@@ -288,6 +288,7 @@ export const MODULES: ModuleDef[] = [
           "settings/jobs",
           "settings/tax",
           "settings/modules",
+          "settings/usage",
         ],
         core: true,
       },

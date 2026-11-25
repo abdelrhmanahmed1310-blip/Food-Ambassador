@@ -4522,6 +4522,43 @@ same services and approval chains.
 - **Not yet.** Per-branch or per-supplier limits, acting on credit requests,
   limits learnt from approval history.
 
+### ADR-146 AgaaS: usage metering, limits and the monthly statement — Accepted (built)
+
+Decision (2026-11-25): the app counts what each organization uses of the
+agent and AI features, lets the organization cap it, and gives a monthly
+statement to bill from. It does not price anything: plans and prices are
+agreed outside the app, and no price is invented in it.
+
+- **What is counted** (`usage_daily`: organization, day in its own time
+  zone, metric, dimension, quantity):
+  - `agent.runs`: successful runs, by agent kind.
+  - `agent.actions`: proposals agents carried out themselves (ADR-145), by
+    kind.
+  - `agent.approvals`: proposals people approved, by kind.
+  - `ai.input_tokens` and `ai.output_tokens`: Claude tokens for the
+    assistant and run explanations, by the model that served them.
+  - `mcp.calls`: MCP tool calls, by tool (ADR-143).
+  - Counting is an upsert after the work; it never fails the work it
+    counts. A CHECK lists the metrics, and quantities are never negative.
+- **Limits** (`organizations.usage_limits`, set by settings managers, empty
+  for none):
+  - Agent actions a month: past it, agents only propose. Already scheduled
+    actions go back to people, and new ones are not scheduled beyond what
+    is left.
+  - AI tokens a month (input and output together): past it, the assistant
+    refuses questions (USAGE_LIMIT_REACHED) and explanations are not
+    written; the run says why.
+  - MCP calls a day: past it, tool calls return a tool error.
+  - Months and days follow the organization's calendar.
+- **Settings → Usage & limits.**
+  - Each limit, what is used against it in the current period, and the
+    share.
+  - Any month's usage by metric and dimension.
+  - The statement as CSV or Excel: one line per day, metric and dimension.
+- **Not yet.** Plans and prices, invoices and payment collection, a
+  platform-operator console across organizations, warnings before a limit
+  is reached.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

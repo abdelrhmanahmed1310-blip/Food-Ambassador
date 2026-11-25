@@ -3,6 +3,7 @@ import { authenticateApiRequest } from "@/modules/api/clients";
 import { MCP_SCOPES } from "@/modules/api/scopes";
 import { featureOn } from "@/modules/features/access";
 import { authenticateAccessToken } from "@/modules/oauth/service";
+import { recordUsage, withinLimit } from "@/modules/usage/service";
 import { resolveTenantContext, type TenantContext } from "@/modules/tenancy/context";
 import { withSystemTx } from "@/server/db/transactions";
 import type { ToolHost } from "./protocol";
@@ -82,7 +83,13 @@ export function toolHost(ctx: TenantContext, scopes: readonly string[]): ToolHos
     list: () => tools,
     async call(name, input) {
       const t = tools.find((x) => x.name === name);
-      return t ? t.run(ctx, input) : null;
+      if (!t) return null;
+      // The organization's daily MCP call limit (ADR-146).
+      if (!(await withinLimit(ctx.organizationId, "mcpCallsPerDay")))
+        return { ok: false, error: "The organization's daily limit for MCP calls is reached." };
+      const r = await t.run(ctx, input);
+      await recordUsage(ctx.organizationId, "mcp.calls", 1, name, ctx.timeZone);
+      return r;
     },
   };
 }

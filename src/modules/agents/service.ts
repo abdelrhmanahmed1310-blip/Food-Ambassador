@@ -15,6 +15,7 @@ import { approveException } from "@/modules/invoices/service";
 import { raiseNonConformance } from "@/modules/foodsafety/nonconformances";
 import { addDays, businessDate } from "@/modules/inventory/rules";
 import { addRecipePrice } from "@/modules/recipes/menu";
+import { recordUsage, usageLeft, withinLimit } from "@/modules/usage/service";
 import { canRunDailyClose, runDailyClose } from "./daily-close";
 import { canRunFoodSafety, runFoodSafety } from "./food-safety";
 import { canRunInvoiceMatching, runInvoiceMatching } from "./invoice-matching";
@@ -467,6 +468,7 @@ export async function runAgent(
     await withTenantTx(organizationId, (tx) =>
       tx.agent.update({ where: { id: agent.id }, data: { lastRunAt: new Date() } }),
     );
+    await recordUsage(organizationId, "agent.runs", 1, kind, ctx.timeZone);
     // Within its limits the agent carries out its own proposals (ADR-145).
     if (agent.autonomy === "ACT" && saved.length) await scheduleActions(ctx, agent, kind, saved);
     // Written by Claude when the assistant is on (ADR-141); never fails the run.
@@ -672,6 +674,7 @@ async function applyDecision(
   const detail = p.detail as Record<string, unknown>;
   let created: string[] = [];
   let outcome: Record<string, unknown> = {};
+  let agentKind = "";
   if (p.kind === "PURCHASE_ORDER" && p.entityId) {
     if (decision === "APPROVE") await submitOrder(ctx, p.entityId);
     else await cancelOrder(ctx, p.entityId, { reason: note || "Rejected agent proposal" });
@@ -731,6 +734,8 @@ async function applyDecision(
     });
     if (done.count === 0)
       throw businessRuleViolation("PROPOSAL_DECIDED", "This proposal was already decided");
+    agentKind =
+      (await tx.agent.findFirst({ where: { id: p.agentId }, select: { kind: true } }))?.kind ?? "";
     await recordAudit(tx, actorOf(ctx), {
       action: opts.byAgent
         ? "agent.action_carried_out"
@@ -742,6 +747,15 @@ async function applyDecision(
       changes: { kind: p.kind, entityId: p.entityId, ...outcome },
     });
   });
+  // Metering (ADR-146): what agents did themselves, and what people approved.
+  if (opts.byAgent || decision === "APPROVE")
+    await recordUsage(
+      ctx.organizationId,
+      opts.byAgent ? "agent.actions" : "agent.approvals",
+      1,
+      agentKind,
+      ctx.timeZone,
+    );
   return { createdOrders: created, outcome };
 }
 
@@ -798,6 +812,14 @@ async function scheduleActions(
     saved.map((p, index) => ({ index, kind: p.kind, detail: p.detail as Record<string, unknown> })),
     { baseCurrency: ctx.baseCurrency, actedToday },
   ).map((i) => saved[i]);
+  // The organization's monthly limit on agent actions (ADR-146), counting what is already scheduled.
+  const left = (await usageLeft(org, "agentActionsPerMonth")).left;
+  if (left !== null) {
+    const scheduled = await withTenantTx(org, (tx) =>
+      tx.agentProposal.count({ where: { organizationId: org, status: "SCHEDULED" } }),
+    );
+    picked.splice(Math.max(left - scheduled, 0));
+  }
   if (picked.length === 0) return;
   const hold = Number(settings.holdHours ?? 0);
   if (hold === 0) {
@@ -863,6 +885,10 @@ async function carryOut(ctx: TenantContext, proposalId: string) {
     );
   if (!mayDecide(ctx.grants, p, whBranch)) {
     await backToPeople("The agent's person may not do this");
+    return "returned" as const;
+  }
+  if (!(await withinLimit(ctx.organizationId, "agentActionsPerMonth"))) {
+    await backToPeople("The organization's monthly limit for agent actions is reached");
     return "returned" as const;
   }
   try {

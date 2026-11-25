@@ -151,6 +151,8 @@ model Organization {
   /// Kill switch: agents carry nothing out while set (ADR-145).
   agentActionsPausedAt       DateTime?          @map("agent_actions_paused_at") @db.Timestamptz(3)
   agentActionsPausedByUserId String?            @map("agent_actions_paused_by_user_id") @db.Uuid
+  /// Monthly and daily usage caps set by the organization (ADR-146); {} = none.
+  usageLimits                Json               @default("{}") @map("usage_limits")
   createdByUserId            String?            @map("created_by_user_id") @db.Uuid
   createdAt                  DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                  DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -323,6 +325,7 @@ model Organization {
   oauthGrants                  OAuthGrant[]
   oauthCodes                   OAuthCode[]
   oauthTokens                  OAuthToken[]
+  usageDaily                   UsageDaily[]
   haccpPlans                   HaccpPlan[]
   haccpSteps                   HaccpStep[]
   haccpHazards                 HaccpHazard[]
@@ -9440,4 +9443,23 @@ model OAuthToken {
 
   @@index([organizationId, grantId])
   @@map("oauth_tokens")
+}
+
+// ─── Usage metering (ADR-146) ───
+
+/// Usage counted per organization, day (its own calendar), metric and dimension (agent kind, model or tool).
+model UsageDaily {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  day            DateTime @db.Date
+  /// agent.runs, agent.actions, agent.approvals, ai.input_tokens, ai.output_tokens, mcp.calls.
+  metric         String
+  dimension      String   @default("")
+  quantity       BigInt   @default(0)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, day, metric, dimension])
+  @@map("usage_daily")
 }

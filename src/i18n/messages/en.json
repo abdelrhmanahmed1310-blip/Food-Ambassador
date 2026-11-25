@@ -279,7 +279,8 @@
     },
     "agentsInbox": "Inbox",
     "agentsRuns": "Runs",
-    "agentsSettings": "Agents"
+    "agentsSettings": "Agents",
+    "usage": "Usage & limits"
   },
   "home": {
     "tagline": "Food operations, from supplier to plate.",
@@ -1028,7 +1029,8 @@
     "AGENT_RUN_NOT_SUCCEEDED": "Only a run that finished successfully can be explained.",
     "AGENT_AUTONOMY_NOT_OFFERED": "This agent only proposes; drafts are for replenishment.",
     "API_MCP_NO_COMPANY": "MCP keys cannot be limited to a company.",
-    "PROPOSAL_NOT_SCHEDULED": "This action is no longer scheduled."
+    "PROPOSAL_NOT_SCHEDULED": "This action is no longer scheduled.",
+    "USAGE_LIMIT_REACHED": "The organization's limit for this is reached. An administrator can raise it in Settings → Usage & limits."
   },
   "notFound": {
     "title": "Page not found",
@@ -8448,5 +8450,41 @@
     "deny": "Deny",
     "unknownClient": "This app is not registered. Connect it again from the app.",
     "badRedirect": "This app asked to send you back to an address it did not register, so the request was stopped."
+  },
+  "usage": {
+    "title": "Usage & limits",
+    "intro": "What the organization used — agent runs and actions, approvals, AI tokens and MCP calls — against the limits you set, with the monthly statement.",
+    "limitsTitle": "Limits",
+    "limitsHint": "Leave empty for no limit. When a limit is reached, agents only propose, Claude explanations and the assistant pause, and MCP calls are refused, until the next month (or day).",
+    "limit": "Limit",
+    "usedNow": "Used this period",
+    "cap": "Limit",
+    "share": "Used",
+    "noLimit": "No limit",
+    "limits": {
+      "agentActionsPerMonth": "Agent actions a month",
+      "aiTokensPerMonth": "AI tokens a month",
+      "mcpCallsPerDay": "MCP calls a day"
+    },
+    "save": "Save limits",
+    "saving": "Saving…",
+    "monthTitle": "Usage in {month}",
+    "previous": "Previous month",
+    "next": "Next month",
+    "statementCsv": "Statement (CSV)",
+    "statementXlsx": "Statement (Excel)",
+    "nothing": "Nothing used from {from} to {to}.",
+    "metric": "What",
+    "dimension": "Agent, model or tool",
+    "quantity": "Quantity",
+    "metrics": {
+      "agent_runs": "Agent runs",
+      "agent_actions": "Actions agents carried out",
+      "agent_approvals": "Agent proposals approved by people",
+      "ai_input_tokens": "AI input tokens",
+      "ai_output_tokens": "AI output tokens",
+      "mcp_calls": "MCP tool calls"
+    },
+    "noPrices": "Quantities only: prices and plans are agreed outside the app. Days follow the organization's time zone."
   }
 }

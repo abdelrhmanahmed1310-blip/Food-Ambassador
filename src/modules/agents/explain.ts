@@ -4,6 +4,7 @@ import { describeProviderError } from "@/modules/assistant/client";
 import { FALLBACK_MODELS } from "@/modules/assistant/rules";
 import { canUseAssistant, connectedAssistant } from "@/modules/assistant/service";
 import type { TenantContext } from "@/modules/tenancy/context";
+import { recordUsage, withinLimit } from "@/modules/usage/service";
 import { withTenantTx } from "@/server/db/transactions";
 import { businessRuleViolation, forbidden, notFound } from "@/server/errors";
 import {
@@ -52,6 +53,16 @@ export async function explainRun(organizationId: string, runId: string): Promise
   if (run.status !== "SUCCEEDED") return { explained: false, reason: "NOT_SUCCEEDED" };
   const assistant = await connectedAssistant(organizationId);
   if (!assistant) return { explained: false, reason: "NOT_CONNECTED" };
+  // The organization's monthly AI token limit (ADR-146): no call once it is reached.
+  if (!(await withinLimit(organizationId, "aiTokensPerMonth"))) {
+    await withTenantTx(organizationId, (tx) =>
+      tx.agentRun.update({
+        where: { id: runId },
+        data: { explanationError: "The organization's monthly AI token limit is reached." },
+      }),
+    );
+    return { explained: false, reason: "FAILED" };
+  }
 
   const payload = explanationPayload({
     kind: run.agent.kind as AgentKindCode,
@@ -106,6 +117,8 @@ export async function explainRun(organizationId: string, runId: string): Promise
     error = describeProviderError(e);
   }
 
+  await recordUsage(organizationId, "ai.input_tokens", inputTokens ?? 0, model);
+  await recordUsage(organizationId, "ai.output_tokens", outputTokens ?? 0, model);
   await withTenantTx(organizationId, (tx) =>
     tx.agentRun.update({
       where: { id: runId },

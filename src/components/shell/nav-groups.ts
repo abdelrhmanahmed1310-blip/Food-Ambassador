@@ -253,6 +253,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
           "settings/api",
           "settings/assistant",
           "settings/jobs",
+          "settings/usage",
         ],
       },
     ],
@@ -285,7 +286,13 @@ export const SETTINGS_CARDS: Array<{ key: string; paths: string[] }> = [
   },
   {
     key: "connections",
-    paths: ["settings/integrations", "settings/api", "settings/assistant", "settings/jobs"],
+    paths: [
+      "settings/integrations",
+      "settings/api",
+      "settings/assistant",
+      "settings/jobs",
+      "settings/usage",
+    ],
   },
 ];
 

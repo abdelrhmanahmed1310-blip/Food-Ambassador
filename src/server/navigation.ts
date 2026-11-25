@@ -247,6 +247,7 @@ export async function navLinks(ctx: TenantContext): Promise<NavItem[]> {
     settings.items.push(
       { href: `${base}/settings/organization`, label: t("organization") },
       { href: `${base}/settings/modules`, label: t("modules") },
+      { href: `${base}/settings/usage`, label: t("usage") },
       { href: `${base}/settings/companies`, label: t("companies") },
       { href: `${base}/settings/brands`, label: t("brands") },
     );

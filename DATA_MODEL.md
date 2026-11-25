@@ -1732,6 +1732,18 @@ Migration `20270131090000_oauth_mcp`.
   unique), `kind` (CK ACCESS / REFRESH), `expires_at`, `revoked_at`.
   Row-level security.
 
+### Usage metering (ADR-146)
+
+Migration `20270202090000_usage_metering`.
+
+- **usage_daily**: organization, `day` (its own calendar), `metric` (CK
+  agent.runs, agent.actions, agent.approvals, ai.input_tokens,
+  ai.output_tokens, mcp.calls), `dimension` (agent kind, model or tool),
+  `quantity` (CK ≥ 0). Unique per organization, day, metric and
+  dimension; only ever added to. Row-level security.
+- **organizations.usage_limits**: JSONB (CK an object): agent actions a
+  month, AI tokens a month, MCP calls a day; missing or null = no limit.
+
 ### Global search (F2b, ADR-088)
 
 Migration `20261217090000_f2b_search`: extension `pg_trgm`; GIN trigram
