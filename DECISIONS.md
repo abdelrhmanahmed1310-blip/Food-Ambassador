@@ -4783,6 +4783,36 @@ before.
 - **Not sent by email or chat:** no provider is chosen yet (decision D2).
 - **Not yet.** A digest page with per-agent detail, or a choice of day.
 
+### ADR-154 AgaaS: performance and trust on MCP — Accepted (built)
+
+Decision (2026-11-25): the MCP server (ADR-143) offers an agent's record and
+the trust step, so customers' own agents work with the same facts as the
+Performance page.
+
+- **`get_agent_performance`** (`mcp:read`), for the agents the key's person
+  may see, up to 12 months:
+  - the monthly figures and totals (ADR-150);
+  - the approval rate and readiness hint;
+  - the rejection reasons (ADR-152).
+
+  For settings managers it also returns the agent's autonomy and the next
+  step (RAISE, with whether the record must be confirmed, or LOWER, or
+  NONE).
+
+- **`change_agent_trust`** (`mcp:decide`) raises or lowers an agent through
+  the same service as the page (ADR-151), with the same rules:
+  - settings managers only;
+  - the agent must be switched on;
+  - `recordRead` is required unless the record is READY.
+
+  The tool description tells the calling agent to show the person the
+  record and set `recordRead` only after they confirm reading it. The audit
+  event carries the MCP request id.
+
+- **The decide scope** now says it also lets agents act or takes them back,
+  for keys and OAuth consent alike.
+- **Not yet.** Changing an agent's limits or settings over MCP.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

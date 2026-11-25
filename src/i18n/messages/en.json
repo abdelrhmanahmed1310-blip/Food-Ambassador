@@ -4908,7 +4908,7 @@
       "nutrition_read": "Nutrition library: search, foods, calculations (read)",
       "nutrition_write": "Nutrition library: import from USDA, add and maintain foods, queue syncs",
       "mcp_read": "MCP: read reports and agent runs as the key's creator",
-      "mcp_decide": "MCP: approve or reject agent proposals as the key's creator"
+      "mcp_decide": "MCP: approve or reject agent proposals, and let agents act or take them back, as the key's creator"
     },
     "reference": "Endpoint reference",
     "referenceIntro": "Every endpoint of REST API v1 with the scope it needs, its parameters and its request body. Send the key as Authorization: Bearer fa_…. Descriptions are in English, as in the OpenAPI file.",
@@ -8524,7 +8524,7 @@
     "mayDo": "It may",
     "scopes": {
       "read": "Read reports (sales, stock, forecasts, P&L, what needs attention) and agent runs and proposals",
-      "decide": "Approve or reject agent proposals"
+      "decide": "Approve or reject agent proposals; let agents act within limits or take them back"
     },
     "asYou": "It sees and does only what you can, with your access at each moment. You can disconnect it any time in Account → Security or Settings → API.",
     "allow": "Allow",

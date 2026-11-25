@@ -216,6 +216,62 @@ describe("MCP server (ADR-143)", () => {
     expect(again.result?.isError).toBe(true);
   });
 
+  it("reads an agent's record and changes its trust as the key's person (ADR-154)", async () => {
+    const perf = await call(readKey, "get_agent_performance", { agent: "MENU_MARGIN" });
+    const agents = (
+      perf.result?.structuredContent as {
+        agents: Array<{
+          agent: string;
+          readiness: string;
+          totals: { approved: number };
+          autonomy?: string;
+          nextStep?: unknown;
+        }>;
+      }
+    ).agents;
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({
+      agent: "MENU_MARGIN",
+      readiness: "TOO_FEW",
+      totals: { approved: 1 },
+      autonomy: "SUGGEST",
+      nextStep: { step: "RAISE", to: "ACT", acknowledgementNeeded: true },
+    });
+    // Changing trust needs the decide scope.
+    expect(
+      (await call(readKey, "change_agent_trust", { agent: "MENU_MARGIN", direction: "RAISE" }))
+        .error?.code,
+    ).toBe(-32602);
+    // A record that is not ready must be confirmed as read.
+    const unread = await call(decideKey, "change_agent_trust", {
+      agent: "MENU_MARGIN",
+      direction: "RAISE",
+    });
+    expect([unread.result?.isError, unread.result?.content[0].text]).toEqual([
+      true,
+      "Confirm you have read the agent's record before letting it act",
+    ]);
+    const raised = await call(decideKey, "change_agent_trust", {
+      agent: "MENU_MARGIN",
+      direction: "RAISE",
+      recordRead: true,
+    });
+    expect(raised.result?.structuredContent).toEqual({ agent: "MENU_MARGIN", autonomy: "ACT" });
+    const audit = await getDb().auditEvent.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, action: "agent.trust_raised" },
+    });
+    expect([audit.actorUserId, audit.requestId?.startsWith("mcp:")]).toEqual([ctx.userId, true]);
+    expect(
+      (await call(decideKey, "change_agent_trust", { agent: "MENU_MARGIN", direction: "LOWER" }))
+        .result?.structuredContent,
+    ).toEqual({ agent: "MENU_MARGIN", autonomy: "SUGGEST" });
+    // A report-only agent cannot be raised.
+    expect(
+      (await call(decideKey, "change_agent_trust", { agent: "DAILY_CLOSE", direction: "RAISE" }))
+        .result?.isError,
+    ).toBe(true);
+  });
+
   it("refuses missing, wrong-scope, revoked and company keys, and keys whose person left", async () => {
     const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
     expect((await rpc(null, ping)).status).toBe(401);

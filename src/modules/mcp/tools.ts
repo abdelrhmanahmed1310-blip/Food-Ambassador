@@ -1,7 +1,10 @@
 import "server-only";
 import { z } from "zod";
 import { decideProposal, getRun, listProposals, listRuns } from "@/modules/agents/service";
+import { agentPerformance } from "@/modules/agents/performance";
 import { AGENT_KINDS, REJECTION_REASONS } from "@/modules/agents/rules";
+import { agentTrustSteps, changeAgentTrust } from "@/modules/agents/trust";
+import { hasPermission } from "@/modules/access/authorize";
 import { toPlain } from "@/modules/assistant/rules";
 import { TOOLS as ASSISTANT_TOOLS, runTool } from "@/modules/assistant/tools";
 import { featureOn } from "@/modules/features/access";
@@ -235,6 +238,85 @@ const agentTools: McpTool[] = [
         });
         return { decision: i.decision, ...r };
       });
+    },
+  },
+  {
+    name: "get_agent_performance",
+    title: "Agent performance",
+    description:
+      "How each agent this person may see did, month by month (up to 12 months), counted from the records: runs and failed runs, findings by severity, proposals made, approved and rejected by people, superseded, open, carried out by the agent, stopped during a hold, follow-ups taken, median hours to a decision and AI tokens; the approval rate, the readiness hint (READY: at least 20 decisions, 90 % or more approved and none rejected this month; MIXED; TOO_FEW) and why people rejected its proposals. For settings managers, also what may be done next: RAISE to act within limits (with whether the person must confirm reading the record), LOWER back to proposing, or NONE.",
+    inputSchema: strict({
+      agent: { type: "string", enum: [...AGENT_KINDS], description: "Only this agent." },
+      months: { type: "integer", minimum: 1, maximum: 12, description: "How many months (6)." },
+    }),
+    scope: "mcp:read",
+    readOnly: true,
+    feature: AGENTS,
+    async run(ctx, input) {
+      const i = parse(
+        z.object({ agent: kind.optional(), months: z.number().int().min(1).max(12).optional() }),
+        input,
+      );
+      if (!i) return invalid;
+      return attempt(async () => {
+        const perf = (await agentPerformance(ctx, i.months ?? 6)).filter(
+          (a) => !i.agent || a.kind === i.agent,
+        );
+        const steps = hasPermission(ctx.grants, "org.settings.manage")
+          ? await agentTrustSteps(ctx, new Map(perf.map((a) => [a.kind, a.readiness])))
+          : [];
+        const agents = perf.map((a) => {
+          const t = steps.find((s) => s.kind === a.kind);
+          return {
+            agent: a.kind,
+            readiness: a.readiness,
+            approvalPercent: a.approvalPercent,
+            totals: a.totals,
+            months: a.months,
+            rejectionReasons: a.rejectionReasons,
+            ...(t ? { autonomy: t.autonomy, nextStep: t.step } : {}),
+          };
+        });
+        return { agents };
+      });
+    },
+  },
+  {
+    name: "change_agent_trust",
+    title: "Let an agent act, or take it back",
+    description:
+      "As this person (a settings manager), let a switched-on agent act within the limits in its settings (RAISE), or take it back to proposing (LOWER), exactly as from the Performance page. Only replenishment, food safety and menu & margin can act. Read get_agent_performance first: when nextStep says the record must be confirmed, show the person the agent's record and set recordRead only after they confirm they have read it. Whoever raises it lends the agent their access. Confirm with the person before changing.",
+    inputSchema: strict(
+      {
+        agent: { type: "string", enum: [...AGENT_KINDS], description: "The agent." },
+        direction: { type: "string", enum: ["RAISE", "LOWER"], description: "Raise or lower." },
+        recordRead: {
+          type: "boolean",
+          description: "The person confirmed they read the agent's record (needed unless READY).",
+        },
+      },
+      ["agent", "direction"],
+    ),
+    scope: "mcp:decide",
+    readOnly: false,
+    feature: AGENTS,
+    async run(ctx, input) {
+      const i = parse(
+        z.object({
+          agent: kind,
+          direction: z.enum(["RAISE", "LOWER"]),
+          recordRead: z.boolean().optional(),
+        }),
+        input,
+      );
+      if (!i) return invalid;
+      return attempt(async () => ({
+        agent: i.agent,
+        ...(await changeAgentTrust(ctx, i.agent, {
+          direction: i.direction,
+          recordRead: i.recordRead,
+        })),
+      }));
     },
   },
 ];
