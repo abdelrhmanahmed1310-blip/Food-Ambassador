@@ -1035,7 +1035,10 @@
     "PLAN_IN_USE": "Move this plan's organizations to another plan first.",
     "STATEMENT_ISSUED": "This statement is already issued.",
     "INVALID_MONTH": "Choose a month as YYYY-MM.",
-    "INVESTIGATION_FAILED": "This investigation has no next step."
+    "INVESTIGATION_FAILED": "This investigation has no next step.",
+    "AGENT_NOT_ON": "Switch the agent on first.",
+    "AGENT_TRUST_CHANGED": "The agent's autonomy changed meanwhile. Reload the page and try again.",
+    "AGENT_RECORD_NOT_READY": "Confirm you have read the agent's record before letting it act."
   },
   "notFound": {
     "title": "Page not found",
@@ -8484,7 +8487,19 @@
     "perfFollowUps": "Follow-ups taken",
     "perfDecisionHours": "Hours to decide (median)",
     "perfTokens": "AI tokens",
-    "perfNote": "Months follow the organization's time zone. Approved means approved by a person as proposed; the app has no estimate of time or money saved."
+    "perfNote": "Months follow the organization's time zone. Approved means approved by a person as proposed; the app has no estimate of time or money saved.",
+    "trustTitle": "What it may do",
+    "trustNow": "Now: {autonomy}",
+    "trustRaise": "Let it act within limits",
+    "trustLower": "Back to proposing",
+    "trustLowerConfirm": "Take this agent back to proposing? Actions it has scheduled go back to the inbox when they fall due.",
+    "trustReadyHint": "Its record is ready. It acts with your access, up to the limits in its settings.",
+    "trustNotReadyHint": "Its record does not yet show it is ready. You can still let it act, up to the limits in its settings, once you have read the record above.",
+    "trustRecordRead": "I have read this agent's record and accept that it acts within its limits",
+    "trustOff": "Switch the agent on in its settings first.",
+    "trustLimitsLink": "Limits and settings",
+    "trustRaised": "The agent now acts within its limits.",
+    "trustLowered": "The agent is back to proposing."
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",

@@ -75,5 +75,10 @@ test("agents: switch on, run now, see the run and the inbox (ADR-140)", async ({
   await expect(page.getByTestId("performance-DAILY_CLOSE")).toContainText(
     "Too few decisions to say",
   );
+  // ADR-151: what each agent may do, from its record; report-only agents have no step.
+  await expect(page.getByTestId("trust-MENU_MARGIN")).toContainText(
+    "Switch the agent on in its settings first.",
+  );
+  await expect(page.getByTestId("trust-DAILY_CLOSE")).toHaveCount(0);
   await context.close();
 });

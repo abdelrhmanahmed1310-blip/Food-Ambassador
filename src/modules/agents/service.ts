@@ -59,6 +59,8 @@ const CAN_RUN: Record<AgentKindCode, (ctx: TenantContext) => boolean> = {
   MENU_MARGIN: canRunMenuMargin,
 };
 const canRun = (kind: AgentKindCode, ctx: TenantContext) => CAN_RUN[kind](ctx);
+/** Whether this person can do the agent's work, and so lend it their access. */
+export const canRunAgent = canRun;
 
 /** Who sees an agent's runs: settings managers, and the people its work is for. */
 export function canSeeKind(ctx: TenantContext, kind: AgentKindCode) {

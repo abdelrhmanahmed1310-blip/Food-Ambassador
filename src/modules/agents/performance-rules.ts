@@ -1,4 +1,4 @@
-import type { AgentKindCode } from "./rules";
+import { AUTONOMY_FOR, type AgentKindCode, type AutonomyCode } from "./rules";
 
 /**
  * Agent performance (DECISIONS.md ADR-150). Pure: monthly figures per agent
@@ -103,4 +103,32 @@ export function summarize(kind: AgentKindCode, months: MonthFigures[]): AgentSum
         ? "READY"
         : "MIXED";
   return { kind, months, totals, approvalPercent, readiness };
+}
+
+/**
+ * What an owner may do from an agent's record (ADR-151): raise a switched-on
+ * agent to act within limits where that is offered, or take it back to
+ * proposing. Raising on a record that is not READY needs the owner to say
+ * they have read it; the record guides, it does not decide.
+ */
+export type TrustStep =
+  | { step: "RAISE"; to: "ACT"; acknowledgementNeeded: boolean }
+  | { step: "LOWER"; to: AutonomyCode }
+  | { step: "NONE"; reason: "NOT_OFFERED" | "OFF" };
+
+/** The highest autonomy below acting that the agent offers. */
+export function proposingAutonomy(kind: AgentKindCode): AutonomyCode {
+  const offered = AUTONOMY_FOR[kind].filter((a) => a !== "ACT");
+  return offered.at(-1) ?? "SUGGEST";
+}
+
+export function trustStep(
+  kind: AgentKindCode,
+  agent: { enabled: boolean; autonomy: AutonomyCode } | null,
+  readiness: AgentSummary["readiness"],
+): TrustStep {
+  if (!AUTONOMY_FOR[kind].includes("ACT")) return { step: "NONE", reason: "NOT_OFFERED" };
+  if (!agent || !agent.enabled) return { step: "NONE", reason: "OFF" };
+  if (agent.autonomy === "ACT") return { step: "LOWER", to: proposingAutonomy(kind) };
+  return { step: "RAISE", to: "ACT", acknowledgementNeeded: readiness !== "READY" };
 }

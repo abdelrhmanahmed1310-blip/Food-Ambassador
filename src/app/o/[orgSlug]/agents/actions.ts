@@ -13,6 +13,7 @@ import {
   stopScheduledAction,
   updateAgent,
 } from "@/modules/agents/service";
+import { changeAgentTrust } from "@/modules/agents/trust";
 import { tenantMutation } from "@/server/actions/tenant";
 
 type S = ActionState;
@@ -182,5 +183,23 @@ export async function followUpAction(
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await followUpFromInvestigation(ctx, investigationId);
     return { message: t("followUpAdded") };
+  });
+}
+
+/** Let an agent act within limits from its record, or take it back to proposing (ADR-151). */
+export async function changeTrustAction(
+  orgSlug: string,
+  kind: AgentKindCode,
+  direction: "RAISE" | "LOWER",
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await changeAgentTrust(ctx, kind, {
+      direction,
+      recordRead: formData.get("recordRead") === "on",
+    });
+    return { message: t(direction === "RAISE" ? "trustRaised" : "trustLowered") };
   });
 }

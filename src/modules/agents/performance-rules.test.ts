@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyMonth, monthsBack, summarize } from "./performance-rules";
+import { emptyMonth, monthsBack, summarize, trustStep } from "./performance-rules";
 
 /** Agent performance rules (ADR-150). */
 
@@ -35,5 +35,40 @@ describe("agent performance", () => {
     expect(recent.readiness).toBe("MIXED");
     const mixed = summarize("FOOD_SAFETY", [month("2026-11", { approved: 12, rejected: 10 })]);
     expect([mixed.readiness, mixed.approvalPercent]).toEqual(["MIXED", 55]);
+  });
+});
+
+describe("trust step (ADR-151)", () => {
+  it("offers raising a switched-on agent, with acknowledgement unless READY", () => {
+    expect(trustStep("MENU_MARGIN", { enabled: true, autonomy: "SUGGEST" }, "READY")).toEqual({
+      step: "RAISE",
+      to: "ACT",
+      acknowledgementNeeded: false,
+    });
+    expect(trustStep("FOOD_SAFETY", { enabled: true, autonomy: "SUGGEST" }, "MIXED")).toEqual({
+      step: "RAISE",
+      to: "ACT",
+      acknowledgementNeeded: true,
+    });
+    expect(trustStep("MENU_MARGIN", { enabled: false, autonomy: "SUGGEST" }, "READY")).toEqual({
+      step: "NONE",
+      reason: "OFF",
+    });
+    expect(trustStep("MENU_MARGIN", null, "READY")).toEqual({ step: "NONE", reason: "OFF" });
+    expect(trustStep("DAILY_CLOSE", { enabled: true, autonomy: "SUGGEST" }, "READY")).toEqual({
+      step: "NONE",
+      reason: "NOT_OFFERED",
+    });
+  });
+
+  it("takes an acting agent back to the highest proposing level it offers", () => {
+    expect(trustStep("REPLENISHMENT", { enabled: true, autonomy: "ACT" }, "READY")).toEqual({
+      step: "LOWER",
+      to: "DRAFT",
+    });
+    expect(trustStep("MENU_MARGIN", { enabled: true, autonomy: "ACT" }, "MIXED")).toEqual({
+      step: "LOWER",
+      to: "SUGGEST",
+    });
   });
 });

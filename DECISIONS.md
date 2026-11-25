@@ -4707,6 +4707,33 @@ organization's calendar), what happened.
   (tokens), all filtered by organization.
 - **Not yet.** Charts, comparing branches, exporting the figures.
 
+### ADR-151 AgaaS: trust from performance — Accepted (built)
+
+Decision (2026-11-25): on the Performance page, a settings manager can let
+an agent act within limits, or take it back to proposing, next to its
+record.
+
+- **Offered only where acting is offered** (ADR-145): replenishment, food
+  safety, and menu & margin. The agent must be switched on.
+- **The record guides; it does not decide.** If the readiness hint is READY,
+  one click lets it act. If not (MIXED or TOO_FEW), the owner must tick
+  "I have read this agent's record" first. The service refuses without it
+  (`AGENT_RECORD_NOT_READY`).
+- **Access.** Whoever lets it act lends it their access, as when saving its
+  settings (ADR-140). They must be able to do its work themselves.
+- **Taking it back** sets the highest proposing level the agent offers:
+  drafts for replenishment, suggestions for the others. Actions it already
+  scheduled go back to the inbox when they fall due (ADR-145).
+- **Stale pages.** The page sends the step it showed (raise or lower). If
+  the agent changed meanwhile, the request is refused (`AGENT_TRUST_CHANGED`).
+- **Audit.** `agent.trust_raised` and `agent.trust_lowered` record:
+  - from and to;
+  - the readiness, approval rate and number of decisions at that moment;
+  - whether the record was confirmed as read.
+- **Limits** (amounts, actions per run, hold hours) stay in the agent's
+  settings.
+- **Not yet.** Raising or lowering automatically from the record.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
