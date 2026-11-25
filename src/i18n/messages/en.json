@@ -1033,7 +1033,8 @@
     "USAGE_LIMIT_REACHED": "The organization's limit for this is reached. An administrator can raise it in Settings → Usage & limits.",
     "PLAN_IN_USE": "Move this plan's organizations to another plan first.",
     "STATEMENT_ISSUED": "This statement is already issued.",
-    "INVALID_MONTH": "Choose a month as YYYY-MM."
+    "INVALID_MONTH": "Choose a month as YYYY-MM.",
+    "INVESTIGATION_FAILED": "This investigation has no next step."
   },
   "notFound": {
     "title": "Page not found",
@@ -8315,7 +8316,8 @@
       "REORDER": "Suggested order",
       "CREDIT_REQUEST": "Credit request",
       "RAISE_NC": "Non-conformance",
-      "PRICE_CHANGE": "New price"
+      "PRICE_CHANGE": "New price",
+      "FOLLOW_UP": "Follow-up"
     },
     "draftOrder": "Draft order {number}",
     "linesTotal": "{lines, plural, one {# line} other {# lines}}, {total} {currency}",
@@ -8451,7 +8453,14 @@
       "CHECK": "What to check",
       "CHANGE": "Change to consider"
     },
-    "investigatedBy": "Investigated by Claude ({model}), reading: {tools}. Nothing was changed or sent; check the figures before acting."
+    "investigatedBy": "Investigated by Claude ({model}), reading: {tools}. Nothing was changed or sent; check the figures before acting.",
+    "investigateCritical": "Investigate critical findings automatically",
+    "investigateCriticalHint": "After each run Claude looks into up to 3 critical findings, as the agent's person, if the assistant is on. Uses AI tokens; stops at the monthly limit.",
+    "automatic": "Automatic",
+    "addFollowUp": "Add to the inbox",
+    "followUpAdded": "Added to the inbox as a follow-up.",
+    "approveFollowUp": "Accept — I'll take it on",
+    "fromRun": "See the run and the finding"
   },
   "oauth": {
     "title": "Allow {app} to use Food Ambassador?",

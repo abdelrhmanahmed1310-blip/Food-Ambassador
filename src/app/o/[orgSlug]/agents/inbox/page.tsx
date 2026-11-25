@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { ActionForm, TextField } from "@/components/forms/fields";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { canSeeAgents, listProposals } from "@/modules/agents/service";
@@ -67,6 +67,7 @@ const APPROVE_LABEL = {
   CREDIT_REQUEST: "approveCredit",
   RAISE_NC: "approveNc",
   PRICE_CHANGE: "approvePrice",
+  FOLLOW_UP: "approveFollowUp",
 } as const;
 
 /** What the agents propose, for a person to approve or reject (ADR-140). */
@@ -78,9 +79,10 @@ export default async function AgentInboxPage({
   const sp = await searchParams;
   const ctx = await requireTenant(orgSlug);
   if (!canSeeAgents(ctx)) notFound();
-  const [t, format, data] = await Promise.all([
+  const [t, format, locale, data] = await Promise.all([
     getTranslations("agents"),
     getFormatter(),
+    getLocale(),
     listProposals(ctx, { status: typeof sp.status === "string" ? sp.status : undefined }),
   ]);
   const base = `/o/${orgSlug}`;
@@ -147,6 +149,9 @@ export default async function AgentInboxPage({
                   {p.kind === "CREDIT_REQUEST" ? <CreditRequest p={p} base={base} t={t} /> : null}
                   {p.kind === "RAISE_NC" ? <RaiseNc p={p} base={base} t={t} /> : null}
                   {p.kind === "PRICE_CHANGE" ? <PriceChange p={p} base={base} t={t} /> : null}
+                  {p.kind === "FOLLOW_UP" ? (
+                    <FollowUp p={p} base={base} t={t} lang={locale === "ar" ? "ar" : "en"} />
+                  ) : null}
                   {(p.kind === "REORDER" || p.kind === "PURCHASE_ORDER") &&
                   Array.isArray(d.lines) ? (
                     <ul className="divide-border divide-y">
@@ -323,6 +328,29 @@ function PriceChange({ p, base, t }: { p: P; base: string; t: T }) {
         })}
       </p>
       {d.effectiveFrom ? <p>{t("priceFrom", { date: d.effectiveFrom })}</p> : null}
+    </>
+  );
+}
+
+/** A next step from a Claude investigation, taken on by a person (ADR-149). */
+function FollowUp({ p, base, t, lang }: { p: P; base: string; t: T; lang: "en" | "ar" }) {
+  const d = p.detail as {
+    findingCode: string;
+    nextStep: {
+      kind: "MESSAGE" | "CHECK" | "CHANGE";
+      title: { en: string; ar: string };
+      body: { en: string; ar: string };
+    };
+  };
+  return (
+    <>
+      <p className="font-medium">
+        {t(`nextStepKinds.${d.nextStep.kind}`)}: {d.nextStep.title[lang]}
+      </p>
+      <p className="whitespace-pre-line">{d.nextStep.body[lang]}</p>
+      <Link href={`${base}/agents/runs/${p.runId}`} className="text-primary hover:underline">
+        {t("fromRun")}
+      </Link>
     </>
   );
 }

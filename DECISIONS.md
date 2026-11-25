@@ -4644,6 +4644,35 @@ in English and Arabic. It changes nothing and sends nothing.
 - **Not yet.** Investigating automatically on critical findings, turning a
   drafted change into a proposal, sending a drafted message.
 
+### ADR-149 AgaaS: agents investigate their critical findings; follow-ups — Accepted (built)
+
+Decision (2026-11-25): an agent can ask Claude to investigate its own
+critical findings after each run (ADR-148), and any investigation's next
+step can become a follow-up in the inbox.
+
+- **Automatic investigations.**
+  - A setting on every agent, off by default: "Investigate critical
+    findings automatically".
+  - After a successful run, Claude investigates up to three CRITICAL
+    findings, in order. It runs as the agent's person, so that person must
+    be allowed to use the assistant; otherwise nothing happens.
+  - It needs the assistant switched on, and it stops at the monthly AI
+    limit. It never fails the run.
+  - Stored like any investigation with `automatic` set, and shown with an
+    "Automatic" mark.
+- **Follow-ups.**
+  - From an investigation with a result, a person who may use the
+    assistant and see the run can add its next step to the inbox.
+  - It becomes a FOLLOW_UP proposal: one per investigation, carrying the
+    next step in both languages and the agent's kind.
+  - It is decided by whoever could do that agent's work, or a settings
+    manager. Accepting records who took it on; rejecting closes it. The app
+    changes and sends nothing either way.
+  - Follow-ups are never carried out by agents (ADR-145) and count as
+    approvals in metering (ADR-146).
+- **Data.** `agent_investigations.automatic`; the proposal-kind CHECK gains
+  FOLLOW_UP.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

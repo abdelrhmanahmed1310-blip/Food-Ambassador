@@ -23,7 +23,17 @@ import type { TenantContext } from "@/modules/tenancy/context";
 import { saveUsageLimits, usageSummary } from "@/modules/usage/service";
 import { getDb } from "@/server/db/client";
 import { addMember, createTenant, expectAppError } from "../../../test/support/factories";
-import { investigateAgentFinding, runAgentNow, runInvestigations, updateAgent } from "./service";
+import {
+  decideProposal,
+  followUpFromInvestigation,
+  investigateAgentFinding,
+  listProposals,
+  runAgentNow,
+  runInvestigations,
+  updateAgent,
+} from "./service";
+import { postOpeningBalance } from "@/modules/inventory/operations";
+import { addDays } from "@/modules/inventory/rules";
 
 /** Claude investigates a finding with read-only tools, as the person (ADR-148). */
 
@@ -31,6 +41,8 @@ const KEY = "sk-ant-api03-test-key-not-real-0123456789abcd";
 let ctx: TenantContext;
 let other: TenantContext;
 let runId: string;
+let units: Record<string, string>;
+let warehouseId: string;
 let dailyRunId: string;
 let findingIndex: number;
 let invoiceNumber: string;
@@ -95,12 +107,11 @@ beforeAll(async () => {
   ({ ctx } = await createTenant("investigate"));
   ({ ctx: other } = await createTenant("investigate-other"));
   setTestAssistantClient(fake);
-  const units = Object.fromEntries((await listUnits(ctx)).map((u) => [u.code, u.id]));
+  units = Object.fromEntries((await listUnits(ctx)).map((u) => [u.code, u.id]));
   const branchId = (await createBranch(ctx, { code: "JED", name: "Jeddah", type: "RESTAURANT" }))
     .id;
-  const warehouseId = (
-    await createWarehouse(ctx, { branchId, code: "MAIN", name: "Main", type: "MAIN" })
-  ).id;
+  warehouseId = (await createWarehouse(ctx, { branchId, code: "MAIN", name: "Main", type: "MAIN" }))
+    .id;
   const flour = (
     await createProduct(ctx, {
       sku: "FLOUR",
@@ -257,5 +268,85 @@ describe("Claude investigates a finding (ADR-148)", () => {
       "BUSINESS_RULE_VIOLATION",
     );
     expect(calls.length).toBe(before);
+  });
+});
+
+describe("automatic investigations and follow-ups (ADR-149)", () => {
+  it("investigates a run's critical findings itself when set to, and a next step becomes a follow-up", async () => {
+    await saveUsageLimits(ctx, { aiTokensPerMonth: "" });
+    const milk = (
+      await createProduct(ctx, {
+        sku: "MILK",
+        nameEn: "Milk",
+        type: "RAW_MATERIAL",
+        baseUomId: units.l,
+        lotTracking: "LOT_AND_EXPIRY",
+      })
+    ).id;
+    const today = businessDate(ctx.timeZone);
+    await postOpeningBalance(ctx, {
+      warehouseId,
+      productId: milk,
+      lotCode: "M-OLD",
+      expiresOn: addDays(today, 5),
+      quantity: "10",
+      uomId: units.l,
+      unitCost: "2",
+    });
+    await getDb().inventoryLot.updateMany({
+      where: { organizationId: ctx.organizationId, lotCode: "M-OLD" },
+      data: { expiresOn: new Date(`${addDays(today, -1)}T00:00:00Z`) },
+    });
+    await updateAgent(ctx, "FOOD_SAFETY", {
+      enabled: true,
+      autonomy: "SUGGEST",
+      runHour: "6",
+      settings: { investigateCritical: true },
+    });
+    // The run's explanation (ADR-141), then the investigation of its critical finding.
+    script = [
+      say({ en: "Expired milk is available.", ar: "حليب منتهي الصلاحية متاح." }),
+      say(ANSWER),
+    ];
+    const run = await runAgentNow(ctx, "FOOD_SAFETY");
+    expect(run.status).toBe("SUCCEEDED");
+    const found = await runInvestigations(ctx, run.runId);
+    expect(found.size).toBe(1);
+    const [[index, inv]] = [...found];
+    expect([inv.automatic, inv.status, inv.findingCode, inv.requestedByUserId]).toEqual([
+      true,
+      "OK",
+      "EXPIRED_STOCK",
+      ctx.userId,
+    ]);
+    expect(index).toBe(0);
+
+    // The next step goes to the inbox once, and is decided like any proposal.
+    const p = await followUpFromInvestigation(ctx, inv.id);
+    expect((await followUpFromInvestigation(ctx, inv.id)).id).toBe(p.id);
+    const open = (await listProposals(ctx)).items.filter((x) => x.kind === "FOLLOW_UP");
+    expect(open.map((x) => x.id)).toEqual([p.id]);
+    expect(open[0].title).toBe("Ask MILL for a credit note");
+    const cook = (await addMember(ctx, "kitchen", {}, "followup-cook")).ctx;
+    await expectAppError(decideProposal(cook, p.id, { decision: "APPROVE" }), "FORBIDDEN");
+    await decideProposal(ctx, p.id, { decision: "APPROVE" });
+    expect((await listProposals(ctx, { status: "APPROVED" })).items.map((x) => x.id)).toContain(
+      p.id,
+    );
+
+    // A failed investigation has no next step to follow up.
+    script = [say("not json")];
+    const failed = await investigateAgentFinding(ctx, run.runId, 0);
+    await expectAppError(followUpFromInvestigation(ctx, failed.id), "BUSINESS_RULE_VIOLATION");
+    // Without the setting, nothing is investigated after a run.
+    await updateAgent(ctx, "FOOD_SAFETY", {
+      enabled: true,
+      autonomy: "SUGGEST",
+      runHour: "6",
+      settings: {},
+    });
+    script = [say({ en: "Expired milk again.", ar: "حليب منتهي مرة أخرى." })];
+    const plain = await runAgentNow(ctx, "FOOD_SAFETY");
+    expect((await runInvestigations(ctx, plain.runId)).size).toBe(0);
   });
 });

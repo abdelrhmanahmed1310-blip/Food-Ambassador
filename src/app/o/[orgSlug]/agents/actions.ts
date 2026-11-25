@@ -6,6 +6,7 @@ import type { AgentKindCode } from "@/modules/agents/rules";
 import {
   decideProposal,
   explainAgentRun,
+  followUpFromInvestigation,
   investigateAgentFinding,
   runAgentNow,
   setAgentActionsPaused,
@@ -57,7 +58,10 @@ export async function saveAgentAction(
       holdHours: v("holdHours") || "24",
     }),
   };
-  const settings = SETTINGS[kind]();
+  const settings = {
+    ...SETTINGS[kind](),
+    investigateCritical: formData.get("investigateCritical") === "on",
+  };
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await updateAgent(ctx, kind, {
       enabled: formData.get("enabled") === "on",
@@ -164,5 +168,19 @@ export async function investigateAction(
     return r.status === "OK"
       ? { message: t("investigated") }
       : { ok: false, formError: t("investigationFailed", { error: r.error ?? "" }) };
+  });
+}
+
+/** Put an investigation's next step in the inbox as a follow-up (ADR-149). */
+export async function followUpAction(
+  orgSlug: string,
+  investigationId: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await followUpFromInvestigation(ctx, investigationId);
+    return { message: t("followUpAdded") };
   });
 }

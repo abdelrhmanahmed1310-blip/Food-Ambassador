@@ -17,7 +17,7 @@ import { canUseAssistant } from "@/modules/assistant/service";
 import { getRun, runInvestigations } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { notFoundOnAppError } from "@/server/actions/not-found";
-import { explainRunAction, investigateAction } from "../../actions";
+import { explainRunAction, followUpAction, investigateAction } from "../../actions";
 
 type Figure = {
   branchId: string;
@@ -195,7 +195,19 @@ export default async function AgentRunPage({
                           </p>
                           <p className="whitespace-pre-line">{inv.result.nextStep.body[lang]}</p>
                         </div>
+                        {canExplain ? (
+                          <ActionForm
+                            action={followUpAction.bind(null, orgSlug, inv.id)}
+                            submitLabel={t("addFollowUp")}
+                            pendingLabel={t("saving")}
+                            submitVariant="secondary"
+                            className="inline-flex flex-col gap-1"
+                          >
+                            <span />
+                          </ActionForm>
+                        ) : null}
                         <p className="text-muted text-xs">
+                          {inv.automatic ? <Badge tone="neutral">{t("automatic")}</Badge> : null}{" "}
                           {t("investigatedBy", {
                             model: inv.model ?? "",
                             tools: inv.toolCalls.map((c) => c.name).join(", ") || "—",

@@ -9342,7 +9342,7 @@ model AgentProposal {
   organizationId  String              @map("organization_id") @db.Uuid
   agentId         String              @map("agent_id") @db.Uuid
   runId           String              @map("run_id") @db.Uuid
-  /// PURCHASE_ORDER (a draft order), REORDER (suggested lines), CREDIT_REQUEST, RAISE_NC or PRICE_CHANGE.
+  /// PURCHASE_ORDER (a draft order), REORDER (suggested lines), CREDIT_REQUEST, RAISE_NC, PRICE_CHANGE or FOLLOW_UP (ADR-149).
   kind            String
   status          AgentProposalStatus @default(OPEN)
   title           String
@@ -9525,6 +9525,8 @@ model AgentInvestigation {
   findingIndex      Int      @map("finding_index")
   findingCode       String   @map("finding_code")
   requestedByUserId String   @map("requested_by_user_id") @db.Uuid
+  /// Asked for by the agent after its run, not by a person clicking (ADR-149).
+  automatic         Boolean  @default(false)
   /// OK or FAILED.
   status            String
   /// { summary: {en, ar}, causes: [{en, ar}], nextStep: { kind, title: {en, ar}, body: {en, ar} } }

@@ -79,17 +79,22 @@ describe("targetPrice", () => {
 describe("settings and autonomy", () => {
   it("falls back to defaults; drafts are replenishment's, and acting is not for invoices", () => {
     expect(readSettings("INVOICE_MATCHING", { minCreditAmount: "abc" })).toEqual({
+      investigateCritical: false,
       minCreditAmount: "0",
       uninvoicedAfterDays: 14,
     });
     expect(readSettings("FOOD_SAFETY", {})).toEqual({
+      investigateCritical: false,
       branchIds: [],
       complianceBelowPercent: 80,
       expiringWithinDays: 2,
       maxActionsPerRun: 3,
       holdHours: 4,
     });
-    expect(readSettings("MENU_MARGIN", { effectiveInDays: "3" })).toEqual({
+    expect(
+      readSettings("MENU_MARGIN", { effectiveInDays: "3", investigateCritical: "on" }),
+    ).toEqual({
+      investigateCritical: true,
       effectiveInDays: 3,
       maxIncreasePercent: 5,
       maxActionsPerRun: 3,

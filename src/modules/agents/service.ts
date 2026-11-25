@@ -21,7 +21,8 @@ import { canRunFoodSafety, runFoodSafety } from "./food-safety";
 import { canRunInvoiceMatching, runInvoiceMatching } from "./invoice-matching";
 import { canRunMenuMargin, runMenuMargin } from "./menu-margin";
 import { explainRun, explainRunNow } from "./explain";
-import { investigateFinding, investigationsOf } from "./investigate";
+import { investigateFinding, investigationsOf, type InvestigationResult } from "./investigate";
+import { canUseAssistant } from "@/modules/assistant/service";
 import { readExplanation } from "./explain-rules";
 import { canRunReplenishment, runReplenishment, type NewProposal } from "./replenishment";
 import {
@@ -172,6 +173,8 @@ interface ProposalScope {
   kind: string;
   warehouseId: string | null;
   branchId: string | null;
+  /** A follow-up carries its agent's kind (ADR-149). */
+  detail?: unknown;
 }
 
 /**
@@ -202,6 +205,14 @@ function mayDecide(
       );
     case "PRICE_CHANGE":
       return hasPermission(grants, "recipes.manage");
+    case "FOLLOW_UP": {
+      // Whoever could do the agent's own work, or manages settings.
+      const kind = (p.detail as { agentKind?: AgentKindCode } | undefined)?.agentKind;
+      return (
+        hasPermission(grants, "org.settings.manage") ||
+        (!!kind && kind in CAN_RUN && CAN_RUN[kind]({ grants } as TenantContext))
+      );
+    }
     default:
       return false;
   }
@@ -474,6 +485,9 @@ export async function runAgent(
     if (agent.autonomy === "ACT" && saved.length) await scheduleActions(ctx, agent, kind, saved);
     // Written by Claude when the assistant is on (ADR-141); never fails the run.
     await explainRun(organizationId, run.id).catch(() => undefined);
+    // Claude looks into the run's critical findings when the agent is set to (ADR-149).
+    if (readSettings(kind, agent.settings).investigateCritical)
+      await investigateCriticalFindings(ctx, run.id, result.findings).catch(() => undefined);
     return { runId: run.id, status: "SUCCEEDED" as const };
   } catch (error) {
     await finish({ status: "FAILED", error: errorText(error) });
@@ -569,6 +583,93 @@ export async function getRun(ctx: TenantContext, runId: string) {
   };
 }
 
+/** At most this many critical findings are investigated after a run (ADR-149). */
+export const AUTO_INVESTIGATE_MAX = 3;
+
+/**
+ * After a run: Claude investigates up to three critical findings, as the
+ * agent's person, while the assistant is on and the AI limit allows. It stops
+ * at the first refusal of that kind and never fails the run.
+ */
+async function investigateCriticalFindings(
+  ctx: TenantContext,
+  runId: string,
+  findings: readonly Finding[],
+) {
+  if (!canUseAssistant(ctx)) return;
+  const critical = findings
+    .map((f, i) => ({ f, i }))
+    .filter((x) => x.f.severity === "CRITICAL")
+    .slice(0, AUTO_INVESTIGATE_MAX);
+  for (const { i } of critical) {
+    try {
+      await investigateFinding(ctx, runId, i, { automatic: true });
+    } catch {
+      return; // not connected, or the monthly AI limit is reached
+    }
+  }
+}
+
+/**
+ * Turn an investigation's next step into a follow-up in the inbox (ADR-149).
+ * Accepting it records who took it on; the app itself changes nothing.
+ */
+export async function followUpFromInvestigation(ctx: TenantContext, investigationId: string) {
+  if (!canUseAssistant(ctx)) throw forbidden();
+  const inv = await withTenantTx(ctx.organizationId, (tx) =>
+    tx.agentInvestigation.findFirst({
+      where: { organizationId: ctx.organizationId, id: investigationId },
+    }),
+  );
+  if (!inv) throw notFound("Investigation");
+  const run = await getRun(ctx, inv.runId);
+  const result = inv.result as InvestigationResult | null;
+  if (inv.status !== "OK" || !result)
+    throw businessRuleViolation("INVESTIGATION_FAILED", "This investigation has no next step");
+  return withTenantTx(ctx.organizationId, async (tx) => {
+    const existing = await tx.agentProposal.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        kind: "FOLLOW_UP",
+        entityType: "agent_investigation",
+        entityId: inv.id,
+      },
+      select: { id: true },
+    });
+    if (existing) return existing;
+    const agent = await tx.agent.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, kind: run.agent.kind },
+      select: { id: true },
+    });
+    const finding = run.findings[inv.findingIndex];
+    const p = await tx.agentProposal.create({
+      data: {
+        organizationId: ctx.organizationId,
+        agentId: agent.id,
+        runId: run.id,
+        kind: "FOLLOW_UP",
+        title: result.nextStep.title.en.slice(0, 200),
+        detail: {
+          agentKind: run.agent.kind,
+          findingCode: inv.findingCode,
+          nextStep: result.nextStep,
+        } as Json,
+        branchId: finding?.branchId ?? null,
+        entityType: "agent_investigation",
+        entityId: inv.id,
+      },
+      select: { id: true },
+    });
+    await recordAudit(tx, actorOf(ctx), {
+      action: "agent.follow_up_created",
+      entityType: "agent_proposal",
+      entityId: p.id,
+      changes: { investigation: inv.id, kind: result.nextStep.kind },
+    });
+    return p;
+  });
+}
+
 /** Claude investigates one finding of a run the person may see (ADR-148). */
 export async function investigateAgentFinding(
   ctx: TenantContext,
@@ -622,6 +723,11 @@ export async function listProposals(ctx: TenantContext, raw: { status?: string }
     else if (foodSafety.branchIds.length)
       or.push({ kind: "RAISE_NC", branchId: { in: foodSafety.branchIds } });
     if (hasPermission(ctx.grants, "recipes.manage")) or.push({ kind: "PRICE_CHANGE" });
+    const followKinds = AGENT_KINDS.filter(
+      (k) => hasPermission(ctx.grants, "org.settings.manage") || canRun(k, ctx),
+    );
+    if (followKinds.length)
+      or.push({ kind: "FOLLOW_UP", agent: { kind: { in: [...followKinds] } } });
     return {
       status,
       items: or.length

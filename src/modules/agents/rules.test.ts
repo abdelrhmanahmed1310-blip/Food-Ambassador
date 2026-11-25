@@ -84,6 +84,7 @@ describe("daily close checks (ADR-140)", () => {
 
   it("falls back to defaults for stored settings that are not valid", () => {
     expect(readSettings("REPLENISHMENT", { basis: "GUESS" })).toEqual({
+      investigateCritical: false,
       warehouseIds: [],
       basis: "MIN_MAX",
       // Acting within limits is off until amounts are set (ADR-145).

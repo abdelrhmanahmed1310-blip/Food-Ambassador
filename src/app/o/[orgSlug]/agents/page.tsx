@@ -149,6 +149,8 @@ export default async function AgentsPage({ params }: PageProps<"/o/[orgSlug]/age
                   maxActionsPerRun: t("maxActionsPerRun"),
                   maxIncreasePercent: t("maxIncreasePercent"),
                   holdHours: t("holdHours"),
+                  investigateCritical: t("investigateCritical"),
+                  investigateCriticalHint: t("investigateCriticalHint"),
                 }}
               />
               <div className="border-border border-t pt-4">

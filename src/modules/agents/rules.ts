@@ -53,8 +53,13 @@ const limitAmount = z
 /** Hours a scheduled action waits for a person to stop it (0: at once). */
 const holdHours = z.coerce.number().int().min(0).max(72);
 const perRun = z.coerce.number().int().min(0).max(50);
+/** After each run, Claude investigates its critical findings (ADR-149). */
+const investigateCritical = z
+  .preprocess((v) => v === true || v === "on" || v === "true", z.boolean())
+  .default(false);
 
 export const replenishmentSettings = z.object({
+  investigateCritical,
   /** Empty: every warehouse with reorder rules the agent may order for. */
   warehouseIds: z.array(uuid).max(200).default([]),
   basis: z.enum(["MIN_MAX", "FORECAST"]).default("MIN_MAX"),
@@ -68,6 +73,7 @@ export type ReplenishmentSettings = z.infer<typeof replenishmentSettings>;
 
 const percent = z.coerce.number().min(0).max(100);
 export const dailyCloseSettings = z.object({
+  investigateCritical,
   /** Empty: every branch the agent may see. */
   branchIds: z.array(uuid).max(200).default([]),
   /** A cash difference above this (absolute, in the branch currency) is reported. */
@@ -88,6 +94,7 @@ const money = z
   .default("0");
 
 export const invoiceMatchingSettings = z.object({
+  investigateCritical,
   /** A credit request is proposed only above this amount (invoice currency, before VAT). */
   minCreditAmount: money,
   /** Received goods not invoiced after this many days are reported. */
@@ -96,6 +103,7 @@ export const invoiceMatchingSettings = z.object({
 export type InvoiceMatchingSettings = z.infer<typeof invoiceMatchingSettings>;
 
 export const foodSafetySettings = z.object({
+  investigateCritical,
   /** Empty: every branch the agent may see. */
   branchIds: z.array(uuid).max(200).default([]),
   /** A 30-day compliance score below this is reported. */
@@ -109,6 +117,7 @@ export const foodSafetySettings = z.object({
 export type FoodSafetySettings = z.infer<typeof foodSafetySettings>;
 
 export const menuMarginSettings = z.object({
+  investigateCritical,
   /** An approved price starts this many days after approval. */
   effectiveInDays: z.coerce.number().int().min(0).max(30).default(1),
   /** Act within limits (ADR-145): a price rise up to this percent… */

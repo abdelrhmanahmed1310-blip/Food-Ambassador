@@ -42,6 +42,7 @@ export function AgentForm({
     maxActionsPerRun?: number;
     maxIncreasePercent?: number;
     holdHours?: number;
+    investigateCritical?: boolean;
   };
   options: {
     autonomy: Option[];
@@ -75,13 +76,23 @@ export function AgentForm({
     | "maxDailyAmount"
     | "maxActionsPerRun"
     | "maxIncreasePercent"
-    | "holdHours",
+    | "holdHours"
+    | "investigateCritical"
+    | "investigateCriticalHint",
     string
   >;
 }) {
   return (
     <ActionForm action={action} submitLabel={labels.save} pendingLabel={labels.saving}>
       <CheckboxField name="enabled" label={labels.enabled} defaultChecked={defaults.enabled} />
+      <div>
+        <CheckboxField
+          name="investigateCritical"
+          label={labels.investigateCritical}
+          defaultChecked={defaults.investigateCritical ?? false}
+        />
+        <p className="text-muted mt-1 text-xs">{labels.investigateCriticalHint}</p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <SelectField
           name="autonomy"

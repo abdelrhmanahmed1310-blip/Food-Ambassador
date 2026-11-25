@@ -1033,7 +1033,8 @@
     "USAGE_LIMIT_REACHED": "بلغت المؤسسة حدها لهذا البند. يمكن للمسؤول رفعه من الإعدادات ← الاستخدام والحدود.",
     "PLAN_IN_USE": "انقل مؤسسات هذه الخطة إلى خطة أخرى أولًا.",
     "STATEMENT_ISSUED": "هذا الكشف صادر بالفعل.",
-    "INVALID_MONTH": "اختر الشهر بصيغة YYYY-MM."
+    "INVALID_MONTH": "اختر الشهر بصيغة YYYY-MM.",
+    "INVESTIGATION_FAILED": "لا توجد خطوة تالية في هذا التحقق."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -8315,7 +8316,8 @@
       "REORDER": "طلب مقترح",
       "CREDIT_REQUEST": "طلب إشعار دائن",
       "RAISE_NC": "عدم مطابقة",
-      "PRICE_CHANGE": "سعر جديد"
+      "PRICE_CHANGE": "سعر جديد",
+      "FOLLOW_UP": "متابعة"
     },
     "draftOrder": "مسودة الطلب {number}",
     "linesTotal": "{lines, plural, one {بند واحد} other {# بنود}}، {total} {currency}",
@@ -8451,7 +8453,14 @@
       "CHECK": "ما يجب فحصه",
       "CHANGE": "تغيير مقترح"
     },
-    "investigatedBy": "تحقق Claude ‏({model}) بقراءة: {tools}. لم يُغيَّر أو يُرسَل شيء؛ راجع الأرقام قبل اتخاذ أي إجراء."
+    "investigatedBy": "تحقق Claude ‏({model}) بقراءة: {tools}. لم يُغيَّر أو يُرسَل شيء؛ راجع الأرقام قبل اتخاذ أي إجراء.",
+    "investigateCritical": "التحقق تلقائيًا من الملاحظات الحرجة",
+    "investigateCriticalHint": "بعد كل دورة يتحقق Claude من 3 ملاحظات حرجة كحد أقصى، بصلاحيات شخص الوكيل، إذا كان المساعد مفعّلًا. يستهلك رموز الذكاء الاصطناعي ويتوقف عند الحد الشهري.",
+    "automatic": "تلقائي",
+    "addFollowUp": "أضفه إلى صندوق الوارد",
+    "followUpAdded": "أُضيف إلى صندوق الوارد كمتابعة.",
+    "approveFollowUp": "أقبل — سأتولى ذلك",
+    "fromRun": "عرض الدورة والملاحظة"
   },
   "oauth": {
     "title": "هل تسمح لـ {app} باستخدام Food Ambassador؟",

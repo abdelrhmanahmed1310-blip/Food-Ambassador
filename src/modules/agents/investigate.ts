@@ -91,7 +91,12 @@ const textOf = (content: BetaContentBlock[]) =>
 
 const definitions = INVESTIGATION_TOOLS.map((t) => t.definition);
 
-export async function investigateFinding(ctx: TenantContext, runId: string, findingIndex: number) {
+export async function investigateFinding(
+  ctx: TenantContext,
+  runId: string,
+  findingIndex: number,
+  opts: { automatic?: boolean } = {},
+) {
   if (!canUseAssistant(ctx)) throw forbidden();
   const run = await withTenantTx(ctx.organizationId, (tx) =>
     tx.agentRun.findFirst({
@@ -211,6 +216,7 @@ export async function investigateFinding(ctx: TenantContext, runId: string, find
         findingIndex,
         findingCode: finding.code,
         requestedByUserId: ctx.userId,
+        automatic: opts.automatic ?? false,
         status: result ? "OK" : "FAILED",
         result: result ?? undefined,
         error: result ? null : (error ?? "Unknown error").slice(0, 500),
