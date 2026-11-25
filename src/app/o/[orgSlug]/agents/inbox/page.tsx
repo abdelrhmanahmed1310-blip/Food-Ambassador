@@ -6,7 +6,14 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/primitives"
 import { REJECTION_REASONS } from "@/modules/agents/rules";
 import { canSeeAgents, listProposals } from "@/modules/agents/service";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
-import { decideProposalAction, liftPauseAction, stopActionAction } from "../actions";
+import { pausedLines } from "@/modules/agents/line-drops";
+import {
+  decideProposalAction,
+  dropLineAction,
+  liftLinePauseAction,
+  liftPauseAction,
+  stopActionAction,
+} from "../actions";
 
 const STATUSES = ["OPEN", "SCHEDULED", "APPROVED", "REJECTED", "SUPERSEDED"] as const;
 
@@ -80,16 +87,49 @@ export default async function AgentInboxPage({
   const sp = await searchParams;
   const ctx = await requireTenant(orgSlug);
   if (!canSeeAgents(ctx)) notFound();
-  const [t, format, locale, data] = await Promise.all([
+  const [t, format, locale, data, paused] = await Promise.all([
     getTranslations("agents"),
     getFormatter(),
     getLocale(),
     listProposals(ctx, { status: typeof sp.status === "string" ? sp.status : undefined }),
+    pausedLines(ctx),
   ]);
+  const reasonOptions = REJECTION_REASONS.map((r) => ({
+    value: r,
+    label: t(`rejectionReasons.${r}`),
+  }));
   const base = `/o/${orgSlug}`;
   return (
     <>
       <PageHeader title={t("inboxTitle")} description={t("inboxIntro")} />
+      {paused.length ? (
+        <Card title={t("pausedTitle")}>
+          <ul className="divide-border divide-y text-sm" data-testid="paused-lines">
+            {paused.map((x) => (
+              <li
+                key={`${x.warehouseId}:${x.productId}`}
+                className="flex flex-wrap items-center justify-between gap-2 py-2"
+              >
+                <span>
+                  <span className="ltr-value font-mono text-xs">{x.warehouse}</span> ·{" "}
+                  <span className="ltr-value font-mono text-xs">{x.sku}</span> — {x.name} ·{" "}
+                  {t("pausedUntil", {
+                    date: format.dateTime(x.until, { dateStyle: "medium", timeZone: ctx.timeZone }),
+                  })}
+                </span>
+                <ActionForm
+                  action={liftLinePauseAction.bind(null, orgSlug, x.warehouseId, x.productId)}
+                  submitLabel={t("liftPause")}
+                  pendingLabel={t("saving")}
+                  submitVariant="secondary"
+                >
+                  <span />
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
       <div className="mb-4 flex flex-wrap gap-2 text-sm">
         {STATUSES.map((s) => (
           <Link
@@ -157,13 +197,41 @@ export default async function AgentInboxPage({
                   Array.isArray(d.lines) ? (
                     <ul className="divide-border divide-y">
                       {d.lines.map((l) => (
-                        <li key={l.sku} className="flex justify-between gap-2 py-1">
-                          <span>
-                            <span className="ltr-value font-mono text-xs">{l.sku}</span> — {l.name}
-                          </span>
-                          <span className="ltr-value tabular-nums">
-                            {l.quantity} {l.unit} × {l.price}
-                          </span>
+                        <li key={l.sku} className="space-y-1 py-1">
+                          <div className="flex justify-between gap-2">
+                            <span>
+                              <span className="ltr-value font-mono text-xs">{l.sku}</span> —{" "}
+                              {l.name}
+                            </span>
+                            <span className="ltr-value tabular-nums">
+                              {l.quantity} {l.unit} × {l.price}
+                            </span>
+                          </div>
+                          {p.kind === "REORDER" &&
+                          p.status === "OPEN" &&
+                          Array.isArray(d.lines) &&
+                          d.lines.length > 1 ? (
+                            <details data-testid={`drop-${l.sku}`}>
+                              <summary className="text-primary cursor-pointer text-xs">
+                                {t("dropLine")}
+                              </summary>
+                              <ActionForm
+                                action={dropLineAction.bind(null, orgSlug, p.id, l.sku)}
+                                submitLabel={t("dropLine")}
+                                pendingLabel={t("saving")}
+                                submitVariant="secondary"
+                                className="flex flex-wrap items-end gap-2 pt-2"
+                              >
+                                <SelectField
+                                  name="reason"
+                                  label={t("rejectReason")}
+                                  placeholder={t("rejectReasonPick")}
+                                  options={reasonOptions}
+                                />
+                                <TextField name="note" label={t("rejectNote")} />
+                              </ActionForm>
+                            </details>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -227,10 +295,7 @@ export default async function AgentInboxPage({
                           name="reason"
                           label={t("rejectReason")}
                           placeholder={t("rejectReasonPick")}
-                          options={REJECTION_REASONS.map((r) => ({
-                            value: r,
-                            label: t(`rejectionReasons.${r}`),
-                          }))}
+                          options={reasonOptions}
                         />
                         <TextField name="note" label={t("rejectNote")} />
                       </ActionForm>

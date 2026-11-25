@@ -1,4 +1,5 @@
 import "server-only";
+import { PAUSE_LOOKBACK_MS, PAUSING_REASONS, pausedUntil, type Rejection } from "./pause-rules";
 import { Decimal } from "@/lib/decimal";
 import { accessibleScope, holdsAnyGrant } from "@/modules/access/authorize";
 import { createOrdersFromPlan, reorderPlan } from "@/modules/procurement/reorder";
@@ -71,6 +72,36 @@ async function orderSummaryInTx(tx: Tx, ctx: TenantContext, orderId: string) {
   };
 }
 
+/** Warehouse and product pairs the replenishment agent should not propose now (ADR-156). */
+export async function pausedProducts(ctx: TenantContext, now = new Date()) {
+  const drops = await withTenantTx(ctx.organizationId, (tx) =>
+    tx.agentLineDrop.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        agent: { kind: "REPLENISHMENT" },
+        reason: { in: [...PAUSING_REASONS] },
+        pauseLiftedAt: null,
+        droppedAt: { gte: new Date(now.getTime() - PAUSE_LOOKBACK_MS) },
+      },
+      select: { warehouseId: true, productId: true, reason: true, droppedAt: true },
+    }),
+  );
+  const byKey = new Map<string, Rejection[]>();
+  for (const d of drops) {
+    const key = `${d.warehouseId}:${d.productId}`;
+    byKey.set(key, [
+      ...(byKey.get(key) ?? []),
+      { reason: d.reason, decidedAt: d.droppedAt, pauseLiftedAt: null },
+    ]);
+  }
+  const paused = new Map<string, Date>();
+  for (const [key, list] of byKey) {
+    const until = pausedUntil(list, now);
+    if (until) paused.set(key, until);
+  }
+  return paused;
+}
+
 export async function runReplenishment(
   ctx: TenantContext,
   settings: ReplenishmentSettings,
@@ -82,6 +113,9 @@ export async function runReplenishment(
   const findings: Finding[] = [];
   const proposals: NewProposal[] = [];
   let candidateLines = 0;
+  // Products people dropped as not needed or already done, paused per warehouse (ADR-156).
+  const pausedKeys = await pausedProducts(ctx);
+  let pausedLines = 0;
   for (const wh of warehouses) {
     const plan = await reorderPlan(ctx, wh.id);
     count();
@@ -90,9 +124,11 @@ export async function runReplenishment(
       settings.basis === "FORECAST"
         ? (l.forecast.order?.purchaseUnits ?? null)
         : (l.suggestion?.purchaseUnits ?? null);
-    const ready = plan.lines.filter(
+    const priced = plan.lines.filter(
       (l) => quantity(l) && l.source && l.source.lastUnitPrice !== null,
     );
+    const ready = priced.filter((l) => !pausedKeys.has(`${wh.id}:${l.rule.productId}`));
+    pausedLines += priced.length - ready.length;
     for (const l of plan.lines)
       if (quantity(l) && (!l.source || l.source.lastUnitPrice === null))
         findings.push({
@@ -160,6 +196,13 @@ export async function runReplenishment(
       }
     }
   }
+  if (pausedLines)
+    findings.push({
+      severity: "INFO",
+      code: "PAUSED_LINES",
+      params: { count: pausedLines },
+      link: "/agents/inbox",
+    });
   return {
     summary: {
       warehouses: warehouses.length,

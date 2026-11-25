@@ -15,6 +15,7 @@ import {
   updateAgent,
 } from "@/modules/agents/service";
 import { changeAgentTrust } from "@/modules/agents/trust";
+import { dropProposalLine, liftLinePause } from "@/modules/agents/line-drops";
 import { tenantMutation } from "@/server/actions/tenant";
 
 type S = ActionState;
@@ -216,6 +217,40 @@ export async function liftPauseAction(
   const t = await getTranslations("agents");
   return tenantMutation(orgSlug, previous, formData, async (ctx) => {
     await liftProposalPause(ctx, proposalId);
+    return { message: t("pauseLifted") };
+  });
+}
+
+/** Drop one product from an order suggestion, with a reason (ADR-156). */
+export async function dropLineAction(
+  orgSlug: string,
+  proposalId: string,
+  sku: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await dropProposalLine(ctx, proposalId, {
+      sku,
+      reason: String(formData.get("reason") ?? "") || undefined,
+      note: String(formData.get("note") ?? "") || undefined,
+    });
+    return { message: t("lineDropped") };
+  });
+}
+
+/** Let the replenishment agent propose a product for a warehouse again (ADR-156). */
+export async function liftLinePauseAction(
+  orgSlug: string,
+  warehouseId: string,
+  productId: string,
+  previous: S,
+  formData: FormData,
+) {
+  const t = await getTranslations("agents");
+  return tenantMutation(orgSlug, previous, formData, async (ctx) => {
+    await liftLinePause(ctx, warehouseId, productId);
     return { message: t("pauseLifted") };
   });
 }

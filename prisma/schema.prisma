@@ -332,6 +332,7 @@ model Organization {
   usageDaily                   UsageDaily[]
   billingStatements            BillingStatement[]
   agentInvestigations          AgentInvestigation[]
+  agentLineDrops               AgentLineDrop[]
   haccpPlans                   HaccpPlan[]
   haccpSteps                   HaccpStep[]
   haccpHazards                 HaccpHazard[]
@@ -9290,6 +9291,7 @@ model Agent {
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   runs         AgentRun[]
   proposals    AgentProposal[]
+  lineDrops    AgentLineDrop[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, kind])
@@ -9366,9 +9368,10 @@ model AgentProposal {
   pauseLiftedAt   DateTime?           @map("pause_lifted_at") @db.Timestamptz(3)
   createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  agent        Agent        @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
-  run          AgentRun     @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  agent        Agent           @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
+  run          AgentRun        @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict)
+  lineDrops    AgentLineDrop[]
 
   @@unique([organizationId, id])
   @@index([organizationId, status, createdAt])
@@ -9548,4 +9551,29 @@ model AgentInvestigation {
 
   @@index([organizationId, runId, findingIndex, createdAt])
   @@map("agent_investigations")
+}
+
+/// A product a person dropped from an agent's order suggestion, and why (ADR-156).
+model AgentLineDrop {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  agentId         String    @map("agent_id") @db.Uuid
+  proposalId      String    @map("proposal_id") @db.Uuid
+  warehouseId     String    @map("warehouse_id") @db.Uuid
+  productId       String    @map("product_id") @db.Uuid
+  sku             String
+  /// A rejection reason (ADR-152); OTHER needs a note.
+  reason          String
+  note            String?
+  droppedByUserId String    @map("dropped_by_user_id") @db.Uuid
+  droppedAt       DateTime  @default(now()) @map("dropped_at") @db.Timestamptz(3)
+  /// When someone let the agent propose the product again (ADR-156).
+  pauseLiftedAt   DateTime? @map("pause_lifted_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  agent        Agent         @relation(fields: [organizationId, agentId], references: [organizationId, id], onDelete: Restrict)
+  proposal     AgentProposal @relation(fields: [organizationId, proposalId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, agentId, warehouseId, productId, droppedAt])
+  @@map("agent_line_drops")
 }

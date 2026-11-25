@@ -4836,7 +4836,42 @@ Decision (2026-11-25): an agent learns from the reasons people give
   counting. It is audited as `agent.pause_lifted`. A CHECK keeps
   `pause_lifted_at` to rejected proposals.
 - **Not covered.** Replenishment suggestions and draft orders, which bundle
-  many items per warehouse. They are not paused per item yet.
+  many items per warehouse. They are not paused per item yet. See ADR-156
+  for suggestions.
+
+### ADR-156 AgaaS: drop products from order suggestions — Accepted (built)
+
+Decision (2026-11-25): in the Agents inbox, a person can take one product
+out of the replenishment agent's order suggestion (REORDER) with a reason,
+and approve the rest.
+
+- **Who.** Someone who can order for the suggestion's warehouse
+  (`purchasing.manage` at that branch or warehouse).
+- **Rules:**
+  - the same reasons as rejections (ADR-152), and OTHER needs a note;
+  - the last line cannot be dropped, so the suggestion is rejected instead.
+
+  Dropping updates the suggestion: its lines, the reorder rules it will
+  order and its total. Approving then orders only what is left.
+
+- **Recorded** in `agent_line_drops`:
+  - agent, proposal, warehouse, product and SKU;
+  - reason and note;
+  - who dropped it and when;
+  - `pause_lifted_at`.
+
+  The table has RLS, and CHECKs on the reason and on the note for OTHER.
+  Each drop is audited as `agent.line_dropped`.
+
+- **Pause per product and warehouse.** The ADR-155 rule applies here too:
+  two "not needed" or "already done" drops within 30 days leave the product
+  out of that warehouse's suggestions and drafts for 30 days. The run gets
+  an INFO finding, `PAUSED_LINES`, with the count.
+- **Lifting.** The inbox lists "Products the agent stopped proposing", with
+  the date each pause ends, for people who can order there. "Allow proposing
+  this again" lifts the pause (audited as `agent.line_pause_lifted`).
+- **Not covered.** Lines of draft purchase orders the agent prepared; those
+  are edited on the order itself.
 
 ## Business assumptions (recorded, not invented rules)
 
