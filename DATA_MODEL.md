@@ -1744,6 +1744,22 @@ Migration `20270202090000_usage_metering`.
 - **organizations.usage_limits**: JSONB (CK an object): agent actions a
   month, AI tokens a month, MCP calls a day; missing or null = no limit.
 
+### Plans and statements (ADR-147)
+
+Migration `20270203090000_billing_plans`.
+
+- **billing_plans** (platform, not tenant data): `code` (unique, CK
+  format), `name`, `currency`, `monthly_fee` (CK ≥ 0), `pricing` JSONB
+  (per metric: included, unit price, per 1 / 1 000 / 1 000 000),
+  `archived_at`. Readable by the tenant role; written by the platform.
+- **organizations.billing_plan_id / billing_plan_since**: the plan the
+  organization is billed on (CK both or neither).
+- **billing_statements**: organization, `month` (CK YYYY-MM, unique per
+  organization), `status` DRAFT | ISSUED (CK issued time and issuer set
+  exactly when issued), `currency`, `plan` (copy), `lines` JSONB, `total`
+  (CK ≥ 0). An issued statement cannot be changed or removed (trigger).
+  Row-level security; the organization reads its own.
+
 ### Global search (F2b, ADR-088)
 
 Migration `20261217090000_f2b_search`: extension `pg_trgm`; GIN trigram

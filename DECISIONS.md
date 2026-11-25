@@ -4559,6 +4559,47 @@ agreed outside the app, and no price is invented in it.
   platform-operator console across organizations, warnings before a limit
   is reached.
 
+### ADR-147 AgaaS: plans and prices from the platform operator, statements, limit warnings — Accepted (built)
+
+Decision (2026-11-25): turn metered usage (ADR-146) into monthly statements
+on plans the platform operator defines. No price is set or suggested by the
+app: every fee, included quantity and unit price is entered by the
+operator.
+
+- **Platform operator.**
+  - A signed-in person whose email is in `PLATFORM_ADMIN_EMAILS`
+    (environment, comma-separated) and who has two-factor sign-in on.
+  - Without two-factor sign-in, `/platform` says to turn it on; anyone else
+    gets "not found".
+  - Operator functions take the checked operator as an argument, so none
+    can be called without the check.
+  - Each operator action is logged with the operator's id.
+- **Plans** (`billing_plans`, not tenant data):
+  - A code, name, currency and monthly fee.
+  - Per metered item: the quantity included, a price, and the units it is
+    per (1, 1 000 or 1 000 000; tokens are usually priced per million).
+  - Saving the same code changes the plan; drafts follow the change,
+    issued statements do not.
+  - A plan in use cannot be archived.
+- **Assignment.** `organizations.billing_plan_id` and `billing_plan_since`
+  (CHECK both or neither), set by the operator.
+- **Statements** (`billing_statements`, one per organization and month):
+  - Drafts are made by the operator, and automatically on the 1st for the
+    month just ended (`billing.statements` job).
+  - The lines are the fee, then each metered item: used, included, charged
+    beyond that, price and amount, rounded to the cent per line. Items the
+    plan does not price are listed as used, with nothing charged.
+  - The plan is copied into the statement. Issuing (by the operator) fixes
+    it; a database trigger refuses any change to an issued statement.
+  - The organization's settings managers see their plan and statements
+    under Settings → Usage & limits (read-only; row-level security).
+- **Limit warnings.** An hourly job (`usage.warn`) tells settings managers
+  once per period when a limit passes 80 % (USAGE_LIMIT_NEAR) and when it
+  is reached (USAGE_LIMIT_REACHED).
+- **Not yet.** Taxes on statements, payment collection, credit notes on
+  issued statements, plan changes in the middle of a month (the plan at
+  statement time applies to the whole month).
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

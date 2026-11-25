@@ -1,4 +1,6 @@
 import { dueAgents, executeDueActions, runAgent } from "@/modules/agents/service";
+import { generateStatementsFor } from "@/modules/billing/platform";
+import { warnUsageLimits } from "@/modules/billing/service";
 import { purgeOldConversations } from "@/modules/assistant/service";
 import "server-only";
 import { purgeCandidates } from "@/modules/recruitment/service";
@@ -138,6 +140,12 @@ const HANDLERS = {
   },
   // Scheduled agent actions whose hold is over (ADR-145).
   "agents.act": async () => executeDueActions(),
+  // Usage limit warnings at 80 % and 100 % (ADR-147), once per period.
+  "usage.warn": async () => warnUsageLimits(),
+  // Draft statements for the month just ended (ADR-147); the operator issues them.
+  "billing.statements": async (payload) => ({
+    made: (await generateStatementsFor(String(payload.month), null)).made,
+  }),
 } satisfies Record<string, Handler>;
 export type JobKind = keyof typeof HANDLERS;
 export const JOB_KINDS = Object.keys(HANDLERS) as JobKind[];
@@ -164,6 +172,20 @@ export async function scheduleRecurringJobs(now = new Date()) {
       dedupeKey: `campaigns.send:${slotKey(now, 1)}`,
       maxAttempts: 1,
     });
+    added += await enqueueJobInTx(tx, {
+      kind: "usage.warn",
+      dedupeKey: `usage.warn:${now.toISOString().slice(0, 13)}`,
+      maxAttempts: 1,
+    });
+    if (now.getUTCDate() === 1) {
+      const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+      const month = prev.toISOString().slice(0, 7);
+      added += await enqueueJobInTx(tx, {
+        kind: "billing.statements",
+        payload: { month },
+        dedupeKey: `billing.statements:${month}`,
+      });
+    }
     // Agent actions whose hold is over (ADR-145), every 5 minutes.
     added += await enqueueJobInTx(tx, {
       kind: "agents.act",

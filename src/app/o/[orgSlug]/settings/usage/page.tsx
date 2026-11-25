@@ -6,6 +6,8 @@ import { Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui/pri
 import { hasPermission } from "@/modules/access/authorize";
 import { monthOf } from "@/modules/usage/rules";
 import { usageSummary } from "@/modules/usage/service";
+import { myBilling } from "@/modules/billing/service";
+import { Badge } from "@/components/ui/primitives";
 import { requireTenant } from "@/modules/tenancy/require-tenant";
 import { saveUsageLimitsAction } from "./actions";
 
@@ -24,10 +26,11 @@ export default async function UsagePage({
   const sp = await searchParams;
   const ctx = await requireTenant(orgSlug);
   if (!hasPermission(ctx.grants, "org.settings.manage")) notFound();
-  const [t, format, u] = await Promise.all([
+  const [t, format, u, billing] = await Promise.all([
     getTranslations("usage"),
     getFormatter(),
     usageSummary(ctx, typeof sp.month === "string" ? sp.month : undefined),
+    myBilling(ctx),
   ]);
   const n = (v: number) => format.number(v);
   const base = `/o/${orgSlug}/settings/usage`;
@@ -52,6 +55,47 @@ export default async function UsagePage({
     <>
       <PageHeader title={t("title")} description={t("intro")} />
       <div className="space-y-6">
+        <Card title={t("planTitle")}>
+          <div className="space-y-3 text-sm" data-testid="billing-plan">
+            {billing.plan ? (
+              <p>
+                {t("onPlan", {
+                  plan: billing.plan.name,
+                  fee: billing.plan.monthlyFee.toString(),
+                  currency: billing.plan.currency,
+                })}
+              </p>
+            ) : (
+              <p className="text-muted">{t("noPlan")}</p>
+            )}
+            {billing.statements.length ? (
+              <Table label={t("statementsTitle")}>
+                <thead>
+                  <tr>
+                    <Th>{t("month")}</Th>
+                    <Th>{t("total")}</Th>
+                    <Th>{t("statementStatus")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billing.statements.map((st) => (
+                    <tr key={st.id}>
+                      <Td className="ltr-value">{st.month}</Td>
+                      <Td className="ltr-value tabular-nums">
+                        {st.total.toString()} {st.currency}
+                      </Td>
+                      <Td>
+                        <Badge tone={st.status === "ISSUED" ? "success" : "warning"}>
+                          {t(`statementStatuses.${st.status as "DRAFT"}`)}
+                        </Badge>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            ) : null}
+          </div>
+        </Card>
         <Card title={t("limitsTitle")}>
           <Table label={t("limitsTitle")}>
             <thead>

@@ -1030,7 +1030,10 @@
     "AGENT_AUTONOMY_NOT_OFFERED": "This agent only proposes; drafts are for replenishment.",
     "API_MCP_NO_COMPANY": "MCP keys cannot be limited to a company.",
     "PROPOSAL_NOT_SCHEDULED": "This action is no longer scheduled.",
-    "USAGE_LIMIT_REACHED": "The organization's limit for this is reached. An administrator can raise it in Settings → Usage & limits."
+    "USAGE_LIMIT_REACHED": "The organization's limit for this is reached. An administrator can raise it in Settings → Usage & limits.",
+    "PLAN_IN_USE": "Move this plan's organizations to another plan first.",
+    "STATEMENT_ISSUED": "This statement is already issued.",
+    "INVALID_MONTH": "Choose a month as YYYY-MM."
   },
   "notFound": {
     "title": "Page not found",
@@ -4732,7 +4735,9 @@
       "SUPPLIER_BANK_ACCOUNT_ADDED": "A bank account ending {last4} was added to supplier {code} — verify it before paying",
       "AGENT_PROPOSALS": "{count, plural, one {An agent proposes # thing to decide} other {Agents propose # things to decide}}",
       "AGENT_DAILY_CLOSE": "{count, plural, one {Daily close for {date}: # finding} other {Daily close for {date}: # findings}}",
-      "AGENT_ACTIONS": "{hours, plural, =0 {{count, plural, one {An agent carried out # action} other {Agents carried out # actions}} within their limits} other {{count, plural, one {An agent will carry out # action} other {Agents will carry out # actions}} in {hours} h unless stopped}}"
+      "AGENT_ACTIONS": "{hours, plural, =0 {{count, plural, one {An agent carried out # action} other {Agents carried out # actions}} within their limits} other {{count, plural, one {An agent will carry out # action} other {Agents will carry out # actions}} in {hours} h unless stopped}}",
+      "USAGE_LIMIT_NEAR": "Usage passed 80% of a limit: {used} of {cap}. See Usage & limits.",
+      "USAGE_LIMIT_REACHED": "A usage limit is reached: {used} of {cap}. See Usage & limits."
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "Purchase orders waiting for my approval",
@@ -4749,7 +4754,9 @@
       "SUPPLIER_BANK_ACCOUNT_ADDED": "Supplier bank accounts added or changed",
       "AGENT_PROPOSALS": "Agent proposals to decide",
       "AGENT_DAILY_CLOSE": "Daily close report",
-      "AGENT_ACTIONS": "Actions agents carry out within their limits"
+      "AGENT_ACTIONS": "Actions agents carry out within their limits",
+      "USAGE_LIMIT_NEAR": "Usage near a limit",
+      "USAGE_LIMIT_REACHED": "Usage limit reached"
     },
     "outcomes": {
       "POSTED": "posted",
@@ -8485,6 +8492,76 @@
       "ai_output_tokens": "AI output tokens",
       "mcp_calls": "MCP tool calls"
     },
-    "noPrices": "Quantities only: prices and plans are agreed outside the app. Days follow the organization's time zone."
+    "noPrices": "Quantities only: prices and plans are agreed outside the app. Days follow the organization's time zone.",
+    "planTitle": "Plan and statements",
+    "onPlan": "On the {plan} plan: {fee} {currency} a month, with usage charged as agreed.",
+    "noPlan": "No plan is set for the organization.",
+    "statementsTitle": "Statements",
+    "month": "Month",
+    "total": "Total",
+    "statementStatus": "Status",
+    "statementStatuses": {
+      "DRAFT": "Draft",
+      "ISSUED": "Issued"
+    }
+  },
+  "platform": {
+    "title": "Platform: plans and statements",
+    "intro": "Signed in as operator {email}. Prices are only what you enter here.",
+    "needsTwoFactor": "Turn on two-factor sign-in to use the platform console.",
+    "toSecurity": "Go to Account → Security",
+    "plansTitle": "Plans",
+    "noPlans": "No plan yet. Add one below.",
+    "code": "Code",
+    "name": "Name",
+    "currency": "Currency",
+    "monthlyFee": "Monthly fee",
+    "pricing": "Usage pricing",
+    "organizations": "Organizations",
+    "archived": "Archived",
+    "archive": "Archive",
+    "priceLine": "{included} included, then {price} per {per}",
+    "planForm": "Add or change a plan",
+    "planHint": "Same code changes that plan; statements not yet issued follow the change. Leave an item empty to not charge for it.",
+    "included": "Included",
+    "unitPrice": "Price",
+    "per": "Per",
+    "savePlan": "Save plan",
+    "saving": "Saving…",
+    "planSaved": "Plan saved.",
+    "orgsTitle": "Organizations",
+    "organization": "Organization",
+    "plan": "Plan",
+    "noPlan": "No plan",
+    "assign": "Set",
+    "assigned": "Plan set.",
+    "statementsTitle": "Statements for {month}",
+    "month": "Month (YYYY-MM)",
+    "show": "Show",
+    "generate": "Make or refresh drafts",
+    "generated": "{count, plural, one {# draft} other {# drafts}} made or refreshed.",
+    "noStatements": "No statement for this month yet.",
+    "status": {
+      "DRAFT": "Draft",
+      "ISSUED": "Issued"
+    },
+    "issue": "Issue",
+    "issueConfirm": "Issue this statement? It cannot be changed afterwards.",
+    "issuedBy": "Issued by {who} on {when}",
+    "lines": "Statement lines",
+    "item": "Item",
+    "used": "Used",
+    "billable": "Charged",
+    "amount": "Amount",
+    "fee": "Monthly fee",
+    "perUnits": "{price} / {per}",
+    "metrics": {
+      "agent_runs": "Agent runs",
+      "agent_actions": "Actions agents carried out",
+      "agent_approvals": "Agent proposals approved by people",
+      "ai_input_tokens": "AI input tokens",
+      "ai_output_tokens": "AI output tokens",
+      "mcp_calls": "MCP tool calls"
+    }
   }
 }

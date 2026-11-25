@@ -37,6 +37,8 @@ const envSchema = z.object({
   // USDA FoodData Central API key from api.data.gov (ADR-132). Unset = live USDA search is off;
   // the local library keeps working. Server-side only, never sent to browsers.
   USDA_FDC_API_KEY: z.string().optional(),
+  // Platform operators who set plans and prices (ADR-147): comma-separated emails; unset = none.
+  PLATFORM_ADMIN_EMAILS: z.string().optional(),
   USDA_FDC_BASE_URL: z.url().default("https://api.nal.usda.gov/fdc/v1"),
   // Calls per hour across all instances; USDA's default limit per key is 1,000.
   USDA_FDC_REQUESTS_PER_HOUR: z.coerce.number().int().min(1).max(100000).default(1000),

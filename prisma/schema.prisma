@@ -153,6 +153,10 @@ model Organization {
   agentActionsPausedByUserId String?            @map("agent_actions_paused_by_user_id") @db.Uuid
   /// Monthly and daily usage caps set by the organization (ADR-146); {} = none.
   usageLimits                Json               @default("{}") @map("usage_limits")
+  /// The plan the organization is billed on (ADR-147), set by the platform operator.
+  billingPlanId              String?            @map("billing_plan_id") @db.Uuid
+  billingPlanSince           DateTime?          @map("billing_plan_since") @db.Date
+  billingPlan                BillingPlan?       @relation(fields: [billingPlanId], references: [id], onDelete: Restrict)
   createdByUserId            String?            @map("created_by_user_id") @db.Uuid
   createdAt                  DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                  DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -326,6 +330,7 @@ model Organization {
   oauthCodes                   OAuthCode[]
   oauthTokens                  OAuthToken[]
   usageDaily                   UsageDaily[]
+  billingStatements            BillingStatement[]
   haccpPlans                   HaccpPlan[]
   haccpSteps                   HaccpStep[]
   haccpHazards                 HaccpHazard[]
@@ -9462,4 +9467,47 @@ model UsageDaily {
 
   @@unique([organizationId, day, metric, dimension])
   @@map("usage_daily")
+}
+
+// ─── Plans and statements (ADR-147) ───
+
+/// A plan the platform operator offers: monthly fee and, per metered item, what is included and the price beyond it.
+model BillingPlan {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  code       String    @unique
+  name       String
+  currency   String    @db.Char(3)
+  monthlyFee Decimal   @default(0) @map("monthly_fee") @db.Decimal(19, 4)
+  /// { metric: { included, unitPrice, per } } for the metrics of ADR-146.
+  pricing    Json      @default("{}")
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organizations Organization[]
+
+  @@map("billing_plans")
+}
+
+/// A month's statement for an organization from its metered usage and its plan; DRAFT until issued, then fixed.
+model BillingStatement {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  /// YYYY-MM.
+  month          String
+  status         String    @default("DRAFT")
+  currency       String    @db.Char(3)
+  /// The plan as it was when the statement was made.
+  plan           Json
+  /// [{ kind, metric, used, included, billable, unitPrice, per, amount }]
+  lines          Json
+  total          Decimal   @db.Decimal(19, 4)
+  generatedAt    DateTime  @default(now()) @map("generated_at") @db.Timestamptz(3)
+  issuedAt       DateTime? @map("issued_at") @db.Timestamptz(3)
+  issuedBy       String?   @map("issued_by")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, month])
+  @@map("billing_statements")
 }

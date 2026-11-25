@@ -30,6 +30,8 @@ export const NOTIFICATION_KINDS = [
   "AGENT_PROPOSALS",
   "AGENT_DAILY_CLOSE",
   "AGENT_ACTIONS",
+  "USAGE_LIMIT_NEAR",
+  "USAGE_LIMIT_REACHED",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 

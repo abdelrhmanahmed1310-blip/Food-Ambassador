@@ -1030,7 +1030,10 @@
     "AGENT_AUTONOMY_NOT_OFFERED": "هذا الوكيل يقترح فقط؛ المسودات لوكيل إعادة التموين.",
     "API_MCP_NO_COMPANY": "لا يمكن قصر مفاتيح MCP على شركة واحدة.",
     "PROPOSAL_NOT_SCHEDULED": "لم يعد هذا الإجراء مجدولًا.",
-    "USAGE_LIMIT_REACHED": "بلغت المؤسسة حدها لهذا البند. يمكن للمسؤول رفعه من الإعدادات ← الاستخدام والحدود."
+    "USAGE_LIMIT_REACHED": "بلغت المؤسسة حدها لهذا البند. يمكن للمسؤول رفعه من الإعدادات ← الاستخدام والحدود.",
+    "PLAN_IN_USE": "انقل مؤسسات هذه الخطة إلى خطة أخرى أولًا.",
+    "STATEMENT_ISSUED": "هذا الكشف صادر بالفعل.",
+    "INVALID_MONTH": "اختر الشهر بصيغة YYYY-MM."
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -4732,7 +4735,9 @@
       "SUPPLIER_BANK_ACCOUNT_ADDED": "أُضيف حساب بنكي ينتهي بـ {last4} إلى المورد {code} — تحقّق منه قبل الدفع",
       "AGENT_PROPOSALS": "{count, plural, one {يقترح وكيل أمرًا واحدًا للقرار} other {يقترح الوكلاء # أمور للقرار}}",
       "AGENT_DAILY_CLOSE": "{count, plural, one {إقفال يوم {date}: ملاحظة واحدة} other {إقفال يوم {date}: # ملاحظات}}",
-      "AGENT_ACTIONS": "{hours, plural, =0 {{count, plural, one {نفّذ وكيل إجراءً واحدًا} other {نفّذ الوكلاء # إجراءات}} ضمن حدودهم} other {{count, plural, one {سينفّذ وكيل إجراءً واحدًا} other {سينفّذ الوكلاء # إجراءات}} خلال {hours} ساعة ما لم يُوقَف}}"
+      "AGENT_ACTIONS": "{hours, plural, =0 {{count, plural, one {نفّذ وكيل إجراءً واحدًا} other {نفّذ الوكلاء # إجراءات}} ضمن حدودهم} other {{count, plural, one {سينفّذ وكيل إجراءً واحدًا} other {سينفّذ الوكلاء # إجراءات}} خلال {hours} ساعة ما لم يُوقَف}}",
+      "USAGE_LIMIT_NEAR": "تجاوز الاستخدام 80% من أحد الحدود: {used} من {cap}. راجع الاستخدام والحدود.",
+      "USAGE_LIMIT_REACHED": "بلغ الاستخدام أحد الحدود: {used} من {cap}. راجع الاستخدام والحدود."
     },
     "kindNames": {
       "PO_APPROVAL_NEEDED": "أوامر الشراء التي تنتظر موافقتي",
@@ -4749,7 +4754,9 @@
       "SUPPLIER_BANK_ACCOUNT_ADDED": "حسابات بنكية للموردين أُضيفت أو تغيّرت",
       "AGENT_PROPOSALS": "مقترحات الوكلاء للقرار",
       "AGENT_DAILY_CLOSE": "تقرير إقفال اليوم",
-      "AGENT_ACTIONS": "إجراءات ينفّذها الوكلاء ضمن حدودهم"
+      "AGENT_ACTIONS": "إجراءات ينفّذها الوكلاء ضمن حدودهم",
+      "USAGE_LIMIT_NEAR": "اقتراب الاستخدام من حد",
+      "USAGE_LIMIT_REACHED": "بلوغ حد الاستخدام"
     },
     "outcomes": {
       "POSTED": "تم الترحيل",
@@ -8485,6 +8492,76 @@
       "ai_output_tokens": "رموز الإخراج للذكاء الاصطناعي",
       "mcp_calls": "استدعاءات أدوات MCP"
     },
-    "noPrices": "كميات فقط: الأسعار والخطط تُتفق خارج التطبيق. الأيام وفق المنطقة الزمنية للمؤسسة."
+    "noPrices": "كميات فقط: الأسعار والخطط تُتفق خارج التطبيق. الأيام وفق المنطقة الزمنية للمؤسسة.",
+    "planTitle": "الخطة والكشوف",
+    "onPlan": "على خطة {plan}: {fee} {currency} شهريًا، والاستخدام يُحتسب حسب الاتفاق.",
+    "noPlan": "لم تُعيّن خطة للمؤسسة.",
+    "statementsTitle": "الكشوف",
+    "month": "الشهر",
+    "total": "الإجمالي",
+    "statementStatus": "الحالة",
+    "statementStatuses": {
+      "DRAFT": "مسودة",
+      "ISSUED": "صادر"
+    }
+  },
+  "platform": {
+    "title": "المنصة: الخطط والكشوف",
+    "intro": "مسجّل الدخول كمشغّل {email}. الأسعار هي فقط ما تدخله هنا.",
+    "needsTwoFactor": "فعّل التحقق بخطوتين لاستخدام لوحة المنصة.",
+    "toSecurity": "الانتقال إلى الحساب ← الأمان",
+    "plansTitle": "الخطط",
+    "noPlans": "لا توجد خطة بعد. أضف واحدة أدناه.",
+    "code": "الرمز",
+    "name": "الاسم",
+    "currency": "العملة",
+    "monthlyFee": "الرسوم الشهرية",
+    "pricing": "تسعير الاستخدام",
+    "organizations": "المؤسسات",
+    "archived": "مؤرشفة",
+    "archive": "أرشفة",
+    "priceLine": "{included} مشمولة، ثم {price} لكل {per}",
+    "planForm": "إضافة خطة أو تعديلها",
+    "planHint": "الرمز نفسه يعدّل تلك الخطة؛ والكشوف غير الصادرة تتبع التعديل. اترك البند فارغًا لعدم احتسابه.",
+    "included": "المشمول",
+    "unitPrice": "السعر",
+    "per": "لكل",
+    "savePlan": "حفظ الخطة",
+    "saving": "جارٍ الحفظ…",
+    "planSaved": "حُفظت الخطة.",
+    "orgsTitle": "المؤسسات",
+    "organization": "المؤسسة",
+    "plan": "الخطة",
+    "noPlan": "بلا خطة",
+    "assign": "تعيين",
+    "assigned": "عُيّنت الخطة.",
+    "statementsTitle": "كشوف {month}",
+    "month": "الشهر (YYYY-MM)",
+    "show": "عرض",
+    "generate": "إنشاء المسودات أو تحديثها",
+    "generated": "{count, plural, one {مسودة واحدة} other {# مسودات}} أُنشئت أو حُدّثت.",
+    "noStatements": "لا يوجد كشف لهذا الشهر بعد.",
+    "status": {
+      "DRAFT": "مسودة",
+      "ISSUED": "صادر"
+    },
+    "issue": "إصدار",
+    "issueConfirm": "هل تريد إصدار هذا الكشف؟ لا يمكن تعديله بعد ذلك.",
+    "issuedBy": "أصدره {who} في {when}",
+    "lines": "بنود الكشف",
+    "item": "البند",
+    "used": "المستخدم",
+    "billable": "المحتسب",
+    "amount": "المبلغ",
+    "fee": "الرسوم الشهرية",
+    "perUnits": "{price} / {per}",
+    "metrics": {
+      "agent_runs": "دورات الوكلاء",
+      "agent_actions": "إجراءات نفّذها الوكلاء",
+      "agent_approvals": "مقترحات وافق عليها أشخاص",
+      "ai_input_tokens": "رموز الإدخال للذكاء الاصطناعي",
+      "ai_output_tokens": "رموز الإخراج للذكاء الاصطناعي",
+      "mcp_calls": "استدعاءات أدوات MCP"
+    }
   }
 }
