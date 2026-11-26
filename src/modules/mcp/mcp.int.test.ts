@@ -272,6 +272,90 @@ describe("MCP server (ADR-143)", () => {
     ).toBe(true);
   });
 
+  it("reads and changes agent settings as the key's person (ADR-160)", async () => {
+    type View = {
+      agent: string;
+      enabled: boolean;
+      runHour: number;
+      runDays: number[];
+      offeredAutonomy: string[];
+      settings: Record<string, unknown>;
+    };
+    const read = await call(readKey, "get_agent_settings", { agent: "MENU_MARGIN" });
+    const [mm] = (read.result?.structuredContent as { agents: View[] }).agents;
+    expect(mm).toMatchObject({
+      agent: "MENU_MARGIN",
+      enabled: true,
+      runDays: [1, 2, 3, 4, 5, 6, 7],
+      offeredAutonomy: ["SUGGEST", "ACT"],
+      settings: { maxIncreasePercent: 5 },
+    });
+    // Changing needs the decide scope.
+    expect(
+      (await call(readKey, "update_agent_settings", { agent: "DAILY_CLOSE", runHour: 4 })).error
+        ?.code,
+    ).toBe(-32602);
+
+    const changed = await call(decideKey, "update_agent_settings", {
+      agent: "DAILY_CLOSE",
+      enabled: true,
+      runHour: 4,
+      runDays: [7, 1, 2, 3, 4],
+      settings: { branches: ["RUH"], voidAlertPercent: 8 },
+    });
+    expect(changed.result?.structuredContent).toMatchObject({
+      agent: "DAILY_CLOSE",
+      enabled: true,
+      runHour: 4,
+      runDays: [1, 2, 3, 4, 7],
+      settings: { branches: ["RUH"], voidAlertPercent: 8 },
+    });
+    const stored = await getDb().agent.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, kind: "DAILY_CLOSE" },
+    });
+    expect((stored.settings as { branchIds: string[] }).branchIds).toHaveLength(1);
+    expect(JSON.stringify(changed.result?.structuredContent)).not.toContain(
+      (stored.settings as { branchIds: string[] }).branchIds[0],
+    );
+    const audit = await getDb().auditEvent.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, action: "agent.updated", entityId: stored.id },
+      orderBy: { occurredAt: "desc" },
+    });
+    expect(audit.requestId?.startsWith("mcp:")).toBe(true);
+
+    // What is not given stays; unknown settings, codes and bad values are refused.
+    const partial = await call(decideKey, "update_agent_settings", {
+      agent: "DAILY_CLOSE",
+      runHour: 5,
+    });
+    expect(partial.result?.structuredContent).toMatchObject({
+      runHour: 5,
+      runDays: [1, 2, 3, 4, 7],
+      settings: { voidAlertPercent: 8, branches: ["RUH"] },
+    });
+    const unknown = await call(decideKey, "update_agent_settings", {
+      agent: "DAILY_CLOSE",
+      settings: { foo: 1 },
+    });
+    expect([unknown.result?.isError, unknown.result?.content[0].text]).toEqual([
+      true,
+      "Not a setting of this agent: foo",
+    ]);
+    const badCode = await call(decideKey, "update_agent_settings", {
+      agent: "DAILY_CLOSE",
+      settings: { branches: ["NOPE"] },
+    });
+    expect(badCode.result?.content[0].text).toBe("Unknown branch: NOPE");
+    const badValue = await call(decideKey, "update_agent_settings", {
+      agent: "DAILY_CLOSE",
+      settings: { voidAlertPercent: 500 },
+    });
+    expect([badValue.result?.isError, badValue.result?.content[0].text]).toEqual([
+      true,
+      "Invalid input.",
+    ]);
+  });
+
   it("refuses missing, wrong-scope, revoked and company keys, and keys whose person left", async () => {
     const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
     expect((await rpc(null, ping)).status).toBe(401);

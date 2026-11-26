@@ -4925,6 +4925,34 @@ after skipped weekdays (ADR-157), missed runs and failed runs.
 - **Pure rule.** `daysToCheck` holds the rule. The job handler `agents.run`
   calls `runScheduledAgent`, which runs the other agents once as before.
 
+### ADR-160 AgaaS: agent settings over MCP — Accepted (built)
+
+Decision (2026-11-26): a settings manager's own agent can read and change
+the agents' settings over MCP (ADR-143). It goes through the same service
+as the Agents page.
+
+- **`get_agent_settings`** (`mcp:read`) returns, per agent:
+  - on or off;
+  - autonomy, and which levels the agent offers;
+  - run hour and weekdays (ADR-157);
+  - its own settings: thresholds, the limits it acts within (ADR-145), and
+    whether Claude investigates critical findings.
+
+  Warehouses and branches are given by code, never by record id.
+
+- **`update_agent_settings`** (`mcp:decide`) changes only what it is given;
+  the rest stays as it is. The merged settings are then saved through
+  `updateAgent`, the same as the page:
+  - settings managers only;
+  - the same validation;
+  - saving it switched on lends it the key person's access;
+  - audited as `agent.updated`, with the MCP request id.
+
+  It refuses unknown setting names, unknown codes and record ids.
+
+- **Raising trust** is better done with `change_agent_trust` (ADR-154),
+  which reads the agent's record first. The tool description says so.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |

@@ -4,6 +4,7 @@ import { decideProposal, getRun, listProposals, listRuns } from "@/modules/agent
 import { agentPerformance } from "@/modules/agents/performance";
 import { AGENT_KINDS, REJECTION_REASONS } from "@/modules/agents/rules";
 import { agentTrustSteps, changeAgentTrust } from "@/modules/agents/trust";
+import { agentSettingsView, updateAgentSettings } from "@/modules/agents/settings-io";
 import { hasPermission } from "@/modules/access/authorize";
 import { toPlain } from "@/modules/assistant/rules";
 import { TOOLS as ASSISTANT_TOOLS, runTool } from "@/modules/assistant/tools";
@@ -317,6 +318,73 @@ const agentTools: McpTool[] = [
           recordRead: i.recordRead,
         })),
       }));
+    },
+  },
+  {
+    name: "get_agent_settings",
+    title: "Agent settings",
+    description:
+      "For a settings manager: each agent's settings as on the Agents page — on or off, autonomy (and which levels it offers), run hour (0–23, the organization's time zone) and weekdays (1 = Monday … 7 = Sunday), and its own settings: the warehouses or branches it covers (by code; empty means all), thresholds, and the limits it acts within (order amounts, actions per run, price rise percent, hold hours).",
+    inputSchema: strict({
+      agent: { type: "string", enum: [...AGENT_KINDS], description: "Only this agent." },
+    }),
+    scope: "mcp:read",
+    readOnly: true,
+    feature: AGENTS,
+    async run(ctx, input) {
+      const i = parse(z.object({ agent: kind.optional() }), input);
+      if (!i) return invalid;
+      return attempt(async () => ({
+        agents: (await agentSettingsView(ctx)).filter((a) => !i.agent || a.agent === i.agent),
+      }));
+    },
+  },
+  {
+    name: "update_agent_settings",
+    title: "Change an agent's settings",
+    description:
+      "As this person (a settings manager), change some of one agent's settings, exactly as saving the Agents page; what is not given stays as it is. Read get_agent_settings first. Settings are validated as on the page; warehouses and branches are given by code. Switching an agent on, or saving it while on, lends it this person's access. To let an agent act within limits, prefer change_agent_trust, which reads its record first. Confirm the change with the person before calling.",
+    inputSchema: strict(
+      {
+        agent: { type: "string", enum: [...AGENT_KINDS], description: "The agent." },
+        enabled: { type: "boolean", description: "Switch it on or off." },
+        autonomy: {
+          type: "string",
+          enum: ["SUGGEST", "DRAFT", "ACT"],
+          description: "How far it may go.",
+        },
+        runHour: {
+          type: "integer",
+          minimum: 0,
+          maximum: 23,
+          description: "Local hour of its run.",
+        },
+        runDays: {
+          type: "array",
+          items: { type: "integer", minimum: 1, maximum: 7 },
+          minItems: 1,
+          maxItems: 7,
+          description: "ISO weekdays it runs on.",
+        },
+        settings: {
+          type: "object",
+          description:
+            "Some of the agent's own settings, by the names get_agent_settings returns (warehouses and branches as lists of codes).",
+        },
+      },
+      ["agent"],
+    ),
+    scope: "mcp:decide",
+    readOnly: false,
+    feature: AGENTS,
+    async run(ctx, input) {
+      const i = parse(z.object({ agent: kind }).passthrough(), input);
+      if (!i) return invalid;
+      const { agent, ...patch } = i as { agent: (typeof AGENT_KINDS)[number] } & Record<
+        string,
+        unknown
+      >;
+      return attempt(async () => updateAgentSettings(ctx, agent, patch));
     },
   },
 ];
