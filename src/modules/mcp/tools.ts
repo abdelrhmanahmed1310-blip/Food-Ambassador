@@ -12,7 +12,7 @@ import { agentPerformance } from "@/modules/agents/performance";
 import { AGENT_KINDS, REJECTION_REASONS } from "@/modules/agents/rules";
 import { agentTrustSteps, changeAgentTrust } from "@/modules/agents/trust";
 import { agentSettingsView, updateAgentSettings } from "@/modules/agents/settings-io";
-import { liftLinePauseByCodes, pausedLines } from "@/modules/agents/line-drops";
+import { dropProposalLine, liftLinePauseByCodes, pausedLines } from "@/modules/agents/line-drops";
 import { hasPermission } from "@/modules/access/authorize";
 import { toPlain } from "@/modules/assistant/rules";
 import { TOOLS as ASSISTANT_TOOLS, runTool } from "@/modules/assistant/tools";
@@ -453,6 +453,41 @@ const agentTools: McpTool[] = [
         "proposalId" in i
           ? liftProposalPause(ctx, i.proposalId)
           : liftLinePauseByCodes(ctx, i.warehouse, i.sku),
+      );
+    },
+  },
+  {
+    name: "drop_suggestion_line",
+    title: "Drop a product from an order suggestion",
+    description:
+      "As this person, take one product (by SKU) out of an open order suggestion (REORDER) from the replenishment agent, with a reason, exactly as in the Agents inbox: the rest stays to be approved, and the suggestion's total and the reorder rules it will order are updated. Reasons: not needed, already done, wrong amount, based on wrong data, bad timing, or other (explain in the note). Dropping the same product as not needed or already done twice within 30 days pauses it for that warehouse. The last line cannot be dropped; reject the suggestion instead. Needs the right to order for the suggestion's warehouse. Confirm with the person first.",
+    inputSchema: strict(
+      {
+        proposalId: { type: "string", description: "The order suggestion's ID." },
+        sku: { type: "string", description: "The product to drop." },
+        reason: { type: "string", enum: [...REJECTION_REASONS], description: "Why." },
+        note: { type: "string", maxLength: 500, description: "Needed for OTHER." },
+      },
+      ["proposalId", "sku", "reason"],
+    ),
+    scope: "mcp:decide",
+    readOnly: false,
+    feature: AGENTS,
+    async run(ctx, input) {
+      const i = parse(
+        z
+          .object({
+            proposalId: uuid,
+            sku: z.string().trim().min(1).max(60),
+            reason: z.enum(REJECTION_REASONS),
+            note: z.string().trim().max(500).optional(),
+          })
+          .strict(),
+        input,
+      );
+      if (!i) return invalid;
+      return attempt(async () =>
+        dropProposalLine(ctx, i.proposalId, { sku: i.sku, reason: i.reason, note: i.note }),
       );
     },
   },

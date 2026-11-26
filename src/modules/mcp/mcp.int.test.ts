@@ -9,6 +9,8 @@ import { addRecipePrice, listRecipePrices, updateRecipeSettings } from "@/module
 import { activateVersion, addIngredient, createRecipe } from "@/modules/recipes/recipes";
 import { createBranch } from "@/modules/sites/branches";
 import { createWarehouse } from "@/modules/sites/warehouses";
+import { saveReorderRule } from "@/modules/procurement/reorder";
+import { createSupplier, saveSupplierProduct } from "@/modules/procurement/suppliers";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
 import { addMember, createTenant, expectAppError } from "../../../test/support/factories";
@@ -369,6 +371,77 @@ describe("MCP server (ADR-143)", () => {
     // Nothing paused: refused by the rule, not an internal error.
     const none = await call(decideKey, "lift_pause", { warehouse: "MAIN", sku: "TOMATO" });
     expect(none.result?.isError).toBe(true);
+  });
+
+  it("drops a product from an order suggestion as the key's person (ADR-162)", async () => {
+    const units = Object.fromEntries((await listUnits(ctx)).map((u) => [u.code, u.id]));
+    const wh = await getDb().warehouse.findFirstOrThrow({
+      where: { organizationId: ctx.organizationId, code: "MAIN" },
+    });
+    const mills = (await createSupplier(ctx, { code: "MILLS", name: "Mills" })).id;
+    for (const sku of ["RICE", "FLOUR"]) {
+      const productId = (
+        await createProduct(ctx, { sku, nameEn: sku, type: "RAW_MATERIAL", baseUomId: units.kg })
+      ).id;
+      await saveSupplierProduct(ctx, mills, {
+        productId,
+        purchaseUomId: units.kg,
+        lastUnitPrice: "10",
+        preferred: "on",
+      });
+      await saveReorderRule(ctx, {
+        warehouseId: wh.id,
+        productId,
+        uomId: units.kg,
+        minQuantity: "5",
+        maxQuantity: "20",
+      });
+    }
+    await updateAgent(ctx, "REPLENISHMENT", {
+      enabled: true,
+      autonomy: "SUGGEST",
+      runHour: "6",
+      settings: { basis: "MIN_MAX" },
+    });
+    await runAgentNow(ctx, "REPLENISHMENT");
+    const list = await call(readKey, "list_agent_proposals");
+    const suggestion = (
+      list.result?.structuredContent as {
+        proposals: Array<{ id: string; kind: string; detail: { lines: Array<{ sku: string }> } }>;
+      }
+    ).proposals.find((p) => p.kind === "REORDER")!;
+    expect(suggestion.detail.lines.map((l) => l.sku).sort()).toEqual(["FLOUR", "RICE"]);
+
+    const args = { proposalId: suggestion.id, sku: "RICE", reason: "NOT_NEEDED" };
+    expect((await call(readKey, "drop_suggestion_line", args)).error?.code).toBe(-32602);
+    for (const bad of [
+      { ...args, reason: "BORED" },
+      { proposalId: suggestion.id, sku: "RICE" },
+      { ...args, extra: 1 },
+    ]) {
+      const r = await call(decideKey, "drop_suggestion_line", bad);
+      expect([r.result?.isError, r.result?.content[0].text]).toEqual([true, "Invalid input."]);
+    }
+    const other = await call(decideKey, "drop_suggestion_line", { ...args, reason: "OTHER" });
+    expect([other.result?.isError, other.result?.content[0].text]).toEqual([
+      true,
+      "Invalid input.",
+    ]);
+    const dropped = await call(decideKey, "drop_suggestion_line", args);
+    expect(dropped.result?.structuredContent).toMatchObject({ lines: 1 });
+    const audit = await getDb().auditEvent.findFirstOrThrow({
+      where: {
+        organizationId: ctx.organizationId,
+        action: "agent.line_dropped",
+        entityId: suggestion.id,
+      },
+    });
+    expect(audit.requestId?.startsWith("mcp:")).toBe(true);
+    // The last line is rejected, not dropped.
+    const last = await call(decideKey, "drop_suggestion_line", { ...args, sku: "FLOUR" });
+    expect(last.result?.content[0].text).toBe(
+      "This is the only line; reject the suggestion instead",
+    );
   });
 
   it("refuses missing, wrong-scope, revoked and company keys, and keys whose person left", async () => {

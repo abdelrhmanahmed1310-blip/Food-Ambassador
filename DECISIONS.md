@@ -4972,6 +4972,26 @@ as the inbox.
   pausing rejections per record, applies the ADR-155 rule, and keeps only
   records the person may decide.
 
+### ADR-162 AgaaS: dropping suggestion lines over MCP — Accepted (built)
+
+Decision (2026-11-26): `drop_suggestion_line` (`mcp:decide`) takes one
+product, by SKU, out of an open replenishment order suggestion, with a
+reason. It goes through the same service as the inbox (ADR-156):
+
+- only someone who can order for the warehouse;
+- the reasons of ADR-152, and OTHER needs a note;
+- never the last line;
+- the suggestion's lines, rules and total are updated;
+- repeated "not needed" or "already done" drops pause the product;
+- audited as `agent.line_dropped`, with the MCP request id.
+
+With this, every action in the Agents inbox is also available over MCP:
+
+- decide;
+- reject with a reason;
+- drop a line;
+- lift a pause.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
