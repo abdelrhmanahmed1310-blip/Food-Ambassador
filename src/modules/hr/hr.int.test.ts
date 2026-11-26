@@ -113,7 +113,9 @@ describe("HRIS (ADR-079)", () => {
     const seen = await getEmployee(branchManager, cook);
     expect(seen.nationalId).toBeNull();
     expect(seen.can.manage).toBe(false);
-    const audit = await getDb().auditEvent.findMany({ where: { entityId: cook } });
+    const audit = await getDb().auditEvent.findMany({
+      where: { organizationId: ctx.organizationId, entityId: cook },
+    });
     expect(JSON.stringify(audit)).not.toContain("2123456789");
   });
 

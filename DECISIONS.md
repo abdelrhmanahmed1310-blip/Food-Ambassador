@@ -2052,6 +2052,8 @@ country for now, so no inter-company transfer is built.
   one, as entered. Per-branch prices for modifier options and loyalty in
   several currencies are not built.
 
+Revised (2026-11-26): the database check that fixes a company's currency once it has stock or documents (`company_currency_fixed`) now filters each lookup by the company's organization first. It uses the organization-leading indexes instead of scanning every organization's orders, receipts, invoices and stock ledger.
+
 ### ADR-087 Job runner and notification centre — Accepted (F2a built)
 
 - **Jobs live in PostgreSQL** (`jobs`): no new infrastructure. A worker
