@@ -20,6 +20,7 @@ import { canRunDailyClose, runDailyClose } from "./daily-close";
 import { canRunFoodSafety, runFoodSafety } from "./food-safety";
 import { canRunInvoiceMatching, runInvoiceMatching } from "./invoice-matching";
 import { canRunMenuMargin, runMenuMargin } from "./menu-margin";
+import { CATCH_UP_DAYS, daysToCheck } from "./catch-up-rules";
 import { isoWeekday } from "./digest-rules";
 import { explainRun, explainRunNow } from "./explain";
 import { PAUSE_LOOKBACK_MS, PAUSING_REASONS, pausedUntil } from "./pause-rules";
@@ -541,6 +542,45 @@ export async function runAgent(
     await finish({ status: "FAILED", error: errorText(error) });
     return { runId: run.id, status: "FAILED" as const, error: errorText(error) };
   }
+}
+
+/**
+ * A scheduled run (ADR-140). The daily close catches up (ADR-159): it checks
+ * every day since the last day it checked successfully, up to 7, one run per
+ * day, oldest first; the other agents run once.
+ */
+export async function runScheduledAgent(
+  organizationId: string,
+  agentId: string,
+  runAsUserId: string,
+) {
+  const agent = await withTenantTx(organizationId, (tx) =>
+    tx.agent.findFirstOrThrow({
+      where: { organizationId, id: agentId },
+      select: { kind: true, organization: { select: { timeZone: true } } },
+    }),
+  );
+  if (agent.kind !== "DAILY_CLOSE")
+    return [await runAgent(organizationId, agentId, "SCHEDULE", runAsUserId)];
+  const yesterday = addDays(businessDate(agent.organization.timeZone), -1);
+  const recent = await withTenantTx(organizationId, (tx) =>
+    tx.agentRun.findMany({
+      where: {
+        organizationId,
+        agentId,
+        status: "SUCCEEDED",
+        businessDate: { not: null, gte: new Date(addDays(yesterday, -(CATCH_UP_DAYS + 30))) },
+      },
+      select: { businessDate: true },
+      orderBy: { businessDate: "desc" },
+    }),
+  );
+  const checked = new Set(recent.map((r) => r.businessDate!.toISOString().slice(0, 10)));
+  const last = recent[0]?.businessDate?.toISOString().slice(0, 10) ?? null;
+  const results = [];
+  for (const date of daysToCheck(yesterday, last, checked))
+    results.push(await runAgent(organizationId, agentId, "SCHEDULE", runAsUserId, { date }));
+  return results;
 }
 
 /** Run now from Settings: as the agent's person when on, else as the one asking. */

@@ -4882,9 +4882,7 @@ weekdays it runs on, for example replenishment Sunday to Thursday only.
   The service sorts the days and removes repeats.
 - The scheduler starts an agent only on its weekdays, in the organization's
   time zone, from its hour. "Run now" still works on any day.
-- The daily close checks the day before its run. A day after a skipped
-  weekday is not checked automatically; run it from the agent's page if
-  needed.
+- The daily close catches up on skipped days on its next run (ADR-159).
 - Audited with the other settings (`agent.updated`).
 
 ### ADR-158 AgaaS: the Weekly page — Accepted (built)
@@ -4910,6 +4908,20 @@ future week.
   (`/agents/week?week=<Monday>`).
 - **One query** gives the page and the digest the same figures, so they
   always agree.
+
+### ADR-159 AgaaS: the daily close catches up — Accepted (built)
+
+Decision (2026-11-26): a scheduled daily close checks every day since the
+last day it checked successfully, not only yesterday. This covers days
+after skipped weekdays (ADR-157), missed runs and failed runs.
+
+- **Order.** One run per day, oldest first, each with its own business date,
+  findings and notification.
+- **Limits.** It goes back at most 7 days and skips days already checked.
+  With no earlier check, it checks yesterday only.
+- **Manual runs.** "Run now" still checks yesterday (or the date asked).
+- **Pure rule.** `daysToCheck` holds the rule. The job handler `agents.run`
+  calls `runScheduledAgent`, which runs the other agents once as before.
 
 ## Business assumptions (recorded, not invented rules)
 

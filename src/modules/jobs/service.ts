@@ -1,6 +1,6 @@
 import { weeklyAgentDigest } from "@/modules/agents/digest";
 import { isoWeekday } from "@/modules/agents/digest-rules";
-import { dueAgents, executeDueActions, runAgent } from "@/modules/agents/service";
+import { dueAgents, executeDueActions, runScheduledAgent } from "@/modules/agents/service";
 import { generateStatementsFor } from "@/modules/billing/platform";
 import { warnUsageLimits } from "@/modules/billing/service";
 import { purgeOldConversations } from "@/modules/assistant/service";
@@ -132,13 +132,16 @@ const HANDLERS = {
   "nutrition.schedule": async () => scheduleNutritionRefresh(),
   // An agent's daily run (ADR-140): counts only, the run itself is recorded in agent_runs.
   "agents.run": async (payload) => {
-    const r = await runAgent(
+    // The daily close may check several skipped days (ADR-159).
+    const runs = await runScheduledAgent(
       String(payload.organizationId),
       String(payload.agentId),
-      "SCHEDULE",
       String(payload.runAsUserId),
     );
-    return { succeeded: r.status === "SUCCEEDED" ? 1 : 0, failed: r.status === "FAILED" ? 1 : 0 };
+    return {
+      succeeded: runs.filter((r) => r.status === "SUCCEEDED").length,
+      failed: runs.filter((r) => r.status === "FAILED").length,
+    };
   },
   // Last week's agent digest, on Monday morning (ADR-153).
   "agents.digest": async (payload) =>
