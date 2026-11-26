@@ -114,28 +114,28 @@ role `CREATEROLE` for the first run (ADR-013). A local superuser works as is.
 
 ## Commands
 
-| Command                        | Purpose                                                                                  |
-| ------------------------------ | ---------------------------------------------------------------------------------------- |
-| `pnpm dev`                     | Development server                                                                       |
-| `pnpm build` / `start`         | Production build / serve it                                                              |
-| `pnpm lint`                    | ESLint (zero warnings allowed)                                                           |
-| `pnpm format` / `format:check` | Prettier write / verify                                                                  |
-| `pnpm typecheck`               | Next route typegen + `tsc --noEmit`                                                      |
-| `pnpm test`                    | Unit tests (Vitest)                                                                      |
-| `pnpm test:integration`        | Integration tests against `TEST_DATABASE_URL` (applies migrations first)                 |
-| `pnpm test:e2e`                | Playwright against the production build and `TEST_DATABASE_URL` (run `pnpm build` first) |
-| `pnpm check`                   | format:check + lint + typecheck + unit tests + build                                     |
-| `pnpm db:generate`             | Regenerate the Prisma client                                                             |
-| `pnpm db:migrate`              | Create/apply a migration in development                                                  |
-| `pnpm db:deploy`               | Apply committed migrations (CI/production)                                               |
-| `pnpm db:seed`                 | Insert [DEMO] data (development only, idempotent)                                        |
-| `pnpm db:backup [dir]`         | Checksummed backup of `DATABASE_URL` (docs/OPERATIONS.md)                                |
-| `pnpm db:restore <dump> <url>` | Restore into an empty database, then verify                                              |
-| `pnpm db:verify`               | Integrity check: RLS, balances and values vs. ledger, migrations                         |
-| `pnpm library:import …`        | Import a full food-database download into one organization's ingredient library (below)  |
-| `pnpm jobs:run`                | Run the background job worker once (`--watch` to loop); see docs/OPERATIONS.md           |
-| `pnpm integrations:deliver`    | Send due outbound webhooks once (`--watch` to loop); see docs/INTEGRATIONS.md            |
-| `pnpm attachments:purge`       | Delete attachment contents past their 3-year retention (daily job)                       |
+| Command                        | Purpose                                                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                     | Development server                                                                                                                 |
+| `pnpm build` / `start`         | Production build / serve it                                                                                                        |
+| `pnpm lint`                    | ESLint (zero warnings allowed)                                                                                                     |
+| `pnpm format` / `format:check` | Prettier write / verify                                                                                                            |
+| `pnpm typecheck`               | Next route typegen + `tsc --noEmit`                                                                                                |
+| `pnpm test`                    | Unit tests (Vitest)                                                                                                                |
+| `pnpm test:integration`        | Integration tests against `TEST_DATABASE_URL`: empties and rebuilds it from the migrations first (`TEST_DB_KEEP=1` keeps the data) |
+| `pnpm test:e2e`                | Playwright against the production build and `TEST_DATABASE_URL` (run `pnpm build` first)                                           |
+| `pnpm check`                   | format:check + lint + typecheck + unit tests + build                                                                               |
+| `pnpm db:generate`             | Regenerate the Prisma client                                                                                                       |
+| `pnpm db:migrate`              | Create/apply a migration in development                                                                                            |
+| `pnpm db:deploy`               | Apply committed migrations (CI/production)                                                                                         |
+| `pnpm db:seed`                 | Insert [DEMO] data (development only, idempotent)                                                                                  |
+| `pnpm db:backup [dir]`         | Checksummed backup of `DATABASE_URL` (docs/OPERATIONS.md)                                                                          |
+| `pnpm db:restore <dump> <url>` | Restore into an empty database, then verify                                                                                        |
+| `pnpm db:verify`               | Integrity check: RLS, balances and values vs. ledger, migrations                                                                   |
+| `pnpm library:import …`        | Import a full food-database download into one organization's ingredient library (below)                                            |
+| `pnpm jobs:run`                | Run the background job worker once (`--watch` to loop); see docs/OPERATIONS.md                                                     |
+| `pnpm integrations:deliver`    | Send due outbound webhooks once (`--watch` to loop); see docs/INTEGRATIONS.md                                                      |
+| `pnpm attachments:purge`       | Delete attachment contents past their 3-year retention (daily job)                                                                 |
 
 Integration and E2E tests create uniquely named data and never reset the
 database, so they can be re-run against the same test database.
@@ -161,18 +161,18 @@ attribution, and share-alike applies to a database you publish from it),
 
 See [.env.example](.env.example). Never commit `.env` files or real secrets.
 
-| Variable                          | Required | Description                                                                                         |
-| --------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                    | yes      | PostgreSQL connection for the app and the Prisma CLI                                                |
-| `AUTH_SECRET`                     | yes      | 32+ character secret for session signing                                                            |
-| `APP_URL`                         | prod     | Public base URL (default `http://localhost:3000`); used for auth origin checks and invitation links |
-| `TRUSTED_PROXY_HOPS`              | no       | Reverse proxies in front of the app (default `1`; `0` if exposed directly) — see ADR-014            |
-| `TEST_DATABASE_URL`               | tests    | Separate database for integration/E2E tests                                                         |
-| `LOG_LEVEL`                       | no       | `fatal` · `error` · `warn` · `info` (default) · `debug`                                             |
-| `SEED_PASSWORD`                   | no       | Password for seeded demo users                                                                      |
-| `INTEGRATION_ENCRYPTION_KEY`      | prod     | 32 random bytes, base64; encrypts connector secrets (derived from `AUTH_SECRET` if unset)           |
-| `CLAMAV_URL`                      | no       | ClamAV daemon for attachment scanning, `tcp://host:3310`; unset = files marked "not virus-checked"  |
-| `INTEGRATIONS_ALLOW_PRIVATE_URLS` | no       | `1` lets outbound webhooks call http and private addresses — development only (default `0`)         |
+| Variable                          | Required | Description                                                                                                          |
+| --------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                    | yes      | PostgreSQL connection for the app and the Prisma CLI                                                                 |
+| `AUTH_SECRET`                     | yes      | 32+ character secret for session signing                                                                             |
+| `APP_URL`                         | prod     | Public base URL (default `http://localhost:3000`); used for auth origin checks and invitation links                  |
+| `TRUSTED_PROXY_HOPS`              | no       | Reverse proxies in front of the app (default `1`; `0` if exposed directly) — see ADR-014                             |
+| `TEST_DATABASE_URL`               | tests    | Separate database for integration/E2E tests; its name must end in `_test`, as it is emptied on every integration run |
+| `LOG_LEVEL`                       | no       | `fatal` · `error` · `warn` · `info` (default) · `debug`                                                              |
+| `SEED_PASSWORD`                   | no       | Password for seeded demo users                                                                                       |
+| `INTEGRATION_ENCRYPTION_KEY`      | prod     | 32 random bytes, base64; encrypts connector secrets (derived from `AUTH_SECRET` if unset)                            |
+| `CLAMAV_URL`                      | no       | ClamAV daemon for attachment scanning, `tcp://host:3310`; unset = files marked "not virus-checked"                   |
+| `INTEGRATIONS_ALLOW_PRIVATE_URLS` | no       | `1` lets outbound webhooks call http and private addresses — development only (default `0`)                          |
 
 ## Deployment
 
