@@ -889,6 +889,60 @@ export async function decideProposal(ctx: TenantContext, proposalId: string, raw
 }
 
 /**
+ * The records the agents stopped proposing after repeated rejections
+ * (ADR-155), for the person who could decide them: one entry per record with
+ * the latest pausing rejection (the one to lift) and when the pause ends.
+ */
+export async function pausedProposals(ctx: TenantContext, now = new Date()) {
+  if (!canSeeAgents(ctx)) throw forbidden();
+  const rows = await withTenantTx(ctx.organizationId, (tx) =>
+    tx.agentProposal.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        status: "REJECTED",
+        entityId: { not: null },
+        rejectionReason: { in: [...PAUSING_REASONS] },
+        pauseLiftedAt: null,
+        decidedAt: { gte: new Date(now.getTime() - PAUSE_LOOKBACK_MS) },
+      },
+      orderBy: { decidedAt: "desc" },
+      include: { agent: { select: { kind: true } } },
+    }),
+  );
+  const whBranch = await withTenantTx(ctx.organizationId, (tx) =>
+    warehouseBranchesInTx(tx, ctx.organizationId, [
+      ...new Set(rows.flatMap((r) => (r.warehouseId ? [r.warehouseId] : []))),
+    ]),
+  );
+  const groups = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const key = `${r.agentId}:${r.kind}:${r.entityId}:${r.branchId ?? ""}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  return [...groups.values()].flatMap((list) => {
+    const until = pausedUntil(
+      list.map((r) => ({
+        reason: r.rejectionReason,
+        decidedAt: r.decidedAt,
+        pauseLiftedAt: r.pauseLiftedAt,
+      })),
+      now,
+    );
+    const latest = list[0];
+    if (!until || !mayDecide(ctx.grants, latest, whBranch)) return [];
+    return [
+      {
+        proposalId: latest.id,
+        agent: latest.agent.kind as AgentKindCode,
+        kind: latest.kind,
+        title: latest.title,
+        until,
+      },
+    ];
+  });
+}
+
+/**
  * Let the agent propose a record again although people rejected it as not
  * needed or already done (ADR-155): for whoever could decide it.
  */

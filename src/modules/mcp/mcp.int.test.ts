@@ -356,6 +356,21 @@ describe("MCP server (ADR-143)", () => {
     ]);
   });
 
+  it("lists paused items and checks lift input (ADR-161)", async () => {
+    const list = await call(readKey, "list_paused_items", {});
+    expect(list.result?.structuredContent).toEqual({ proposals: [], products: [] });
+    expect(
+      (await call(readKey, "lift_pause", { warehouse: "MAIN", sku: "TOMATO" })).error?.code,
+    ).toBe(-32602);
+    for (const args of [{}, { proposalId: "x" }, { warehouse: "MAIN" }]) {
+      const r = await call(decideKey, "lift_pause", args);
+      expect([r.result?.isError, r.result?.content[0].text]).toEqual([true, "Invalid input."]);
+    }
+    // Nothing paused: refused by the rule, not an internal error.
+    const none = await call(decideKey, "lift_pause", { warehouse: "MAIN", sku: "TOMATO" });
+    expect(none.result?.isError).toBe(true);
+  });
+
   it("refuses missing, wrong-scope, revoked and company keys, and keys whose person left", async () => {
     const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
     expect((await rpc(null, ping)).status).toBe(401);

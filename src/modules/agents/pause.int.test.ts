@@ -9,7 +9,14 @@ import { createWarehouse } from "@/modules/sites/warehouses";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
 import { addMember, createTenant, expectAppError } from "../../../test/support/factories";
-import { decideProposal, getRun, liftProposalPause, runAgentNow, updateAgent } from "./service";
+import {
+  decideProposal,
+  getRun,
+  liftProposalPause,
+  pausedProposals,
+  runAgentNow,
+  updateAgent,
+} from "./service";
 
 /** Rejection reasons pause repeat proposals (ADR-155). */
 
@@ -91,11 +98,19 @@ describe("rejection reasons pause repeat proposals (ADR-155)", () => {
       ]),
     );
 
+    // Listed for whoever could decide it, with the latest rejection to lift (ADR-161).
+    expect(await pausedProposals(ctx)).toEqual([
+      expect.objectContaining({ proposalId: third.id, agent: "MENU_MARGIN", kind: "PRICE_CHANGE" }),
+    ]);
+    const viewer = (await addMember(ctx, "kitchen", {}, "pause-viewer")).ctx;
+    expect(await pausedProposals(viewer).catch(() => [])).toEqual([]);
+
     // Only a pausing rejection can be lifted, and only by someone who could decide it.
     await expectAppError(liftProposalPause(ctx, second.id), "BUSINESS_RULE_VIOLATION");
     const cook = (await addMember(ctx, "kitchen", {}, "pause-cook")).ctx;
     await expectAppError(liftProposalPause(cook, third.id), "FORBIDDEN");
     expect(await liftProposalPause(ctx, third.id)).toEqual({ lifted: 2 });
+    expect(await pausedProposals(ctx)).toEqual([]);
     expect(
       await getDb().auditEvent.count({
         where: { organizationId: ctx.organizationId, action: "agent.pause_lifted" },

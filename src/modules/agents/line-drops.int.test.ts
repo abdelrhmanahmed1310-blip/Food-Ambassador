@@ -7,7 +7,7 @@ import { createWarehouse } from "@/modules/sites/warehouses";
 import type { TenantContext } from "@/modules/tenancy/context";
 import { getDb } from "@/server/db/client";
 import { addMember, createTenant, expectAppError } from "../../../test/support/factories";
-import { dropProposalLine, liftLinePause, pausedLines } from "./line-drops";
+import { dropProposalLine, liftLinePause, liftLinePauseByCodes, pausedLines } from "./line-drops";
 import { getRun, runAgentNow, updateAgent } from "./service";
 
 /** Dropping products from order suggestions; repeated drops pause them (ADR-156). */
@@ -115,7 +115,9 @@ describe("drop lines from order suggestions (ADR-156)", () => {
     );
 
     await expectAppError(liftLinePause(analyst, kitchen, rice), "FORBIDDEN");
-    expect(await liftLinePause(ctx, kitchen, rice)).toEqual({ lifted: 2 });
+    // By codes, as outside agents do (ADR-161).
+    await expectAppError(liftLinePauseByCodes(ctx, "KIT", "NOPE"), "NOT_FOUND");
+    expect(await liftLinePauseByCodes(ctx, "KIT", "RICE")).toEqual({ lifted: 2 });
     expect(await pausedLines(ctx)).toEqual([]);
     await expectAppError(liftLinePause(ctx, kitchen, rice), "BUSINESS_RULE_VIOLATION");
     await runAgentNow(ctx, "REPLENISHMENT");

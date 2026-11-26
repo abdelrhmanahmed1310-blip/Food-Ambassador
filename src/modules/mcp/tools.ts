@@ -1,10 +1,18 @@
 import "server-only";
 import { z } from "zod";
-import { decideProposal, getRun, listProposals, listRuns } from "@/modules/agents/service";
+import {
+  decideProposal,
+  getRun,
+  liftProposalPause,
+  listProposals,
+  listRuns,
+  pausedProposals,
+} from "@/modules/agents/service";
 import { agentPerformance } from "@/modules/agents/performance";
 import { AGENT_KINDS, REJECTION_REASONS } from "@/modules/agents/rules";
 import { agentTrustSteps, changeAgentTrust } from "@/modules/agents/trust";
 import { agentSettingsView, updateAgentSettings } from "@/modules/agents/settings-io";
+import { liftLinePauseByCodes, pausedLines } from "@/modules/agents/line-drops";
 import { hasPermission } from "@/modules/access/authorize";
 import { toPlain } from "@/modules/assistant/rules";
 import { TOOLS as ASSISTANT_TOOLS, runTool } from "@/modules/assistant/tools";
@@ -385,6 +393,67 @@ const agentTools: McpTool[] = [
         unknown
       >;
       return attempt(async () => updateAgentSettings(ctx, agent, patch));
+    },
+  },
+  {
+    name: "list_paused_items",
+    title: "What the agents stopped proposing",
+    description:
+      "What the agents hold back because people rejected it twice in 30 days as not needed or already done, until when, for the records this person could decide: dish prices, credit requests and non-conformances (by the latest rejected proposal), and products left out of a warehouse's order suggestions (by warehouse code and SKU).",
+    inputSchema: strict({}),
+    scope: "mcp:read",
+    readOnly: true,
+    feature: AGENTS,
+    async run(ctx) {
+      return attempt(async () => ({
+        proposals: (await pausedProposals(ctx)).map((p) => ({
+          proposalId: p.proposalId,
+          agent: p.agent,
+          kind: p.kind,
+          title: p.title,
+          pausedUntil: p.until,
+        })),
+        products: (await pausedLines(ctx)).map((p) => ({
+          warehouse: p.warehouse,
+          sku: p.sku,
+          name: p.name,
+          pausedUntil: p.until,
+        })),
+      }));
+    },
+  },
+  {
+    name: "lift_pause",
+    title: "Let an agent propose something again",
+    description:
+      'As this person, let an agent propose again what it stopped proposing after repeated rejections: give either the proposalId from list_paused_items, or a warehouse code and SKU for a product. Exactly as "Allow proposing this again" in the Agents inbox, for whoever could decide it; audited. Confirm with the person first.',
+    inputSchema: strict({
+      proposalId: { type: "string", description: "A paused record's latest rejected proposal." },
+      warehouse: { type: "string", description: "Warehouse code (with sku)." },
+      sku: { type: "string", description: "Product SKU (with warehouse)." },
+    }),
+    scope: "mcp:decide",
+    readOnly: false,
+    feature: AGENTS,
+    async run(ctx, input) {
+      const i = parse(
+        z.union([
+          z.object({ proposalId: uuid }).strict(),
+          z
+            .object({
+              warehouse: z.string().trim().min(1).max(60),
+              sku: z.string().trim().min(1).max(60),
+            })
+            .strict(),
+        ]),
+        input,
+      );
+      if (!i) return invalid;
+      return attempt(async () =>
+        "proposalId" in i
+          ? liftProposalPause(ctx, i.proposalId)
+          : liftLinePauseByCodes(ctx, i.warehouse, i.sku),
+      );
     },
   },
 ];

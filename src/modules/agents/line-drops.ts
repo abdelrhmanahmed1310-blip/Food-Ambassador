@@ -187,3 +187,19 @@ export async function liftLinePause(ctx: TenantContext, warehouseId: string, pro
     return { lifted: lifted.count };
   });
 }
+
+/** Lift a product's pause by warehouse code and SKU, for outside agents (ADR-161). */
+export async function liftLinePauseByCodes(ctx: TenantContext, warehouse: string, sku: string) {
+  const ids = await withTenantTx(ctx.organizationId, async (tx) => ({
+    warehouse: await tx.warehouse.findFirst({
+      where: { organizationId: ctx.organizationId, code: warehouse },
+      select: { id: true },
+    }),
+    product: await tx.product.findFirst({
+      where: { organizationId: ctx.organizationId, sku },
+      select: { id: true },
+    }),
+  }));
+  if (!ids.warehouse || !ids.product) throw notFound("Paused product");
+  return liftLinePause(ctx, ids.warehouse.id, ids.product.id);
+}

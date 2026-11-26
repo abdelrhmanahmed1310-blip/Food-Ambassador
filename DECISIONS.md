@@ -4953,6 +4953,25 @@ as the Agents page.
 - **Raising trust** is better done with `change_agent_trust` (ADR-154),
   which reads the agent's record first. The tool description says so.
 
+### ADR-161 AgaaS: paused items over MCP — Accepted (built)
+
+Decision (2026-11-26): customers' own agents can see what the agents stopped
+proposing after repeated rejections, and lift a pause, with the same rules
+as the inbox.
+
+- **`list_paused_items`** (`mcp:read`) returns, for the records the key's
+  person could decide:
+  - paused proposals (ADR-155): dish prices, credit requests and
+    non-conformances, each with the latest rejected proposal and the date
+    the pause ends;
+  - paused products (ADR-156), by warehouse code and SKU, with the end date.
+- **`lift_pause`** (`mcp:decide`) takes either that proposal id, or a
+  warehouse code and SKU. It goes through the same services as "Allow
+  proposing this again", with the same permission and audit.
+- **`pausedProposals`** is the new service behind the list. It groups the
+  pausing rejections per record, applies the ADR-155 rule, and keeps only
+  records the person may decide.
+
 ## Business assumptions (recorded, not invented rules)
 
 | ID   | Assumption                                                                                                                                                                                                                                    | Status                 |
